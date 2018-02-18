@@ -1,8 +1,6 @@
 FROM openjdk:8-jre-alpine
 
-COPY data/* opt/
-COPY bulk-load.sh opt/
-COPY loop.sh opt/
+COPY bin/* opt/
 
 WORKDIR /opt
 
@@ -24,9 +22,7 @@ RUN curl --fail --silent --show-error --location --remote-name ${NEO4J_URI} \
     && mv /var/lib/neo4j-* /var/lib/neo4j \
     && rm ${NEO4J_TARBALL}
 
-COPY neo4j.conf /var/lib/neo4j/conf
-RUN chmod 0444 /var/lib/neo4j/conf/* \
- 	&& sh /opt/bulk-load.sh
+RUN sh /opt/build.sh /opt
 
 EXPOSE 7474 7473 7687
 
