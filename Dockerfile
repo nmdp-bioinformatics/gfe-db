@@ -54,4 +54,4 @@ RUN sh /opt/build.sh /opt
 
 EXPOSE 7474 7473 7687
 
-CMD ["NEO4J_CONF=/opt/conf","/var/lib/neo4j/bin/neo4j", "console"]
+CMD ["/var/lib/neo4j/bin/neo4j", "console"]

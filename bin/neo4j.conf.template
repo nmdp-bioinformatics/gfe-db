@@ -23,7 +23,7 @@ dbms.directories.import=import
 
 # Whether requests to Neo4j are authenticated.
 # To disable authentication, uncomment this line
-#dbms.security.auth_enabled=false
+dbms.security.auth_enabled=false
 
 # Enable this to be able to upgrade a store from an older version.
 #dbms.allow_format_migration=true
@@ -51,7 +51,7 @@ dbms.directories.import=import
 
 # With default configuration Neo4j only accepts local connections.
 # To accept non-local connections, uncomment this line:
-#dbms.connectors.default_listen_address=0.0.0.0
+dbms.connectors.default_listen_address=0.0.0.0
 
 # You can also choose a specific network interface, and configure a non-default
 # port for each connector, by setting their individual listen_address.
