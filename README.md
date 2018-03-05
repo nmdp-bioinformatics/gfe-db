@@ -2,6 +2,14 @@
 Graph database representing IPD-IMGT/HLA sequence data as GFE
 
 
+## Building graph
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+python bin/build_graph.py
+
+
 ## Docker
 The easiest way to get the service running locally, is to pull an image containing the service from docker hub. Running the following command will pull the latest GFE service image from docker hub. The image on docker hub is built from the *Dockerfile* in the *docker* directory in the github repository. Every new commit to the *nmdp-bioinformatics/service-gfe-submission* repository triggers a new build of the docker image on docker hub.
 
