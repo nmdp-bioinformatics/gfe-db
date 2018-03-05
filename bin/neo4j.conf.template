@@ -23,7 +23,7 @@ dbms.directories.import=import
 
 # Whether requests to Neo4j are authenticated.
 # To disable authentication, uncomment this line
-#dbms.security.auth_enabled=false
+dbms.security.auth_enabled=false
 
 # Enable this to be able to upgrade a store from an older version.
 #dbms.allow_format_migration=true
@@ -66,7 +66,7 @@ dbms.directories.import=import
 # individual advertised_address.
 
 # Bolt connector
-dbms.connector.bolt.enabled=true
+dbms.connector.bolt.enabled=false
 #dbms.connector.bolt.tls_level=OPTIONAL
 #dbms.connector.bolt.listen_address=:7687
 

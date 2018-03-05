@@ -397,7 +397,7 @@ def main():
 
     load_loci = hla_loci + kir_loci
     verbosity = 1
-    release_n = 2
+    release_n = 1
 
     kir = False
     debug = False
