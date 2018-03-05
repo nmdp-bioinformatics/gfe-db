@@ -3,12 +3,11 @@ FROM openjdk:8-jre-alpine
 COPY bin/* opt/
 COPY requirements.txt opt/
 
-
 WORKDIR /opt
 
 ENV NEO4J_HOME /var/lib/neo4j
 ENV NEO4J_BIN /var/lib/neo4j/bin
-ENV NEO4J_CONF /var/lib/neo4j/conf
+ENV NEO4J_CONF /opt/conf
 
 RUN apk add --no-cache --quiet \
     bash \
@@ -55,4 +54,4 @@ RUN sh /opt/build.sh /opt
 
 EXPOSE 7474 7473 7687
 
-CMD ["/var/lib/neo4j/bin/neo4j", "console"]
+CMD ["NEO4J_CONF=/opt/conf","/var/lib/neo4j/bin/neo4j", "console"]
