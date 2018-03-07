@@ -2,25 +2,39 @@
 Graph database representing IPD-IMGT/HLA sequence data as GFE
 
 
-## Building graph
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-python bin/build_graph.py
-
-
 ## Docker
-The easiest way to get the service running locally, is to pull an image containing the service from docker hub. Running the following command will pull the latest GFE service image from docker hub. The image on docker hub is built from the *Dockerfile* in the *docker* directory in the github repository. Every new commit to the *nmdp-bioinformatics/service-gfe-submission* repository triggers a new build of the docker image on docker hub.
+The easiest way to get the service running locally, is to pull an image containing the service from Docker hub. You can build the image locally and increase the number of IMGT/HLA releases loaded and include KIR or pull the pre-built image from Docker hub. The environment variable **RELEASES** specifies how many IMGT/HLA release you want to be loaded into the graph. The deafult number of releases is one. The environment variable **KIR** specifies if you want KIR to be loaded or not. By default KIR data is not loaded into the graph.
 
+#### Building and running locally
 ```bash
-docker pull nmdpbioinformatics/gfe-db:0.0.3260-hlai
-docker run -d --name gfe-db -p 7474:7474 nmdpbioinformatics/gfe-db:0.0.3260-hlai
+git clone https://github.com/nmdp-bioinformatics/gfe-db
+cd gfe-db
+# Builds the graph with 3 IMGT/HLA DB versions and also adds KIR data
+docker build -t gfe-db -e RELEASE=3 -e KIR=True .
+docker run -d --name gfe-db -p 7474:7474 gfe-db
 ```
-The *-d* flag runs the service in "detached-mode" in the background and *-p* specifies what ports to expose. Make sure the ports you expose are not already in use. If the docker container is successfuly executed then typing ``docker ps -a`` will show a new container labeled *service-gfe-submission* running. 
+
+#### Pulling from Docker hub
+```bash
+# ** Image on Docker hub has only 1 IMGT release and KIR data is not loaded **
+docker pull nmdpbioinformatics/gfe-db
+docker run -d --name gfe-db -p 7474:7474 nmdpbioinformatics/gfe-db
+```
+The *-d* flag runs the service in "detached-mode" in the background and *-p* specifies what ports to expose. Make sure the ports you expose are not already in use. If the docker container is successfuly executed then typing ``docker ps -a`` will show a new container labeled **gfe-db** running. 
 
 [Click here](https://hub.docker.com/r/nmdpbioinformatics/gfe-db/) for more information on the publically available docker image. 
 
+## Building graph from source
+```
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cpanm install Bio::Perl
+export RELEASES=1
+export KIR=False
+sh bin/build.sh /output/directory
+sh bin/load_graph.sh  /output/directory
+```
 
 
 ### Related Links
