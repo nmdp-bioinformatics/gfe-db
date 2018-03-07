@@ -73,9 +73,6 @@ rm -f output/dbms/auth
 NEO4J_CONF=${NEO4J_CONF_DIR} ${NEO4J_ADMIN_CMD} set-initial-password ${NEO4J_DEFAULT_PASSWORD}
 
 # start neo4j
-NEO4J_CONF=${NEO4J_CONF_DIR} ${NEO4J_CMD} start
-
-
-
+NEO4J_CONF=${NEO4J_CONF_DIR} ${NEO4J_CMD} console
 
 

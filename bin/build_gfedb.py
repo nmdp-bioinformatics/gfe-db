@@ -386,6 +386,12 @@ def main():
                         help="Output directory",
                         type=str)
 
+    parser.add_argument("-r", "--releases",
+                        required=False,
+                        help="Number of IMGT/DB releases",
+                        default=1,
+                        type=int)
+
     parser.add_argument("-v", "--verbose",
                         help="Option for running in verbose",
                         action='store_true')
@@ -396,8 +402,8 @@ def main():
     outdir = args.outdir
 
     load_loci = hla_loci + kir_loci
+    release_n = args.releases
     verbosity = 1
-    release_n = 1
 
     kir = False
     debug = False

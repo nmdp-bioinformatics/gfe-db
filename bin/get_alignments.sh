@@ -9,7 +9,7 @@ mkdir -p ${DATA_DIR}
 loci="A B C DRB1 DQB1 DPB1 DPA1 DQA1"
 base_url="https://raw.githubusercontent.com/ANHIG/IMGTHLA"
 
-for dbversion in `python -c 'import pandas as pd;df = pd.read_html("https://www.ebi.ac.uk/ipd/imgt/hla/docs/release.html")[0];x = df.columns;print(" ".join(df[x[0]].tolist()[0:3]));'`;do
+for dbversion in `python -c 'import pandas as pd;df = pd.read_html("https://www.ebi.ac.uk/ipd/imgt/hla/docs/release.html")[0];x = df.columns;print(" ".join(df[x[0]].tolist()[0:4]));'`;do
 	for loc in ${loci};do
 		dbversion_trimmed=`echo ${dbversion} | sed 's/\.//g'`
 		msf_url=${base_url}/${dbversion_trimmed}"/msf/"${loc}"_gen.msf"

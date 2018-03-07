@@ -8,6 +8,8 @@ WORKDIR /opt
 ENV NEO4J_HOME /var/lib/neo4j
 ENV NEO4J_BIN /var/lib/neo4j/bin
 ENV NEO4J_CONF /opt/conf
+ENV RELEASES 1
+ENV KIR False
 
 RUN apk add --no-cache --quiet \
     bash \
@@ -54,4 +56,6 @@ RUN sh /opt/build.sh /opt
 
 EXPOSE 7474 7473 7687
 
-CMD ["/var/lib/neo4j/bin/neo4j", "console"]
+CMD sh /opt/load_graph.sh /opt
+
+
