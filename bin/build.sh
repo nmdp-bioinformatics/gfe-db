@@ -17,7 +17,12 @@ if [ "$KIR" == "True" ]; then
 	KIRFLAG="-k"
 fi
 
-sh ${BIN}/get_alignments.sh
+ALIGNFLAG=""
+if [ "$ALIGN" == "True" ]; then
+	echo "Loading ALIGNMENTS = " ${ALIGN}
+	ALIGNFLAG="-a"
+	sh ${BIN}/get_alignments.sh
+fi
 
-python3 ${BIN}/build_gfedb.py -o $1 -r ${RELEASES} ${KIRFLAG} -v
+python3 ${BIN}/build_gfedb.py -o $1 -r ${RELEASES} ${KIRFLAG} ${ALIGNFLAG} -v
 
