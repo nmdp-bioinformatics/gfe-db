@@ -8,8 +8,9 @@ WORKDIR /opt
 ENV NEO4J_HOME /var/lib/neo4j
 ENV NEO4J_BIN /var/lib/neo4j/bin
 ENV NEO4J_CONF /opt/conf
-ENV RELEASES 1
+ENV RELEASES "3200,3210,3310"
 ENV KIR False
+ENV ALIGN False
 
 RUN apk add --no-cache --quiet \
     bash \
