@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-
+# TODO: **** ADD HAS_FEATURE
+#       between SEQUENCE and features
 import pandas as pd
 from seqann.models.annotation import Annotation
 from Bio.SeqFeature import SeqFeature
