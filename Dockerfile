@@ -8,9 +8,9 @@ WORKDIR /opt
 ENV NEO4J_HOME /var/lib/neo4j
 ENV NEO4J_BIN /var/lib/neo4j/bin
 ENV NEO4J_CONF /opt/conf
-ARG RELEASES "3170,3190,3200,3210,3240,3250,3310"
-ARG KIR False
-ARG ALIGN False
+ARG RELEASES="3170,3190,3200,3210,3240,3250,3310"
+ARG KIR=False
+ARG ALIGN=False
 
 RUN apk add --no-cache --quiet \
     bash \
