@@ -10,7 +10,7 @@ phases:
     commands:
       - echo Build started on `date`
       - echo Building the Docker image...
-      - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG --build-arg RELEASES=`curl https://bon3e12ejj.execute-api.us-east-1.amazonaws.com/dev1/imgthla?releases=3` --build-arg ALIGN=True .
+      - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG --build-arg ALIGN=True --build-arg RELEASES=`curl https://bon3e12ejj.execute-api.us-east-1.amazonaws.com/dev1/imgthla?releases=3` .
       - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
   post_build:
     commands:
