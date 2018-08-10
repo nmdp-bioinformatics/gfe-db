@@ -2,6 +2,8 @@
 
 BIN=$(dirname "$0")
 
+RELEASES=`echo ${RELEASES} | sed s'/"//g'`
+
 # Check RELEASES 
 if [ "$RELEASES" ]; then
 	echo "Number of IMGT releases being loaded = " ${RELEASES}
