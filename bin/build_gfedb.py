@@ -23,7 +23,7 @@ imgt_hla = "https://www.ebi.ac.uk/ipd/imgt/hla/docs/release.html"
 imgt_kir = "https://www.ebi.ac.uk/ipd/kir/docs/version.html"
 kir_url = "ftp://ftp.ebi.ac.uk/pub/databases/ipd/kir/KIR.dat"
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+logging.basicConfig(format='%(asctime)s - %(name)-35s - %(levelname)-5s - %(funcName)s %(lineno)d: - %(message)s',
                     datefmt='%m/%d/%Y %I:%M:%S %p',
                     level=logging.INFO)
 
@@ -100,6 +100,10 @@ def hla_alignments(dbversion):
         nuc_seq = {"HLA-" + a.name: str(a.seq) for a in align_nuc}
         logging.info("Loaded " + str(len(nuc_seq)) + " nuc " + loc + " sequences")
         nuc_aln.update({loc: nuc_seq})
+
+        # https://github.com/ANHIG/IMGTHLA/issues/158 
+        if str(dbversion) == "3320":
+            continue
 
         logging.info("Loading " + sth_prot)
         align_prot = AlignIO.read(open(sth_prot), "stockholm")
@@ -447,6 +451,11 @@ def main():
 
     if args.verbose:
         verbose = True
+
+    if kir:
+        load_loci = hla_loci + kir_loci
+    else:
+        load_loci = hla_loci
 
     if args.debug:
         logging.info("Running in debug mode")

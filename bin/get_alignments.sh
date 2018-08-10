@@ -9,7 +9,11 @@ mkdir -p ${DATA_DIR}
 loci="A B C DRB1 DQB1 DPB1 DPA1 DQA1"
 base_url="https://raw.githubusercontent.com/ANHIG/IMGTHLA"
 
-for dbversion in `python -c 'import pandas as pd;df = pd.read_html("https://www.ebi.ac.uk/ipd/imgt/hla/docs/release.html")[0];x = df.columns;print(" ".join(df[x[0]].tolist()[0:4]));'`;do
+RELEASES=`echo ${RELEASES} | sed s'/"//'g | sed s'/,/ /'`
+
+echo "ALIGN RELEASES = ${RELEASES}"
+
+for dbversion in ${RELEASES};do
 	for loc in ${loci};do
 		dbversion_trimmed=`echo ${dbversion} | sed 's/\.//g'`
 		msf_url=${base_url}/${dbversion_trimmed}"/msf/"${loc}"_gen.msf"
@@ -30,8 +34,6 @@ for dbversion in `python -c 'import pandas as pd;df = pd.read_html("https://www.
 		rm ${DATA_DIR}/${dbversion_trimmed}/${loc}"_tmp.msf"
 		rm ${DATA_DIR}/${dbversion_trimmed}/${loc}"_tmp.sth"
 
-		echo ${DATA_DIR}/${dbversion_trimmed}"/"${loc}
-		ls -rtl ${DATA_DIR}/${dbversion_trimmed}/*.sth
 	done
 done
 
