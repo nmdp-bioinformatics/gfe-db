@@ -9,7 +9,7 @@ mkdir -p ${DATA_DIR}
 loci="A B C DRB1 DQB1 DPB1 DPA1 DQA1"
 base_url="https://raw.githubusercontent.com/ANHIG/IMGTHLA"
 
-RELEASES=`echo ${RELEASES} | sed s'/"//'g | sed s'/,/ /'`
+RELEASES=`echo ${RELEASES} | sed s'/"//'g | sed s'/,/ /g'`
 
 echo "ALIGN RELEASES = ${RELEASES}"
 
@@ -37,13 +37,15 @@ for dbversion in ${RELEASES};do
 	done
 done
 
-kirloci="'KIR3DS1 KIR3DP1 KIR3DL3 KIR3DL2 KIR3DL1 KIR2DS5 KIR2DS4 KIR2DS3 KIR2DS2 KIR2DS1 KIR2DP1 KIR2DL4"
-kirbase="ftp://ftp.ebi.ac.uk/pub/databases/ipd/kir/msf"
-for kirloc in ${kirloci};do
-	kirurl=${kirbase}/${kirloc}"_gen.msf"
-	curl -L ${kirurl} -o ${DATA_DIR}/${kirloc}"_gen.msf"
-	perl ${BIN}/change_format.pl ${DATA_DIR}/${kirloc}"_gen.msf" ${DATA_DIR}/${kirloc}"_gen.sth"
-	rm ${DATA_DIR}/${kirloc}"_gen.msf"
-done
 
+if [ "$KIR" == "True" ]; then
+	kirloci="'KIR3DS1 KIR3DP1 KIR3DL3 KIR3DL2 KIR3DL1 KIR2DS5 KIR2DS4 KIR2DS3 KIR2DS2 KIR2DS1 KIR2DP1 KIR2DL4"
+	kirbase="ftp://ftp.ebi.ac.uk/pub/databases/ipd/kir/msf"
+	for kirloc in ${kirloci};do
+		kirurl=${kirbase}/${kirloc}"_gen.msf"
+		curl -L ${kirurl} -o ${DATA_DIR}/${kirloc}"_gen.msf"
+		perl ${BIN}/change_format.pl ${DATA_DIR}/${kirloc}"_gen.msf" ${DATA_DIR}/${kirloc}"_gen.sth"
+		rm ${DATA_DIR}/${kirloc}"_gen.msf"
+	done
+fi
 
