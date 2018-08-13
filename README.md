@@ -10,7 +10,7 @@ The easiest way to get the service running locally, is to pull an image containi
 git clone https://github.com/nmdp-bioinformatics/gfe-db
 cd gfe-db
 # Builds the graph with 3 IMGT/HLA DB versions and also adds KIR data
-docker build -t gfe-db -e RELEASE=3 -e KIR=True .
+docker build -t gfe-db --build-arg IMGT="3310,3300" --build-arg AN=True .
 docker run -d --name gfe-db -p 7474:7474 gfe-db
 ```
 
@@ -30,8 +30,8 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 cpanm install Bio::Perl
-export RELEASES=1
-export KIR=False
+export IMGT="3310,3300"
+export AN=True
 sh bin/build.sh /output/directory
 sh bin/load_graph.sh  /output/directory
 ```
