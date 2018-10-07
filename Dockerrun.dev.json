@@ -1,5 +1,5 @@
 {
-  "AWSEBDockerrunVersion": "2",
+  "AWSEBDockerrunVersion": "1",
   "Image": {
     "Name": "682793961433.dkr.ecr.us-east-1.amazonaws.com/gfedb:dev",
     "Update": "true"
