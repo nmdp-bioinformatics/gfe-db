@@ -16,5 +16,5 @@ seqann==0.0.7
 six==1.11.0
 smmap2==2.0.3
 typing==3.6.4
-urllib3==1.22
+urllib3==1.23
 webencodings==0.5.1
