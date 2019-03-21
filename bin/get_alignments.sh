@@ -7,7 +7,7 @@ DATA_DIR=${BIN}/../data
 mkdir -p ${DATA_DIR}
 
 loci="A B C DRB1 DQB1 DPB1 DPA1 DQA1"
-base_url="https://raw.githubusercontent.com/ANHIG/IMGTHLA"
+base_url="https://media.githubusercontent.com/media/ANHIG/IMGTHLA"
 
 RELEASES=`echo ${RELEASES} | sed s'/"//'g | sed s'/,/ /g'`
 
