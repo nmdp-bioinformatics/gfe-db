@@ -603,7 +603,7 @@ def main():
 
         ard = ARD(db_striped)
 
-        dat_url = 'https://raw.githubusercontent.com/ANHIG/IMGTHLA/' \
+        dat_url = 'https://media.githubusercontent.com/media/ANHIG/IMGTHLA/' \
                   + db_striped + '/hla.dat'
         dat_file = data_dir + '/hla.' + str(db_striped) + ".dat"
 
