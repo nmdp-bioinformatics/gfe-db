@@ -1,4 +1,4 @@
-FROM mhalagan1nmdp/gfe-base:latest
+FROM 682793961433.dkr.ecr.us-east-1.amazonaws.com/gfedb
 
 COPY bin/* opt/
 COPY requirements.txt opt/
