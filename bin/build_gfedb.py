@@ -102,7 +102,7 @@ def hla_alignments(dbversion):
         nuc_aln.update({loc: nuc_seq})
 
         # https://github.com/ANHIG/IMGTHLA/issues/158 
-        if str(dbversion) == "3320":
+        if str(dbversion) == ["3320", "3360"]:
             continue
 
         logging.info("Loading " + sth_prot)
