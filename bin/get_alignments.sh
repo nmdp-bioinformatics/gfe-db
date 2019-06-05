@@ -38,7 +38,6 @@ for dbversion in ${RELEASES};do
 	done
 done
 
-
 if [ "$KIR" == "True" ]; then
 	kirloci="'KIR3DS1 KIR3DP1 KIR3DL3 KIR3DL2 KIR3DL1 KIR2DS5 KIR2DS4 KIR2DS3 KIR2DS2 KIR2DS1 KIR2DP1 KIR2DL4"
 	kirbase="ftp://ftp.ebi.ac.uk/pub/databases/ipd/kir/msf"

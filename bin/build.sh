@@ -26,5 +26,8 @@ if [ "$ALIGN" == "True" ]; then
 	sh ${BIN}/get_alignments.sh
 fi
 
-python3 ${BIN}/build_gfedb.py -o $1 -r ${RELEASES} ${KIRFLAG} ${ALIGNFLAG} -v
+#remove the offending lines of C that don't conform or are missing some information
+sed -i.bak /C*05:208N/d /data/3360/C_gen.sth
+sed -i.bak /C*05:206/d /data/3360/C_gen.sth
 
+python3 ${BIN}/build_gfedb.py -o $1 -r ${RELEASES} ${KIRFLAG} ${ALIGNFLAG} -v

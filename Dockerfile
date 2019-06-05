@@ -1,7 +1,7 @@
-FROM mhalagan1nmdp/gfe-base:latest
+FROM mhalagan1nmdp/gfe-base:latest 
 
-COPY bin/* opt/
-COPY requirements.txt opt/
+ADD bin/* /opt/
+ADD requirements.txt /opt
 
 WORKDIR /opt
 
@@ -9,7 +9,7 @@ ENV NEO4J_HOME /var/lib/neo4j
 ENV NEO4J_BIN /var/lib/neo4j/bin
 ENV NEO4J_CONF /opt/conf
 
-ARG IMGT="3170,3190,3200,3210,3240,3250,3310"
+ARG IMGT="3360"
 ARG K=False
 ARG AN=False
 

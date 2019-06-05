@@ -4,6 +4,11 @@
 # TODO: **** ADD HAS_FEATURE
 #       between SEQUENCE and features
 import pandas as pd
+try:
+    from typing import GenericMeta  # python 3.6
+except ImportError:
+    # in 3.7, genericmeta doesn't exist but we don't need it
+    class GenericMeta(type): pass
 from seqann.models.annotation import Annotation
 from Bio.SeqFeature import SeqFeature
 from pygfe.pygfe import pyGFE
@@ -45,7 +50,7 @@ skip_alleles = ["HLA-DRB5*01:11", "HLA-DRB5*01:12", "HLA-DRB5*01:13",
                 "HLA-DRB5*02:03", "HLA-DRB5*02:04", "HLA-DRB5*02:05",
                 "HLA-DRB5*01:01:02", "HLA-DRB5*01:03", "HLA-DRB5*01:05",
                 "HLA-DRB5*01:06", "HLA-DRB5*01:07", "HLA-DRB5*01:09",
-                "HLA-DRB5*01:10N"]
+                "HLA-DRB5*01:10N", "HLA-C*05:208N", "HLA-C*05:206"]
 
 hla_loci = ['HLA-A', 'HLA-B', 'HLA-C', 'HLA-DRB1', 'HLA-DQB1',
             'HLA-DPB1', 'HLA-DQA1', 'HLA-DPA1', 'HLA-DRB3',
@@ -90,7 +95,9 @@ def hla_alignments(dbversion):
         sth_prot = data_dir + "/../data/" + dbversion + "/" + loc.split("-")[1] + "_prot.sth"
 
         logging.info("Loading " + sth_gen)
-        align_gen = AlignIO.read(open(sth_gen), "stockholm")
+        print(skip_alleles)
+        #align_gen = AlignIO.read(open(sth_gen), "stockholm")
+        align_gen = next(AlignIO.parse(sth_gen, "stockholm"))
         gen_seq = {"HLA-" + a.name: str(a.seq) for a in align_gen}
         logging.info("Loaded " + str(len(gen_seq)) + " genomic " + loc + " sequences")
         gen_aln.update({loc: gen_seq})
@@ -102,8 +109,8 @@ def hla_alignments(dbversion):
         nuc_aln.update({loc: nuc_seq})
 
         # https://github.com/ANHIG/IMGTHLA/issues/158 
-        if str(dbversion) == ["3320", "3360"]:
-            continue
+        #if str(dbversion) == ["3320", "3360"]:
+        #    continue
 
         logging.info("Loading " + sth_prot)
         align_prot = AlignIO.read(open(sth_prot), "stockholm")
@@ -625,6 +632,7 @@ def main():
             if hasattr(allele, 'seq'):
                 hla_name = allele.description.split(",")[0]
                 loc = allele.description.split(",")[0].split("*")[0]
+                print (hla_name, skip_alleles, loc)
                 if hla_name in skip_alleles:
                     logging.info("SKIPPING = " + allele.description.split(",")[0] + " " + dbversion)
                     continue
