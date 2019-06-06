@@ -96,8 +96,8 @@ def hla_alignments(dbversion):
 
         logging.info("Loading " + sth_gen)
         print(skip_alleles)
-        #align_gen = AlignIO.read(open(sth_gen), "stockholm")
-        align_gen = next(AlignIO.parse(sth_gen, "stockholm"))
+        align_gen = AlignIO.read(open(sth_gen), "stockholm")
+        #align_gen = next(AlignIO.parse(sth_gen, "stockholm"))
         gen_seq = {"HLA-" + a.name: str(a.seq) for a in align_gen}
         logging.info("Loaded " + str(len(gen_seq)) + " genomic " + loc + " sequences")
         gen_aln.update({loc: gen_seq})

@@ -27,7 +27,6 @@ if [ "$ALIGN" == "True" ]; then
 fi
 
 #remove the offending lines of C that don't conform or are missing some information
-sed -i.bak /C*05:208N/d /data/3360/C_gen.sth
-sed -i.bak /C*05:206/d /data/3360/C_gen.sth
+cp /mod-imgt/C_gen.sth /data/3360
 
 python3 ${BIN}/build_gfedb.py -o $1 -r ${RELEASES} ${KIRFLAG} ${ALIGNFLAG} -v

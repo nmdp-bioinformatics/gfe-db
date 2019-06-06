@@ -1,6 +1,7 @@
 FROM mhalagan1nmdp/gfe-base:latest 
 
 ADD bin/* /opt/
+ADD mod-imgt/* /mod-imgt/
 ADD requirements.txt /opt
 
 WORKDIR /opt
