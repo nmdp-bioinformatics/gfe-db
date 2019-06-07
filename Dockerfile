@@ -1,14 +1,13 @@
 FROM mhalagan1nmdp/gfe-base:latest 
 
-ADD bin/* /opt/
-ADD mod-imgt/* /mod-imgt/
-ADD requirements.txt /opt
+COPY bin/*.* /opt/
+COPY mod-imgt /mod-imgt/
+COPY requirements.txt /opt/
 
 WORKDIR /opt
 
 ENV NEO4J_HOME /var/lib/neo4j
 ENV NEO4J_BIN /var/lib/neo4j/bin
-ENV NEO4J_CONF /opt/conf
 
 ARG IMGT="3360"
 ARG K=False
