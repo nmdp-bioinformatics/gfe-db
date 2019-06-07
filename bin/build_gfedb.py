@@ -46,6 +46,7 @@ alleleids = {}
 group_edges = {}
 trans_edges = {}
 
+#These skip_alleles don't appear to be working correctly
 skip_alleles = ["HLA-DRB5*01:11", "HLA-DRB5*01:12", "HLA-DRB5*01:13",
                 "HLA-DRB5*02:03", "HLA-DRB5*02:04", "HLA-DRB5*02:05",
                 "HLA-DRB5*01:01:02", "HLA-DRB5*01:03", "HLA-DRB5*01:05",
@@ -95,9 +96,7 @@ def hla_alignments(dbversion):
         sth_prot = data_dir + "/../data/" + dbversion + "/" + loc.split("-")[1] + "_prot.sth"
 
         logging.info("Loading " + sth_gen)
-        print(skip_alleles)
         align_gen = AlignIO.read(open(sth_gen), "stockholm")
-        #align_gen = next(AlignIO.parse(sth_gen, "stockholm"))
         gen_seq = {"HLA-" + a.name: str(a.seq) for a in align_gen}
         logging.info("Loaded " + str(len(gen_seq)) + " genomic " + loc + " sequences")
         gen_aln.update({loc: gen_seq})
@@ -632,7 +631,6 @@ def main():
             if hasattr(allele, 'seq'):
                 hla_name = allele.description.split(",")[0]
                 loc = allele.description.split(",")[0].split("*")[0]
-                print (hla_name, skip_alleles, loc)
                 if hla_name in skip_alleles:
                     logging.info("SKIPPING = " + allele.description.split(",")[0] + " " + dbversion)
                     continue
