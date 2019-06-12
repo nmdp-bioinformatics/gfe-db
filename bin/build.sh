@@ -27,14 +27,7 @@ if [ "$ALIGN" == "True" ]; then
 fi
 
 #modified the offending lines of C 05:206, 05:208N that don't conform or are missing some information
-#3360DATADIR=/data/3360
-#if test -f "$3360DATADIR"; then
-#    echo "$3360DATADIR exists"
 cp /mod-imgt/C_gen.sth /data/3360
-#else mkdir "$3360DATADIR"
-#    echo "$3360DATADIR does not exist - creating"
-#    cp /mod-imgt/C_gen.sth "$3360DATADIR"
-#fi
 
 
 python3 ${BIN}/build_gfedb.py -o $1 -r ${RELEASES} ${KIRFLAG} ${ALIGNFLAG} -v
