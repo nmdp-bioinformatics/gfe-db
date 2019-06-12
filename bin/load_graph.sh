@@ -71,6 +71,7 @@ ${NEO4J_IMPORT_CMD} --into ${GRAPH_PATH} \
     --relationships ${IMPORT_PATH}/seq_edges.csv  \
     --relationships ${IMPORT_PATH}/group_edges.csv \
     --relationships ${IMPORT_PATH}/cds_edges.csv \
+    --additional-config /opt/conf/neo4j.conf
 
 
 # Set default password to $NEO4J_DEFAULT_PASSWORD
