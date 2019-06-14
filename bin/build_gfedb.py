@@ -46,7 +46,7 @@ alleleids = {}
 group_edges = {}
 trans_edges = {}
 
-#These skip_alleles don't appear to be working correctly
+#The alleles are removed when the allele_nodes.csv is built
 skip_alleles = ["HLA-DRB5*01:11", "HLA-DRB5*01:12", "HLA-DRB5*01:13",
                 "HLA-DRB5*02:03", "HLA-DRB5*02:04", "HLA-DRB5*02:05",
                 "HLA-DRB5*01:01:02", "HLA-DRB5*01:03", "HLA-DRB5*01:05",
