@@ -44,17 +44,10 @@ ${NEO4J_CMD} stop
 # Remove the previous database
 rm -rf ${GRAPH_PATH}/*
 
-
-# import CVS into the graph database
-${NEO4J_IMPORT_CMD} --into ${GRAPH_PATH} \
-	--id-type INTEGER \
-	--nodes ${IMPORT_PATH}/allele_nodes.csv \
-	--nodes ${IMPORT_PATH}/sequence_nodes.csv \
-	--nodes ${IMPORT_PATH}/cds_nodes.csv \
-    --relationships ${IMPORT_PATH}/gfe_edges.csv \
-    --relationships ${IMPORT_PATH}/seq_edges.csv  \
-    --relationships ${IMPORT_PATH}/group_edges.csv \
-    --relationships ${IMPORT_PATH}/cds_edges.csv \
+# Copy the config to the conf directory
+#cp neo4j/conf/neo4j.conf.template ${NEO4J_CONF_DIR}/neo4j.conf
+#cp ${BIN}/neo4j.conf.template ${NEO4J_CONF_DIR}/neo4j.conf
+cp /opt/neo4j.conf.template /var/lib/neo4j/conf/neo4j.conf
 
 # Create conf directory
 NEO4J_CONF_DIR=${DATA_HOME}/conf
@@ -67,6 +60,19 @@ cp ${BIN}/neo4j.conf.template ${NEO4J_CONF_DIR}/neo4j.conf
 # Update neo4j.conf file
 echo dbms.directories.data=${DATA_HOME} >> ${NEO4J_CONF_DIR}/neo4j.conf
 echo dbms.active_database=${NEO4J_ACTIVE_DATABASE} >> ${NEO4J_CONF_DIR}/neo4j.conf
+
+# import CVS into the graph database
+${NEO4J_IMPORT_CMD} --into ${GRAPH_PATH} \
+	--id-type INTEGER \
+	--nodes ${IMPORT_PATH}/allele_nodes.csv \
+	--nodes ${IMPORT_PATH}/sequence_nodes.csv \
+	--nodes ${IMPORT_PATH}/cds_nodes.csv \
+    --relationships ${IMPORT_PATH}/gfe_edges.csv \
+    --relationships ${IMPORT_PATH}/seq_edges.csv  \
+    --relationships ${IMPORT_PATH}/group_edges.csv \
+    --relationships ${IMPORT_PATH}/cds_edges.csv \
+    --additional-config /opt/conf/neo4j.conf
+
 
 # Set default password to $NEO4J_DEFAULT_PASSWORD
 rm -f output/dbms/auth
