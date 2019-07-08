@@ -107,7 +107,7 @@ def hla_alignments(dbversion):
         logging.info("Loaded " + str(len(nuc_seq)) + " nuc " + loc + " sequences")
         nuc_aln.update({loc: nuc_seq})
 
-        # https://github.com/ANHIG/IMGTHLA/issues/158 
+        # https://github.com/ANHIG/IMGTHLA/issues/158
         #if str(dbversion) == ["3320", "3360"]:
         #    continue
 
@@ -352,7 +352,7 @@ def build_graph(groups, gfe, allele, features, dbversion,
         if uniqseq:
             seq_nodes.append([fullseqid, full_seq, "SEQUENCE", "SEQUENCE", 0,
                               len(full_seq), ''])
-        
+
         if load_alignments:
             if uniqaligng:
                 seq_nodes.append([genid, '', "GEN_ALIGN", "GEN_ALIGN", 0,
@@ -517,7 +517,7 @@ def main():
             if hasattr(allele, 'seq'):
                 loc = allele.description.split(",")[0].split("*")[0]
                 if loc in kir_loci and len(str(allele.seq)) > 5:
-                    if verbose:
+                    if debug:
                         logging.info("KIR = " + allele.description.split(",")[0] + " " + kir_release)
 
                     groups = []
@@ -533,7 +533,8 @@ def main():
                         logging.info("AMBIGS " + allele.description.split(",")[0] + " " + kir_release)
                         annotations = []
                         for ambig in ambigs:
-                            logging.info("AMBIG = " + ambig)
+                            if debug:
+                                logging.info("AMBIG = " + ambig)
                             aterm = ambig.split("/")[0].split("_")[0]
                             anno = {a: complete_annotation[a] for a in complete_annotation if a not in ambigs}
                             anno.update({ambig.split("/")[0]: complete_annotation[ambig]})
@@ -639,7 +640,7 @@ def main():
                     continue
 
                 if (loc in hla_loci or loc == "DRB5") and (len(str(allele.seq)) > 5):
-                    if verbose:
+                    if debug:
                         logging.info("HLA = " + allele.description.split(",")[0] + " " + dbversion)
 
                     a_name = allele.description.split(",")[0].split("-")[1]
@@ -731,5 +732,3 @@ if __name__ == '__main__':
     """The following will be run if file is executed directly,
     but not if imported as a module"""
     main()
-
-
