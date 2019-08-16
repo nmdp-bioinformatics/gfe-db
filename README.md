@@ -25,6 +25,8 @@ The *-d* flag runs the service in "detached-mode" in the background and *-p* spe
 [Click here](https://hub.docker.com/r/nmdpbioinformatics/gfe-db/) for more information on the publically available docker image. 
 
 ## Building graph from source
+The environment variable RELEASES specifies how many IMGT/HLA release you want to be loaded into the graph.
+
 ```
 python3 -m venv venv
 source venv/bin/activate
