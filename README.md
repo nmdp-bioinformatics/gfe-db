@@ -33,7 +33,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 cpanm install Bio::Perl
 export IMGT="3360,3370"
-export RELEASES=3360
+export RELEASES=3360  # this value should be either 3360 or 3370 
 export AN=True
 sh bin/build.sh /output/directory
 sh bin/load_graph.sh  /output/directory
