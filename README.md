@@ -32,7 +32,7 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 cpanm install Bio::Perl
-export IMGT="3310,3300"
+export IMGT="3360,3370"
 export AN=True
 sh bin/build.sh /output/directory
 sh bin/load_graph.sh  /output/directory
