@@ -9,17 +9,23 @@ The easiest way to get the service running locally, is to pull an image containi
 ```bash
 git clone https://github.com/nmdp-bioinformatics/gfe-db
 cd gfe-db
-# Builds the graph with 3 IMGT/HLA DB versions and also adds KIR data
+```
+
+ Builds the graph with 3 IMGT/HLA DB versions and also adds KIR data
+
+```bash
 docker build -t gfe-db --build-arg IMGT="3360,3370" --build-arg AN=True .
 docker run -d --name gfe-db -p 7474:7474 gfe-db
 ```
 
 #### Pulling from Docker hub
+ ** Image on Docker hub has only 1 IMGT release and KIR data is not loaded **
+
 ```bash
-# ** Image on Docker hub has only 1 IMGT release and KIR data is not loaded **
 docker pull nmdpbioinformatics/gfe-db
-docker run -d --name gfe-db -p 7474:7474 nmdpbioinformatics/gfe-db
+docker run -d --name gfe-db -p 7474:7474 -p 7687:7687 nmdpbioinformatics/gfe-db
 ```
+
 The *-d* flag runs the service in "detached-mode" in the background and *-p* specifies what ports to expose. Make sure the ports you expose are not already in use. If the docker container is successfuly executed then typing ``docker ps -a`` will show a new container labeled **gfe-db** running. 
 
 [Click here](https://hub.docker.com/r/nmdpbioinformatics/gfe-db/) for more information on the publically available docker image. 
