@@ -1,5 +1,2 @@
-beautifulsoup4==4.6.0
-biopython==1.70
-pyard==0.0.1
-pygfe==0.0.13
-seqann==0.0.7
+py-gfe==0.0.29
+py-ard==0.0.11

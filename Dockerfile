@@ -1,8 +1,4 @@
-FROM mhalagan1nmdp/gfe-base:latest 
-
-COPY bin/*.* /opt/
-COPY mod-imgt /mod-imgt/
-COPY requirements.txt /opt/
+FROM gfe-base:latest as gfe-graph-builder
 
 WORKDIR /opt
 
@@ -17,12 +13,24 @@ ENV RELEASES $IMGT
 ENV KIR $K
 ENV ALIGN $AN
 
+COPY mod-imgt /mod-imgt/
+COPY requirements.txt /opt/
+
 RUN pip3 install -r /opt/requirements.txt
+
+COPY bin/get_alignments.sh /opt/
+COPY bin/build_gfedb.py /opt/build_gfedb.py
+COPY bin/build.sh /opt/
+
+COPY biopython /opt/biopython
+RUN pip uninstall -y biopython && cd /opt/biopython/ && pip install .
 
 RUN sh /opt/build.sh /opt
 
-EXPOSE 7474 7473 7687
 
-CMD sh /opt/load_graph.sh /opt
+#
+#EXPOSE 7474 7473 7687
+#
+#CMD sh /opt/load_graph.sh /opt
 
 

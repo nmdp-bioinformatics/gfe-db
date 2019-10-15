@@ -57,7 +57,11 @@ docs/_build/
 
 # PyBuilder
 target/
-tags
 
 # pyenv python configuration file
 .python-version
+
+tags
+.idea/
+bin/numeric.v3.zip
+data/
