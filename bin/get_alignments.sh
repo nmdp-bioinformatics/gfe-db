@@ -1,13 +1,10 @@
 #!/usr/bin/env bash
 
-set -x
+BIN_DIR=$(dirname "$0")
 
-BIN=$(dirname "$0")
-
-DATA_DIR=${BIN}/../data
+DATA_DIR=${BIN_DIR}/../data
 mkdir -p "${DATA_DIR}"
 
-#base_url="https://media.githubusercontent.com/media/ANHIG/IMGTHLA"
 base_url="https://raw.githubusercontent.com/ANHIG/IMGTHLA"
 
 RELEASES=`echo ${RELEASES} | sed s'/"//'g | sed s'/,/ /g'`
