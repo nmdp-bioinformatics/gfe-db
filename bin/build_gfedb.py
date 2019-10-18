@@ -16,11 +16,12 @@ import os
 import urllib.request
 import re
 
-imgt_hla = "https://www.ebi.ac.uk/ipd/imgt/hla/docs/release.html"
-imgt_hla_url = 'https://media.githubusercontent.com/media/ANHIG/IMGTHLA/'
+imgt_hla = 'https://www.ebi.ac.uk/ipd/imgt/hla/docs/release.html'
+imgt_hla_media_url = 'https://media.githubusercontent.com/media/ANHIG/IMGTHLA/'
+imgt_hla_raw_url = 'https://raw.githubusercontent.com/ANHIG/IMGTHLA/'
 
-imgt_kir = "https://www.ebi.ac.uk/ipd/kir/docs/version.html"
-kir_url = "ftp://ftp.ebi.ac.uk/pub/databases/ipd/kir/KIR.dat"
+imgt_kir = 'https://www.ebi.ac.uk/ipd/kir/docs/version.html'
+kir_url = 'ftp://ftp.ebi.ac.uk/pub/databases/ipd/kir/KIR.dat'
 
 data_dir = os.path.dirname(__file__) + "/../data/"
 
@@ -606,8 +607,13 @@ def main():
 
         ard = ARD(db_striped)
 
-        dat_url = imgt_hla_url + db_striped + '/hla.dat'
-        dat_file = data_dir + 'hla.' + str(db_striped) + ".dat"
+        # The github URL changed from 3350 to media
+        if int(db_striped) < 3350:
+            dat_url = imgt_hla_raw_url + db_striped + '/hla.dat'
+        else:
+            dat_url = imgt_hla_media_url + db_striped + '/hla.dat'
+
+        dat_file = data_dir + 'hla.' + db_striped + ".dat"
 
         # Downloading DAT file
         if not os.path.isfile(dat_file):
