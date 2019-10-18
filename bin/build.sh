@@ -1,6 +1,5 @@
-#!/usr/bin/env bash
-
-BIN=$(dirname "$0")
+BIN_DIR=$(dirname "$0")
+CSV_DATA_DIR="../data/csv"
 
 RELEASES=$(echo "${RELEASES}" | sed s'/"//g')
 
@@ -23,11 +22,8 @@ ALIGNFLAG=""
 if [ "$ALIGN" == "True" ]; then
 	echo "Loading ALIGNMENTS = " "${ALIGN}"
 	ALIGNFLAG="-a"
-	sh "${BIN}"/get_alignments.sh
+	sh "${BIN_DIR}"/get_alignments.sh
 fi
 
-# modified the offending lines of C 05:206, 05:208N that don't conform or are missing some information
-# Only applicable for 3360
-cp /mod-imgt/C_gen.sth /data/3360
-
-python3 "${BIN}"/build_gfedb.py -o "$1" -r "${RELEASES}" ${KIRFLAG} ${ALIGNFLAG} -v
+mkdir -p "${CSV_DATA_DIR}"
+python3 "${BIN_DIR}"/build_gfedb.py -o "${CSV_DATA_DIR}" -r "${RELEASES}" ${KIRFLAG} ${ALIGNFLAG} -v

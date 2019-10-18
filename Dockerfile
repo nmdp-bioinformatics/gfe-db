@@ -1,9 +1,6 @@
-FROM gfe-base:latest as gfe-graph-builder
+FROM gfe-base:alpine37 as gfe-graph-builder
 
 WORKDIR /opt
-
-ENV NEO4J_HOME /var/lib/neo4j
-ENV NEO4J_BIN /var/lib/neo4j/bin
 
 ARG IMGT="3360"
 ARG K=False
@@ -13,24 +10,26 @@ ENV RELEASES $IMGT
 ENV KIR $K
 ENV ALIGN $AN
 
-COPY mod-imgt /mod-imgt/
-COPY requirements.txt /opt/
+RUN apk add curl
 
-RUN pip3 install -r /opt/requirements.txt
-
+# Copy the build scripts to /opt
 COPY bin/get_alignments.sh /opt/
 COPY bin/build_gfedb.py /opt/build_gfedb.py
 COPY bin/build.sh /opt/
 
-COPY biopython /opt/biopython
-RUN pip uninstall -y biopython && cd /opt/biopython/ && pip install .
-
 RUN sh /opt/build.sh /opt
 
 
-#
-#EXPOSE 7474 7473 7687
-#
-#CMD sh /opt/load_graph.sh /opt
+FROM neo4j:3.1 as neo4j-db-builder
+COPY --from=gfe-graph-builder --chown=neo4j:neo4j /data/csv /csv
 
+COPY bin/load_graph_docker.sh /opt/
+RUN /opt/load_graph_docker.sh /csv
 
+#
+#
+
+FROM neo4j:3.1
+COPY --from=neo4j-db-builder --chown=neo4j:neo4j /var/lib/neo4j/gfedb/graph.db /data/databases/graph.db
+
+ENV NEO4J_AUTH=neo4j
