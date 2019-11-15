@@ -1,4 +1,4 @@
-FROM gfe-base:alpine37 as gfe-graph-builder
+FROM nmdpbioinformatics/gfe-base as gfe-graph-builder
 
 WORKDIR /opt
 
@@ -31,5 +31,3 @@ RUN /opt/load_graph_docker.sh /csv
 
 FROM neo4j:3.1
 COPY --from=neo4j-db-builder --chown=neo4j:neo4j /var/lib/neo4j/gfedb/graph.db /data/databases/graph.db
-
-ENV NEO4J_AUTH=neo4j

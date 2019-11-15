@@ -13,8 +13,6 @@ RUN pip install --no-cache-dir \
 	lxml==4.4.1
 
 RUN pip install --no-cache-dir \
-	py-gfe==0.0.29 \
+	py-gfe==1.1.0 \
 	py-ard==0.0.11
 
-COPY biopython /opt/biopython
-RUN pip uninstall -y biopython && cd /opt/biopython/ && pip install .
