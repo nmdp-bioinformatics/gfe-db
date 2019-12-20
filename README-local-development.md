@@ -13,20 +13,21 @@ The py-ard pip version is good enough to use, so this does not need update on lo
 ### GFE-DB
 GFE-DB is the graph database representing IPD-IMGT/HLA sequence data as GFE. In order to run it locally:
 - Pull the [source code](https://github.com/nmdp-bioinformatics/gfe-db).
+ `git pull https://github.com/nmdp-bioinformatics/gfe-db`
 - Go inside root folder and create a new empty directory named "output".
-- Modify the line # 30 inside `bin/build.sh` and point it to your directories, in my case, I had to create a
-an empty directory named "data" in project root and change this line to : `cp ./mod-imgt/C_gen.sth ./data/3360`
+ `mkdir output`
 - You will be able to run following commands under "Build graph from source" successfully:
+
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-cpanm install Bio::Perl
 export IMGT="3360,3370"
 export RELEASES=3360  # this value should be either 3360 or 3370 
 export AN=True
 bash bin/build.sh ./output
 ```
+
 - Afterwards you will need to change the file `bin/load_graph.sh` and comment out line # 28 and uncomment
 line # 27 to point it to your output directory.
 - The file `bin/neo4j.conf.template` has a configuration template for gfe-db, this needs to be copied 
