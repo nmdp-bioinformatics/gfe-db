@@ -58,6 +58,9 @@ docs/_build/
 # PyBuilder
 target/
 
+# Jupyter Notebook
+.ipynb_checkpoints
+
 # pyenv python configuration file
 .python-version
 
@@ -65,3 +68,4 @@ tags
 .idea/
 bin/numeric.v3.zip
 data/
+*/numeric.v3.zip
