@@ -23,16 +23,22 @@ imgt_hla_raw_url = 'https://raw.githubusercontent.com/ANHIG/IMGTHLA/'
 imgt_kir = 'https://www.ebi.ac.uk/ipd/kir/docs/version.html'
 kir_url = 'ftp://ftp.ebi.ac.uk/pub/databases/ipd/kir/KIR.dat'
 
-data_dir = os.path.dirname(__file__) + "/../data/"
+
+data_dir = os.path.dirname(__file__) + "/../../data/"
 
 logging.basicConfig(format='%(asctime)s - %(name)-35s - %(levelname)-5s - %(funcName)s %(lineno)d: - %(message)s',
                     datefmt='%m/%d/%Y %I:%M:%S %p',
                     level=logging.INFO)
 
 expre_chars = ['N', 'Q', 'L', 'S']
-isutr = lambda f: True if re.search("UTR", f) else False
-to_second = lambda a: ":".join(a.split(":")[0:2]) + list(a)[-1] if list(a)[-1] in expre_chars and len(
+
+
+def isutr(f): return True if re.search("UTR", f) else False
+
+
+def to_second(a): return ":".join(a.split(":")[0:2]) + list(a)[-1] if list(a)[-1] in expre_chars and len(
     a.split(":")) > 2 else ":".join(a.split(":")[0:2])
+
 
 lastseqid = 1
 lastid = 1
@@ -92,13 +98,15 @@ def hla_alignments(dbversion):
         logging.info("Loading " + msf_gen)
         align_gen = AlignIO.read(open(msf_gen), "msf")
         gen_seq = {"HLA-" + a.name: str(a.seq) for a in align_gen}
-        logging.info("Loaded " + str(len(gen_seq)) + " genomic " + loc + " sequences")
+        logging.info("Loaded " + str(len(gen_seq)) +
+                     " genomic " + loc + " sequences")
         gen_aln.update({loc: gen_seq})
 
         logging.info("Loading " + msf_nuc)
         align_nuc = AlignIO.read(open(msf_nuc), "msf")
         nuc_seq = {"HLA-" + a.name: str(a.seq) for a in align_nuc}
-        logging.info("Loaded " + str(len(nuc_seq)) + " nuc " + loc + " sequences")
+        logging.info("Loaded " + str(len(nuc_seq)) +
+                     " nuc " + loc + " sequences")
         nuc_aln.update({loc: nuc_seq})
 
         # https://github.com/ANHIG/IMGTHLA/issues/158
@@ -108,7 +116,8 @@ def hla_alignments(dbversion):
         logging.info("Loading " + msf_prot)
         align_prot = AlignIO.read(open(msf_prot), "msf")
         prot_seq = {"HLA-" + a.name: str(a.seq) for a in align_prot}
-        logging.info("Loaded " + str(len(prot_seq)) + " prot " + loc + " sequences")
+        logging.info("Loaded " + str(len(prot_seq)) +
+                     " prot " + loc + " sequences")
         prot_aln.update({loc: prot_seq})
 
     return gen_aln, nuc_aln, prot_aln
@@ -312,7 +321,8 @@ def build_graph(groups, gfe, allele, features, dbversion,
                     cdsseqid = lastcdsid
                     cdsids.update({cds_seq: lastcdsid})
                     lastcdsid += 1
-                    cds_nodes.append([cdsseqid, "CDS", "CDS", cds_seq, tran_seq])
+                    cds_nodes.append(
+                        [cdsseqid, "CDS", "CDS", cds_seq, tran_seq])
 
                 tr_edges = []
                 seq_cds = "-".join([str(fullseqid), str(cdsseqid)])
@@ -490,6 +500,7 @@ def main():
                         load_features=False, store_features=True,
                         loci=load_loci)
 
+    # KIR process
     if kir:
         if verbose:
             logging.info("Adding KIR to GFE DB")
@@ -515,30 +526,38 @@ def main():
                 loc = allele.description.split(",")[0].split("*")[0]
                 if loc in kir_loci and len(str(allele.seq)) > 5:
                     if debug:
-                        logging.info("KIR = " + allele.description.split(",")[0] + " " + kir_release)
+                        logging.info(
+                            "KIR = " + allele.description.split(",")[0] + " " + kir_release)
 
                     groups = []
                     complete_annotation = get_features(allele)
-                    ambigs = [a for a in complete_annotation if re.search("/", a)]
+                    ambigs = [
+                        a for a in complete_annotation if re.search("/", a)]
 
                     aligned_seq = ''
                     if align:
                         if allele.description.split(",")[0] in aligned[loc]:
-                            aligned_seq = aligned[loc][allele.description.split(",")[0]]
+                            aligned_seq = aligned[loc][allele.description.split(",")[
+                                0]]
 
                     if ambigs:
-                        logging.info("AMBIGS " + allele.description.split(",")[0] + " " + kir_release)
+                        logging.info(
+                            "AMBIGS " + allele.description.split(",")[0] + " " + kir_release)
                         annotations = []
                         for ambig in ambigs:
                             if debug:
                                 logging.info("AMBIG = " + ambig)
                             aterm = ambig.split("/")[0].split("_")[0]
-                            anno = {a: complete_annotation[a] for a in complete_annotation if a not in ambigs}
-                            anno.update({ambig.split("/")[0]: complete_annotation[ambig]})
+                            anno = {
+                                a: complete_annotation[a] for a in complete_annotation if a not in ambigs}
+                            anno.update(
+                                {ambig.split("/")[0]: complete_annotation[ambig]})
                             annotations.append(anno)
 
-                            anno2 = {a: complete_annotation[a] for a in complete_annotation if a not in ambigs}
-                            anno2.update({aterm + "_" + ambig.split("/")[1]: complete_annotation[ambig]})
+                            anno2 = {
+                                a: complete_annotation[a] for a in complete_annotation if a not in ambigs}
+                            anno2.update(
+                                {aterm + "_" + ambig.split("/")[1]: complete_annotation[ambig]})
                             annotations.append(anno2)
 
                         for annotation in annotations:
@@ -547,6 +566,8 @@ def main():
                                              complete_annotation=True)
 
                             features, gfe = gfe_maker.get_gfe(ann, loc)
+
+                            # Build graph
                             (allelenode, gfeedge,
                              seq_nodes, cds_nodes, seq_edges,
                              trans_edge, grp_edges) = build_graph(groups,
@@ -621,17 +642,23 @@ def main():
                 logging.info("Downloading dat file from " + dat_url)
             urllib.request.urlretrieve(dat_url, dat_file)
 
+        # Parse DAT file
         a_gen = SeqIO.parse(dat_file, "imgt")
+
         if verbose:
             logging.info("Finished parsing dat file")
 
         i = 0
+
         for allele in a_gen:
+
             if hasattr(allele, 'seq'):
                 hla_name = allele.description.split(",")[0]
                 loc = allele.description.split(",")[0].split("*")[0]
+
                 if hla_name in skip_alleles:
-                    logging.info("SKIPPING = " + allele.description.split(",")[0] + " " + dbversion)
+                    logging.info(
+                        "SKIPPING = " + allele.description.split(",")[0] + " " + dbversion)
                     continue
 
                 if debug and (loc != "HLA-A" and i > 20):
@@ -639,7 +666,8 @@ def main():
 
                 if (loc in hla_loci or loc == "DRB5") and (len(str(allele.seq)) > 5):
                     if debug:
-                        logging.info("HLA = " + allele.description.split(",")[0] + " " + dbversion)
+                        logging.info(
+                            "HLA = " + allele.description.split(",")[0] + " " + dbversion)
 
                     a_name = allele.description.split(",")[0].split("-")[1]
                     groups = [["HLA-" + ard.redux(a_name, grp), grp] if ard.redux(a_name, grp) != a_name else None for
@@ -650,6 +678,8 @@ def main():
                     ann = Annotation(annotation=complete_annotation,
                                      method='match',
                                      complete_annotation=True)
+
+                    # This process takes a long time
                     features, gfe = gfe_maker.get_gfe(ann, loc)
 
                     # gen_aln, nuc_aln, prot_aln
@@ -659,14 +689,18 @@ def main():
 
                     if align:
                         if allele.description.split(",")[0] in gen_aln[loc]:
-                            aligned_gen = gen_aln[loc][allele.description.split(",")[0]]
+                            aligned_gen = gen_aln[loc][allele.description.split(",")[
+                                0]]
 
                         if allele.description.split(",")[0] in nuc_aln[loc]:
-                            aligned_nuc = nuc_aln[loc][allele.description.split(",")[0]]
+                            aligned_nuc = nuc_aln[loc][allele.description.split(",")[
+                                0]]
 
                         if allele.description.split(",")[0] in prot_aln[loc]:
-                            aligned_prot = prot_aln[loc][allele.description.split(",")[0]]
+                            aligned_prot = prot_aln[loc][allele.description.split(",")[
+                                0]]
 
+                    # Build graph
                     (allelenode, gfeedge,
                      seq_nodes, cds_nodes, seq_edges,
                      trans_edge, grp_edges) = build_graph(groups,
@@ -692,15 +726,21 @@ def main():
             logging.info("Finished loading IMGT DB " + dbversion)
     if verbose:
         logging.info("Finished loading ALL DB versions")
-    gfe_df = pd.DataFrame(gfe_e, columns=":START_ID(ALLELE),:END_ID(ALLELE),imgt_release,:TYPE".split(","))
-    seq_df = pd.DataFrame(seq_e, columns=":START_ID(ALLELE),:END_ID(SEQUENCE),imgt_release,accession,:TYPE".split(","))
+    gfe_df = pd.DataFrame(
+        gfe_e, columns=":START_ID(ALLELE),:END_ID(ALLELE),imgt_release,:TYPE".split(","))
+    seq_df = pd.DataFrame(
+        seq_e, columns=":START_ID(ALLELE),:END_ID(SEQUENCE),imgt_release,accession,:TYPE".split(","))
     seqn_df = pd.DataFrame(seq_n,
                            columns="sequenceId:ID(SEQUENCE),sequence,name,feature:LABEL,rank,length,seq:string[]".split(
                                ","))
-    allele_df = pd.DataFrame(allele_n, columns="alleleId:ID(ALLELE),name,alleletype:LABEL,locus".split(","))
-    group_df = pd.DataFrame(grp_e, columns=":START_ID(ALLELE),:END_ID(ALLELE),imgtdb,:TYPE".split(","))
-    cdsn_df = pd.DataFrame(cds_n, columns="cdsId:ID(CDS),name,cdstype:LABEL,cds,protein".split(","))
-    trs_df = pd.DataFrame(trs_e, columns=":START_ID(SEQUENCE),:END_ID(CDS),:TYPE".split(","))
+    allele_df = pd.DataFrame(
+        allele_n, columns="alleleId:ID(ALLELE),name,alleletype:LABEL,locus".split(","))
+    group_df = pd.DataFrame(
+        grp_e, columns=":START_ID(ALLELE),:END_ID(ALLELE),imgtdb,:TYPE".split(","))
+    cdsn_df = pd.DataFrame(
+        cds_n, columns="cdsId:ID(CDS),name,cdstype:LABEL,cds,protein".split(","))
+    trs_df = pd.DataFrame(
+        trs_e, columns=":START_ID(SEQUENCE),:END_ID(CDS),:TYPE".split(","))
 
     if verbose:
         gfe_es = str(len(gfe_df))

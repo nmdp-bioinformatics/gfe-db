@@ -26,4 +26,6 @@ if [ "$ALIGN" == "True" ]; then
 fi
 
 mkdir -p "${CSV_DATA_DIR}"
+
+# Run load script
 python3 "${BIN_DIR}"/build_gfedb.py -o "${CSV_DATA_DIR}" -r "${RELEASES}" ${KIRFLAG} ${ALIGNFLAG} -v

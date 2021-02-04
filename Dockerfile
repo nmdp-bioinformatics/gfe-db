@@ -21,6 +21,7 @@ RUN sh /opt/build.sh /opt
 
 
 FROM neo4j:3.1 as neo4j-db-builder
+
 COPY --from=gfe-graph-builder --chown=neo4j:neo4j /data/csv /csv
 
 COPY bin/load_graph_docker.sh /opt/
