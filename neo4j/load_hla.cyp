@@ -1,8 +1,0 @@
-MATCH (n) DETACH DELETE n;
-
-CREATE (gfe:GFE)
-CREATE (seq:SEQUENCE)
-CREATE (feature:FEATURE)
-CREATE (nuc_align:NUC_ALIGN)
-CREATE (gen_align:GEN_ALIGN)
-CREATE (prot_align:PROT_ALIGN)

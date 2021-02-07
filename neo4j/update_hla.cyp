@@ -69,7 +69,8 @@ FOREACH(_ IN CASE
 // (:GFE)-[:HAS_ALIGNMENT]->(GEN_ALIGN)
 // TO DO: set rel.accession value
 WITH align_row
-MATCH (gfe:GFE), (alignment:GEN_ALIGN)
+MATCH (gfe:GFE)
+MATCH (alignment:GEN_ALIGN)
 WHERE gfe.a_name = alignment.a_name AND align_row.label = "GEN_ALIGN"
 MERGE (gfe)-[rel:HAS_ALIGNMENT]->(alignment)
 SET rel.imgt_release = alignment.imgt_release,
@@ -225,11 +226,13 @@ MERGE (cds:CDS {
 // (:SEQUENCE)-[:HAS_CDS]->(:CDS)
 // TO DO: validate this relationship, confirm which value to match on
 WITH cds
-MATCH (seq:SEQUENCE), (cds:CDS)
+MATCH (seq:SEQUENCE)
+MATCH (cds:CDS)
 WHERE seq.alleleId = cds.alleleId
 MERGE (seq)-[rel:HAS_CDS]->(cds);
 // (:GFE)-[:HAS_SEQUENCE]->(SEQUENCE)
-MATCH (gfe:GFE), (seq:SEQUENCE)
+MATCH (gfe:GFE)
+MATCH (seq:SEQUENCE)
 WHERE gfe.sequence = seq.sequence
 MERGE (gfe)-[rel:HAS_SEQUENCE]->(seq)
 SET rel.imgt_release = seq.imgt_release,
@@ -248,14 +251,22 @@ WHERE gfe.hla_name = f.hla_name
 MERGE (gfe)-[rel:HAS_FEATURE]->(f)
 SET rel.imgt_release = f.imgt_release,
     rel.accession = f.accession;
+// (:IMGT_HLA)-[:HAS_GFE]->(:GFE)
+MATCH (hla:IMGT_HLA)
+MATCH (gfe:GFE)
+WHERE hla.hla_name = gfe.hla_name
+MERGE (hla)-[rel:HAS_GFE]->(gfe)
+SET rel.imgt_release = gfe.imgt_release;
 // (:IMGT_HLA)-[:HAS_SEQUENCE]->(SEQUENCE)
-MATCH (hla:IMGT_HLA), (seq:SEQUENCE)
+MATCH (hla:IMGT_HLA)
+MATCH (seq:SEQUENCE)
 WHERE hla.alleleId = seq.alleleId
 MERGE (hla)-[rel:HAS_SEQUENCE]->(seq)
 SET rel.imgt_release = seq.imgt_release,
     rel.accession = "0";
 // (:IMGT_HLA)-[:HAS_ALIGNMENT]->(SEQUENCE)
-MATCH (hla:IMGT_HLA), (seq:SEQUENCE)
+MATCH (hla:IMGT_HLA)
+MATCH (seq:SEQUENCE)
 WHERE hla.alleleId = seq.alleleId
 MERGE (hla)-[rel:HAS_ALIGNMENT]->(seq)
 SET rel.imgt_release = seq.imgt_release,
