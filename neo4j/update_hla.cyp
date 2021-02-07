@@ -1,3 +1,4 @@
+// TO DO: Replace dbversion parameter in CSV file path
 MATCH (n) DETACH DELETE n;
 LOAD CSV WITH HEADERS 
 FROM 'file:///gfe_sequences.3360.csv' as gfe_row

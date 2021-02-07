@@ -1,3 +1,6 @@
+# System files
+.DS_Store
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -64,8 +67,8 @@ target/
 # pyenv python configuration file
 .python-version
 
+# Project files
 tags
 .idea/
-bin/numeric.v3.zip
 # data/
-*/numeric.v3.zip
+numeric.v3.zip
