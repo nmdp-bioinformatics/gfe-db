@@ -306,7 +306,7 @@ def build_hla_graph(**kwargs):
                     ### Build dicts describing nodes and edges for each allele
                     # Separate CSV file
                     gfe_sequence = {
-                        "alleleId": allele.id,
+                        "allele_id": allele.id,
                         "gfe_name": gfe,
                         "locus": loc,
                         "hla_name": hla_name,
@@ -316,12 +316,12 @@ def build_hla_graph(**kwargs):
                         "imgt_release": imgt_release
                     }
 
-                    # Separate CSV file, GFE foreign key: alleleId
+                    # Separate CSV file, GFE foreign key: allele_id
                     allele_groups = []
 
                     for group in groups:
                         group_dict = {
-                            "alleleId": allele.id,
+                            "allele_id": allele.id,
                             "hla_name": hla_name,
                             "a_name": a_name,
                             "ard_id": group[0],
@@ -332,11 +332,11 @@ def build_hla_graph(**kwargs):
 
                         allele_groups.append(group_dict)
 
-                    # Build CDS dict for CSV export, foreign key: alleleId, hla_name
+                    # Build CDS dict for CSV export, foreign key: allele_id, hla_name
                     bp_seq, aa_seq = get_cds(allele)
 
                     cds = {
-                        "alleleId": allele.id,
+                        "allele_id": allele.id,
                         "hla_name": hla_name,
                         "bp_sequence": bp_seq,
                         "aa_sequence": aa_seq,
@@ -345,8 +345,8 @@ def build_hla_graph(**kwargs):
 
                     # features preprocessing steps
                     # 1) Convert seqann type to python dict using literal_eval
-                    # 2) add GFE foreign keys: alleleId, hla_name
-                    # 3) add columns: length
+                    # 2) add GFE foreign keys: allele_id, hla_name
+                    # 3) calculate columns: length
 
                     # features contains list of seqann objects, converts to dict, destructive step
                     features = \
@@ -357,16 +357,15 @@ def build_hla_graph(**kwargs):
 
                     # Append allele id's
                     # Note: Some alleles may have the same feature, but it may not be the same rank, 
-                    # so a feature should be identified with its allele by alleleId or HLA name
+                    # so a feature should be identified with its allele by allele_id or HLA name
                     for feature in features:
                         feature["term"] = feature["term"].upper()
-                        feature["alleleId"] = allele.id 
+                        feature["allele_id"] = allele.id 
                         feature["hla_name"] = hla_name
                         feature["imgt_release"] = imgt_release
 
                         # Avoid null values in CSV for Neo4j import
                         feature["hash_code"] = "none" if not feature["hash_code"] else feature["hash_code"]
-                        #feature["hla_name"] = "none" if not feature["hla_name"] else feature["hla_name"]
 
                     # Append data to respective list
                     data = zip(
