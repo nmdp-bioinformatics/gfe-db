@@ -36,16 +36,12 @@ isutr = lambda f: True if re.search("UTR", f) else False
 to_second = lambda a: ":".join(a.split(":")[0:2]) + list(a)[-1] if list(a)[-1] in expre_chars and len(
     a.split(":")) > 2 else ":".join(a.split(":")[0:2])
 
-lastseqid = 1
-lastid = 1
-lastcdsid = 1
-
-# The alleles are removed when the allele_nodes.csv is built
-skip_alleles = ["HLA-DRB5*01:11", "HLA-DRB5*01:12", "HLA-DRB5*01:13",
-                "HLA-DRB5*02:03", "HLA-DRB5*02:04", "HLA-DRB5*02:05",
-                "HLA-DRB5*01:01:02", "HLA-DRB5*01:03", "HLA-DRB5*01:05",
-                "HLA-DRB5*01:06", "HLA-DRB5*01:07", "HLA-DRB5*01:09",
-                "HLA-DRB5*01:10N", "HLA-C*05:208N", "HLA-C*05:206"]
+# # The alleles are removed when the allele_nodes.csv is built
+# skip_alleles = ["HLA-DRB5*01:11", "HLA-DRB5*01:12", "HLA-DRB5*01:13",
+#                 "HLA-DRB5*02:03", "HLA-DRB5*02:04", "HLA-DRB5*02:05",
+#                 "HLA-DRB5*01:01:02", "HLA-DRB5*01:03", "HLA-DRB5*01:05",
+#                 "HLA-DRB5*01:06", "HLA-DRB5*01:07", "HLA-DRB5*01:09",
+#                 "HLA-DRB5*01:10N", "HLA-C*05:208N", "HLA-C*05:206"]
 
 hla_loci = ['HLA-A', 'HLA-B', 'HLA-C', 'HLA-DRB1', 'HLA-DQB1',
             'HLA-DPB1', 'HLA-DQA1', 'HLA-DPA1', 'HLA-DRB3',
@@ -215,10 +211,10 @@ def build_hla_graph(**kwargs):
                     hla_name = allele.description.split(",")[0]
                     loc = allele.description.split(",")[0].split("*")[0]
 
-                    if hla_name in skip_alleles:
-                        logging.info(
-                            "SKIPPING = " + allele.description.split(",")[0] + " " + dbversion)
-                        continue
+                    # if hla_name in skip_alleles:
+                    #     logging.info(
+                    #         "SKIPPING = " + allele.description.split(",")[0] + " " + dbversion)
+                    #     continue
 
                     if debug and (loc != "HLA-A" and i > 20):
                         continue
@@ -592,7 +588,7 @@ def main():
         alignments=align, 
         verbose=verbose,
         to_csv=True, 
-        limit=3,
+        #limit=3,
         gfe_maker=gfe_maker)
 
     if verbose:
