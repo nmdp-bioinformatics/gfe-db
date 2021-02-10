@@ -70,5 +70,5 @@ target/
 # Project files
 tags
 .idea/
-# data/
+data/
 numeric.v3.zip
