@@ -17,14 +17,31 @@ for dbversion in ${RELEASES};do
   mkdir -p "${DATA_DIR}/${dbversion_trimmed}"
 	for loc in ${loci}
 	do
-		msf_url="${base_url}/${dbversion_trimmed}/msf/${loc}_gen.msf"
-		curl -L "${msf_url}" -o "${DATA_DIR}/${dbversion_trimmed}/${loc}_gen.msf"
 
-		msf_url="${base_url}/${dbversion_trimmed}/msf/${loc}_nuc.msf"
-		curl -L "${msf_url}" -o "${DATA_DIR}/${dbversion_trimmed}/${loc}_nuc.msf"
+		gen_msf="${DATA_DIR}/${dbversion_trimmed}/${loc}_gen.msf"
+		nuc_msf="${DATA_DIR}/${dbversion_trimmed}/${loc}_nuc.msf"
+		prot_msf="${DATA_DIR}/${dbversion_trimmed}/${loc}_prot.msf"
+	
+		if [ ! -f $gen_msf ]; then
+			msf_url="${base_url}/${dbversion_trimmed}/msf/${loc}_gen.msf"
+			curl -L "${msf_url}" -o "${gen_msf}"
+		else
+   			echo "${loc}_gen.msf already exists, skipping download..."
+		fi
 
-		msf_url="${base_url}/${dbversion_trimmed}/msf/${loc}_prot.msf"
-		curl -L "${msf_url}" -o "${DATA_DIR}/${dbversion_trimmed}/${loc}_prot.msf"
+		if [ ! -f $nuc_msf ]; then
+			msf_url="${base_url}/${dbversion_trimmed}/msf/${loc}_nuc.msf"
+			curl -L "${msf_url}" -o "${nuc_msf}"
+		else
+   			echo "${loc}_nuc.msf already exists, skipping download..."
+		fi
+
+		if [ ! -f $prot_msf ]; then
+			msf_url="${base_url}/${dbversion_trimmed}/msf/${loc}_prot.msf"
+			curl -L "${msf_url}" -o "${prot_msf}"
+		else
+   			echo "${loc}_prot.msf already exists, skipping download..."
+		fi
 	done
 done
 

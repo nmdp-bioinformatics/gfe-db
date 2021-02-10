@@ -388,7 +388,7 @@ def build_hla_graph(**kwargs):
 
             csv_output = {
                 "gfe_sequences": gfe_sequences,
-                "alignments": all_alignments,
+                "all_alignments": all_alignments,
                 "all_features": all_features,
                 "all_groups": all_groups,
                 "all_cds": all_cds
@@ -588,7 +588,7 @@ def main():
         alignments=align, 
         verbose=verbose,
         to_csv=True, 
-        limit=10,
+        limit=3,
         gfe_maker=gfe_maker)
 
     if verbose:
