@@ -242,6 +242,7 @@ def build_hla_graph(**kwargs):
                         features, gfe = gfe_maker.get_gfe(ann, loc)
 
                         # gen_aln, nuc_aln, prot_aln
+                        alignments_data = None
                         aligned_gen = ''
                         aligned_nuc = ''
                         aligned_prot = ''
@@ -379,6 +380,7 @@ def build_hla_graph(**kwargs):
                     # Alignments, features, and ARD groups can all be concatenated since the keys are the same
                     if alignments_data:
                         all_alignments = gen_alignments + nuc_alignments + prot_alignments
+
                     all_features = all_features + features        
                     all_groups = all_groups + allele_groups
 
@@ -388,11 +390,14 @@ def build_hla_graph(**kwargs):
 
             csv_output = {
                 "gfe_sequences": gfe_sequences,
-                "all_alignments": all_alignments,
                 "all_features": all_features,
                 "all_groups": all_groups,
                 "all_cds": all_cds
             }
+
+            # Add alignments data if there is
+            if alignments_data:
+                csv_output["all_alignments"] = all_alignments
 
             return csv_output
         

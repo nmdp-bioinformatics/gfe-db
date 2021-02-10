@@ -28,9 +28,10 @@ if [ "$KIR" == "True" ]; then
 fi
 
 echo "Check ALIGN..."
+echo $ALIGN
 ALIGNFLAG=""
 if [ "$ALIGN" == "True" ]; then
-	echo "Loading ALIGNMENTS = " "${ALIGN}"
+	echo "Loading ALIGNMENTS = ${ALIGN}"
 	ALIGNFLAG="-a"
 	sh "${BIN_DIR}"/get_alignments.sh
 fi
