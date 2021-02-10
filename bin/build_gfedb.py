@@ -5,6 +5,7 @@
 #       between SEQUENCE and features
 import pandas as pd
 from seqann.models.annotation import Annotation
+from seqann import gfe
 from Bio.SeqFeature import SeqFeature
 from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
@@ -15,6 +16,7 @@ import argparse
 import os
 import urllib.request
 import re
+import ast
 
 imgt_hla = 'https://www.ebi.ac.uk/ipd/imgt/hla/docs/release.html'
 imgt_hla_media_url = 'https://media.githubusercontent.com/media/ANHIG/IMGTHLA/'
@@ -67,6 +69,8 @@ kir_aligloci = ["KIR2DL4", "KIR2DP1", "KIR2DS1", "KIR2DS2", "KIR2DS3",
                 "KIR3DP1"]
 
 ard_groups = ['G', 'lg', 'lgx']
+
+
 
 
 def kir_alignments():
@@ -138,257 +142,308 @@ def get_features(seqrecord):
 
     return (annotation)
 
-
-def build_graph(groups, gfe, allele, features, dbversion,
-                align_gen, align_nuc, align_prot, allele_type, load_alignments):
-    global lastseqid
-    global lastid
-    global lastcdsid
-
-    loc = gfe.split("w")[0]
-    full_seq = str(allele.seq)
-
-    uniqseq = True
-    uniqalignp = True
-    uniqaligng = True
-    uniqalignn = True
-    uniqallele = True
-
-    seq_edges = []
-    seq_nodes = []
-    grp_edges = []
-    cds_nodes = []
-    group_nodes = []
-
-    if full_seq in seqids:
-        uniqseq = False
-        fullseqid = seqids[full_seq]
-    else:
-        fullseqid = lastseqid
-        seqids.update({full_seq: lastseqid})
-        lastseqid += 1
-
-    if load_alignments:
-        # Getting alignment IDs
-        if not align_gen:
-            uniqaligng = False
-        else:
-            if align_gen in seqids:
-                uniqaligng = False
-                genid = seqids[align_gen]
-            else:
-                genid = lastseqid
-                seqids.update({align_gen: lastseqid})
-                lastseqid += 1
-
-        if not align_nuc:
-            uniqalignn = False
-        else:
-            if align_nuc in seqids:
-                uniqalignn = False
-                nucid = seqids[align_nuc]
-            else:
-                nucid = lastseqid
-                seqids.update({align_nuc: lastseqid})
-                lastseqid += 1
-
-        if not align_prot:
-            uniqalignp = False
-        else:
-            if align_prot in seqids:
-                uniqalignp = False
-                protid = seqids[align_prot]
-            else:
-                protid = lastseqid
-                seqids.update({align_prot: lastseqid})
-                lastseqid += 1
-
-    # GFE ID
-    if gfe in alleleids:
-        gfeid = alleleids[gfe]
-        gfenode = []
-    else:
-        gfeid = lastid
-        alleleids.update({gfe: gfeid})
-        lastid += 1
-        gfenode = [[gfeid, gfe, "GFE", loc]]
-
-    # Allele ID
-    allele_name = allele.description.split(",")[0]
-    if allele_name in alleleids:
-        uniqallele = False
-        alleleid = alleleids[allele_name]
-    else:
-        alleleid = lastid
-        alleleids.update({allele_name: alleleid})
-        lastid += 1
-
-    # GFE
-    seq_edges.append([gfeid, fullseqid, dbversion, 0, "HAS_SEQUENCE"])
-
-    # Alleles
-    seq_edges.append([alleleid, fullseqid, dbversion, 0, "HAS_SEQUENCE"])
-
-    if load_alignments:
-        if align_gen:
-            seq_edges.append([gfeid, genid, dbversion, 0, "HAS_ALIGNMENT"])
-            seq_edges.append([alleleid, genid, dbversion, 0, "HAS_ALIGNMENT"])
-
-        if align_nuc:
-            seq_edges.append([gfeid, nucid, dbversion, 0, "HAS_ALIGNMENT"])
-            seq_edges.append([alleleid, nucid, dbversion, 0, "HAS_ALIGNMENT"])
-
-        if align_prot:
-            seq_edges.append([gfeid, protid, dbversion, 0, "HAS_ALIGNMENT"])
-            seq_edges.append([alleleid, protid, dbversion, 0, "HAS_ALIGNMENT"])
-
-    if groups:
-        for g in groups:
-            grp = g[0]
-            g_type = g[1]
-            grp_n = "-".join([grp, g_type])
-            if grp_n in alleleids:
-                gid = alleleids[grp_n]
-            else:
-                gid = lastid
-                alleleids.update({grp_n: gid})
-                group_nodes.append([gid, grp, g_type, loc])
-                lastid += 1
-
-            allele_grp = "-".join([str(alleleid), str(gid)])
-            if allele_grp not in group_edges:
-                g_edge = [gid, alleleid, dbversion, g_type]
-                grp_edges.append(g_edge)
-                group_edges.update({allele_grp: g_edge})
-
-    # Only if GFE DOESN"T EXIST
-    gfeedge = [[alleleid, gfeid, dbversion, "HAS_GFE"]]
-
-    allelenode = gfenode
-    if uniqallele:
-        allelenode = allelenode + [[alleleid, allele.description.split(",")[0],
-                                    allele_type, loc]]
-        if group_nodes:
-            allelenode = allelenode + group_nodes
-
-    # alleleId:ID(ALLELE),name,alleletype:LABEL,locus,imgtdb
-    # sequenceId:ID(SEQUENCE),sequence,name,feature:LABEL,rank,length,nuc:string[]
+# Returns base pair and amino acid sequences from CDS data
+def get_cds(allele):
 
     feat_types = [f.type for f in allele.features]
 
-    # *** NO CDS or translation
-    # Have them be separate nodes
-    tr_edges = []
     if "CDS" in feat_types:
         cds_features = allele.features[feat_types.index("CDS")]
         if 'translation' in cds_features.qualifiers:
-            if uniqseq:
-                seq_nodes.append([fullseqid, full_seq, "SEQUENCE", "SEQUENCE", 0,
-                                  len(full_seq)])
 
-            if load_alignments:
-                if uniqaligng:
-                    seq_nodes.append([genid, '', "GEN_ALIGN", "GEN_ALIGN", 0,
-                                      len(align_gen), ";".join(list(align_gen))])
-
-                if uniqalignn:
-                    seq_nodes.append([nucid, '', "NUC_ALIGN", "NUC_ALIGN", 0,
-                                      len(align_nuc), ";".join(list(align_nuc))])
-
-                if uniqalignp:
-                    seq_nodes.append([protid, '', "PROT_ALIGN", "PROT_ALIGN", 0,
-                                      len(align_prot), ";".join(list(align_prot))])
-
-            # sequenceId:ID(SEQUENCE),sequence,name,feature:LABEL,rank,length,nuc:string[]
             if cds_features.location is None:
-                print("No CDS location for feature in allele: ", allele.name)
+                logging.info("No CDS location for feature in allele: ", allele.name)
             else:
-                cds_seq = cds_features.extract(allele.seq)
-                tran_seq = cds_features.qualifiers['translation'][0]
+                bp_seq = str(cds_features.extract(allele.seq))
+                aa_seq = cds_features.qualifiers['translation'][0]
+                
+    return bp_seq, aa_seq
 
-                if cds_seq in cdsids:
-                    cdsseqid = cdsids[cds_seq]
-                else:
-                    cdsseqid = lastcdsid
-                    cdsids.update({cds_seq: lastcdsid})
-                    lastcdsid += 1
-                    cds_nodes.append([cdsseqid, "CDS", "CDS", cds_seq, tran_seq])
 
-                tr_edges = []
-                seq_cds = "-".join([str(fullseqid), str(cdsseqid)])
-                if seq_cds not in trans_edges:
-                    tr_edges = [[fullseqid, cdsseqid, "HAS_CDS"]]
-                    trans_edges.update({seq_cds: tr_edges})
+# Build the datasets for the HLA graph 
+# dbversions, alignments=False, to_csv=False, verbose=True, limit=None, debug=False
+def build_hla_graph(**kwargs):
 
+    dbversions = kwargs.get("dbversions")
+    alignments = kwargs.get("alignments", False)
+    verbose = kwargs.get("verbose", False)
+    debug = kwargs.get("debug", False)
+    gfe_maker = kwargs.get("gfe_maker")
+    limit = kwargs.get("limit", None)
+    to_csv = kwargs.get("to_csv", False)
+
+    # Loop through DB versions
+    for dbversion in dbversions:
+
+        imgt_release = f'{dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}'
+
+        db_striped = ''.join(dbversion.split("."))
+
+        if alignments:
+            gen_aln, nuc_aln, prot_aln = hla_alignments(db_striped)
+
+        ard = ARD(db_striped)
+
+        # The github URL changed from 3350 to media
+        if int(db_striped) < 3350:
+            dat_url = imgt_hla_raw_url + db_striped + '/hla.dat'
         else:
-            if uniqseq:
-                seq_nodes.append([fullseqid, full_seq, "SEQUENCE", "SEQUENCE", 0,
-                                  len(full_seq), ''])
-            if load_alignments:
-                if uniqaligng:
-                    seq_nodes.append([genid, '', "GEN_ALIGN", "GEN_ALIGN", 0,
-                                      len(align_gen), ";".join(list(align_gen))])
+            dat_url = imgt_hla_media_url + db_striped + '/hla.dat'
 
-                if uniqalignn:
-                    seq_nodes.append([nucid, '', "NUC_ALIGN", "NUC_ALIGN", 0,
-                                      len(align_nuc), ";".join(list(align_nuc))])
+        dat_file = data_dir + 'hla.' + db_striped + ".dat"
 
-                if uniqalignp:
-                    seq_nodes.append([protid, '', "PROT_ALIGN", "PROT_ALIGN", 0,
-                                      len(align_prot), ";".join(list(align_prot))])
+        # Downloading DAT file
+        if not os.path.isfile(dat_file):
+            if verbose:
+                logging.info("Downloading dat file from " + dat_url)
+            urllib.request.urlretrieve(dat_url, dat_file)
 
-            cds_seq = cds_features.extract(allele.seq)
+        # Parse DAT file
+        a_gen = SeqIO.parse(dat_file, "imgt")
 
-            if cds_seq in cdsids:
-                cdsseqid = cdsids[cds_seq]
-            else:
-                cdsseqid = lastcdsid
-                cdsids.update({cds_seq: lastcdsid})
-                lastcdsid += 1
-                cds_nodes.append([cdsseqid, "CDS", "CDS", cds_seq, ''])
+        if verbose:
+            logging.info("Finished parsing dat file")
 
-    else:
-        if uniqseq:
-            seq_nodes.append([fullseqid, full_seq, "SEQUENCE", "SEQUENCE", 0,
-                              len(full_seq), ''])
+        def _build_csv_files(a_gen, alignments, limit):
 
-        if load_alignments:
-            if uniqaligng:
-                seq_nodes.append([genid, '', "GEN_ALIGN", "GEN_ALIGN", 0,
-                                  len(align_gen), ";".join(list(align_gen))])
+            i = 0
 
-            if uniqalignn:
-                seq_nodes.append([nucid, '', "NUC_ALIGN", "NUC_ALIGN", 0,
-                                  len(align_nuc), ";".join(list(align_nuc))])
+            ### Initialize lists for CSV output (input to LOAD CSV in Neo4j)
+            # Lists contain unique dicts and are converted to dataframes, then output to CSV for Neo4j import
+            gfe_sequences = []
+            gen_alignments = []
+            nuc_alignments = []
+            prot_alignments = []
+            all_features = []
+            all_groups = []
+            all_cds = []
+            ###
 
-            if uniqalignp:
-                seq_nodes.append([protid, '', "PROT_ALIGN", "PROT_ALIGN", 0,
-                                  len(align_prot), ";".join(list(align_prot))])
+            for idx, allele in enumerate(a_gen):
 
-    for feat in features:
-        feat_type = feat.term.upper()
-        feat_seq = feat.sequence
-        seq_type = "-".join([feat_seq, feat_type, str(feat.rank)])
-        if seq_type in seqids:
-            seqid = seqids[seq_type]
-            seq_edges.append([alleleid, seqid, dbversion,
-                              feat.accession, "HAS_FEATURE"])
-            seq_edges.append([gfeid, seqid, dbversion,
-                              feat.accession, "HAS_FEATURE"])
+                if hasattr(allele, 'seq'):
+                    hla_name = allele.description.split(",")[0]
+                    loc = allele.description.split(",")[0].split("*")[0]
+
+                    if hla_name in skip_alleles:
+                        logging.info(
+                            "SKIPPING = " + allele.description.split(",")[0] + " " + dbversion)
+                        continue
+
+                    if debug and (loc != "HLA-A" and i > 20):
+                        continue
+
+                    if (loc in hla_loci or loc == "DRB5") and (len(str(allele.seq)) > 5):
+                        if debug:
+                            logging.info(
+                                "HLA = " + allele.description.split(",")[0] + " " + dbversion)
+
+                        a_name = allele.description.split(",")[0].split("-")[1]
+                        groups = [["HLA-" + ard.redux(a_name, grp), grp] if ard.redux(a_name, grp) != a_name else None for
+                                  grp in ard_groups]
+                        seco = [[to_second(a_name), "2nd_FIELD"]]
+                        groups = list(filter(None, groups)) + seco
+                        complete_annotation = get_features(allele)
+                        ann = Annotation(annotation=complete_annotation,
+                                         method='match',
+                                         complete_annotation=True)
+
+                        # This process takes a long time
+                        features, gfe = gfe_maker.get_gfe(ann, loc)
+
+                        # gen_aln, nuc_aln, prot_aln
+                        aligned_gen = ''
+                        aligned_nuc = ''
+                        aligned_prot = ''
+
+                        if alignments:
+                            if allele.description.split(",")[0] in gen_aln[loc]:
+                                aligned_gen = gen_aln[loc][allele.description.split(",")[
+                                    0]]
+
+                            if allele.description.split(",")[0] in nuc_aln[loc]:
+                                aligned_nuc = nuc_aln[loc][allele.description.split(",")[
+                                    0]]
+
+                            if allele.description.split(",")[0] in prot_aln[loc]:
+                                aligned_prot = prot_aln[loc][allele.description.split(",")[
+                                    0]]
+
+
+
+                    ### Build dicts describing nodes and edges for each allele
+
+                    # Notes:
+                    # all edges are joined using foreign keys:
+                    #  - GFE --> SEQUENCE on alleleId
+                    #  - GFE --> [GEN_ALIGN, NUC_ALIGN, PROT_ALIGN] on a_name
+                    #  - GFE --> FEATURE on alleleId (or hla_name)
+                    # "alleleId" is assigned allele.id value
+                    # "sequenceId" is replaced with alleleId
+                    # feature key "name" is now "term"
+
+                    # Questions:
+                    # - Should GFE name be assigned to each node?
+
+                    # Separate CSV file
+                    gfe_sequence = {
+                        "alleleId": allele.id,
+                        "gfe_name": gfe,
+                        "locus": loc,
+                        "hla_name": hla_name,
+                        "a_name": a_name, # hla_name.split("-")[1]
+                        "sequence": str(allele.seq),
+                        "length": len(str(allele.seq)),
+                        "imgt_release": imgt_release
+                    }
+
+                    # Separate CSV file, GFE foreign key: a_name
+                    gen_alignment = {
+                        "label": "GEN_ALIGN",
+                        "hla_name": hla_name,
+                        "a_name": a_name, # hla_name.split("-")[1]
+                        "length": len(aligned_gen),
+                        "rank": "0", # TO DO: confirm how this value is derived
+                        "bp_sequence": aligned_gen,
+                        "imgt_release": imgt_release
+                    }
+
+                    # Separate CSV file, GFE foreign key: a_name
+                    nuc_alignment = {
+                        "label": "NUC_ALIGN",
+                        "hla_name": hla_name,
+                        "a_name": a_name, # hla_name.split("-")[1]
+                        "length": len(aligned_nuc),
+                        "rank": "0", # TO DO: confirm how this value is derived
+                        "bp_sequence": aligned_nuc,
+                        "imgt_release": imgt_release
+                    }
+
+                    # Separate CSV file, GFE foreign key: a_name
+                    prot_alignment = {
+                        "label": "PROT_ALIGN",
+                        "hla_name": hla_name,
+                        "a_name": a_name, # hla_name.split("-")[1]
+                        "length": len(aligned_prot),
+                        "rank": "0", # TO DO: confirm how this value is derived
+                        "aa_sequence": aligned_prot,
+                        "imgt_release": imgt_release
+                    }
+
+
+                    # Separate CSV file, GFE foreign key: alleleId
+                    allele_groups = []
+
+                    for group in groups:
+                        group_dict = {
+                            "alleleId": allele.id,
+                            "hla_name": hla_name,
+                            "a_name": a_name,
+                            "ard_id": group[0],
+                            "ard_name": group[1],
+                            "locus": loc,
+                            "imgt_release": imgt_release
+                        }
+
+                        allele_groups.append(group_dict)
+
+                    # Build CDS dict for CSV export, foreign key: alleleId, hla_name
+                    bp_seq, aa_seq = get_cds(allele)
+
+                    cds = {
+                        "alleleId": allele.id,
+                        "hla_name": hla_name,
+                        "bp_sequence": bp_seq,
+                        "aa_sequence": aa_seq,
+                        "imgt_release": imgt_release
+                    }
+
+                    # features preprocessing steps
+                    # 1) Convert seqann type to python dict using literal_eval
+                    # 2) add GFE foreign keys: alleleId, hla_name
+                    # 3) add columns: length
+
+                    # features contains list of seqann objects, converts to dict, destructive step
+                    features = \
+                        [ast.literal_eval(str(feature) \
+                            .replace('\'', '"') \
+                            .replace('\n', '')) \
+                            for feature in features]
+
+                    # Append allele id's
+                    # Note: Some alleles may have the same feature, but it may not be the same rank, 
+                    # so a feature should be identified with its allele by alleleId or HLA name
+                    for feature in features:
+                        feature["term"] = feature["term"].upper()
+                        feature["alleleId"] = allele.id 
+                        feature["hla_name"] = hla_name
+                        feature["imgt_release"] = imgt_release
+
+                        # Avoid null values in CSV for Neo4j import
+                        feature["hash_code"] = "none" if not feature["hash_code"] else feature["hash_code"]
+                        #feature["hla_name"] = "none" if not feature["hla_name"] else feature["hla_name"]
+
+                    # Append data to respective list
+                    data = zip(
+                        [gfe_sequences, gen_alignments, nuc_alignments, prot_alignments, all_cds],
+                        [gfe_sequence, gen_alignment, nuc_alignment, prot_alignment, cds]
+                    )
+
+                    for _list, _dict in data:
+                        _list.append(_dict)
+
+                    # Alignments, features, and ARD groups can all be concatenated since the keys are the same
+                    alignments = gen_alignments + nuc_alignments + prot_alignments
+                    all_features = all_features + features        
+                    all_groups = all_groups + allele_groups
+
+                # Break point for testing
+                if limit and idx == limit:
+                        break
+
+            csv_output = {
+                "gfe_sequences": gfe_sequences,
+                "alignments": alignments,
+                "all_features": all_features,
+                "all_groups": all_groups,
+                "all_cds": all_cds
+            }
+
+            return csv_output
+        
+        csv_output = \
+            _build_csv_files(
+                a_gen=a_gen, 
+                alignments=alignments, 
+                limit=limit)
+
+        if to_csv:
+            write_csv_files(csv_output, dbversion, path=data_dir + "csv/")
+            return csv_output
         else:
-            seqid = lastseqid
-            seqids.update({seq_type: lastseqid})
-            lastseqid += 1
+            return csv_output
 
-            seq_edges.append([alleleid, seqid, dbversion,
-                              feat.accession, "HAS_FEATURE"])
-            seq_edges.append([gfeid, seqid, dbversion,
-                              feat.accession, "HAS_FEATURE"])
-            if uniqseq:
-                seq_nodes.append([seqid, feat_seq, feat_type, "FEATURE",
-                                  feat.rank, len(feat_seq), ''])
 
-    return allelenode, gfeedge, seq_nodes, cds_nodes, seq_edges, tr_edges, grp_edges
+# Write CSV files to local directory
+def write_csv_files(csv_output, dbversion, path):
+    """Takes a dict of form "csv_name": data where csv_name is the CSV file to export
+    and data is a list of dictionaries.
+    """
+
+    try:
+        # Output to CSV, include dbversion in name
+        for csv_name, data in csv_output.items():
+            dataframe = pd.DataFrame(data)
+            file_name = path + csv_name + f".{dbversion}.csv"
+            dataframe.to_csv(file_name, index=False)
+
+        logging.info(f'Saved CSV files to "{path}"')
+
+        return 
+
+    except Exception as err:
+        logging.error(f'Failed to save CSV files to "{path}"')
+        raise err
 
 
 def main():
@@ -435,46 +490,24 @@ def main():
 
     args = parser.parse_args()
 
-    out_dir = args.out_dir
+    out_dir = args.out_dir if args.out_dir else ""
     release_n = args.number
-    releases = args.releases
+    releases = args.releases if args.releases else None
     verbosity = 1
 
-    align = False
-    kir = False
-    debug = False
-    verbose = False
+    debug = True if args.debug else False
+    kir = True if args.kir else False
+    align = True if args.align else False
+    verbose = True if args.verbose else False
+    load_loci = hla_loci + kir_loci if kir else hla_loci
 
-    if args.kir:
-        kir = True
-
-    if args.align:
-        align = True
-
-    if args.verbose:
-        verbose = True
-
-    if kir:
-        load_loci = hla_loci + kir_loci
-    else:
-        load_loci = hla_loci
-
-    if args.debug:
+    if debug:
         logging.info("Running in debug mode")
         load_loci = ["HLA-A"]
         kir = False
-        debug = True
         verbose = True
         verbosity = 2
         release_n = 1
-
-    gfe_e = []
-    seq_e = []
-    seq_n = []
-    cds_n = []
-    grp_e = []
-    trs_e = []
-    allele_n = []
 
     # Get last five IMGT/HLA releases
     if releases:
@@ -485,250 +518,96 @@ def main():
     # Get latest IMGT/KIR release
     kir_release = pd.read_html(imgt_kir)[0]['Release'][0]
 
-    from seqann import gfe
     gfe_maker = gfe.GFE(verbose=verbose, verbosity=verbosity,
                         load_features=False, store_features=True,
                         loci=load_loci)
 
     if kir:
-        if verbose:
-            logging.info("Adding KIR to GFE DB")
 
-        kir_file = data_dir + 'KIR.dat'
+        # # Replace this block with function:
+        # build_kir_graph(**kwargs)
 
-        if align:
-            aligned = kir_alignments()
+        logging.info(f'KIR: {kir}')
 
-        # Downloading KIR
-        if not os.path.isfile(kir_file):
-            if verbose:
-                logging.info("Downloading KIR dat file from " + kir_url)
-            urllib.request.urlretrieve(kir_url, kir_file)
+        # if verbose:
+        #     logging.info("Adding KIR to GFE DB")
 
-        kir_gen = SeqIO.parse(kir_file, "imgt")
-        if verbose:
-            logging.info("Finished parsing KIR dat file")
+        # kir_file = data_dir + 'KIR.dat'
 
-        i = 0
-        for allele in kir_gen:
-            if hasattr(allele, 'seq'):
-                loc = allele.description.split(",")[0].split("*")[0]
-                if loc in kir_loci and len(str(allele.seq)) > 5:
-                    if debug:
-                        logging.info("KIR = " + allele.description.split(",")[0] + " " + kir_release)
+        # if alignments:
+        #     aligned = kir_alignments()
 
-                    groups = []
-                    complete_annotation = get_features(allele)
-                    ambigs = [a for a in complete_annotation if re.search("/", a)]
+        # # Downloading KIR
+        # if not os.path.isfile(kir_file):
+        #     if verbose:
+        #         logging.info("Downloading KIR dat file from " + kir_url)
+        #     urllib.request.urlretrieve(kir_url, kir_file)
 
-                    aligned_seq = ''
-                    if align:
-                        if allele.description.split(",")[0] in aligned[loc]:
-                            aligned_seq = aligned[loc][allele.description.split(",")[0]]
+        # kir_gen = SeqIO.parse(kir_file, "imgt")
+        # if verbose:
+        #     logging.info("Finished parsing KIR dat file")
 
-                    if ambigs:
-                        logging.info("AMBIGS " + allele.description.split(",")[0] + " " + kir_release)
-                        annotations = []
-                        for ambig in ambigs:
-                            if debug:
-                                logging.info("AMBIG = " + ambig)
-                            aterm = ambig.split("/")[0].split("_")[0]
-                            anno = {a: complete_annotation[a] for a in complete_annotation if a not in ambigs}
-                            anno.update({ambig.split("/")[0]: complete_annotation[ambig]})
-                            annotations.append(anno)
+        # i = 0
+        # for allele in kir_gen:
+        #     if hasattr(allele, 'seq'):
+        #         loc = allele.description.split(",")[0].split("*")[0]
+        #         if loc in kir_loci and len(str(allele.seq)) > 5:
+        #             if debug:
+        #                 logging.info("KIR = " + allele.description.split(",")[0] + " " + kir_release)
 
-                            anno2 = {a: complete_annotation[a] for a in complete_annotation if a not in ambigs}
-                            anno2.update({aterm + "_" + ambig.split("/")[1]: complete_annotation[ambig]})
-                            annotations.append(anno2)
+        #             groups = []
+        #             complete_annotation = get_features(allele)
+        #             ambigs = [a for a in complete_annotation if re.search("/", a)]
 
-                        for annotation in annotations:
-                            ann = Annotation(annotation=annotation,
-                                             method='match',
-                                             complete_annotation=True)
+        #             aligned_seq = ''
+        #             if alignments:
+        #                 if allele.description.split(",")[0] in aligned[loc]:
+        #                     aligned_seq = aligned[loc][allele.description.split(",")[0]]
 
-                            features, gfe = gfe_maker.get_gfe(ann, loc)
-                            (allelenode, gfeedge,
-                             seq_nodes, cds_nodes, seq_edges,
-                             trans_edge, grp_edges) = build_graph(groups,
-                                                                  gfe,
-                                                                  allele,
-                                                                  features,
-                                                                  kir_release,
-                                                                  aligned_seq,
-                                                                  '',
-                                                                  '',
-                                                                  "IMGT_KIR",
-                                                                  align)
+        #             if ambigs:
+        #                 logging.info("AMBIGS " + allele.description.split(",")[0] + " " + kir_release)
+        #                 annotations = []
+        #                 for ambig in ambigs:
+        #                     if debug:
+        #                         logging.info("AMBIG = " + ambig)
+        #                     aterm = ambig.split("/")[0].split("_")[0]
+        #                     anno = {a: complete_annotation[a] for a in complete_annotation if a not in ambigs}
+        #                     anno.update({ambig.split("/")[0]: complete_annotation[ambig]})
+        #                     annotations.append(anno)
 
-                            gfe_e += gfeedge
-                            seq_e += seq_edges
-                            seq_n += seq_nodes
-                            allele_n += allelenode
-                            grp_e += grp_edges
-                            trs_e += trans_edge
-                            cds_n += cds_nodes
-                        i += 1
+        #                     anno2 = {a: complete_annotation[a] for a in complete_annotation if a not in ambigs}
+        #                     anno2.update({aterm + "_" + ambig.split("/")[1]: complete_annotation[ambig]})
+        #                     annotations.append(anno2)
 
-                    else:
-                        ann = Annotation(annotation=complete_annotation,
-                                         method='match',
-                                         complete_annotation=True)
-                        features, gfe = gfe_maker.get_gfe(ann, loc)
+        #                 for annotation in annotations:
+        #                     ann = Annotation(annotation=annotation,
+        #                                      method='match',
+        #                                      complete_annotation=True)
 
-                        (allelenode, gfeedge,
-                         seq_nodes, cds_nodes, seq_edges,
-                         trans_edge, grp_edges) = build_graph(groups,
-                                                              gfe,
-                                                              allele,
-                                                              features,
-                                                              kir_release,
-                                                              aligned_seq,
-                                                              '',
-                                                              '',
-                                                              "IMGT_KIR",
-                                                              align)
+        #                     features, gfe = gfe_maker.get_gfe(ann, loc)
+        #                     
+        #                     # Build the KIR graph
+        #                     build_kir_graph(...)
 
-                        gfe_e += gfeedge
-                        seq_e += seq_edges
-                        seq_n += seq_nodes
-                        allele_n += allelenode
-                        grp_e += grp_edges
-                        trs_e += trans_edge
-                        cds_n += cds_nodes
-                        i += 1
+        #             else:
+        #                 ann = Annotation(annotation=complete_annotation,
+        #                                  method='match',
+        #                                  complete_annotation=True)
+        #                 features, gfe = gfe_maker.get_gfe(ann, loc)
 
-    # Loop through DB versions
-    for dbversion in dbversions:
+        #                 # Build the KIR graph
+        #                 build_kir_graph(...)
 
-        db_striped = ''.join(dbversion.split("."))
-
-        if align:
-            gen_aln, nuc_aln, prot_aln = hla_alignments(db_striped)
-
-        ard = ARD(db_striped)
-
-        # The github URL changed from 3350 to media
-        if int(db_striped) < 3350:
-            dat_url = imgt_hla_raw_url + db_striped + '/hla.dat'
-        else:
-            dat_url = imgt_hla_media_url + db_striped + '/hla.dat'
-
-        dat_file = data_dir + 'hla.' + db_striped + ".dat"
-
-        # Downloading DAT file
-        if not os.path.isfile(dat_file):
-            if verbose:
-                logging.info("Downloading dat file from " + dat_url)
-            urllib.request.urlretrieve(dat_url, dat_file)
-
-        a_gen = SeqIO.parse(dat_file, "imgt")
-        if verbose:
-            logging.info("Finished parsing dat file")
-
-        i = 0
-        for allele in a_gen:
-            if hasattr(allele, 'seq'):
-                hla_name = allele.description.split(",")[0]
-                loc = allele.description.split(",")[0].split("*")[0]
-                if hla_name in skip_alleles:
-                    logging.info("SKIPPING = " + allele.description.split(",")[0] + " " + dbversion)
-                    continue
-
-                if debug and (loc != "HLA-A" and i > 20):
-                    continue
-
-                if (loc in hla_loci or loc == "DRB5") and (len(str(allele.seq)) > 5):
-                    if debug:
-                        logging.info("HLA = " + allele.description.split(",")[0] + " " + dbversion)
-
-                    a_name = allele.description.split(",")[0].split("-")[1]
-                    groups = [["HLA-" + ard.redux(a_name, grp), grp] if ard.redux(a_name, grp) != a_name else None for
-                              grp in ard_groups]
-                    seco = [[to_second(a_name), "2nd_FIELD"]]
-                    groups = list(filter(None, groups)) + seco
-                    complete_annotation = get_features(allele)
-                    ann = Annotation(annotation=complete_annotation,
-                                     method='match',
-                                     complete_annotation=True)
-                    features, gfe = gfe_maker.get_gfe(ann, loc)
-
-                    # gen_aln, nuc_aln, prot_aln
-                    aligned_gen = ''
-                    aligned_nuc = ''
-                    aligned_prot = ''
-
-                    if align:
-                        if allele.description.split(",")[0] in gen_aln[loc]:
-                            aligned_gen = gen_aln[loc][allele.description.split(",")[0]]
-
-                        if allele.description.split(",")[0] in nuc_aln[loc]:
-                            aligned_nuc = nuc_aln[loc][allele.description.split(",")[0]]
-
-                        if allele.description.split(",")[0] in prot_aln[loc]:
-                            aligned_prot = prot_aln[loc][allele.description.split(",")[0]]
-
-                    (allelenode, gfeedge,
-                     seq_nodes, cds_nodes, seq_edges,
-                     trans_edge, grp_edges) = build_graph(groups,
-                                                          gfe,
-                                                          allele,
-                                                          features,
-                                                          dbversion,
-                                                          aligned_gen,
-                                                          aligned_nuc,
-                                                          aligned_prot,
-                                                          "IMGT_HLA",
-                                                          align)
-
-                    gfe_e += gfeedge
-                    seq_e += seq_edges
-                    seq_n += seq_nodes
-                    allele_n += allelenode
-                    grp_e += grp_edges
-                    trs_e += trans_edge
-                    cds_n += cds_nodes
-                    i += 1
-        if verbose:
-            logging.info("Finished loading IMGT DB " + dbversion)
-    if verbose:
-        logging.info("Finished loading ALL DB versions")
-    gfe_df = pd.DataFrame(gfe_e, columns=":START_ID(ALLELE),:END_ID(ALLELE),imgt_release,:TYPE".split(","))
-    seq_df = pd.DataFrame(seq_e, columns=":START_ID(ALLELE),:END_ID(SEQUENCE),imgt_release,accession,:TYPE".split(","))
-    seqn_df = pd.DataFrame(seq_n,
-                           columns="sequenceId:ID(SEQUENCE),sequence,name,feature:LABEL,rank,length,seq:string[]".split(
-                               ","))
-    allele_df = pd.DataFrame(allele_n, columns="alleleId:ID(ALLELE),name,alleletype:LABEL,locus".split(","))
-    group_df = pd.DataFrame(grp_e, columns=":START_ID(ALLELE),:END_ID(ALLELE),imgtdb,:TYPE".split(","))
-    cdsn_df = pd.DataFrame(cds_n, columns="cdsId:ID(CDS),name,cdstype:LABEL,cds,protein".split(","))
-    trs_df = pd.DataFrame(trs_e, columns=":START_ID(SEQUENCE),:END_ID(CDS),:TYPE".split(","))
-
-    if verbose:
-        gfe_es = str(len(gfe_df))
-        seq_es = str(len(seq_df))
-        seq_ns = str(len(seqn_df))
-        all_ns = str(len(allele_df))
-        grp_es = str(len(group_df))
-        cds_ns = str(len(cdsn_df))
-        cds_es = str(len(trs_df))
-        logging.info("GFE Edges    = " + gfe_es)
-        logging.info("Seq Edges    = " + seq_es)
-        logging.info("Group Edges  = " + grp_es)
-        logging.info("CDS Edges    = " + cds_es)
-        logging.info("Seq Nodes    = " + seq_ns)
-        logging.info("CDS Nodes    = " + cds_ns)
-        logging.info("Allele Nodes = " + all_ns)
-
-    gfe_df.to_csv(out_dir + "/gfe_edges.csv", header=True, index=False)
-    seq_df.to_csv(out_dir + "/seq_edges.csv", header=True, index=False)
-    seqn_df.to_csv(out_dir + "/sequence_nodes.csv", header=True, index=False)
-    allele_df.to_csv(out_dir + "/allele_nodes.csv", header=True, index=False)
-    cdsn_df.to_csv(out_dir + "/cds_nodes.csv", header=True, index=False)
-    group_df.to_csv(out_dir + "/group_edges.csv", header=True, index=False)
-    trs_df.to_csv(out_dir + "/cds_edges.csv", header=True, index=False)
+    csv_output = build_hla_graph(
+        dbversions=dbversions, 
+        alignments=align, 
+        verbose=verbose,
+        to_csv=True, 
+        limit=10,
+        gfe_maker=gfe_maker)
 
     if verbose:
         logging.info("** Finished build **")
-
 
 if __name__ == '__main__':
     """The following will be run if file is executed directly,

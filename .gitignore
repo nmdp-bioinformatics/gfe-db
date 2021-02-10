@@ -67,8 +67,11 @@ target/
 # pyenv python configuration file
 .python-version
 
+.venv
+
 # Project files
 tags
 .idea/
 data/
+output/
 numeric.v3.zip

@@ -1,9 +1,17 @@
 BIN_DIR=$(dirname "$0")
-CSV_DATA_DIR="../data/csv"
+CSV_DATA_DIR="data/csv"
+
+# # For development
+# export IMGT="3360,3370"
+# export RELEASES=3360  # this value should be either 3360 or 3370 
+# export AN=True
 
 RELEASES=$(echo "${RELEASES}" | sed s'/"//g')
 
+echo "RELEASES: ""$RELEASES"
+
 # Check RELEASES 
+echo "Check releases..."
 if [ "$RELEASES" ]; then
 	echo "Number of IMGT releases being loaded = " "${RELEASES}"
 else
@@ -12,12 +20,14 @@ else
 fi
 
 # Loading KIR
+echo "Check KIR..."
 KIRFLAG=""
 if [ "$KIR" == "True" ]; then
 	echo "Loading KIR = " "${KIR}"
 	KIRFLAG="-k"
 fi
 
+echo "Check ALIGN..."
 ALIGNFLAG=""
 if [ "$ALIGN" == "True" ]; then
 	echo "Loading ALIGNMENTS = " "${ALIGN}"
@@ -25,7 +35,9 @@ if [ "$ALIGN" == "True" ]; then
 	sh "${BIN_DIR}"/get_alignments.sh
 fi
 
+echo "Creating new data directory in root..."
 mkdir -p "${CSV_DATA_DIR}"
 
 # Run load script
+echo "Building GFE data..."
 python3 "${BIN_DIR}"/build_gfedb.py -o "${CSV_DATA_DIR}" -r "${RELEASES}" ${KIRFLAG} ${ALIGNFLAG} -v
