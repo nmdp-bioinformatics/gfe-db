@@ -40,12 +40,6 @@ lastseqid = 1
 lastid = 1
 lastcdsid = 1
 
-seqids = {}
-cdsids = {}
-alleleids = {}
-group_edges = {}
-trans_edges = {}
-
 # The alleles are removed when the allele_nodes.csv is built
 skip_alleles = ["HLA-DRB5*01:11", "HLA-DRB5*01:12", "HLA-DRB5*01:13",
                 "HLA-DRB5*02:03", "HLA-DRB5*02:04", "HLA-DRB5*02:05",
@@ -69,9 +63,6 @@ kir_aligloci = ["KIR2DL4", "KIR2DP1", "KIR2DS1", "KIR2DS2", "KIR2DS3",
                 "KIR3DP1"]
 
 ard_groups = ['G', 'lg', 'lgx']
-
-
-
 
 def kir_alignments():
     alignments = {l: {} for l in kir_loci}
@@ -140,7 +131,7 @@ def get_features(seqrecord):
     feat_list = fiveutr + feats + threeutr
     annotation = {k[0]: k[1] for k in feat_list}
 
-    return (annotation)
+    return annotation
 
 # Returns base pair and amino acid sequences from CDS data
 def get_cds(allele):
@@ -152,7 +143,7 @@ def get_cds(allele):
         if 'translation' in cds_features.qualifiers:
 
             if cds_features.location is None:
-                logging.info("No CDS location for feature in allele: ", allele.name)
+                logging.info(f"No CDS location for feature in allele: {allele.name}")
             else:
                 bp_seq = str(cds_features.extract(allele.seq))
                 aa_seq = cds_features.qualifiers['translation'][0]
@@ -160,8 +151,7 @@ def get_cds(allele):
     return bp_seq, aa_seq
 
 
-# Build the datasets for the HLA graph 
-# dbversions, alignments=False, to_csv=False, verbose=True, limit=None, debug=False
+# Build the datasets for the HLA graph
 def build_hla_graph(**kwargs):
 
     dbversions = kwargs.get("dbversions")
@@ -209,7 +199,8 @@ def build_hla_graph(**kwargs):
             i = 0
 
             ### Initialize lists for CSV output (input to LOAD CSV in Neo4j)
-            # Lists contain unique dicts and are converted to dataframes, then output to CSV for Neo4j import
+            # Lists contain unique dicts and are converted to dataframes, 
+            # then output to CSV for Neo4j import
             gfe_sequences = []
             gen_alignments = []
             nuc_alignments = []
@@ -217,7 +208,6 @@ def build_hla_graph(**kwargs):
             all_features = []
             all_groups = []
             all_cds = []
-            ###
 
             for idx, allele in enumerate(a_gen):
 
@@ -261,30 +251,58 @@ def build_hla_graph(**kwargs):
                                 aligned_gen = gen_aln[loc][allele.description.split(",")[
                                     0]]
 
+                                # Separate CSV file, GFE foreign key: a_name
+                                gen_alignment = {
+                                    "label": "GEN_ALIGN",
+                                    "hla_name": hla_name,
+                                    "a_name": a_name, # hla_name.split("-")[1]
+                                    "length": len(aligned_gen),
+                                    "rank": "0", # TO DO: confirm how this value is derived
+                                    "bp_sequence": aligned_gen,
+                                    "imgt_release": imgt_release
+                                }                                    
+
                             if allele.description.split(",")[0] in nuc_aln[loc]:
                                 aligned_nuc = nuc_aln[loc][allele.description.split(",")[
                                     0]]
+
+                                # Separate CSV file, GFE foreign key: a_name
+                                nuc_alignment = {
+                                    "label": "NUC_ALIGN",
+                                    "hla_name": hla_name,
+                                    "a_name": a_name, # hla_name.split("-")[1]
+                                    "length": len(aligned_nuc),
+                                    "rank": "0", # TO DO: confirm how this value is derived
+                                    "bp_sequence": aligned_nuc,
+                                    "imgt_release": imgt_release
+                                }
 
                             if allele.description.split(",")[0] in prot_aln[loc]:
                                 aligned_prot = prot_aln[loc][allele.description.split(",")[
                                     0]]
 
+                                # Separate CSV file, GFE foreign key: a_name
+                                prot_alignment = {
+                                    "label": "PROT_ALIGN",
+                                    "hla_name": hla_name,
+                                    "a_name": a_name, # hla_name.split("-")[1]
+                                    "length": len(aligned_prot),
+                                    "rank": "0", # TO DO: confirm how this value is derived
+                                    "aa_sequence": aligned_prot,
+                                    "imgt_release": imgt_release
+                                }
 
+                            # Append data to respective list
+                            alignments_data = zip(
+                                [gen_alignments, nuc_alignments, prot_alignments],
+                                [gen_alignment, nuc_alignment, prot_alignment]
+                            )
+
+                            for _list, _dict in alignments_data:
+                                _list.append(_dict)
+                            
 
                     ### Build dicts describing nodes and edges for each allele
-
-                    # Notes:
-                    # all edges are joined using foreign keys:
-                    #  - GFE --> SEQUENCE on alleleId
-                    #  - GFE --> [GEN_ALIGN, NUC_ALIGN, PROT_ALIGN] on a_name
-                    #  - GFE --> FEATURE on alleleId (or hla_name)
-                    # "alleleId" is assigned allele.id value
-                    # "sequenceId" is replaced with alleleId
-                    # feature key "name" is now "term"
-
-                    # Questions:
-                    # - Should GFE name be assigned to each node?
-
                     # Separate CSV file
                     gfe_sequence = {
                         "alleleId": allele.id,
@@ -296,40 +314,6 @@ def build_hla_graph(**kwargs):
                         "length": len(str(allele.seq)),
                         "imgt_release": imgt_release
                     }
-
-                    # Separate CSV file, GFE foreign key: a_name
-                    gen_alignment = {
-                        "label": "GEN_ALIGN",
-                        "hla_name": hla_name,
-                        "a_name": a_name, # hla_name.split("-")[1]
-                        "length": len(aligned_gen),
-                        "rank": "0", # TO DO: confirm how this value is derived
-                        "bp_sequence": aligned_gen,
-                        "imgt_release": imgt_release
-                    }
-
-                    # Separate CSV file, GFE foreign key: a_name
-                    nuc_alignment = {
-                        "label": "NUC_ALIGN",
-                        "hla_name": hla_name,
-                        "a_name": a_name, # hla_name.split("-")[1]
-                        "length": len(aligned_nuc),
-                        "rank": "0", # TO DO: confirm how this value is derived
-                        "bp_sequence": aligned_nuc,
-                        "imgt_release": imgt_release
-                    }
-
-                    # Separate CSV file, GFE foreign key: a_name
-                    prot_alignment = {
-                        "label": "PROT_ALIGN",
-                        "hla_name": hla_name,
-                        "a_name": a_name, # hla_name.split("-")[1]
-                        "length": len(aligned_prot),
-                        "rank": "0", # TO DO: confirm how this value is derived
-                        "aa_sequence": aligned_prot,
-                        "imgt_release": imgt_release
-                    }
-
 
                     # Separate CSV file, GFE foreign key: alleleId
                     allele_groups = []
@@ -385,15 +369,16 @@ def build_hla_graph(**kwargs):
 
                     # Append data to respective list
                     data = zip(
-                        [gfe_sequences, gen_alignments, nuc_alignments, prot_alignments, all_cds],
-                        [gfe_sequence, gen_alignment, nuc_alignment, prot_alignment, cds]
+                        [gfe_sequences, all_cds],
+                        [gfe_sequence, cds]
                     )
 
                     for _list, _dict in data:
                         _list.append(_dict)
 
                     # Alignments, features, and ARD groups can all be concatenated since the keys are the same
-                    alignments = gen_alignments + nuc_alignments + prot_alignments
+                    if alignments_data:
+                        all_alignments = gen_alignments + nuc_alignments + prot_alignments
                     all_features = all_features + features        
                     all_groups = all_groups + allele_groups
 
@@ -403,7 +388,7 @@ def build_hla_graph(**kwargs):
 
             csv_output = {
                 "gfe_sequences": gfe_sequences,
-                "alignments": alignments,
+                "alignments": all_alignments,
                 "all_features": all_features,
                 "all_groups": all_groups,
                 "all_cds": all_cds
