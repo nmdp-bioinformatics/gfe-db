@@ -6,7 +6,7 @@ FIELDTERMINATOR ','
 // GFE nodes
 MERGE (gfe:GFE {
     locus: gfe_row.locus,
-    alleleId: gfe_row.alleleId,
+    allele_id: gfe_row.allele_id,
     hla_name: gfe_row.hla_name,
     a_name: gfe_row.a_name,
     gfe_name: gfe_row.gfe_name,
@@ -18,14 +18,14 @@ MERGE (gfe:GFE {
 WITH gfe_row
 MERGE (imgt:IMGT_HLA {
     locus: gfe_row.locus,
-    alleleId: gfe_row.alleleId,
+    allele_id: gfe_row.allele_id,
     hla_name: gfe_row.hla_name
 })
 // SEQUENCE nodes
 WITH gfe_row
 MERGE (sequence:SEQUENCE {
     locus: gfe_row.locus,
-    alleleId: gfe_row.alleleId,
+    allele_id: gfe_row.allele_id,
     hla_name: gfe_row.hla_name,
     gfe_name: gfe_row.gfe_name,
     imgt_release: gfe_row.imgt_release,
@@ -40,7 +40,7 @@ FIELDTERMINATOR ','
 MERGE (feature:FEATURE {
     imgt_release: feature_row.imgt_release,
     locus: feature_row.locus,
-    alleleId: feature_row.alleleId,
+    allele_id: feature_row.allele_id,
     hla_name: feature_row.hla_name,
     rank: feature_row.rank,
     term: feature_row.term,
@@ -160,7 +160,7 @@ FOREACH(_ IN CASE
     ELSE [] END |
         MERGE (g_group:G {
             locus: groups_row.locus,
-            alleleId: groups_row.alleleId,
+            allele_id: groups_row.allele_id,
             hla_name: groups_row.hla_name,
             a_name: groups_row.a_name,
             ard_id: groups_row.ard_id,
@@ -174,7 +174,7 @@ FOREACH(_ IN CASE
     ELSE [] END |
         MERGE (lg_group:lg {
             locus: groups_row.locus,
-            alleleId: groups_row.alleleId,
+            allele_id: groups_row.allele_id,
             hla_name: groups_row.hla_name,
             a_name: groups_row.a_name,
             ard_id: groups_row.ard_id,
@@ -188,7 +188,7 @@ FOREACH(_ IN CASE
     ELSE [] END |
         MERGE (lgx_group:lgx {
             locus: groups_row.locus,
-            alleleId: groups_row.alleleId,
+            allele_id: groups_row.allele_id,
             hla_name: groups_row.hla_name,
             a_name: groups_row.a_name,
             ard_id: groups_row.ard_id,
@@ -202,7 +202,7 @@ FOREACH(_ IN CASE
     ELSE [] END |
         MERGE (sec_field_group:`2nd_FIELD` {
             locus: groups_row.locus,
-            alleleId: groups_row.alleleId,
+            allele_id: groups_row.allele_id,
             hla_name: groups_row.hla_name,
             a_name: groups_row.a_name,
             ard_id: groups_row.ard_id,
@@ -216,7 +216,7 @@ LOAD CSV WITH HEADERS
 FROM 'file:///cds.3360.csv' as cds_row
 FIELDTERMINATOR ','
 MERGE (cds:CDS {
-    alleleId: cds_row.alleleId,
+    allele_id: cds_row.allele_id,
     hla_name: cds_row.hla_name,
     imgt_release: cds_row.imgt_release,
     bp_sequence: cds_row.bp_sequence,
@@ -229,7 +229,7 @@ MERGE (cds:CDS {
 WITH cds
 MATCH (seq:SEQUENCE)
 MATCH (cds:CDS)
-WHERE seq.alleleId = cds.alleleId
+WHERE seq.allele_id = cds.allele_id
 MERGE (seq)-[rel:HAS_CDS]->(cds);
 // (:GFE)-[:HAS_SEQUENCE]->(SEQUENCE)
 MATCH (gfe:GFE)
@@ -261,14 +261,14 @@ SET rel.imgt_release = gfe.imgt_release;
 // (:IMGT_HLA)-[:HAS_SEQUENCE]->(SEQUENCE)
 MATCH (hla:IMGT_HLA)
 MATCH (seq:SEQUENCE)
-WHERE hla.alleleId = seq.alleleId
+WHERE hla.allele_id = seq.allele_id
 MERGE (hla)-[rel:HAS_SEQUENCE]->(seq)
 SET rel.imgt_release = seq.imgt_release,
     rel.accession = "0";
 // (:IMGT_HLA)-[:HAS_ALIGNMENT]->(SEQUENCE)
 MATCH (hla:IMGT_HLA)
 MATCH (seq:SEQUENCE)
-WHERE hla.alleleId = seq.alleleId
+WHERE hla.allele_id = seq.allele_id
 MERGE (hla)-[rel:HAS_ALIGNMENT]->(seq)
 SET rel.imgt_release = seq.imgt_release,
     rel.accession = "0";
