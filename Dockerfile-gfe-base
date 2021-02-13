@@ -14,5 +14,5 @@ RUN pip install --no-cache-dir \
 
 RUN pip install --no-cache-dir \
 	py-gfe==1.1.0 \
-	py-ard==0.0.11
+	py-ard==0.6.1
 

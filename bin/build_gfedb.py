@@ -172,6 +172,7 @@ def build_hla_graph(**kwargs):
         if alignments:
             gen_aln, nuc_aln, prot_aln = hla_alignments(db_striped)
 
+        logging.info("Loading ARD...")
         ard = ARD(db_striped)
 
         # The github URL changed from 3350 to media
@@ -183,12 +184,14 @@ def build_hla_graph(**kwargs):
         dat_file = data_dir + 'hla.' + db_striped + ".dat"
 
         # Downloading DAT file
+        logging.info("Downloading DAT file...")
         if not os.path.isfile(dat_file):
             if verbose:
                 logging.info("Downloading dat file from " + dat_url)
             urllib.request.urlretrieve(dat_url, dat_file)
 
         # Parse DAT file
+        logging.info("Parsing DAT file...")
         a_gen = SeqIO.parse(dat_file, "imgt")
 
         if verbose:
@@ -239,6 +242,7 @@ def build_hla_graph(**kwargs):
                                          complete_annotation=True)
 
                         # This process takes a long time
+                        logging.info(f"Getting GFE data for allele {allele.id}...")
                         features, gfe = gfe_maker.get_gfe(ann, loc)
 
                         # gen_aln, nuc_aln, prot_aln
@@ -400,6 +404,7 @@ def build_hla_graph(**kwargs):
 
             return csv_output
         
+        logging.info("Building CSV files...")
         csv_output = \
             _build_csv_files(
                 a_gen=a_gen, 

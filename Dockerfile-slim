@@ -1,6 +1,4 @@
-FROM python:3.7-alpine as gfe-graph-builder
-
-MAINTAINER Pradeep Bashyal <pbashyal@nmdp.org>
+FROM python:3.7-slim
 
 WORKDIR /opt
 
@@ -26,24 +24,9 @@ RUN pip install --no-cache-dir \
 	py-gfe==1.1.0 \
 	py-ard==0.6.1
 
-# FROM nmdpbioinformatics/gfe-base as gfe-graph-builder
-# RUN apk add curl
-
 # Copy the build scripts to /opt
 COPY bin/get_alignments.sh /opt/
 COPY bin/build_gfedb.py /opt/build_gfedb.py
 COPY bin/build.sh /opt/
 
 RUN sh /opt/build.sh /opt
-
-# # Neo4j image
-# FROM neo4j:3.1 as neo4j-db-builder
-
-# COPY --from=gfe-graph-builder --chown=neo4j:neo4j /data/csv /csv
-
-# COPY bin/load_graph_docker.sh /opt/
-# RUN /opt/load_graph_docker.sh /csv
-
-# FROM neo4j:3.1
-
-# COPY --from=neo4j-db-builder --chown=neo4j:neo4j /var/lib/neo4j/gfedb/graph.db /data/databases/graph.db
