@@ -2,7 +2,7 @@
 
 ## Build the HLA data
 ```
-bash bin/buld_gfedb.py
+bash bin/build_gfedb.py
 ```
 
 ## Build Neo4j Docker image
@@ -12,8 +12,11 @@ docker build --tag gfe-db .
 
 ## Run the container
 ```
-docker run -p 7474:7474 -p 7473:7473 -p 7687:7687 gfe-db
+docker run --name db -p 7474:7474 -p 7473:7473 -p 7687:7687 gfe-db
 ```
 
 ## Populate the Graph
-<!-- TO DO: figure out shell command to load graph -->
+Once the Neo4j server is running, the data can be loaded using the cypher script:
+```
+cat neo4j/update_hla.cyp | docker exec --interactive db cypher-shell -u neo4j -p gfedb
+```

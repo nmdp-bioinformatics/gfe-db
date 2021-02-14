@@ -14,11 +14,11 @@ ENV NEO4J_AUTH=neo4j/gfedb \
     # NEO4J_apoc_import_file_use__neo4j__config=true \
     # NEO4J_apoc_export_file_enabled=true 
 
-# ENV APOC_URI https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/${APOC_VERSION}/apoc-${APOC_VERSION}-all.jar
-# RUN sh -c 'cd /var/lib/neo4j/plugins && curl -L -O "${APOC_URI}"'
+RUN neo4j/gather_neo4j_plugins.sh
 
 # TO DO: add the downloaded plugins (APOC, GDS)
 COPY data/csv/ /var/lib/neo4j/import/
+COPY neo4j/plugins/ /var/lib/neo4j/plugins/
 
 EXPOSE 7474 7473 7687
 

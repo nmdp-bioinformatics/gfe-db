@@ -15,7 +15,7 @@ GITHUB_APOC_URI=https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/
 NEO4J_GDS_URI=${GITHUB_GDS_URI}/${GDS_LIB_VERSION}/neo4j-graph-data-science-${GDS_LIB_VERSION}-standalone.jar
 NEO4J_APOC_URI=${GITHUB_APOC_URI}/${APOC_LIB_VERSION}/apoc-${APOC_LIB_VERSION}-all.jar
 
-mkdir -p $NEO4J_DIR/data $NEO4J_DIR/logs $NEO4J_DIR/plugins
+mkdir -p $NEO4J_DIR/plugins
 
 echo "Downloading Neo4j Graph Data Science libraries..."
 curl -C- --progress-bar \

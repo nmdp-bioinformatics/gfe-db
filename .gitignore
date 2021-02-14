@@ -77,7 +77,7 @@ tags
 data/
 output/
 numeric.v3.zip
-
+run.sh
 neo4j/plugins/*
 neo4j/logs/
 neo4j/data/
