@@ -69,6 +69,8 @@ target/
 
 .venv
 
+*.pem
+
 # Project files
 tags
 .idea/

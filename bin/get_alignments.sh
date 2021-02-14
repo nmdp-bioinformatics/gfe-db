@@ -24,6 +24,7 @@ for dbversion in ${RELEASES};do
 	
 		if [ ! -f $gen_msf ]; then
 			msf_url="${base_url}/${dbversion_trimmed}/msf/${loc}_gen.msf"
+			echo "Downloading ${loc}_gen.msf..."
 			curl -L "${msf_url}" -o "${gen_msf}"
 		else
    			echo "${loc}_gen.msf already exists, skipping download..."
@@ -31,6 +32,7 @@ for dbversion in ${RELEASES};do
 
 		if [ ! -f $nuc_msf ]; then
 			msf_url="${base_url}/${dbversion_trimmed}/msf/${loc}_nuc.msf"
+			echo "Downloading ${loc}_nuc.msf..."
 			curl -L "${msf_url}" -o "${nuc_msf}"
 		else
    			echo "${loc}_nuc.msf already exists, skipping download..."
@@ -38,6 +40,7 @@ for dbversion in ${RELEASES};do
 
 		if [ ! -f $prot_msf ]; then
 			msf_url="${base_url}/${dbversion_trimmed}/msf/${loc}_prot.msf"
+			echo "Downloading ${loc}_prot.msf..."
 			curl -L "${msf_url}" -o "${prot_msf}"
 		else
    			echo "${loc}_prot.msf already exists, skipping download..."

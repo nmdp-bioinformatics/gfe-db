@@ -1,34 +1,17 @@
-FROM nmdpbioinformatics/gfe-base as gfe-graph-builder
+FROM neo4j:4.2
 
-WORKDIR /opt
+# RUN apt-get update \
+#     && apt-get install -y curl openssl apt-utils zip unzip
 
-ARG IMGT="3360"
-ARG K=False
-ARG AN=False
+ENV NEO4J_AUTH=neo4j/gfedb \
+    NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+    # APOC_VERSION=4.1.0.6
 
-ENV RELEASES $IMGT
-ENV KIR $K
-ENV ALIGN $AN
+# ENV APOC_URI https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/${APOC_VERSION}/apoc-${APOC_VERSION}-all.jar
+# RUN sh -c 'cd /var/lib/neo4j/plugins && curl -L -O "${APOC_URI}"'
 
-RUN apk add curl
+COPY data/csv/ /var/lib/neo4j/import/
 
-# Copy the build scripts to /opt
-COPY bin/get_alignments.sh /opt/
-COPY bin/build_gfedb.py /opt/build_gfedb.py
-COPY bin/build.sh /opt/
+EXPOSE 7474 7473 7687
 
-RUN sh /opt/build.sh /opt
-
-
-FROM neo4j:3.1 as neo4j-db-builder
-
-COPY --from=gfe-graph-builder --chown=neo4j:neo4j /data/csv /csv
-
-COPY bin/load_graph_docker.sh /opt/
-RUN /opt/load_graph_docker.sh /csv
-
-#
-#
-
-FROM neo4j:3.1
-COPY --from=neo4j-db-builder --chown=neo4j:neo4j /var/lib/neo4j/gfedb/graph.db /data/databases/graph.db
+CMD ["neo4j"]

@@ -36,12 +36,12 @@ isutr = lambda f: True if re.search("UTR", f) else False
 to_second = lambda a: ":".join(a.split(":")[0:2]) + list(a)[-1] if list(a)[-1] in expre_chars and len(
     a.split(":")) > 2 else ":".join(a.split(":")[0:2])
 
-# # The alleles are removed when the allele_nodes.csv is built
-# skip_alleles = ["HLA-DRB5*01:11", "HLA-DRB5*01:12", "HLA-DRB5*01:13",
-#                 "HLA-DRB5*02:03", "HLA-DRB5*02:04", "HLA-DRB5*02:05",
-#                 "HLA-DRB5*01:01:02", "HLA-DRB5*01:03", "HLA-DRB5*01:05",
-#                 "HLA-DRB5*01:06", "HLA-DRB5*01:07", "HLA-DRB5*01:09",
-#                 "HLA-DRB5*01:10N", "HLA-C*05:208N", "HLA-C*05:206"]
+# The alleles are removed when the allele_nodes.csv is built
+skip_alleles = ["HLA-DRB5*01:11", "HLA-DRB5*01:12", "HLA-DRB5*01:13",
+                "HLA-DRB5*02:03", "HLA-DRB5*02:04", "HLA-DRB5*02:05",
+                "HLA-DRB5*01:01:02", "HLA-DRB5*01:03", "HLA-DRB5*01:05",
+                "HLA-DRB5*01:06", "HLA-DRB5*01:07", "HLA-DRB5*01:09",
+                "HLA-DRB5*01:10N", "HLA-C*05:208N", "HLA-C*05:206"]
 
 hla_loci = ['HLA-A', 'HLA-B', 'HLA-C', 'HLA-DRB1', 'HLA-DQB1',
             'HLA-DPB1', 'HLA-DQA1', 'HLA-DPA1', 'HLA-DRB3',
@@ -150,6 +150,8 @@ def get_cds(allele):
 # Build the datasets for the HLA graph
 def build_hla_graph(**kwargs):
 
+    logging.info(f'kwargs:\n{kwargs}')
+
     dbversions = kwargs.get("dbversions")
     alignments = kwargs.get("alignments", False)
     verbose = kwargs.get("verbose", False)
@@ -168,6 +170,7 @@ def build_hla_graph(**kwargs):
         if alignments:
             gen_aln, nuc_aln, prot_aln = hla_alignments(db_striped)
 
+        logging.info("Loading ARD...")
         ard = ARD(db_striped)
 
         # The github URL changed from 3350 to media
@@ -179,12 +182,14 @@ def build_hla_graph(**kwargs):
         dat_file = data_dir + 'hla.' + db_striped + ".dat"
 
         # Downloading DAT file
+        logging.info("Downloading DAT file...")
         if not os.path.isfile(dat_file):
             if verbose:
                 logging.info("Downloading dat file from " + dat_url)
             urllib.request.urlretrieve(dat_url, dat_file)
 
         # Parse DAT file
+        logging.info("Parsing DAT file...")
         a_gen = SeqIO.parse(dat_file, "imgt")
 
         if verbose:
@@ -235,6 +240,7 @@ def build_hla_graph(**kwargs):
                                          complete_annotation=True)
 
                         # This process takes a long time
+                        logging.info(f"Getting GFE data for allele {allele.id}...")
                         features, gfe = gfe_maker.get_gfe(ann, loc)
 
                         # gen_aln, nuc_aln, prot_aln
@@ -391,11 +397,12 @@ def build_hla_graph(**kwargs):
             }
 
             # Add alignments data if there is
-            if alignments_data:
+            if alignments:
                 csv_output["all_alignments"] = all_alignments
 
             return csv_output
         
+        logging.info("Building CSV files...")
         csv_output = \
             _build_csv_files(
                 a_gen=a_gen, 
@@ -475,7 +482,11 @@ def main():
 
     args = parser.parse_args()
 
-    out_dir = args.out_dir if args.out_dir else ""
+    logging.info(f'args:\n{vars(args)}')
+
+    # Not used
+    # out_dir = args.out_dir if args.out_dir else ""
+
     release_n = args.number
     releases = args.releases if args.releases else None
     verbosity = 1
@@ -500,8 +511,8 @@ def main():
     else:
         dbversions = pd.read_html(imgt_hla)[0]['Release'][0:release_n].tolist()
 
-    # Get latest IMGT/KIR release
-    kir_release = pd.read_html(imgt_kir)[0]['Release'][0]
+    # # Get latest IMGT/KIR release
+    # kir_release = pd.read_html(imgt_kir)[0]['Release'][0]
 
     gfe_maker = gfe.GFE(verbose=verbose, verbosity=verbosity,
                         load_features=False, store_features=True,
@@ -588,11 +599,12 @@ def main():
         alignments=align, 
         verbose=verbose,
         to_csv=True, 
-        #limit=3,
+        limit=100,
         gfe_maker=gfe_maker)
 
-    if verbose:
-        logging.info("** Finished build **")
+    # if verbose:
+    logging.info(f'Created {len(csv_output.keys())} files:\n{[file + ".csv" for file in csv_output.keys()]}')
+    logging.info("** Finished build **")
 
 if __name__ == '__main__':
     """The following will be run if file is executed directly,
