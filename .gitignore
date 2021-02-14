@@ -77,3 +77,7 @@ tags
 data/
 output/
 numeric.v3.zip
+
+neo4j/plugins/*
+neo4j/logs/
+neo4j/data/
