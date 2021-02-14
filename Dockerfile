@@ -1,32 +1,17 @@
-FROM python:3.7-slim
+FROM neo4j:4.2
 
-WORKDIR /opt
+# RUN apt-get update \
+#     && apt-get install -y curl openssl apt-utils zip unzip
 
-ARG IMGT="3360"
-ARG K=False
-ARG AN=False
+ENV NEO4J_AUTH=neo4j/gfedb \
+    NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+    # APOC_VERSION=4.1.0.6
 
-ENV RELEASES $IMGT
-ENV KIR $K
-ENV ALIGN $AN
+# ENV APOC_URI https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/${APOC_VERSION}/apoc-${APOC_VERSION}-all.jar
+# RUN sh -c 'cd /var/lib/neo4j/plugins && curl -L -O "${APOC_URI}"'
 
-# RUN apk add --no-cache --virtual \
-# 	.build-deps build-base gcc libc-dev \
-# 	libxslt-dev libxslt \
-# 	curl
+COPY data/csv/ /var/lib/neo4j/import/
 
-RUN pip install --no-cache-dir --upgrade pip
-RUN pip install --no-cache-dir \
-	html5lib==1.0.1 \
-	lxml==4.4.1
+EXPOSE 7474 7473 7687
 
-RUN pip install --no-cache-dir \
-	py-gfe==1.1.0 \
-	py-ard==0.6.1
-
-# Copy the build scripts to /opt
-COPY bin/get_alignments.sh /opt/
-COPY bin/build_gfedb.py /opt/build_gfedb.py
-COPY bin/build.sh /opt/
-
-RUN sh /opt/build.sh /opt
+CMD ["neo4j"]

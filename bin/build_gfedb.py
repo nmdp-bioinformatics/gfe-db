@@ -154,6 +154,8 @@ def get_cds(allele):
 # Build the datasets for the HLA graph
 def build_hla_graph(**kwargs):
 
+    logging.info(f'kwargs:\n{kwargs}')
+
     dbversions = kwargs.get("dbversions")
     alignments = kwargs.get("alignments", False)
     verbose = kwargs.get("verbose", False)
@@ -399,7 +401,7 @@ def build_hla_graph(**kwargs):
             }
 
             # Add alignments data if there is
-            if alignments_data:
+            if alignments:
                 csv_output["all_alignments"] = all_alignments
 
             return csv_output
@@ -483,6 +485,8 @@ def main():
                         action='store_true')
 
     args = parser.parse_args()
+
+    logging.info(f'args:\n{vars(args)}')
 
     out_dir = args.out_dir if args.out_dir else ""
     release_n = args.number
@@ -597,7 +601,7 @@ def main():
         alignments=align, 
         verbose=verbose,
         to_csv=True, 
-        limit=3,
+        limit=100,
         gfe_maker=gfe_maker)
 
     if verbose:

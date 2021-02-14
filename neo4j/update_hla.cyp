@@ -35,7 +35,7 @@ MERGE (sequence:SEQUENCE {
 // FEATURE nodes
 WITH max(1) AS dummy
 LOAD CSV WITH HEADERS 
-FROM 'file:///features.3360.csv' as feature_row
+FROM 'file:///all_features.3360.csv' as feature_row
 FIELDTERMINATOR ','
 MERGE (feature:FEATURE {
     imgt_release: feature_row.imgt_release,
@@ -152,7 +152,7 @@ SET rel.imgt_release = alignment.imgt_release,
 // Groups
 WITH max(1) AS dummy
 LOAD CSV WITH HEADERS 
-FROM 'file:///groups.3360.csv' as groups_row
+FROM 'file:///all_groups.3360.csv' as groups_row
 FIELDTERMINATOR ','
 // G nodes
 FOREACH(_ IN CASE 
