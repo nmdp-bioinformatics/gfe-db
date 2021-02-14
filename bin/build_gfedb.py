@@ -484,7 +484,9 @@ def main():
 
     logging.info(f'args:\n{vars(args)}')
 
-    out_dir = args.out_dir if args.out_dir else ""
+    # Not used
+    # out_dir = args.out_dir if args.out_dir else ""
+
     release_n = args.number
     releases = args.releases if args.releases else None
     verbosity = 1
@@ -509,8 +511,8 @@ def main():
     else:
         dbversions = pd.read_html(imgt_hla)[0]['Release'][0:release_n].tolist()
 
-    # Get latest IMGT/KIR release
-    kir_release = pd.read_html(imgt_kir)[0]['Release'][0]
+    # # Get latest IMGT/KIR release
+    # kir_release = pd.read_html(imgt_kir)[0]['Release'][0]
 
     gfe_maker = gfe.GFE(verbose=verbose, verbosity=verbosity,
                         load_features=False, store_features=True,
