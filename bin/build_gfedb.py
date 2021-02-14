@@ -36,10 +36,6 @@ isutr = lambda f: True if re.search("UTR", f) else False
 to_second = lambda a: ":".join(a.split(":")[0:2]) + list(a)[-1] if list(a)[-1] in expre_chars and len(
     a.split(":")) > 2 else ":".join(a.split(":")[0:2])
 
-lastseqid = 1
-lastid = 1
-lastcdsid = 1
-
 # The alleles are removed when the allele_nodes.csv is built
 skip_alleles = ["HLA-DRB5*01:11", "HLA-DRB5*01:12", "HLA-DRB5*01:13",
                 "HLA-DRB5*02:03", "HLA-DRB5*02:04", "HLA-DRB5*02:05",
