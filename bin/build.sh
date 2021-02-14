@@ -1,10 +1,11 @@
 BIN_DIR=$(dirname "$0")
 CSV_DATA_DIR="data/csv"
 
-# # For development
+# For development
 export IMGT="3360,3370"
 export RELEASES=3360  # this value should be either 3360 or 3370 
-export AN=True
+export ALIGN=True
+export KIR=False
 
 RELEASES=$(echo "${RELEASES}" | sed s'/"//g')
 
@@ -13,7 +14,7 @@ echo "RELEASES: ""$RELEASES"
 # Check RELEASES 
 echo "Check releases..."
 if [ "$RELEASES" ]; then
-	echo "Number of IMGT releases being loaded = " "${RELEASES}"
+	echo "Number of IMGT releases being loaded = ${RELEASES}"
 else
 	echo "Exiting. RELEASES env variable is not set."
 	exit 1

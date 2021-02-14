@@ -53,7 +53,7 @@ MERGE (feature:FEATURE {
 // GEN_ALIGN nodes
 WITH max(1) AS dummy
 LOAD CSV WITH HEADERS 
-FROM 'file:///alignments.3360.csv' as align_row
+FROM 'file:///all_alignments.3360.csv' as align_row
 FIELDTERMINATOR ','
 FOREACH(_ IN CASE 
     WHEN align_row.label = 'GEN_ALIGN' THEN [1] 
@@ -86,7 +86,7 @@ SET rel.imgt_release = alignment.imgt_release,
 // NUC_ALIGN nodes
 WITH max(1) AS dummy
 LOAD CSV WITH HEADERS 
-FROM 'file:///alignments.3360.csv' as align_row
+FROM 'file:///all_alignments.3360.csv' as align_row
 FIELDTERMINATOR ','
 FOREACH(_ IN CASE 
     WHEN align_row.label = 'NUC_ALIGN' THEN [1] 
@@ -119,7 +119,7 @@ SET rel.imgt_release = alignment.imgt_release,
 // PROT_ALIGN nodes
 WITH max(1) AS dummy
 LOAD CSV WITH HEADERS 
-FROM 'file:///alignments.3360.csv' as align_row
+FROM 'file:///all_alignments.3360.csv' as align_row
 FIELDTERMINATOR ','
 FOREACH(_ IN CASE 
     WHEN align_row.label = 'PROT_ALIGN' THEN [1] 
@@ -213,7 +213,7 @@ FOREACH(_ IN CASE
 // CDS nodes
 WITH max(1) AS dummy
 LOAD CSV WITH HEADERS 
-FROM 'file:///cds.3360.csv' as cds_row
+FROM 'file:///all_cds.3360.csv' as cds_row
 FIELDTERMINATOR ','
 MERGE (cds:CDS {
     allele_id: cds_row.allele_id,
