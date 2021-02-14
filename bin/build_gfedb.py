@@ -602,8 +602,9 @@ def main():
         limit=100,
         gfe_maker=gfe_maker)
 
-    if verbose:
-        logging.info("** Finished build **")
+    # if verbose:
+    logging.info(f'Created {len(csv_output.keys())} files:\n{[file + ".csv" for file in csv_output.keys()]}')
+    logging.info("** Finished build **")
 
 if __name__ == '__main__':
     """The following will be run if file is executed directly,
