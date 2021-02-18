@@ -601,7 +601,7 @@ def main():
         alignments=align, 
         verbose=verbose,
         to_csv=True, 
-        limit=100,
+        # limit=100,
         gfe_maker=gfe_maker)
 
     # if verbose:
