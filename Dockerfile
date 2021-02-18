@@ -35,7 +35,10 @@ RUN sh -c 'cd /var/lib/neo4j/plugins && \
         --output $NEO4J_DIR/plugins/neo4j-graph-data-science-${GDS_LIB_VERSION}-standalone.jar'
 
 # Copy GFE data as CSV files
-COPY data/csv/ /var/lib/neo4j/import/
+# COPY data/csv/ /var/lib/neo4j/import/
+
+# Mount the data directory directly into Neo4j import directory
+VOLUME /data/csv/ /var/lib/neo4j/import/
 
 EXPOSE 7474 7473 7687
 
