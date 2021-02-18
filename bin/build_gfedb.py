@@ -27,7 +27,7 @@ kir_url = 'ftp://ftp.ebi.ac.uk/pub/databases/ipd/kir/KIR.dat'
 
 data_dir = os.path.dirname(__file__) + "/../data/"
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d: - %(message)s',
+logging.basicConfig(format='%(asctime)s - %(name)-25s - %(levelname)-5s - %(funcName)s:%(lineno)d: - %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S',
                     level=logging.INFO)
 
@@ -601,7 +601,7 @@ def main():
         alignments=align, 
         verbose=verbose,
         to_csv=True, 
-        # limit=100,
+        limit=10,
         gfe_maker=gfe_maker)
 
     # if verbose:
