@@ -19,5 +19,5 @@ docker run --name db -v "$(pwd)"/data/csv/:/var/lib/neo4j/import \
 ## Populate the Graph
 Once the Neo4j server is running, the data can be loaded using the cypher script:
 ```
-cat neo4j/update.cyp | docker exec --interactive db cypher-shell -u neo4j -p gfedb
+cat neo4j/load.cyp | docker exec --interactive db cypher-shell -u neo4j -p gfedb
 ```
