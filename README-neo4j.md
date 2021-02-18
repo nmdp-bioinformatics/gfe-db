@@ -1,9 +1,34 @@
 # Running the GFE database in Neo4j 4.2 using Docker
 Outlines the steps for building and running a development version of `gfe-db` in a local Docker container. Docker will deploy an instance of Neo4j 4.2 including the [APOC](https://neo4j.com/labs/apoc/4.1/) and [Graph Data Science](https://neo4j.com/docs/graph-data-science/current/) plugins. GFE data is stored in the `data/csv/` directory which is mounted as an external volume within the container when run. This keeps the data outside the container so that it can be updated easily.
 
-## Files
+## Project Files
 ```bash
-# file tree
+.
+├── bin                             # Executable scripts
+│   ├── __init__.py
+│   ├── build.sh                    # Entrypoint for build step
+│   ├── build_gfedb.py              # Generates CSVs for Neo4j graph
+│   └── get_alignments.sh           # Alignments are included by default            
+├── (data)                          # Created during build step
+│   ├── 3360
+│   ├── csv                         # CSVs loaded into Neo4j
+│   │   ├── all_alignments.3360.csv
+│   │   ├── all_cds.3360.csv
+│   │   ├── all_features.3360.csv
+│   │   ├── all_groups.3360.csv
+│   │   └── gfe_sequences.3360.csv
+│   └── hla.3360.dat
+├── neo4j                           # Neo4j load scripts
+│   ├── bulk_load.cyp               # Under development
+│   └── load.cyp                    # Merges new nodes with existing
+├── notebooks                       # Development jupyter notebooks
+├── .dockerignore                   # Files for Docker to ignore
+├── .gitignore                      # Files for git to ignore
+├── Dockerfile                      # Docker image for Neo4j 4.2
+├── LICENSE
+├── README-neo4j.md                 # Instructions for this workflow
+├── README.md                       # gfe-db README
+└── requirements.txt                # Python dependencies
 ```
 ## N Getting Started
 Clone the repo.

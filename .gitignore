@@ -75,6 +75,7 @@ data/
 output/
 numeric.v3.zip
 *.pem
+resize_ebs.sh
 
 ## Deprecated files from Neo4j 3.1.9
 Dockerfile-alpine
