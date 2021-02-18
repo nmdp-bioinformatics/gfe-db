@@ -66,10 +66,7 @@ target/
 
 # pyenv python configuration file
 .python-version
-
 .venv
-
-*.pem
 
 # Project files
 tags
@@ -77,7 +74,17 @@ tags
 data/
 output/
 numeric.v3.zip
-run.sh
-neo4j/plugins/*
-neo4j/logs/
-neo4j/data/
+*.pem
+
+## Deprecated files from Neo4j 3.1.9
+Dockerfile-alpine
+Dockerfile-gfe-base
+Dockerrun.dev.json
+Dockerrun.kir.json
+Dockerrun.prod.json
+README-local-development.md
+test-build-all.sh
+mod-imgt/
+bin/load_graph_docker.sh
+bin/load_graph.sh
+bin/neo4j.conf.template
