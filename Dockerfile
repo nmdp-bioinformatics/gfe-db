@@ -6,7 +6,7 @@ RUN apt-get update \
 ENV NEO4J_AUTH=neo4j/gfedb \
     NEO4J_ACCEPT_LICENSE_AGREEMENT=yes \
     NEO4J_dbms_memory_heap_initial__size=2G \
-    NEO4J_dbms_memory_heap_max__size=2G \
+    NEO4J_dbms_memory_heap_max__size=4G \
     NEO4J_dbms_memory_pagecache_size=1G \
     NEO4J_dbms_security_procedures_unrestricted=apoc.*,gds.* \
     NEO4J_dbms_security_allow__csv__import__from__file__urls=true \
