@@ -2,7 +2,7 @@
 
 ## Build the HLA data
 ```
-bash bin/build_gfedb.py
+bash bin/build.sh
 ```
 
 ## Build Neo4j Docker image

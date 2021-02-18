@@ -1,7 +1,6 @@
 // TO DO: Replace dbversion parameter in CSV file path
 MATCH (n) DETACH DELETE n;
-USING PERIODIC COMMIT 100000
-explain
+USING PERIODIC COMMIT 10000
 LOAD CSV WITH HEADERS 
 FROM 'file:///gfe_sequences.3360.csv' as gfe_row
 FIELDTERMINATOR ','
@@ -36,8 +35,7 @@ MERGE (sequence:SEQUENCE {
 });
 // FEATURE nodes
 WITH max(1) AS dummy
-USING PERIODIC COMMIT 100000
-explain
+USING PERIODIC COMMIT 10000
 LOAD CSV WITH HEADERS 
 FROM 'file:///all_features.3360.csv' as feature_row
 FIELDTERMINATOR ','
@@ -216,8 +214,7 @@ FOREACH(_ IN CASE
 );
 // CDS nodes
 WITH max(1) AS dummy
-USING PERIODIC COMMIT 100000
-explain
+USING PERIODIC COMMIT 10000
 LOAD CSV WITH HEADERS 
 FROM 'file:///all_cds.3360.csv' as cds_row
 FIELDTERMINATOR ','
