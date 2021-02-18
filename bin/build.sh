@@ -1,5 +1,6 @@
 BIN_DIR=$(dirname "$0")
 CSV_DATA_DIR="data/csv"
+LIMIT=$1
 
 # For development
 export IMGT="3360,3370"
@@ -42,4 +43,10 @@ mkdir -p "${CSV_DATA_DIR}"
 
 # Run load script
 echo "Building GFE data..."
-python3 "${BIN_DIR}"/build_gfedb.py -o "${CSV_DATA_DIR}" -r "${RELEASES}" ${KIRFLAG} ${ALIGNFLAG} -v
+python3 "${BIN_DIR}"/build_gfedb.py \
+	-o "${CSV_DATA_DIR}" \
+	-r "${RELEASES}" \
+	${KIRFLAG} \
+	${ALIGNFLAG} \
+	-v \
+	-l $LIMIT

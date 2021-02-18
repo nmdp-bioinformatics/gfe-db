@@ -455,32 +455,42 @@ def main():
     parser.add_argument("-a", "--align",
                         required=False,
                         help="Bool for loading alignments",
-                        action='store_true')
+                        action="store_true")
 
     parser.add_argument("-d", "--debug",
                         required=False,
                         help="Bool for debugging",
-                        action='store_true')
+                        action="store_true")
 
     parser.add_argument("-o", "--out_dir",
                         required=True,
                         help="Output directory",
-                        type=str)
+                        type=str,
+                        action="store")
 
     parser.add_argument("-n", "--number",
                         required=False,
                         help="Number of IMGT/DB releases",
                         default=1,
-                        type=int)
+                        type=int,
+                        action="store")
 
     parser.add_argument("-r", "--releases",
                         required=False,
                         help="IMGT/DB releases",
-                        type=str)
+                        type=str,
+                        action="store")
 
     parser.add_argument("-v", "--verbose",
                         help="Option for running in verbose",
-                        action='store_true')
+                        action="store_true")
+
+    parser.add_argument("-l", "--limit",
+                        required=False,
+                        help="Limit number of records in output",
+                        default=None,
+                        type=int,
+                        action="store")
 
     args = parser.parse_args()
 
@@ -601,7 +611,7 @@ def main():
         alignments=align, 
         verbose=verbose,
         to_csv=True, 
-        limit=100,
+        limit=args.limit,
         gfe_maker=gfe_maker)
 
     # if verbose:
