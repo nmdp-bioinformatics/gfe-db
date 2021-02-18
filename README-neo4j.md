@@ -30,7 +30,7 @@ Outlines the steps for building and running a development version of `gfe-db` in
 ├── README.md                       # gfe-db README
 └── requirements.txt                # Python dependencies
 ```
-## N Getting Started
+## 1. Getting Started
 Clone the repo.
 ```bash
 git clone https://github.com/abk7777/gfe-db.git
@@ -48,7 +48,7 @@ Install the requirements.
 pip install -r requirements.txt
 ```
 
-## N Build the GFE dataset
+## 2. Build the GFE dataset
 Run this script to generate a set CSV files of GFE data in the `data/csv/` directory. It is recommended to limit the number of alleles to avoid excessive build and load times.
 ```bash
 # Build complete database
@@ -59,20 +59,20 @@ bash bin/build.sh 1000
 ```
 *Note: Building the complete database will take a very long time. For development it is recommended to use the limit parameter to specify the number of alleles in the build step, unless the complete data set is needed.*
 
-## N Build Neo4j Docker image
+## 3. Build Neo4j Docker image
 Build the Docker image as defined in the Dockerfile. See [Configuring Neo4j in Dockerfile](#Configuring-Neo4j-in-Dockerfile) for important configuration settings.
 ```
 docker build --tag gfe-db .
 ```
 
-## N Start the GFE database
+## 4. Start the GFE database
 Run the container to start Neo4j in Docker.
 ```
 # Run container
 docker run -d --name gfe -v "$(pwd)"/data/csv/:/var/lib/neo4j/import \
     -p 7474:7474 -p 7473:7473 -p 7687:7687 gfe-db
 ```
-Access the container logs if desired.
+If desired, access the container logs during startup. This will indicate when Neo4j is ready.
 ```bash
 docker logs -f gfe
 ```
@@ -84,13 +84,13 @@ docker stop gfe
 # Start container
 docker start gfe
 ```
-## N Load the GFE data
+## 5. Load the GFE data
 Once the container is running and the Neo4j server is up, the data can be loaded using the Cypher script.
 ```
 cat neo4j/load.cyp | docker exec --interactive db cypher-shell -u neo4j -p gfedb
 ```
 *Note: This step is not yet optimized for the full dataset, so proceed with caution. For local development on the GFE graph, it is recommended to specify a limited number of alleles during the build step.*
-## N Access Neo4j
+## 6. Access Neo4j
 Neo4j can be accessed through web browser at [http://localhost:7474/browser/](http://localhost:7474/browser/).
 
 # Configuring Neo4j in Dockerfile
