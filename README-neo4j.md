@@ -12,7 +12,8 @@ docker build --tag gfe-db .
 
 ## Run the container
 ```
-docker run --name db -p 7474:7474 -p 7473:7473 -p 7687:7687 gfe-db
+docker run --name db -v "$(pwd)"/data/csv/:/var/lib/neo4j/import \
+    -p 7474:7474 -p 7473:7473 -p 7687:7687 gfe-db
 ```
 
 ## Populate the Graph
