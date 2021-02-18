@@ -133,7 +133,9 @@ def get_features(seqrecord):
 def get_cds(allele):
 
     feat_types = [f.type for f in allele.features]
-
+    bp_seq = None
+    aa_seq = None
+    
     if "CDS" in feat_types:
         cds_features = allele.features[feat_types.index("CDS")]
         if 'translation' in cds_features.qualifiers:
@@ -599,7 +601,7 @@ def main():
         alignments=align, 
         verbose=verbose,
         to_csv=True, 
-        # limit=100,
+        limit=100,
         gfe_maker=gfe_maker)
 
     # if verbose:
