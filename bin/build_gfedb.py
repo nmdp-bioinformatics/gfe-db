@@ -27,8 +27,8 @@ kir_url = 'ftp://ftp.ebi.ac.uk/pub/databases/ipd/kir/KIR.dat'
 
 data_dir = os.path.dirname(__file__) + "/../data/"
 
-logging.basicConfig(format='%(asctime)s - %(name)-35s - %(levelname)-5s - %(funcName)s %(lineno)d: - %(message)s',
-                    datefmt='%m/%d/%Y %I:%M:%S %p',
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d: - %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S',
                     level=logging.INFO)
 
 expre_chars = ['N', 'Q', 'L', 'S']
