@@ -24,14 +24,14 @@ ENV NEO4J_AUTH=neo4j/gfedb \
 # Download Neo4j APOC libraries
 RUN sh -c 'cd /var/lib/neo4j/plugins && \
     echo "Downloading APOC libraries..." \
-    curl -C- --progress-bar \
+    curl -C- \
         --location ${NEO4J_APOC_URI} \
         --output $NEO4J_DIR/plugins/apoc-${APOC_LIB_VERSION}-all.jar'
 
 # Download Neo4j GDS libraries
 RUN sh -c 'cd /var/lib/neo4j/plugins && \
     echo "Downloading Neo4j Graph Data Science libraries..." \
-    curl -C- --progress-bar \
+    curl -C- \
         --location ${NEO4J_GDS_URI} \
         --output $NEO4J_DIR/plugins/neo4j-graph-data-science-${GDS_LIB_VERSION}-standalone.jar'
 

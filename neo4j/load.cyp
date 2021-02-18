@@ -1,6 +1,6 @@
 // TO DO: Replace dbversion parameter in CSV file path
 MATCH (n) DETACH DELETE n;
-:auto USING PERIODIC COMMIT 100000 LOAD CSV WITH HEADERS 
+LOAD CSV WITH HEADERS 
 FROM 'file:///gfe_sequences.3360.csv' as gfe_row
 FIELDTERMINATOR ','
 // GFE nodes
@@ -34,7 +34,7 @@ MERGE (sequence:SEQUENCE {
 });
 // FEATURE nodes
 WITH max(1) AS dummy
-:auto USING PERIODIC COMMIT 100000 LOAD CSV WITH HEADERS 
+LOAD CSV WITH HEADERS 
 FROM 'file:///all_features.3360.csv' as feature_row
 FIELDTERMINATOR ','
 MERGE (feature:FEATURE {
@@ -52,7 +52,7 @@ MERGE (feature:FEATURE {
 // Alignments
 // GEN_ALIGN nodes
 WITH max(1) AS dummy
-:auto USING PERIODIC COMMIT 100000 LOAD CSV WITH HEADERS 
+LOAD CSV WITH HEADERS 
 FROM 'file:///all_alignments.3360.csv' as align_row
 FIELDTERMINATOR ','
 FOREACH(_ IN CASE 
@@ -85,7 +85,7 @@ SET rel.imgt_release = alignment.imgt_release,
     rel.accession = "0";
 // NUC_ALIGN nodes
 WITH max(1) AS dummy
-:auto USING PERIODIC COMMIT 100000 LOAD CSV WITH HEADERS 
+LOAD CSV WITH HEADERS 
 FROM 'file:///all_alignments.3360.csv' as align_row
 FIELDTERMINATOR ','
 FOREACH(_ IN CASE 
@@ -118,7 +118,7 @@ SET rel.imgt_release = alignment.imgt_release,
     rel.accession = "0";
 // PROT_ALIGN nodes
 WITH max(1) AS dummy
-:auto USING PERIODIC COMMIT 100000 LOAD CSV WITH HEADERS 
+LOAD CSV WITH HEADERS 
 FROM 'file:///all_alignments.3360.csv' as align_row
 FIELDTERMINATOR ','
 FOREACH(_ IN CASE 
@@ -151,7 +151,7 @@ SET rel.imgt_release = alignment.imgt_release,
     rel.accession = "0";
 // Groups
 WITH max(1) AS dummy
-:auto USING PERIODIC COMMIT 100000 LOAD CSV WITH HEADERS 
+LOAD CSV WITH HEADERS 
 FROM 'file:///all_groups.3360.csv' as groups_row
 FIELDTERMINATOR ','
 // G nodes
@@ -212,7 +212,7 @@ FOREACH(_ IN CASE
 );
 // CDS nodes
 WITH max(1) AS dummy
-:auto USING PERIODIC COMMIT 100000 LOAD CSV WITH HEADERS 
+LOAD CSV WITH HEADERS 
 FROM 'file:///all_cds.3360.csv' as cds_row
 FIELDTERMINATOR ','
 MERGE (cds:CDS {
