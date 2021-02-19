@@ -38,8 +38,7 @@ Please feel free to open issues regarding specific bugs and feature requests.
 ├── .gitignore                      # Files for git to ignore
 ├── Dockerfile                      # Docker image for Neo4j 4.2
 ├── LICENSE
-├── README-neo4j.md                 # Instructions for this workflow
-├── README.md                       # gfe-db README
+├── README.md                       # Instructions for this workflow
 └── requirements.txt                # Python dependencies
 ```
 ## 1. Getting Started
