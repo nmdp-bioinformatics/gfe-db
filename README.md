@@ -31,7 +31,6 @@ Please feel free to open issues regarding specific bugs and feature requests.
 │   │   └── gfe_sequences.3360.csv
 │   └── hla.3360.dat                # Allele data
 ├── neo4j                           # Neo4j load scripts
-│   ├── bulk_load.cyp               # Under development
 │   └── load.cyp                    # Merges new nodes with existing
 ├── notebooks                       # Development jupyter notebooks
 ├── .dockerignore                   # Files for Docker to ignore
