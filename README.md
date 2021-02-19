@@ -1,5 +1,17 @@
-# Running the GFE database in Neo4j 4.2 using Docker
-Outlines the steps for building and running a development version of `gfe-db` in a local Docker container. Docker will deploy an instance of Neo4j 4.2 including the [APOC](https://neo4j.com/labs/apoc/4.1/) and [Graph Data Science](https://neo4j.com/docs/graph-data-science/current/) plugins. GFE data is stored in the `data/csv/` directory which is mounted as an external volume within the container when run. This keeps the data outside the container so that it can be updated easily.
+# gfe-db
+Graph database representing IPD-IMGT/HLA sequence data as GFE.
+
+## Running the GFE database in Neo4j 4.2 using Docker
+This README outlines the steps for building and running a development version of `gfe-db` in a local Docker container. Docker will deploy an instance of Neo4j 4.2 including the [APOC](https://neo4j.com/labs/apoc/4.1/) and [Graph Data Science](https://neo4j.com/docs/graph-data-science/current/) plugins. GFE data is stored in the `data/csv/` directory which is mounted as an external volume within the container when run. This keeps the data outside the container so that it can be updated easily.
+
+## Development Constraints
+This pipeline is under development.
+* The graph schema is being redesigned.
+* KIR data is not yet included.
+* Releases other than IPD-IMGT/HLA Release 3.36.0 are not yet included (coming next).
+* Loading the full GFE dataset of 20,000+ alleles might fail, or take an excessive amount of time. (Load scripts are in the processed of being optimized for this.)
+
+Please feel free to open issues regarding specific bugs and feature requests.
 
 ## Project Files
 ```bash
@@ -10,14 +22,14 @@ Outlines the steps for building and running a development version of `gfe-db` in
 │   ├── build_gfedb.py              # Generates CSVs for Neo4j graph
 │   └── get_alignments.sh           # Alignments are included by default            
 ├── (data)                          # Created during build step
-│   ├── 3360
+│   ├── 3360                        # IMGT/HLA release 3.36.0
 │   ├── csv                         # CSVs loaded into Neo4j
 │   │   ├── all_alignments.3360.csv
 │   │   ├── all_cds.3360.csv
 │   │   ├── all_features.3360.csv
 │   │   ├── all_groups.3360.csv
 │   │   └── gfe_sequences.3360.csv
-│   └── hla.3360.dat
+│   └── hla.3360.dat                # Allele data
 ├── neo4j                           # Neo4j load scripts
 │   ├── bulk_load.cyp               # Under development
 │   └── load.cyp                    # Merges new nodes with existing
@@ -91,7 +103,7 @@ cat neo4j/load.cyp | docker exec --interactive db cypher-shell -u neo4j -p gfedb
 ```
 *Note: This step is not yet optimized for the full dataset, so proceed with caution. For local development on the GFE graph, it is recommended to specify a limited number of alleles during the build step.*
 ## 6. Access Neo4j
-Neo4j can be accessed through web browser at [http://localhost:7474/browser/](http://localhost:7474/browser/).
+Neo4j can be accessed through web browser at [http://localhost:7474/browser/](http://localhost:7474/browser/) and the data can be queried using Cypher.
 
 # Configuring Neo4j in Dockerfile
 Configuration settings for Neo4j are passed through environment variables in the Dockerfile.
@@ -110,6 +122,17 @@ ENV NEO4J_dbms_memory_heap_initial__size=2G \
 
 # Rebuild the image after updating these
 ```
+
+# Related Links
+
+ * [hub.docker.com/r/nmdpbioinformatics/service-gfe-submission](https://hub.docker.com/r/nmdpbioinformatics/service-gfe-submission)
+ * [service-gfe-submission.readthedocs.io](https://service-gfe-submission.readthedocs.io/en/latest/index.html)
+ * [github.com/nmdp-bioinformatics/service-feature](https://github.com/nmdp-bioinformatics/service-feature)
+ * [github.com/nmdp-bioinformatics/HSA](https://github.com/nmdp-bioinformatics/HSA)
+ * [bioinformatics.bethematchclinical.org](https://bioinformatics.bethematchclinical.org)
+ * [feature.nmdp-bioinformatics.org](https://feature.nmdp-bioinformatics.org)
+ * [gfe.b12x.org](http://gfe.b12x.org)
+
 <br>
 
 <p align="center">
