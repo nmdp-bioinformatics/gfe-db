@@ -63,13 +63,12 @@ pip install -r requirements.txt
 ## 2. Build the GFE dataset
 Run this script to generate a set CSV files of GFE data in the `data/csv/` directory. It is recommended to limit the number of alleles to avoid excessive build and load times.
 ```bash
-# Build complete database
-bash bin/build.sh
+# Limit the build to 100 alleles (recommended)
+bash bin/build.sh 100
 
-# Limit the build to 1000 alleles
-bash bin/build.sh 1000
+# Build complete database (not recommended)
+bash bin/build.sh
 ```
-*Note: Building the complete database will take a very long time. For development it is recommended to use the limit parameter to specify the number of alleles in the build step, unless the complete data set is needed.*
 
 ## 3. Build Neo4j Docker image
 Build the Docker image as defined in the Dockerfile. See [Configuring Neo4j in Dockerfile](#Configuring-Neo4j-in-Dockerfile) for important configuration settings.
@@ -77,10 +76,10 @@ Build the Docker image as defined in the Dockerfile. See [Configuring Neo4j in D
 docker build --tag gfe-db .
 ```
 
-## 4. Start the GFE database
+## 4. Start Neo4j graph database
 Run the container to start Neo4j in Docker.
 ```
-# Run container
+# Run container to start Neo4j
 docker run -d --name gfe -v "$(pwd)"/data/csv/:/var/lib/neo4j/import \
     -p 7474:7474 -p 7473:7473 -p 7687:7687 gfe-db
 ```
@@ -99,12 +98,37 @@ docker start gfe
 ## 5. Load the GFE data
 Once the container is running and the Neo4j server is up, the data can be loaded using the Cypher script.
 ```
-cat neo4j/load.cyp | docker exec --interactive db cypher-shell -u neo4j -p gfedb
+cat neo4j/load.cyp | docker exec --interactive gfe cypher-shell -u neo4j -p gfedb
 ```
 *Note: This step is not yet optimized for the full dataset, so proceed with caution. For local development on the GFE graph, it is recommended to specify a limited number of alleles during the build step.*
 ## 6. Access Neo4j
 Neo4j can be accessed through web browser at [http://localhost:7474/browser/](http://localhost:7474/browser/) and the data can be queried using Cypher.
 
+To view the schema, run this command.
+```cypher
+CALL db.schema.visualization;
+```
+
+## 7. Clean up Docker
+Delete the Docker container.
+```bash
+docker stop gfe
+docker rm gfe
+```
+Delete the Docker image.
+```bash
+# List the images and get the IMAGE IDs for gfe-db and neo4j
+docker image ls
+
+# Remove the images for gfe-db:latest and neo4j:4.2 by the IMAGE ID
+docker image rm <IMAGE ID> <IMAGE ID>
+```
+
+The fastest way to remove all Docker images, containers and volumes is the `prune` method. *Use with caution because this will delete all Docker images, containers and their data on your machine.*
+```bash
+# Use with caution
+docker system prune --volumes -a
+```
 # Configuring Neo4j in Dockerfile
 Configuration settings for Neo4j are passed through environment variables in the Dockerfile.
 ## Username & Password
