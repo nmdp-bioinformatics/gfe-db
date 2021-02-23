@@ -1,7 +1,7 @@
 // TO DO: Replace dbversion parameter in CSV file path
 MATCH (n) DETACH DELETE n;
 LOAD CSV WITH HEADERS 
-FROM 'file:///gfe_sequences.3360.csv' as gfe_row
+FROM 'file:///gfe_sequences.RELEASE.csv' as gfe_row
 FIELDTERMINATOR ','
 // GFE nodes
 MERGE (gfe:GFE {
@@ -35,7 +35,7 @@ MERGE (sequence:SEQUENCE {
 // FEATURE nodes
 WITH max(1) AS dummy
 LOAD CSV WITH HEADERS 
-FROM 'file:///all_features.3360.csv' as feature_row
+FROM 'file:///all_features.RELEASE.csv' as feature_row
 FIELDTERMINATOR ','
 MERGE (feature:FEATURE {
     imgt_release: feature_row.imgt_release,
@@ -53,7 +53,7 @@ MERGE (feature:FEATURE {
 // GEN_ALIGN nodes
 WITH max(1) AS dummy
 LOAD CSV WITH HEADERS 
-FROM 'file:///all_alignments.3360.csv' as align_row
+FROM 'file:///all_alignments.RELEASE.csv' as align_row
 FIELDTERMINATOR ','
 FOREACH(_ IN CASE 
     WHEN align_row.label = 'GEN_ALIGN' THEN [1] 
@@ -79,7 +79,7 @@ SET rel.imgt_release = alignment.imgt_release,
 // NUC_ALIGN nodes
 WITH max(1) AS dummy
 LOAD CSV WITH HEADERS 
-FROM 'file:///all_alignments.3360.csv' as align_row
+FROM 'file:///all_alignments.RELEASE.csv' as align_row
 FIELDTERMINATOR ','
 FOREACH(_ IN CASE 
     WHEN align_row.label = 'NUC_ALIGN' THEN [1] 
@@ -105,7 +105,7 @@ SET rel.imgt_release = alignment.imgt_release,
 // PROT_ALIGN nodes
 WITH max(1) AS dummy
 LOAD CSV WITH HEADERS 
-FROM 'file:///all_alignments.3360.csv' as align_row
+FROM 'file:///all_alignments.RELEASE.csv' as align_row
 FIELDTERMINATOR ','
 FOREACH(_ IN CASE 
     WHEN align_row.label = 'PROT_ALIGN' THEN [1] 
@@ -131,7 +131,7 @@ SET rel.imgt_release = alignment.imgt_release,
 // Groups
 WITH max(1) AS dummy
 LOAD CSV WITH HEADERS 
-FROM 'file:///all_groups.3360.csv' as groups_row
+FROM 'file:///all_groups.RELEASE.csv' as groups_row
 FIELDTERMINATOR ','
 // G nodes
 FOREACH(_ IN CASE 
@@ -192,7 +192,7 @@ FOREACH(_ IN CASE
 // CDS nodes
 WITH max(1) AS dummy
 LOAD CSV WITH HEADERS 
-FROM 'file:///all_cds.3360.csv' as cds_row
+FROM 'file:///all_cds.RELEASE.csv' as cds_row
 FIELDTERMINATOR ','
 MERGE (cds:CDS {
     allele_id: cds_row.allele_id,

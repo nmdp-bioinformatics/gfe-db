@@ -162,7 +162,7 @@ def build_hla_graph(**kwargs):
     limit = kwargs.get("limit", None)
     to_csv = kwargs.get("to_csv", False)
 
-    # Loop through DB versions
+    # Loop through DB versions and build CSVs
     for dbversion in dbversions:
 
         imgt_release = f'{dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}'
