@@ -1,5 +1,7 @@
 # gfe-db
-Graph database representing IPD-IMGT/HLA sequence data as GFE.
+This repo is a fork of gfe-db, a graph database representing IPD-IMGT/HLA sequence data as GFE.
+
+![GFE Schema](img/gfe-schema.png)
 
 ## Running the GFE database in Neo4j 4.2 using Docker
 This README outlines the steps for building and running a development version of `gfe-db` in a local Docker container. Docker will deploy an instance of Neo4j 4.2 including the [APOC](https://neo4j.com/labs/apoc/4.1/) and [Graph Data Science](https://neo4j.com/docs/graph-data-science/current/) plugins. GFE data is stored in the `data/csv/` directory which is mounted as an external volume within the container when run. This keeps the data outside the container so that it can be updated easily.
