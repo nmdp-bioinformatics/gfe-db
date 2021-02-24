@@ -1,5 +1,5 @@
 // TO DO: Replace dbversion parameter in CSV file path
-MATCH (n) DETACH DELETE n;
+// MATCH (n) DETACH DELETE n;
 LOAD CSV WITH HEADERS 
 FROM 'file:///gfe_sequences.RELEASE.csv' as gfe_row
 FIELDTERMINATOR ','
@@ -10,13 +10,13 @@ MERGE (gfe:GFE {
     hla_name: gfe_row.hla_name,
     a_name: gfe_row.a_name,
     gfe_name: gfe_row.gfe_name,
-    imgt_release: gfe_row.imgt_release,
     sequence: gfe_row.sequence,
     length: gfe_row.length
 })
 // IMGT_HLA nodes
 WITH gfe_row
 MERGE (imgt:IMGT_HLA {
+    imgt_release: gfe_row.imgt_release,
     locus: gfe_row.locus,
     allele_id: gfe_row.allele_id,
     hla_name: gfe_row.hla_name
@@ -28,7 +28,6 @@ MERGE (sequence:SEQUENCE {
     allele_id: gfe_row.allele_id,
     hla_name: gfe_row.hla_name,
     gfe_name: gfe_row.gfe_name,
-    imgt_release: gfe_row.imgt_release,
     sequence: gfe_row.sequence,
     length: gfe_row.length
 });
@@ -38,7 +37,6 @@ LOAD CSV WITH HEADERS
 FROM 'file:///all_features.RELEASE.csv' as feature_row
 FIELDTERMINATOR ','
 MERGE (feature:FEATURE {
-    imgt_release: feature_row.imgt_release,
     locus: feature_row.locus,
     allele_id: feature_row.allele_id,
     hla_name: feature_row.hla_name,
@@ -63,7 +61,6 @@ FOREACH(_ IN CASE
             a_name: align_row.a_name,
             rank: align_row.rank,
             bp_sequence: align_row.bp_sequence,
-            imgt_release: align_row.imgt_release,
             length: align_row.length
             })
 )
@@ -74,8 +71,7 @@ MATCH (gfe:GFE)
 MATCH (alignment:GEN_ALIGN)
 WHERE gfe.a_name = alignment.a_name AND align_row.label = "GEN_ALIGN"
 MERGE (gfe)-[rel:HAS_ALIGNMENT]->(alignment)
-SET rel.imgt_release = alignment.imgt_release,
-    rel.accession = "0"
+SET rel.accession = "0"
 // NUC_ALIGN nodes
 WITH max(1) AS dummy
 LOAD CSV WITH HEADERS 
@@ -89,7 +85,6 @@ FOREACH(_ IN CASE
             a_name: align_row.a_name,
             rank: align_row.rank,
             bp_sequence: align_row.bp_sequence,
-            imgt_release: align_row.imgt_release,
             length: align_row.length
             })
 )
@@ -100,8 +95,7 @@ MATCH (gfe:GFE)
 MATCH (alignment:NUC_ALIGN)
 WHERE gfe.a_name = alignment.a_name AND align_row.label = "NUC_ALIGN"
 MERGE (gfe)-[rel:HAS_ALIGNMENT]->(alignment)
-SET rel.imgt_release = alignment.imgt_release,
-    rel.accession = "0"
+SET rel.accession = "0"
 // PROT_ALIGN nodes
 WITH max(1) AS dummy
 LOAD CSV WITH HEADERS 
@@ -115,7 +109,6 @@ FOREACH(_ IN CASE
             a_name: align_row.a_name,
             rank: align_row.rank,
             aa_sequence: align_row.aa_sequence,
-            imgt_release: align_row.imgt_release,
             length: align_row.length
             })
 )
@@ -126,8 +119,7 @@ MATCH (gfe:GFE)
 MATCH (alignment:PROT_ALIGN)
 WHERE gfe.a_name = alignment.a_name AND align_row.label = "PROT_ALIGN"
 MERGE (gfe)-[rel:HAS_ALIGNMENT]->(alignment)
-SET rel.imgt_release = alignment.imgt_release,
-    rel.accession = "0"
+SET rel.accession = "0"
 // Groups
 WITH max(1) AS dummy
 LOAD CSV WITH HEADERS 
@@ -143,8 +135,7 @@ FOREACH(_ IN CASE
             hla_name: groups_row.hla_name,
             a_name: groups_row.a_name,
             ard_id: groups_row.ard_id,
-            ard_name: groups_row.ard_name,
-            imgt_release: groups_row.imgt_release
+            ard_name: groups_row.ard_name
         })
 )
 // lg nodes
@@ -157,8 +148,7 @@ FOREACH(_ IN CASE
             hla_name: groups_row.hla_name,
             a_name: groups_row.a_name,
             ard_id: groups_row.ard_id,
-            ard_name: groups_row.ard_name,
-            imgt_release: groups_row.imgt_release
+            ard_name: groups_row.ard_name
         })
 )
 // lgx nodes
@@ -171,8 +161,7 @@ FOREACH(_ IN CASE
             hla_name: groups_row.hla_name,
             a_name: groups_row.a_name,
             ard_id: groups_row.ard_id,
-            ard_name: groups_row.ard_name,
-            imgt_release: groups_row.imgt_release
+            ard_name: groups_row.ard_name
         })
 )
 // lgx nodes
@@ -185,8 +174,7 @@ FOREACH(_ IN CASE
             hla_name: groups_row.hla_name,
             a_name: groups_row.a_name,
             ard_id: groups_row.ard_id,
-            ard_name: groups_row.ard_name,
-            imgt_release: groups_row.imgt_release
+            ard_name: groups_row.ard_name
         })
 );
 // CDS nodes
@@ -197,7 +185,6 @@ FIELDTERMINATOR ','
 MERGE (cds:CDS {
     allele_id: cds_row.allele_id,
     hla_name: cds_row.hla_name,
-    imgt_release: cds_row.imgt_release,
     bp_sequence: cds_row.bp_sequence,
     bp_length: size(cds_row.bp_sequence),
     aa_sequence: cds_row.aa_sequence,
@@ -215,49 +202,42 @@ MATCH (gfe:GFE)
 MATCH (seq:SEQUENCE)
 WHERE gfe.sequence = seq.sequence
 MERGE (gfe)-[rel:HAS_SEQUENCE]->(seq)
-SET rel.imgt_release = seq.imgt_release,
-    rel.accession = "0";
+SET rel.accession = "0";
 // (:GFE)-[:HAS_ALIGNMENT]->(SEQUENCE)
 MATCH (gfe:GFE)
 MATCH (seq:SEQUENCE)
 WHERE gfe.sequence = seq.sequence
 MERGE (gfe)-[rel:HAS_ALIGNMENT]->(seq)
-SET rel.imgt_release = seq.imgt_release,
-    rel.accession = "0";
+SET rel.accession = "0";
 // (:GFE)-[:HAS_FEATURE]->(FEATURE)
 MATCH (gfe:GFE)
 MATCH (f:FEATURE)
 WHERE gfe.hla_name = f.hla_name
 MERGE (gfe)-[rel:HAS_FEATURE]->(f)
-SET rel.imgt_release = f.imgt_release,
-    rel.accession = f.accession;
+SET rel.accession = f.accession;
 // (:IMGT_HLA)-[:HAS_GFE]->(:GFE)
 MATCH (hla:IMGT_HLA)
 MATCH (gfe:GFE)
 WHERE hla.hla_name = gfe.hla_name
-MERGE (hla)-[rel:HAS_GFE]->(gfe)
-SET rel.imgt_release = gfe.imgt_release;
+CREATE (hla)-[rel:HAS_GFE]->(gfe)
+SET rel.imgt_release = hla.imgt_release;
 // (:IMGT_HLA)-[:G]->(GROUP)
 MATCH (hla:IMGT_HLA)
 MATCH (group:G)
 WHERE hla.hla_name = group.hla_name
-MERGE (hla)<-[rel:G]-(group)
-SET rel.imgt_release = group.imgt_release;
+MERGE (hla)<-[rel:G]-(group);
 // (:IMGT_HLA)-[:lg]->(GROUP)
 MATCH (hla:IMGT_HLA)
 MATCH (group:lg)
 WHERE hla.hla_name = group.hla_name
-MERGE (hla)<-[rel:lg]-(group)
-SET rel.imgt_release = group.imgt_release;
+MERGE (hla)<-[rel:lg]-(group);
 // (:IMGT_HLA)-[:lgx]->(GROUP)
 MATCH (hla:IMGT_HLA)
 MATCH (group:lgx)
 WHERE hla.hla_name = group.hla_name
-MERGE (hla)<-[rel:lgx]-(group)
-SET rel.imgt_release = group.imgt_release;
+MERGE (hla)<-[rel:lgx]-(group);
 // (:IMGT_HLA)-[:`2nd_FIELD`]->(GROUP)
 MATCH (hla:IMGT_HLA)
 MATCH (group:`2nd_FIELD`)
 WHERE hla.hla_name = group.hla_name
-MERGE (hla)<-[rel:`2nd_FIELD`]-(group)
-SET rel.imgt_release = group.imgt_release;
+MERGE (hla)<-[rel:`2nd_FIELD`]-(group);
