@@ -153,7 +153,6 @@ def get_cds(allele):
 def build_hla_graph(**kwargs):
 
     logging.info(f'kwargs:\n{kwargs}')
-
     dbversions = kwargs.get("dbversions")
     alignments = kwargs.get("alignments", False)
     verbose = kwargs.get("verbose", False)
@@ -162,13 +161,223 @@ def build_hla_graph(**kwargs):
     limit = kwargs.get("limit", None)
     to_csv = kwargs.get("to_csv", False)
 
+    def _build_csv_files(a_gen, alignments, limit):
+
+        i = 0
+
+        ### Initialize lists for CSV output (input to LOAD CSV in Neo4j)
+        # Lists contain unique dicts and are converted to dataframes, 
+        # then output to CSV for Neo4j import
+        gfe_sequences = []
+        gen_alignments = []
+        nuc_alignments = []
+        prot_alignments = []
+        all_features = []
+        all_groups = []
+        all_cds = []
+
+        for idx, allele in enumerate(a_gen):
+
+            if hasattr(allele, 'seq'):
+                hla_name = allele.description.split(",")[0]
+                loc = allele.description.split(",")[0].split("*")[0]
+
+                # if hla_name in skip_alleles:
+                #     logging.info(
+                #         "SKIPPING = " + allele.description.split(",")[0] + " " + dbversion)
+                #     continue
+
+                if debug and (loc != "HLA-A" and i > 20):
+                    continue
+
+                if (loc in hla_loci or loc == "DRB5") and (len(str(allele.seq)) > 5):
+                    if debug:
+                        logging.info(
+                            "HLA = " + allele.description.split(",")[0] + " " + dbversion)
+
+                    a_name = allele.description.split(",")[0].split("-")[1]
+                    groups = [["HLA-" + ard.redux(a_name, grp), grp] if ard.redux(a_name, grp) != a_name else None for
+                                grp in ard_groups]
+                    seco = [[to_second(a_name), "2nd_FIELD"]]
+                    groups = list(filter(None, groups)) + seco
+                    complete_annotation = get_features(allele)
+                    ann = Annotation(annotation=complete_annotation,
+                                        method='match',
+                                        complete_annotation=True)
+
+                    # This process takes a long time
+                    logging.info(f"Getting GFE data for allele {allele.id}...")
+                    features, gfe = gfe_maker.get_gfe(ann, loc)
+
+                    # gen_aln, nuc_aln, prot_aln
+                    alignments_data = None
+                    aligned_gen = ''
+                    aligned_nuc = ''
+                    aligned_prot = ''
+
+                    if alignments:
+                        if allele.description.split(",")[0] in gen_aln[loc]:
+                            aligned_gen = gen_aln[loc][allele.description.split(",")[
+                                0]]
+
+                            # Separate CSV file, GFE foreign key: a_name
+                            gen_alignment = {
+                                "label": "GEN_ALIGN",
+                                "hla_name": hla_name,
+                                "a_name": a_name, # hla_name.split("-")[1]
+                                "length": len(aligned_gen),
+                                "rank": "0", # TO DO: confirm how this value is derived
+                                "bp_sequence": aligned_gen,
+                                "imgt_release": imgt_release
+                            }                                    
+
+                        if allele.description.split(",")[0] in nuc_aln[loc]:
+                            aligned_nuc = nuc_aln[loc][allele.description.split(",")[
+                                0]]
+
+                            # Separate CSV file, GFE foreign key: a_name
+                            nuc_alignment = {
+                                "label": "NUC_ALIGN",
+                                "hla_name": hla_name,
+                                "a_name": a_name, # hla_name.split("-")[1]
+                                "length": len(aligned_nuc),
+                                "rank": "0", # TO DO: confirm how this value is derived
+                                "bp_sequence": aligned_nuc,
+                                "imgt_release": imgt_release
+                            }
+
+                        if allele.description.split(",")[0] in prot_aln[loc]:
+                            aligned_prot = prot_aln[loc][allele.description.split(",")[
+                                0]]
+
+                            # Separate CSV file, GFE foreign key: a_name
+                            prot_alignment = {
+                                "label": "PROT_ALIGN",
+                                "hla_name": hla_name,
+                                "a_name": a_name, # hla_name.split("-")[1]
+                                "length": len(aligned_prot),
+                                "rank": "0", # TO DO: confirm how this value is derived
+                                "aa_sequence": aligned_prot,
+                                "imgt_release": imgt_release
+                            }
+
+                        # Append data to respective list
+                        alignments_data = zip(
+                            [gen_alignments, nuc_alignments, prot_alignments],
+                            [gen_alignment, nuc_alignment, prot_alignment]
+                        )
+
+                        for _list, _dict in alignments_data:
+                            _list.append(_dict)
+                        
+
+                ### Build dicts describing nodes and edges for each allele
+                # Separate CSV file
+                gfe_sequence = {
+                    "allele_id": allele.id,
+                    "gfe_name": gfe,
+                    "locus": loc,
+                    "hla_name": hla_name,
+                    "a_name": a_name, # hla_name.split("-")[1]
+                    "sequence": str(allele.seq),
+                    "length": len(str(allele.seq)),
+                    "imgt_release": imgt_release
+                }
+
+                # Separate CSV file, GFE foreign key: allele_id
+                allele_groups = []
+
+                for group in groups:
+                    group_dict = {
+                        "allele_id": allele.id,
+                        "hla_name": hla_name,
+                        "a_name": a_name,
+                        "ard_id": group[0],
+                        "ard_name": group[1],
+                        "locus": loc,
+                        "imgt_release": imgt_release
+                    }
+
+                    allele_groups.append(group_dict)
+
+                # Build CDS dict for CSV export, foreign key: allele_id, hla_name
+                bp_seq, aa_seq = get_cds(allele)
+
+                cds = {
+                    "allele_id": allele.id,
+                    "hla_name": hla_name,
+                    "bp_sequence": bp_seq,
+                    "aa_sequence": aa_seq,
+                    "imgt_release": imgt_release
+                }
+
+                # features preprocessing steps
+                # 1) Convert seqann type to python dict using literal_eval
+                # 2) add GFE foreign keys: allele_id, hla_name
+                # 3) calculate columns: length
+
+                # features contains list of seqann objects, converts to dict, destructive step
+                features = \
+                    [ast.literal_eval(str(feature) \
+                        .replace('\'', '"') \
+                        .replace('\n', '')) \
+                        for feature in features]
+
+                # Append allele id's
+                # Note: Some alleles may have the same feature, but it may not be the same rank, 
+                # so a feature should be identified with its allele by allele_id or HLA name
+                for feature in features:
+                    feature["term"] = feature["term"].upper()
+                    feature["allele_id"] = allele.id 
+                    feature["hla_name"] = hla_name
+                    feature["imgt_release"] = imgt_release
+
+                    # Avoid null values in CSV for Neo4j import
+                    feature["hash_code"] = "none" if not feature["hash_code"] else feature["hash_code"]
+
+                # Append data to respective list
+                data = zip(
+                    [gfe_sequences, all_cds],
+                    [gfe_sequence, cds]
+                )
+
+                for _list, _dict in data:
+                    _list.append(_dict)
+
+                # Alignments, features, and ARD groups can all be concatenated since the keys are the same
+                if alignments_data:
+                    all_alignments = gen_alignments + nuc_alignments + prot_alignments
+
+                all_features = all_features + features        
+                all_groups = all_groups + allele_groups
+
+            # Break point for testing
+            if limit and idx == limit:
+                    break
+
+        csv_output = {
+            "gfe_sequences": gfe_sequences,
+            "all_features": all_features,
+            "all_groups": all_groups,
+            "all_cds": all_cds
+        }
+
+        # Add alignments data if there is
+        if alignments:
+            csv_output["all_alignments"] = all_alignments
+
+        return csv_output
+
+
     # Loop through DB versions and build CSVs
     for dbversion in dbversions:
 
         imgt_release = f'{dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}'
-        logging.info(f'db_version: {db_version}')
-        logging.info(f'imgt_release: {imgt_release}')
         db_striped = ''.join(dbversion.split("."))
+        
+        logging.info(f'dbversion: {dbversion}')
+        logging.info(f'imgt_release: {imgt_release}')
+        logging.info(f'db_striped: {db_striped}')
 
         if alignments:
             gen_aln, nuc_aln, prot_aln = hla_alignments(db_striped)
@@ -198,212 +407,6 @@ def build_hla_graph(**kwargs):
         if verbose:
             logging.info("Finished parsing dat file")
 
-        def _build_csv_files(a_gen, alignments, limit):
-
-            i = 0
-
-            ### Initialize lists for CSV output (input to LOAD CSV in Neo4j)
-            # Lists contain unique dicts and are converted to dataframes, 
-            # then output to CSV for Neo4j import
-            gfe_sequences = []
-            gen_alignments = []
-            nuc_alignments = []
-            prot_alignments = []
-            all_features = []
-            all_groups = []
-            all_cds = []
-
-            for idx, allele in enumerate(a_gen):
-
-                if hasattr(allele, 'seq'):
-                    hla_name = allele.description.split(",")[0]
-                    loc = allele.description.split(",")[0].split("*")[0]
-
-                    # if hla_name in skip_alleles:
-                    #     logging.info(
-                    #         "SKIPPING = " + allele.description.split(",")[0] + " " + dbversion)
-                    #     continue
-
-                    if debug and (loc != "HLA-A" and i > 20):
-                        continue
-
-                    if (loc in hla_loci or loc == "DRB5") and (len(str(allele.seq)) > 5):
-                        if debug:
-                            logging.info(
-                                "HLA = " + allele.description.split(",")[0] + " " + dbversion)
-
-                        a_name = allele.description.split(",")[0].split("-")[1]
-                        groups = [["HLA-" + ard.redux(a_name, grp), grp] if ard.redux(a_name, grp) != a_name else None for
-                                  grp in ard_groups]
-                        seco = [[to_second(a_name), "2nd_FIELD"]]
-                        groups = list(filter(None, groups)) + seco
-                        complete_annotation = get_features(allele)
-                        ann = Annotation(annotation=complete_annotation,
-                                         method='match',
-                                         complete_annotation=True)
-
-                        # This process takes a long time
-                        logging.info(f"Getting GFE data for allele {allele.id}...")
-                        features, gfe = gfe_maker.get_gfe(ann, loc)
-
-                        # gen_aln, nuc_aln, prot_aln
-                        alignments_data = None
-                        aligned_gen = ''
-                        aligned_nuc = ''
-                        aligned_prot = ''
-
-                        if alignments:
-                            if allele.description.split(",")[0] in gen_aln[loc]:
-                                aligned_gen = gen_aln[loc][allele.description.split(",")[
-                                    0]]
-
-                                # Separate CSV file, GFE foreign key: a_name
-                                gen_alignment = {
-                                    "label": "GEN_ALIGN",
-                                    "hla_name": hla_name,
-                                    "a_name": a_name, # hla_name.split("-")[1]
-                                    "length": len(aligned_gen),
-                                    "rank": "0", # TO DO: confirm how this value is derived
-                                    "bp_sequence": aligned_gen,
-                                    "imgt_release": imgt_release
-                                }                                    
-
-                            if allele.description.split(",")[0] in nuc_aln[loc]:
-                                aligned_nuc = nuc_aln[loc][allele.description.split(",")[
-                                    0]]
-
-                                # Separate CSV file, GFE foreign key: a_name
-                                nuc_alignment = {
-                                    "label": "NUC_ALIGN",
-                                    "hla_name": hla_name,
-                                    "a_name": a_name, # hla_name.split("-")[1]
-                                    "length": len(aligned_nuc),
-                                    "rank": "0", # TO DO: confirm how this value is derived
-                                    "bp_sequence": aligned_nuc,
-                                    "imgt_release": imgt_release
-                                }
-
-                            if allele.description.split(",")[0] in prot_aln[loc]:
-                                aligned_prot = prot_aln[loc][allele.description.split(",")[
-                                    0]]
-
-                                # Separate CSV file, GFE foreign key: a_name
-                                prot_alignment = {
-                                    "label": "PROT_ALIGN",
-                                    "hla_name": hla_name,
-                                    "a_name": a_name, # hla_name.split("-")[1]
-                                    "length": len(aligned_prot),
-                                    "rank": "0", # TO DO: confirm how this value is derived
-                                    "aa_sequence": aligned_prot,
-                                    "imgt_release": imgt_release
-                                }
-
-                            # Append data to respective list
-                            alignments_data = zip(
-                                [gen_alignments, nuc_alignments, prot_alignments],
-                                [gen_alignment, nuc_alignment, prot_alignment]
-                            )
-
-                            for _list, _dict in alignments_data:
-                                _list.append(_dict)
-                            
-
-                    ### Build dicts describing nodes and edges for each allele
-                    # Separate CSV file
-                    gfe_sequence = {
-                        "allele_id": allele.id,
-                        "gfe_name": gfe,
-                        "locus": loc,
-                        "hla_name": hla_name,
-                        "a_name": a_name, # hla_name.split("-")[1]
-                        "sequence": str(allele.seq),
-                        "length": len(str(allele.seq)),
-                        "imgt_release": imgt_release
-                    }
-
-                    # Separate CSV file, GFE foreign key: allele_id
-                    allele_groups = []
-
-                    for group in groups:
-                        group_dict = {
-                            "allele_id": allele.id,
-                            "hla_name": hla_name,
-                            "a_name": a_name,
-                            "ard_id": group[0],
-                            "ard_name": group[1],
-                            "locus": loc,
-                            "imgt_release": imgt_release
-                        }
-
-                        allele_groups.append(group_dict)
-
-                    # Build CDS dict for CSV export, foreign key: allele_id, hla_name
-                    bp_seq, aa_seq = get_cds(allele)
-
-                    cds = {
-                        "allele_id": allele.id,
-                        "hla_name": hla_name,
-                        "bp_sequence": bp_seq,
-                        "aa_sequence": aa_seq,
-                        "imgt_release": imgt_release
-                    }
-
-                    # features preprocessing steps
-                    # 1) Convert seqann type to python dict using literal_eval
-                    # 2) add GFE foreign keys: allele_id, hla_name
-                    # 3) calculate columns: length
-
-                    # features contains list of seqann objects, converts to dict, destructive step
-                    features = \
-                        [ast.literal_eval(str(feature) \
-                            .replace('\'', '"') \
-                            .replace('\n', '')) \
-                            for feature in features]
-
-                    # Append allele id's
-                    # Note: Some alleles may have the same feature, but it may not be the same rank, 
-                    # so a feature should be identified with its allele by allele_id or HLA name
-                    for feature in features:
-                        feature["term"] = feature["term"].upper()
-                        feature["allele_id"] = allele.id 
-                        feature["hla_name"] = hla_name
-                        feature["imgt_release"] = imgt_release
-
-                        # Avoid null values in CSV for Neo4j import
-                        feature["hash_code"] = "none" if not feature["hash_code"] else feature["hash_code"]
-
-                    # Append data to respective list
-                    data = zip(
-                        [gfe_sequences, all_cds],
-                        [gfe_sequence, cds]
-                    )
-
-                    for _list, _dict in data:
-                        _list.append(_dict)
-
-                    # Alignments, features, and ARD groups can all be concatenated since the keys are the same
-                    if alignments_data:
-                        all_alignments = gen_alignments + nuc_alignments + prot_alignments
-
-                    all_features = all_features + features        
-                    all_groups = all_groups + allele_groups
-
-                # Break point for testing
-                if limit and idx == limit:
-                        break
-
-            csv_output = {
-                "gfe_sequences": gfe_sequences,
-                "all_features": all_features,
-                "all_groups": all_groups,
-                "all_cds": all_cds
-            }
-
-            # Add alignments data if there is
-            if alignments:
-                csv_output["all_alignments"] = all_alignments
-
-            return csv_output
         
         logging.info("Building CSV files...")
         csv_output = \
@@ -412,11 +415,11 @@ def build_hla_graph(**kwargs):
                 alignments=alignments, 
                 limit=limit)
 
-        if to_csv:
-            write_csv_files(csv_output, dbversion, path=data_dir + "csv/")
-            return csv_output
-        else:
-            return csv_output
+        #if to_csv:
+            #write_csv_files(csv_output, dbversion, path=data_dir + "csv/")
+            #return csv_output
+        #else:
+        return csv_output
 
 
 # Write CSV files to local directory
@@ -429,7 +432,7 @@ def write_csv_files(csv_output, dbversion, path):
         # Output to CSV, include dbversion in name
         for csv_name, data in csv_output.items():
             dataframe = pd.DataFrame(data)
-            file_name = path + csv_name + f".{dbversion}.csv"
+            file_name = path + f"{csv_name}.{dbversion}.csv"
             dataframe.to_csv(file_name, index=False)
 
         logging.info(f'Saved CSV files to "{path}"')
@@ -611,7 +614,7 @@ def main():
         dbversions=dbversions, 
         alignments=align, 
         verbose=verbose,
-        to_csv=True, 
+        #to_csv=True, 
         limit=args.limit,
         gfe_maker=gfe_maker)
 
