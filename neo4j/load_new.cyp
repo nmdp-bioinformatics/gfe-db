@@ -66,77 +66,72 @@ SET rel.imgt_release = "RELEASE";
 
 // Alignments
 // GEN_ALIGN nodes
-WITH max(1) AS dummy
+// WITH max(1) AS dummy
 LOAD CSV WITH HEADERS 
 FROM 'file:///all_alignments.RELEASE.csv' as align_row
 FIELDTERMINATOR ','
 FOREACH(_ IN CASE 
     WHEN align_row.label = 'GEN_ALIGN' THEN [1] 
     ELSE [] END |
-        MERGE (:GEN_ALIGN {
+        MERGE (gen:GEN_ALIGN {
             name: align_row.hla_name,
             a_name: align_row.a_name,
             rank: align_row.rank,
             bp_sequence: align_row.bp_sequence,
             length: align_row.length
             })
-)
-// (:GFE)-[:HAS_ALIGNMENT]->(GEN_ALIGN)
-// TO DO: set rel.accession value
-WITH align_row
+);
+// // (:GFE)-[:HAS_ALIGNMENT]->(GEN_ALIGN)
+// // TO DO: set rel.accession value
 MATCH (gfe:GFE)
-MATCH (alignment:GEN_ALIGN)
-WHERE gfe.name = align_row.name
-CREATE (gfe)-[rel:HAS_ALIGNMENT]->(alignment)
-SET rel.accession = "0", rel.imgt_release = "RELEASE";
-// // NUC_ALIGN nodes
-// WITH max(1) AS dummy
-// LOAD CSV WITH HEADERS 
-// FROM 'file:///all_alignments.RELEASE.csv' as align_row
-// FIELDTERMINATOR ','
-// FOREACH(_ IN CASE 
-//     WHEN align_row.label = 'NUC_ALIGN' THEN [1] 
-//     ELSE [] END |
-//         MERGE (:NUC_ALIGN {
-//             name: align_row.hla_name,
-//             a_name: align_row.a_name,
-//             rank: align_row.rank,
-//             bp_sequence: align_row.bp_sequence,
-//             length: align_row.length
-//             })
-// )
-// // (:GFE)-[:HAS_ALIGNMENT]->(NUC_ALIGN)
-// // TO DO: set rel.accession value
-// WITH align_row
-// MATCH (gfe:GFE)
-// MATCH (alignment:NUC_ALIGN)
-// WHERE gfe.a_name = alignment.a_name AND align_row.label = "NUC_ALIGN"
-// CREATE (gfe)-[rel:HAS_ALIGNMENT]->(alignment)
-// SET rel.accession = "0", rel.imgt_release = align_row.imgt_release
-// // PROT_ALIGN nodes
-// WITH max(1) AS dummy
-// LOAD CSV WITH HEADERS 
-// FROM 'file:///all_alignments.RELEASE.csv' as align_row
-// FIELDTERMINATOR ','
-// FOREACH(_ IN CASE 
-//     WHEN align_row.label = 'PROT_ALIGN' THEN [1] 
-//     ELSE [] END |
-//         MERGE (:PROT_ALIGN {
-//             name: align_row.hla_name,
-//             a_name: align_row.a_name,
-//             rank: align_row.rank,
-//             aa_sequence: align_row.aa_sequence,
-//             length: align_row.length
-//             })
-// )
-// // (:GFE)-[:HAS_ALIGNMENT]->(PROT_ALIGN)
-// // TO DO: set rel.accession value
-// WITH align_row
-// MATCH (gfe:GFE)
-// MATCH (alignment:PROT_ALIGN)
-// WHERE gfe.a_name = alignment.a_name AND align_row.label = "PROT_ALIGN"
-// CREATE (gfe)-[rel:HAS_ALIGNMENT]->(alignment)
-// SET rel.accession = "0", rel.imgt_release = align_row.imgt_release
+MATCH (gen:GEN_ALIGN)
+WHERE gfe.name = gen.name
+MERGE (gfe)-[rel:HAS_ALIGNMENT]->(gen)
+    ON CREATE SET rel.accession = "0", rel.imgt_release = "RELEASE";
+// NUC_ALIGN nodes
+LOAD CSV WITH HEADERS 
+FROM 'file:///all_alignments.RELEASE.csv' as align_row
+FIELDTERMINATOR ','
+FOREACH(_ IN CASE 
+    WHEN align_row.label = 'NUC_ALIGN' THEN [1] 
+    ELSE [] END |
+        MERGE (:NUC_ALIGN {
+            name: align_row.hla_name,
+            a_name: align_row.a_name,
+            rank: align_row.rank,
+            bp_sequence: align_row.bp_sequence,
+            length: align_row.length
+            })
+);
+// (:GFE)-[:HAS_ALIGNMENT]->(NUC_ALIGN)
+// TO DO: set rel.accession value
+MATCH (gfe:GFE)
+MATCH (nuc:NUC_ALIGN)
+WHERE gfe.name = nuc.name
+MERGE (gfe)-[rel:HAS_ALIGNMENT]->(nuc)
+    ON CREATE SET rel.accession = "0", rel.imgt_release = "RELEASE";
+// PROT_ALIGN nodes
+LOAD CSV WITH HEADERS 
+FROM 'file:///all_alignments.RELEASE.csv' as align_row
+FIELDTERMINATOR ','
+FOREACH(_ IN CASE 
+    WHEN align_row.label = 'PROT_ALIGN' THEN [1] 
+    ELSE [] END |
+        MERGE (:PROT_ALIGN {
+            name: align_row.hla_name,
+            a_name: align_row.a_name,
+            rank: align_row.rank,
+            aa_sequence: align_row.aa_sequence,
+            length: align_row.length
+            })
+);
+// (:GFE)-[:HAS_ALIGNMENT]->(PROT_ALIGN)
+// TO DO: set rel.accession value
+MATCH (gfe:GFE)
+MATCH (prot:PROT_ALIGN)
+WHERE gfe.name = prot.name
+MERGE (gfe)-[rel:HAS_ALIGNMENT]->(prot)
+    ON CREATE SET rel.accession = "0", rel.imgt_release = "RELEASE";
 // // Groups
 // WITH max(1) AS dummy
 // LOAD CSV WITH HEADERS 
