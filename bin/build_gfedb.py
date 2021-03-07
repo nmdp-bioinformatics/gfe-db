@@ -152,7 +152,7 @@ def get_cds(allele):
 # Build the datasets for the HLA graph
 def build_hla_graph(**kwargs):
 
-    logging.info(f'kwargs:\n{kwargs}')
+    #logging.info(f'kwargs:\n{kwargs}')
     dbversion = kwargs.get("dbversion")
     alignments = kwargs.get("alignments", False)
     verbose = kwargs.get("verbose", False)
@@ -375,9 +375,9 @@ def build_hla_graph(**kwargs):
     imgt_release = f'{dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}'
     db_striped = ''.join(dbversion.split("."))
     
-    logging.info(f'dbversion: {dbversion}')
-    logging.info(f'imgt_release: {imgt_release}')
-    logging.info(f'db_striped: {db_striped}')
+    logging.debug(f'dbversion: {dbversion}')
+    logging.debug(f'imgt_release: {imgt_release}')
+    logging.debug(f'db_striped: {db_striped}')
 
     if alignments:
         gen_aln, nuc_aln, prot_aln = hla_alignments(db_striped)
@@ -415,15 +415,11 @@ def build_hla_graph(**kwargs):
             alignments=alignments, 
             limit=limit)
 
-    #if to_csv:
-        #write_csv_files(csv_output, dbversion, path=data_dir + "csv/")
-        #return csv_output
-    #else:
     return csv_output
 
 
 # Write CSV files to local directory
-def write_csv_files(csv_output, dbversion, path):
+def write_csv_file(csv_output, dbversion, path):
     """Takes a dict of form "csv_name": data where csv_name is the CSV file to export
     and data is a list of dictionaries.
     """
@@ -434,8 +430,7 @@ def write_csv_files(csv_output, dbversion, path):
             dataframe = pd.DataFrame(data)
             file_name = path + f"{csv_name}.{dbversion}.csv"
             dataframe.to_csv(file_name, index=False)
-
-        logging.info(f'Saved CSV files to "{path}"')
+            logging.info(f'Saved {file_name.split("/")[-1]} to {path}')
 
         return 
 
@@ -611,6 +606,8 @@ def main():
         #                 build_kir_graph(...)
 
     for dbversion in dbversions:
+        
+        logging.info(f'\n\nBuilding graph for IMGTHLA version {dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}...')
         csv_output = build_hla_graph(
             dbversion=dbversion, 
             alignments=align, 
@@ -619,11 +616,13 @@ def main():
             limit=args.limit,
             gfe_maker=gfe_maker)
 
-        write_csv_files(csv_output, dbversion, path=data_dir + "csv/")
+        write_csv_file(csv_output, dbversion, path=data_dir + "csv/")
 
-        # if verbose:
-        logging.info(f'Created {len(csv_output.keys())} files:\n{[file + ".csv" for file in csv_output.keys()]}')
-        logging.info("** Finished build **")
+        logging.info(f'Finished build for version {dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}')
+
+    logging.info(f'****** {"Builds" if len(dbversions) > 1 else "Build"} complete ******')
+
+    return
 
 if __name__ == '__main__':
     """The following will be run if file is executed directly,
