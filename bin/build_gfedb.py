@@ -166,7 +166,8 @@ def build_hla_graph(**kwargs):
     for dbversion in dbversions:
 
         imgt_release = f'{dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}'
-
+        logging.info(f'db_version: {db_version}')
+        logging.info(f'imgt_release: {imgt_release}')
         db_striped = ''.join(dbversion.split("."))
 
         if alignments:
