@@ -153,13 +153,13 @@ def get_cds(allele):
 def build_hla_graph(**kwargs):
 
     logging.info(f'kwargs:\n{kwargs}')
-    dbversions = kwargs.get("dbversions")
+    dbversion = kwargs.get("dbversion")
     alignments = kwargs.get("alignments", False)
     verbose = kwargs.get("verbose", False)
     debug = kwargs.get("debug", False)
     gfe_maker = kwargs.get("gfe_maker")
     limit = kwargs.get("limit", None)
-    to_csv = kwargs.get("to_csv", False)
+    #to_csv = kwargs.get("to_csv", False)
 
     def _build_csv_files(a_gen, alignments, limit):
 
@@ -370,56 +370,56 @@ def build_hla_graph(**kwargs):
 
 
     # Loop through DB versions and build CSVs
-    for dbversion in dbversions:
+    #for dbversion in dbversions:
 
-        imgt_release = f'{dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}'
-        db_striped = ''.join(dbversion.split("."))
-        
-        logging.info(f'dbversion: {dbversion}')
-        logging.info(f'imgt_release: {imgt_release}')
-        logging.info(f'db_striped: {db_striped}')
+    imgt_release = f'{dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}'
+    db_striped = ''.join(dbversion.split("."))
+    
+    logging.info(f'dbversion: {dbversion}')
+    logging.info(f'imgt_release: {imgt_release}')
+    logging.info(f'db_striped: {db_striped}')
 
-        if alignments:
-            gen_aln, nuc_aln, prot_aln = hla_alignments(db_striped)
+    if alignments:
+        gen_aln, nuc_aln, prot_aln = hla_alignments(db_striped)
 
-        logging.info("Loading ARD...")
-        ard = ARD(db_striped)
+    logging.info("Loading ARD...")
+    ard = ARD(db_striped)
 
-        # The github URL changed from 3350 to media
-        if int(db_striped) < 3350:
-            dat_url = imgt_hla_raw_url + db_striped + '/hla.dat'
-        else:
-            dat_url = imgt_hla_media_url + db_striped + '/hla.dat'
+    # The github URL changed from 3350 to media
+    if int(db_striped) < 3350:
+        dat_url = imgt_hla_raw_url + db_striped + '/hla.dat'
+    else:
+        dat_url = imgt_hla_media_url + db_striped + '/hla.dat'
 
-        dat_file = data_dir + 'hla.' + db_striped + ".dat"
+    dat_file = data_dir + 'hla.' + db_striped + ".dat"
 
-        # Downloading DAT file
-        logging.info("Downloading DAT file...")
-        if not os.path.isfile(dat_file):
-            if verbose:
-                logging.info("Downloading dat file from " + dat_url)
-            urllib.request.urlretrieve(dat_url, dat_file)
-
-        # Parse DAT file
-        logging.info("Parsing DAT file...")
-        a_gen = SeqIO.parse(dat_file, "imgt")
-
+    # Downloading DAT file
+    logging.info("Downloading DAT file...")
+    if not os.path.isfile(dat_file):
         if verbose:
-            logging.info("Finished parsing dat file")
+            logging.info("Downloading dat file from " + dat_url)
+        urllib.request.urlretrieve(dat_url, dat_file)
 
-        
-        logging.info("Building CSV files...")
-        csv_output = \
-            _build_csv_files(
-                a_gen=a_gen, 
-                alignments=alignments, 
-                limit=limit)
+    # Parse DAT file
+    logging.info("Parsing DAT file...")
+    a_gen = SeqIO.parse(dat_file, "imgt")
 
-        #if to_csv:
-            #write_csv_files(csv_output, dbversion, path=data_dir + "csv/")
-            #return csv_output
-        #else:
-        return csv_output
+    if verbose:
+        logging.info("Finished parsing dat file")
+
+    
+    logging.info("Building CSV files...")
+    csv_output = \
+        _build_csv_files(
+            a_gen=a_gen, 
+            alignments=alignments, 
+            limit=limit)
+
+    #if to_csv:
+        #write_csv_files(csv_output, dbversion, path=data_dir + "csv/")
+        #return csv_output
+    #else:
+    return csv_output
 
 
 # Write CSV files to local directory
@@ -610,17 +610,20 @@ def main():
         #                 # Build the KIR graph
         #                 build_kir_graph(...)
 
-    csv_output = build_hla_graph(
-        dbversions=dbversions, 
-        alignments=align, 
-        verbose=verbose,
-        #to_csv=True, 
-        limit=args.limit,
-        gfe_maker=gfe_maker)
+    for dbversion in dbversions:
+        csv_output = build_hla_graph(
+            dbversion=dbversion, 
+            alignments=align, 
+            verbose=verbose,
+            #to_csv=True, 
+            limit=args.limit,
+            gfe_maker=gfe_maker)
 
-    # if verbose:
-    logging.info(f'Created {len(csv_output.keys())} files:\n{[file + ".csv" for file in csv_output.keys()]}')
-    logging.info("** Finished build **")
+        write_csv_files(csv_output, dbversion, path=data_dir + "csv/")
+
+        # if verbose:
+        logging.info(f'Created {len(csv_output.keys())} files:\n{[file + ".csv" for file in csv_output.keys()]}')
+        logging.info("** Finished build **")
 
 if __name__ == '__main__':
     """The following will be run if file is executed directly,
