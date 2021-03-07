@@ -225,7 +225,7 @@ def build_hla_graph(**kwargs):
                                 "label": "GEN_ALIGN",
                                 "hla_name": hla_name,
                                 "a_name": a_name, # hla_name.split("-")[1]
-                                "length": len(aligned_gen),
+                                "length": len(aligned_gen), # trim whitespace?
                                 "rank": "0", # TO DO: confirm how this value is derived
                                 "bp_sequence": aligned_gen,
                                 "imgt_release": imgt_release
@@ -270,6 +270,7 @@ def build_hla_graph(**kwargs):
                         for _list, _dict in alignments_data:
                             _list.append(_dict)
                         
+               
 
                 ### Build dicts describing nodes and edges for each allele
                 # Separate CSV file
@@ -347,6 +348,11 @@ def build_hla_graph(**kwargs):
                 # Alignments, features, and ARD groups can all be concatenated since the keys are the same
                 if alignments_data:
                     all_alignments = gen_alignments + nuc_alignments + prot_alignments
+
+                    # Drop duplicate rows
+                    all_alignments = pd.DataFrame(all_alignments) \
+                        .drop_duplicates() \
+                        .to_dict('records')
 
                 all_features = all_features + features        
                 all_groups = all_groups + allele_groups
