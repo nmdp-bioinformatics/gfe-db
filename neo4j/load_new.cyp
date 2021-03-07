@@ -1,4 +1,3 @@
-// TO DO: Replace dbversion parameter in CSV file path
 // MATCH (n) DETACH DELETE n;
 LOAD CSV WITH HEADERS 
 FROM 'file:///gfe_sequences.RELEASE.csv' as gfe_row
@@ -7,7 +6,7 @@ FIELDTERMINATOR ','
 MERGE (gfe:GFE {
     locus: gfe_row.locus,
     allele_id: gfe_row.allele_id,
-    hla_name: gfe_row.hla_name,
+    name: gfe_row.hla_name,
     a_name: gfe_row.a_name,
     gfe_name: gfe_row.gfe_name,
     sequence: gfe_row.sequence,
@@ -19,14 +18,14 @@ MERGE (imgt:IMGT_HLA {
     imgt_release: gfe_row.imgt_release,
     locus: gfe_row.locus,
     allele_id: gfe_row.allele_id,
-    hla_name: gfe_row.hla_name
+    name: gfe_row.hla_name
 })
 // SEQUENCE nodes
 WITH gfe_row
 MERGE (sequence:SEQUENCE {
     locus: gfe_row.locus,
     allele_id: gfe_row.allele_id,
-    hla_name: gfe_row.hla_name,
+    name: gfe_row.hla_name,
     gfe_name: gfe_row.gfe_name,
     sequence: gfe_row.sequence,
     length: gfe_row.length
@@ -39,7 +38,7 @@ FIELDTERMINATOR ','
 MERGE (feature:FEATURE {
     locus: feature_row.locus,
     allele_id: feature_row.allele_id,
-    hla_name: feature_row.hla_name,
+    name: feature_row.hla_name,
     rank: feature_row.rank,
     term: feature_row.term,
     accession: feature_row.accession,
@@ -57,7 +56,7 @@ FOREACH(_ IN CASE
     WHEN align_row.label = 'GEN_ALIGN' THEN [1] 
     ELSE [] END |
         MERGE (gen_align:GEN_ALIGN {
-            hla_name: align_row.hla_name,
+            name: align_row.hla_name,
             a_name: align_row.a_name,
             rank: align_row.rank,
             bp_sequence: align_row.bp_sequence,
@@ -81,7 +80,7 @@ FOREACH(_ IN CASE
     WHEN align_row.label = 'NUC_ALIGN' THEN [1] 
     ELSE [] END |
         MERGE (nuc_align:NUC_ALIGN {
-            hla_name: align_row.hla_name,
+            name: align_row.hla_name,
             a_name: align_row.a_name,
             rank: align_row.rank,
             bp_sequence: align_row.bp_sequence,
@@ -105,7 +104,7 @@ FOREACH(_ IN CASE
     WHEN align_row.label = 'PROT_ALIGN' THEN [1] 
     ELSE [] END |
         MERGE (prot_align:PROT_ALIGN {
-            hla_name: align_row.hla_name,
+            name: align_row.hla_name,
             a_name: align_row.a_name,
             rank: align_row.rank,
             aa_sequence: align_row.aa_sequence,
