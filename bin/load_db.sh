@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# TO DO: format IMGTHLA version string
 for RELEASE in $(echo $RELEASES | sed "s/,/ /g")
 do
     echo "Loading release version $RELEASE..."

@@ -3,7 +3,7 @@ LOAD CSV WITH HEADERS
 FROM 'file:///gfe_sequences.RELEASE.csv' as gfe_row
 FIELDTERMINATOR ','
 // GFE nodes
-MERGE (gfe:GFE {
+MERGE (:GFE {
     locus: gfe_row.locus,
     allele_id: gfe_row.allele_id,
     name: gfe_row.hla_name,
@@ -14,7 +14,7 @@ MERGE (gfe:GFE {
 })
 // IMGT_HLA nodes
 WITH gfe_row
-MERGE (imgt:IMGT_HLA {
+MERGE (:IMGT_HLA {
     imgt_release: gfe_row.imgt_release,
     locus: gfe_row.locus,
     allele_id: gfe_row.allele_id,
@@ -22,7 +22,7 @@ MERGE (imgt:IMGT_HLA {
 })
 // SEQUENCE nodes
 WITH gfe_row
-MERGE (sequence:SEQUENCE {
+MERGE (:SEQUENCE {
     locus: gfe_row.locus,
     allele_id: gfe_row.allele_id,
     name: gfe_row.hla_name,
@@ -35,7 +35,7 @@ WITH max(1) AS dummy
 LOAD CSV WITH HEADERS 
 FROM 'file:///all_features.RELEASE.csv' as feature_row
 FIELDTERMINATOR ','
-MERGE (feature:FEATURE {
+MERGE (:FEATURE {
     locus: feature_row.locus,
     allele_id: feature_row.allele_id,
     name: feature_row.hla_name,
@@ -55,7 +55,7 @@ FIELDTERMINATOR ','
 FOREACH(_ IN CASE 
     WHEN align_row.label = 'GEN_ALIGN' THEN [1] 
     ELSE [] END |
-        MERGE (gen_align:GEN_ALIGN {
+        MERGE (:GEN_ALIGN {
             name: align_row.hla_name,
             a_name: align_row.a_name,
             rank: align_row.rank,
@@ -79,7 +79,7 @@ FIELDTERMINATOR ','
 FOREACH(_ IN CASE 
     WHEN align_row.label = 'NUC_ALIGN' THEN [1] 
     ELSE [] END |
-        MERGE (nuc_align:NUC_ALIGN {
+        MERGE (:NUC_ALIGN {
             name: align_row.hla_name,
             a_name: align_row.a_name,
             rank: align_row.rank,
@@ -103,7 +103,7 @@ FIELDTERMINATOR ','
 FOREACH(_ IN CASE 
     WHEN align_row.label = 'PROT_ALIGN' THEN [1] 
     ELSE [] END |
-        MERGE (prot_align:PROT_ALIGN {
+        MERGE (:PROT_ALIGN {
             name: align_row.hla_name,
             a_name: align_row.a_name,
             rank: align_row.rank,
@@ -128,7 +128,7 @@ FIELDTERMINATOR ','
 FOREACH(_ IN CASE 
     WHEN groups_row.ard_name = 'G' THEN [1] 
     ELSE [] END |
-        MERGE (g_group:G {
+        MERGE (:G {
             locus: groups_row.locus,
             allele_id: groups_row.allele_id,
             hla_name: groups_row.hla_name,
@@ -141,7 +141,7 @@ FOREACH(_ IN CASE
 FOREACH(_ IN CASE 
     WHEN groups_row.ard_name = 'lg' THEN [1] 
     ELSE [] END |
-        MERGE (lg_group:lg {
+        MERGE (:lg {
             locus: groups_row.locus,
             allele_id: groups_row.allele_id,
             hla_name: groups_row.hla_name,
@@ -154,7 +154,7 @@ FOREACH(_ IN CASE
 FOREACH(_ IN CASE 
     WHEN groups_row.ard_name = 'lgx' THEN [1] 
     ELSE [] END |
-        MERGE (lgx_group:lgx {
+        MERGE (:lgx {
             locus: groups_row.locus,
             allele_id: groups_row.allele_id,
             hla_name: groups_row.hla_name,
