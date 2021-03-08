@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CYPHER=load_duplicate_rels.cyp
+CYPHER=load.cyp
 
 echo "Load script: $CYPHER"
 # TO DO: format IMGTHLA version string
