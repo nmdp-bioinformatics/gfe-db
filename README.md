@@ -98,7 +98,7 @@ docker start gfe
 ## 5. Load the GFE data
 Once the container is running and the Neo4j server is up, the data can be loaded using the Cypher script.
 ```
-cat neo4j/load.cyp | docker exec --interactive gfe cypher-shell -u neo4j -p gfedb
+bash bin/load_db.sh
 ```
 *Note: This step is not yet optimized for the full dataset, so proceed with caution. For local development on the GFE graph, it is recommended to specify a limited number of alleles during the build step.*
 ## 6. Access Neo4j
