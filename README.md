@@ -61,10 +61,10 @@ pip install -r requirements.txt
 ```
 
 ## 2. Build the GFE dataset
-Run this script to generate a set CSV files of GFE data in the `data/csv/` directory. It is recommended to limit the number of alleles to avoid excessive build and load times.
+Run this script to generate a set CSV files of GFE data in the `data/csv/` directory. It is recommended to limit the number of alleles and start with a small number to avoid excessive build and load times.
 ```bash
-# Limit the build to 100 alleles (recommended)
-bash bin/build.sh 100
+# Limit the build to 1000 alleles (recommended for local development)
+bash bin/build.sh 1000
 
 # Build complete database (not recommended)
 bash bin/build.sh
