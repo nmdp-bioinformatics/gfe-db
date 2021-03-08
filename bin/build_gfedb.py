@@ -618,7 +618,6 @@ def main():
             dbversion=dbversion, 
             alignments=align, 
             verbose=verbose,
-            #to_csv=True, 
             limit=args.limit,
             gfe_maker=gfe_maker)
 
@@ -626,7 +625,7 @@ def main():
 
         logging.info(f'Finished build for version {dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}')
 
-    logging.info(f'****** {"Builds" if len(dbversions) > 1 else "Build"} complete ******')
+    logging.info(f'****** Build complete ******')
 
     return
 
