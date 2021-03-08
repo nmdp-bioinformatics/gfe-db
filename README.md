@@ -6,12 +6,15 @@ This repo is a fork of gfe-db, a graph database representing IPD-IMGT/HLA sequen
 ## Running the GFE database in Neo4j 4.2 using Docker
 This README outlines the steps for building and running a development version of `gfe-db` in a local Docker container. Docker will deploy an instance of Neo4j 4.2 including the [APOC](https://neo4j.com/labs/apoc/4.1/) and [Graph Data Science](https://neo4j.com/docs/graph-data-science/current/) plugins. GFE data is stored in the `data/csv/` directory which is mounted as an external volume within the container when run. This keeps the data outside the container so that it can be updated easily.
 
+## New Features
+* Multiple IMGT/HLA releases can be loaded into the same graph. The release versions will show up in the `imgt_release` property for a given relationship. There are some improvements to make for better readability but the functionality is there.
+* This version uses a Neo4j 4.2 Docker image. Loading can be optimized by setting the `NEO4J_dbms_memory_heap_initial__size` and `NEO4J_dbms_memory_heap_max__size` environment variables to half your available RAM.
+
 ## Development Constraints
 This pipeline is under development.
-* The graph schema is being redesigned.
+* The graph schema is a work in progress.
 * KIR data is not yet included.
-* Releases other than IPD-IMGT/HLA Release 3.36.0 are not yet included (coming next).
-* Loading the full GFE dataset of 20,000+ alleles might fail, or take an excessive amount of time. (Load scripts are in the processed of being optimized for this.)
+* Loading the full GFE dataset of 20,000+ alleles might fail, or take an excessive amount of time until the load script can be better optimized.
 
 Please feel free to open issues regarding specific bugs and feature requests.
 
@@ -22,7 +25,8 @@ Please feel free to open issues regarding specific bugs and feature requests.
 │   ├── __init__.py
 │   ├── build.sh                    # Entrypoint for build step
 │   ├── build_gfedb.py              # Generates CSVs for Neo4j graph
-│   └── get_alignments.sh           # Alignments are included by default            
+│   ├── get_alignments.sh           # Alignments are included by default    
+│   └── load_db.sh                  # Loads multiple IMGT/HLA versions
 ├── (data)                          # Created during build step
 │   ├── 3360                        # IMGT/HLA release 3.36.0
 │   ├── csv                         # CSVs loaded into Neo4j
@@ -96,6 +100,13 @@ docker stop gfe
 docker start gfe
 ```
 ## 5. Load the GFE data
+Make sure the environment variables in `bin/build.sh` are exported.
+```bash
+export IMGT="3420,3430"
+export RELEASES="3420,3430" 
+export ALIGN=True
+export KIR=False
+```
 Once the container is running and the Neo4j server is up, the data can be loaded using the Cypher script.
 ```
 bash bin/load_db.sh
