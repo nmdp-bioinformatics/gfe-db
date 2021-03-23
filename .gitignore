@@ -61,17 +61,20 @@ docs/_build/
 # PyBuilder
 target/
 
+# VS Code
+.vscode
+
 # Jupyter Notebook
 .ipynb_checkpoints
 
 # pyenv python configuration file
 .python-version
-.venv
+.venv*
 
 # Project files
 tags
 .idea/
-# data/
+data/
 output/
 numeric.v3.zip
 *.pem
