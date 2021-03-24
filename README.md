@@ -14,7 +14,7 @@ This README outlines the steps for building and running a development version of
 This pipeline is under development.
 * The graph schema is a work in progress.
 * KIR data is not yet included.
-* Loading the full GFE dataset of 20,000+ alleles might fail, or take an excessive amount of time until the load script can be better optimized.
+* Loading the full GFE dataset of 20,000+ alleles be possible, remember to configure your Docker daemon's memory accordingly if building locally.
 
 Please feel free to open issues regarding specific bugs and feature requests.
 
@@ -70,7 +70,7 @@ Run this script to generate a set CSV files of GFE data in the `data/csv/` direc
 # Limit the build to 1000 alleles (recommended for local development)
 bash bin/build.sh 1000
 
-# Build complete database (not recommended)
+# Build complete database (takes a while)
 bash bin/build.sh
 ```
 
@@ -85,11 +85,6 @@ Run the container to start Neo4j in Docker.
 ```
 # Run container to start Neo4j
 docker run -d --name gfe -v "$(pwd)"/data/csv/:/var/lib/neo4j/import -p 7474:7474 -p 7473:7473 -p 7687:7687 gfe
-```
-If the above does not work, run this command instead. It will not include the plug-ins.
-```
-# Run container to start Neo4j
-docker run -d --name gfe -v "$(pwd)"/data/csv/:/var/lib/neo4j/import -p 7474:7474 -p 7473:7473 -p 7687:7687 neo4j
 ```
 If desired, access the container logs during startup. This will indicate when Neo4j is ready.
 ```bash

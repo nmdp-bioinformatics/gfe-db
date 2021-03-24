@@ -223,6 +223,7 @@ def build_hla_graph(**kwargs):
                             # Separate CSV file, GFE foreign key: a_name
                             gen_alignment = {
                                 "label": "GEN_ALIGN",
+                                "gfe_name": gfe,
                                 "hla_name": hla_name,
                                 "a_name": a_name, # hla_name.split("-")[1]
                                 "length": len(aligned_gen), # trim whitespace?
@@ -238,6 +239,7 @@ def build_hla_graph(**kwargs):
                             # Separate CSV file, GFE foreign key: a_name
                             nuc_alignment = {
                                 "label": "NUC_ALIGN",
+                                "gfe_name": gfe,
                                 "hla_name": hla_name,
                                 "a_name": a_name, # hla_name.split("-")[1]
                                 "length": len(aligned_nuc),
@@ -253,6 +255,7 @@ def build_hla_graph(**kwargs):
                             # Separate CSV file, GFE foreign key: a_name
                             prot_alignment = {
                                 "label": "PROT_ALIGN",
+                                "gfe_name": gfe,
                                 "hla_name": hla_name,
                                 "a_name": a_name, # hla_name.split("-")[1]
                                 "length": len(aligned_prot),
@@ -275,8 +278,8 @@ def build_hla_graph(**kwargs):
                 ### Build dicts describing nodes and edges for each allele
                 # Separate CSV file
                 gfe_sequence = {
-                    "allele_id": allele.id,
                     "gfe_name": gfe,
+                    "allele_id": allele.id,
                     "locus": loc,
                     "hla_name": hla_name,
                     "a_name": a_name, # hla_name.split("-")[1]
@@ -290,6 +293,7 @@ def build_hla_graph(**kwargs):
 
                 for group in groups:
                     group_dict = {
+                        "gfe_name": gfe,
                         "allele_id": allele.id,
                         "hla_name": hla_name,
                         "a_name": a_name,
@@ -305,6 +309,7 @@ def build_hla_graph(**kwargs):
                 bp_seq, aa_seq = get_cds(allele)
 
                 cds = {
+                    "gfe_name": gfe,
                     "allele_id": allele.id,
                     "hla_name": hla_name,
                     "bp_sequence": bp_seq,
@@ -328,6 +333,7 @@ def build_hla_graph(**kwargs):
                 # Note: Some alleles may have the same feature, but it may not be the same rank, 
                 # so a feature should be identified with its allele by allele_id or HLA name
                 for feature in features:
+                    feature["gfe_name"] = gfe
                     feature["term"] = feature["term"].upper()
                     feature["allele_id"] = allele.id 
                     feature["hla_name"] = hla_name
