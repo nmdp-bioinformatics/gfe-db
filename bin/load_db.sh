@@ -9,7 +9,7 @@ do
     echo "Loading release version $RELEASE..."
     cat $CYPHER_PATH | \
         sed "s/RELEASE/$RELEASE/g" | \
-        docker exec --interactive gfe cypher-shell -u neo4j -p gfedb
+        docker exec -i gfe cypher-shell -u neo4j -p gfedb
 done
 
 echo "Done"
