@@ -29,15 +29,16 @@ MATCH (gfe:GFE)
 WHERE hla.name = gfe.name
 MERGE (hla)-[rel:HAS_GFE]->(gfe)
 ON CREATE SET rel.imgt_release = [imgt_release]
-ON MATCH SET rel.imgt_release = coalesce(rel.imgt_release, []) + [imgt_release]
-WITH imgt_release
+ON MATCH SET rel.imgt_release = coalesce(rel.imgt_release, []) + [imgt_release];
+USING PERIODIC COMMIT 10000 LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as gfe_row
+WITH DISTINCT replace(gfe_row.imgt_release, ".", "") AS imgt_release
 MATCH (gfe:GFE)
 MATCH (seq:SEQUENCE)
 WHERE gfe.sequence = seq.sequence
-MERGE (gfe)-[rel1:HAS_SEQUENCE]->(seq)<-[rel2:HAS_ALIGNMENT]-(gfe)
-ON CREATE SET rel1.imgt_release = [imgt_release], rel2.imgt_release = [imgt_release]
-ON MATCH SET rel1.imgt_release = coalesce(rel1.imgt_release, []) + [imgt_release],
-    rel2.imgt_release = coalesce(rel2.imgt_release, []) + [imgt_release];
+MERGE (gfe)-[:HAS_SEQUENCE]->(seq)
+MERGE (gfe)-[rel:HAS_ALIGNMENT]->(seq)
+ON CREATE SET rel.imgt_release = [imgt_release]
+ON MATCH SET rel.imgt_release = coalesce(rel.imgt_release, []) + [imgt_release];
 USING PERIODIC COMMIT 10000 LOAD CSV WITH HEADERS FROM 'file:///all_features.RELEASE.csv' as feature_row
 MERGE (:FEATURE {
     locus: feature_row.locus,
@@ -54,9 +55,7 @@ WITH DISTINCT replace(feature_row.imgt_release, ".", "") AS imgt_release
 MATCH (gfe:GFE)
 MATCH (f:FEATURE)
 WHERE gfe.name = f.name
-MERGE (gfe)-[rel:HAS_FEATURE]->(f)
-ON CREATE SET rel.imgt_release = [imgt_release]
-ON MATCH SET rel.imgt_release = coalesce(rel.imgt_release, []) + [imgt_release];
+MERGE (gfe)-[rel:HAS_FEATURE]->(f);
 USING PERIODIC COMMIT 10000 LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
 FOREACH(_ IN CASE 
     WHEN align_row.label = 'GEN_ALIGN' THEN [1] 
