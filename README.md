@@ -7,14 +7,14 @@ This repo is a fork of gfe-db, a graph database representing IPD-IMGT/HLA sequen
 This README outlines the steps for building and running a development version of `gfe-db` in a local Docker container. Docker will deploy an instance of Neo4j 4.2 including the [APOC](https://neo4j.com/labs/apoc/4.1/) and [Graph Data Science](https://neo4j.com/docs/graph-data-science/current/) plugins. GFE data is stored in the `data/csv/` directory which is mounted as an external volume within the container when run. This keeps the data outside the container so that it can be updated easily.
 
 ## New Features
-* Multiple IMGT/HLA releases can be loaded into the same graph. The release versions will show up in the `imgt_release` property for a given relationship. There are some improvements to make for better readability but the functionality is there.
+* Multiple IMGT/HLA releases can be loaded into the same graph. The release versions will show up as separate edges with a `release` property.
 * This version uses a Neo4j 4.2 Docker image. Loading can be optimized by setting the `NEO4J_dbms_memory_heap_initial__size` and `NEO4J_dbms_memory_heap_max__size` environment variables to half your available RAM.
 
 ## Development Constraints
 This pipeline is under development.
 * The graph schema is a work in progress.
 * KIR data is not yet included.
-* Loading the full GFE dataset of 20,000+ alleles be possible, remember to configure your Docker daemon's memory accordingly if building locally.
+* Loading the full GFE dataset of 20,000+ alleles is possible, remember to configure your Docker daemon's memory accordingly if building locally.
 
 Please feel free to open issues regarding specific bugs and feature requests.
 
@@ -28,8 +28,8 @@ Please feel free to open issues regarding specific bugs and feature requests.
 │   ├── get_alignments.sh           # Alignments are included by default    
 │   └── load_db.sh                  # Loads multiple IMGT/HLA versions
 ├── (data)                          # Created during build step
-│   ├── 3360                        # IMGT/HLA release 3.36.0
-│   ├── csv                         # CSVs loaded into Neo4j
+│   ├── 3360                        # Alignments
+│   ├── csv                         # CSVs loaded into Neo4j for each IMGT release
 │   │   ├── all_alignments.3360.csv
 │   │   ├── all_cds.3360.csv
 │   │   ├── all_features.3360.csv
