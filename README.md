@@ -84,7 +84,8 @@ docker build --tag gfe-db .
 Run the container to start Neo4j in Docker.
 ```
 # Run container to start Neo4j
-docker run -d --name gfe -v "$(pwd)"/data/csv/:/var/lib/neo4j/import -p 7474:7474 -p 7473:7473 -p 7687:7687 gfe
+docker run -d --name gfe -v "$(pwd)"/data/csv/:/var/lib/neo4j/import \
+  -p 7474:7474 -p 7473:7473 -p 7687:7687 gfe
 ```
 If desired, access the container logs during startup. This will indicate when Neo4j is ready.
 ```bash
