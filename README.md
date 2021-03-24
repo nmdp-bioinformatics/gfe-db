@@ -153,7 +153,7 @@ The username and password is set as follows:
 ENV NEO4J_AUTH=neo4j/gfedb
 ```
 ## Memory Management
-Optimal memory for Neo4j depends on available RAM. Loading and querying a larger dataset will require more memory allocated. For more information on memory management in Neo4j, see the [Neo4j Operations Manual](https://neo4j.com/docs/operations-manual/current/performance/memory-configuration/).
+Optimal memory for Neo4j depends on available RAM. Loading and querying a larger dataset will require more memory allocated. Make sure that the Docker daemon is configured to handle whatever values are given here. For more information on memory management in Neo4j, see the [Neo4j Operations Manual](https://neo4j.com/docs/operations-manual/current/performance/memory-configuration/).
 ```Dockerfile
 # Dockerfile
 ENV NEO4J_dbms_memory_heap_initial__size=2G \

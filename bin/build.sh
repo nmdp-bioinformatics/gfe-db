@@ -1,6 +1,6 @@
 BIN_DIR=$(dirname "$0")
 CSV_DATA_DIR="data/csv"
-LIMIT=$1
+#LIMIT=$1
 
 # For development
 export IMGT="3420,3430"
@@ -49,4 +49,4 @@ python3 "${BIN_DIR}"/build_gfedb.py \
 	${KIRFLAG} \
 	${ALIGNFLAG} \
 	-v \
-	-l $LIMIT
+	-l $1

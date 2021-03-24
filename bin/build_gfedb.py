@@ -494,6 +494,7 @@ def main():
                         required=False,
                         help="Limit number of records in output",
                         default=None,
+                        nargs='?',
                         type=int,
                         action="store")
 
