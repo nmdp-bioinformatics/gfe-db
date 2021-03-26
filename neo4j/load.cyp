@@ -1,132 +1,123 @@
-USING PERIODIC COMMIT 10000 LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as row
-MERGE (:GFE {
-    gfe_name: row.gfe_name, // static property
-    locus: row.locus // static property
-    // allele_id: row.allele_id,
-    // name: row.hla_name,
-    // a_name: row.a_name,
-    // sequence: row.sequence,
-    // length: row.length,
-    // release: row.imgt_release
-})
-MERGE (:IMGT_HLA {
-    locus: row.locus,
-    name: row.hla_name
-})
-WITH row
+USING PERIODIC COMMIT 10000
+LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as row
+MERGE (gfe:GFE { gfe_name: row.gfe_name }) // static property
+ON CREATE SET gfe.locus = row.locus
+MERGE (imgt:IMGT_HLA { locus: row.locus })
+ON CREATE SET imgt.name = row.hla_name
+MERGE (seq:Sequence { gfe_name: row.gfe_name })
+ON CREATE SET seq.locus = row.locus,
+    seq.sequence = row.sequence,
+    seq.length = row.length;
+USING PERIODIC COMMIT 10000
+LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as row
 MATCH (gfe:GFE { gfe_name: row.gfe_name })
 MATCH (imgt:IMGT_HLA { name: row.hla_name })
-MERGE (imgt)-[rel:HAS_GFE]->(gfe)
-    ON CREATE SET rel.release = row.imgt_release
-WITH row
-MERGE (:Sequence {
-    gfe_name: row.gfe_name,
-    locus: row.locus,
-    sequence: row.sequence,
-    length: row.length
-})
-WITH row
-MATCH (gfe:GFE { gfe_name: row.gfe_name })
 MATCH (seq:Sequence { gfe_name: row.gfe_name })
+MERGE (imgt)-[rel:HAS_GFE]->(gfe)
+ON CREATE SET rel.release = row.imgt_release
 MERGE (gfe)-[:HAS_SEQUENCE]->(seq);
-USING PERIODIC COMMIT 10000 LOAD CSV WITH HEADERS FROM 'file:///all_features.RELEASE.csv' as row
-MERGE (:Feature {
-    locus: row.locus,
-    gfe_name: row.gfe_name,
-    rank: row.rank,
-    term: row.term,
-    accession: row.accession,
-    sequence: row.sequence,
-    length: size(row.sequence),
-    hash_code: row.hash_code
-})
-WITH row
+USING PERIODIC COMMIT 10000
+LOAD CSV WITH HEADERS FROM 'file:///all_features.RELEASE.csv' as row
+MERGE (f:Feature { locus: row.locus })
+ON CREATE SET f.gfe_name = row.gfe_name,
+    f.rank = row.rank,
+    f.term = row.term,
+    f.accession = row.accession,
+    f.sequence = row.sequence,
+    f.length = size(row.sequence),
+    f.hash_code = row.hash_code;
+USING PERIODIC COMMIT 10000
+LOAD CSV WITH HEADERS FROM 'file:///all_features.RELEASE.csv' as row
 MATCH (gfe:GFE { gfe_name: row.gfe_name })
 MATCH (f:Feature { gfe_name: row.gfe_name })
 MERGE (gfe)-[:HAS_FEATURE]->(f);
-USING PERIODIC COMMIT 10000 LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
+USING PERIODIC COMMIT 10000 
+LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
 FOREACH(_ IN CASE 
     WHEN align_row.label = 'GEN_ALIGN' THEN [1] 
     ELSE [] END |
-        MERGE (:GenomicAlignment {
-            gfe_name: align_row.gfe_name,
-            name: align_row.hla_name,
-            a_name: align_row.a_name,
-            rank: align_row.rank,
-            bp_sequence: align_row.bp_sequence,
-            length: align_row.length
-            })
-)
-WITH align_row
+        MERGE (gen:GenomicAlignment { gfe_name: align_row.gfe_name })
+        ON CREATE SET gen.name = align_row.hla_name,
+            gen.a_name = align_row.a_name,
+            gen.rank = align_row.rank,
+            gen.bp_sequence = align_row.bp_sequence,
+            gen.length = align_row.length
+);
+USING PERIODIC COMMIT 10000 
+LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
 FOREACH(_ IN CASE 
     WHEN align_row.label = 'NUC_ALIGN' THEN [1] 
     ELSE [] END |
-        MERGE (:NucleotideAlignment {
-            gfe_name: align_row.gfe_name,
-            name: align_row.hla_name,
-            rank: align_row.rank,
-            bp_sequence: align_row.bp_sequence,
-            length: align_row.length
-            })
-)
-WITH align_row
+        MERGE (nuc:NucleotideAlignment { gfe_name: align_row.gfe_name })
+        ON CREATE SET nuc.name = align_row.hla_name,
+            nuc.rank = align_row.rank,
+            nuc.bp_sequence = align_row.bp_sequence,
+            nuc.length = align_row.length
+);
+USING PERIODIC COMMIT 10000 
+LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
 FOREACH(_ IN CASE 
     WHEN align_row.label = 'PROT_ALIGN' THEN [1] 
     ELSE [] END |
-        MERGE (:ProteinAlignment {
-            gfe_name: align_row.gfe_name,
-            name: align_row.hla_name,
-            rank: align_row.rank,
-            aa_sequence: align_row.aa_sequence,
-            length: align_row.length
-            })
-)
-WITH align_row
+        MERGE (prot:ProteinAlignment { gfe_name: align_row.gfe_name })
+        ON CREATE SET prot.name = align_row.hla_name,
+            prot.rank = align_row.rank,
+            prot.aa_sequence = align_row.aa_sequence,
+            prot.length = align_row.length
+);
+USING PERIODIC COMMIT 10000 
+LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
 MATCH (gfe:GFE { gfe_name: align_row.gfe_name })
 MATCH (gen:GenomicAlignment { gfe_name: align_row.gfe_name })
+MERGE (gfe)-[:HAS_ALIGNMENT]->(gen);
+USING PERIODIC COMMIT 10000 
+LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
+MATCH (gfe:GFE { gfe_name: align_row.gfe_name })
 MATCH (nuc:NucleotideAlignment { gfe_name: align_row.gfe_name })
-MATCH (prot:ProteinAlignment { gfe_name: align_row.gfe_name }) 
-MERGE (gfe)-[:HAS_ALIGNMENT]->(gen)
-MERGE (gfe)-[:HAS_ALIGNMENT]->(nuc) 
+MERGE (gfe)-[:HAS_ALIGNMENT]->(nuc);
+USING PERIODIC COMMIT 10000 
+LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
+MATCH (gfe:GFE { gfe_name: align_row.gfe_name })
+MATCH (prot:ProteinAlignment { gfe_name: align_row.gfe_name })
 MERGE (gfe)-[:HAS_ALIGNMENT]->(prot);
-USING PERIODIC COMMIT 10000 LOAD CSV WITH HEADERS FROM 'file:///all_groups.RELEASE.csv' as groups_row
+USING PERIODIC COMMIT 10000 
+LOAD CSV WITH HEADERS FROM 'file:///all_groups.RELEASE.csv' as groups_row
 FOREACH(_ IN CASE 
     WHEN groups_row.ard_name = 'G' THEN [1] 
     ELSE [] END |
-        MERGE (:G {
-            locus: groups_row.locus,
-            allele_id: groups_row.allele_id,
-            name: groups_row.hla_name,
-            a_name: groups_row.a_name,
-            ard_id: groups_row.ard_id,
-            ard_name: groups_row.ard_name
-        })
-)
+        MERGE (_g:G { locus: groups_row.locus })
+        ON CREATE SET _g.allele_id = groups_row.allele_id,
+            _g.name = groups_row.hla_name,
+            _g.a_name = groups_row.a_name,
+            _g.ard_id = groups_row.ard_id,
+            _g.ard_name = groups_row.ard_name
+);
+USING PERIODIC COMMIT 10000 
+LOAD CSV WITH HEADERS FROM 'file:///all_groups.RELEASE.csv' as groups_row
 FOREACH(_ IN CASE 
     WHEN groups_row.ard_name = 'lg' THEN [1] 
     ELSE [] END |
-        MERGE (:lg {
-            locus: groups_row.locus,
-            allele_id: groups_row.allele_id,
-            name: groups_row.hla_name,
-            a_name: groups_row.a_name,
-            ard_id: groups_row.ard_id,
-            ard_name: groups_row.ard_name
-        })
-)
+        MERGE (_lg:lg { locus: groups_row.locus })
+        ON CREATE SET _lg.allele_id = groups_row.allele_id,
+            _lg.name = groups_row.hla_name,
+            _lg.a_name = groups_row.a_name,
+            _lg.ard_id = groups_row.ard_id,
+            _lg.ard_name = groups_row.ard_name
+);
+USING PERIODIC COMMIT 10000 
+LOAD CSV WITH HEADERS FROM 'file:///all_groups.RELEASE.csv' as groups_row
 FOREACH(_ IN CASE 
     WHEN groups_row.ard_name = 'lgx' THEN [1] 
     ELSE [] END |
-        MERGE (:lgx {
-            locus: groups_row.locus,
-            allele_id: groups_row.allele_id,
-            name: groups_row.hla_name,
-            a_name: groups_row.a_name,
-            ard_id: groups_row.ard_id,
-            ard_name: groups_row.ard_name
-        })
-)
-WITH groups_row
+        MERGE (_lgx:lgx { locus: groups_row.locus })
+        ON CREATE SET _lgx.allele_id = groups_row.allele_id,
+            _lgx.name = groups_row.hla_name,
+            _lgx.a_name = groups_row.a_name,
+            _lgx.ard_id = groups_row.ard_id,
+            _lgx.ard_name = groups_row.ard_name
+);
+USING PERIODIC COMMIT 10000 
+LOAD CSV WITH HEADERS FROM 'file:///all_groups.RELEASE.csv' as groups_row
 MATCH (hla:IMGT_HLA { name: groups_row.hla_name })
 MATCH (_g:G { name: groups_row.hla_name }) 
 MATCH (_lg:lg { name: groups_row.hla_name }) 
@@ -134,15 +125,15 @@ MATCH (_lgx:lgx { name: groups_row.hla_name })
 MERGE (hla)-[:G]->(_g)
 MERGE (hla)-[:lg]->(_lg)
 MERGE (hla)-[:lgx]->(_lgx);
-USING PERIODIC COMMIT 10000 LOAD CSV WITH HEADERS FROM 'file:///all_cds.RELEASE.csv' as cds_row
-MERGE (:CDS {
-    gfe_name: cds_row.gfe_name,
-    bp_sequence: cds_row.bp_sequence,
-    bp_length: size(cds_row.bp_sequence),
-    aa_sequence: cds_row.aa_sequence,
-    aa_length: size(cds_row.aa_sequence)
-})
-WITH cds_row
+USING PERIODIC COMMIT 10000 
+LOAD CSV WITH HEADERS FROM 'file:///all_cds.RELEASE.csv' as cds_row
+MERGE (cds:CDS { gfe_name: cds_row.gfe_name })
+ON CREATE SET cds.bp_sequence = cds_row.bp_sequence,
+    cds.bp_length = size(cds_row.bp_sequence),
+    cds.aa_sequence = cds_row.aa_sequence,
+    cds.aa_length = size(cds_row.aa_sequence);
+USING PERIODIC COMMIT 10000 
+LOAD CSV WITH HEADERS FROM 'file:///all_cds.RELEASE.csv' as cds_row
 MATCH (seq:Sequence { gfe_name: cds_row.gfe_name })
 MATCH (cds:CDS { gfe_name: cds_row.gfe_name })
 MERGE (seq)-[:HAS_CDS]->(cds);
