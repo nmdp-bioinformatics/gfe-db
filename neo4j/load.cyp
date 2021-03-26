@@ -14,7 +14,8 @@ MATCH (gfe:GFE { gfe_name: row.gfe_name })
 MATCH (imgt:IMGT_HLA { name: row.hla_name })
 MATCH (seq:Sequence { gfe_name: row.gfe_name })
 MERGE (imgt)-[rel:HAS_GFE]->(gfe)
-ON CREATE SET rel.release = row.imgt_release
+ON CREATE SET rel.release = [row.imgt_release]
+ON MATCH set rel.release = rel.release + [row.imgt_release]
 MERGE (gfe)-[:HAS_SEQUENCE]->(seq);
 USING PERIODIC COMMIT 10000
 LOAD CSV WITH HEADERS FROM 'file:///all_features.RELEASE.csv' as row
