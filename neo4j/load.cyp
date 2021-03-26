@@ -137,3 +137,7 @@ LOAD CSV WITH HEADERS FROM 'file:///all_cds.RELEASE.csv' as cds_row
 MATCH (seq:Sequence { gfe_name: cds_row.gfe_name })
 MATCH (cds:CDS { gfe_name: cds_row.gfe_name })
 MERGE (seq)-[:HAS_CDS]->(cds);
+
+CREATE CONSTRAINT gfe_constraint IF NOT EXISTS ON (gfe:GFE) ASSERT gfe.gfe_name IS UNIQUE;
+CREATE CONSTRAINT imgt_constraint IF NOT EXISTS ON (imgt:IMGT_HLA) ASSERT imgt.name IS UNIQUE;
+CREATE CONSTRAINT sequence_constraint IF NOT EXISTS ON (seq:Sequence) ASSERT seq.gfe_name IS UNIQUE;

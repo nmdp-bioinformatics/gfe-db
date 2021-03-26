@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CYPHER_PATH=neo4j/load_optimize.cyp
+CYPHER_PATH=neo4j/load.cyp
 
 echo "Load script: $CYPHER_PATH"
 # TO DO: format IMGTHLA version string
