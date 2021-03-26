@@ -11,7 +11,6 @@ MERGE (:GFE {
 })
 MERGE (:IMGT_HLA {
     locus: row.locus,
-    allele_id: row.allele_id,
     name: row.hla_name
 })
 WITH row
@@ -29,9 +28,7 @@ MERGE (:Sequence {
 WITH row
 MATCH (gfe:GFE { gfe_name: row.gfe_name })
 MATCH (seq:Sequence { gfe_name: row.gfe_name })
-MERGE (gfe)-[:HAS_SEQUENCE]->(seq)
-MERGE (gfe)-[rel:HAS_ALIGNMENT]->(seq)
-    ON CREATE SET rel.release = row.imgt_release;
+MERGE (gfe)-[:HAS_SEQUENCE]->(seq);
 USING PERIODIC COMMIT 10000 LOAD CSV WITH HEADERS FROM 'file:///all_features.RELEASE.csv' as row
 MERGE (:Feature {
     locus: row.locus,
@@ -51,7 +48,7 @@ USING PERIODIC COMMIT 10000 LOAD CSV WITH HEADERS FROM 'file:///all_alignments.R
 FOREACH(_ IN CASE 
     WHEN align_row.label = 'GEN_ALIGN' THEN [1] 
     ELSE [] END |
-        MERGE (:GEN_ALIGN {
+        MERGE (:GenomicAlignment {
             gfe_name: align_row.gfe_name,
             name: align_row.hla_name,
             a_name: align_row.a_name,
@@ -64,10 +61,9 @@ WITH align_row
 FOREACH(_ IN CASE 
     WHEN align_row.label = 'NUC_ALIGN' THEN [1] 
     ELSE [] END |
-        MERGE (:NUC_ALIGN {
+        MERGE (:NucleotideAlignment {
             gfe_name: align_row.gfe_name,
             name: align_row.hla_name,
-            a_name: align_row.a_name,
             rank: align_row.rank,
             bp_sequence: align_row.bp_sequence,
             length: align_row.length
@@ -77,10 +73,9 @@ WITH align_row
 FOREACH(_ IN CASE 
     WHEN align_row.label = 'PROT_ALIGN' THEN [1] 
     ELSE [] END |
-        MERGE (:PROT_ALIGN {
+        MERGE (:ProteinAlignment {
             gfe_name: align_row.gfe_name,
             name: align_row.hla_name,
-            a_name: align_row.a_name,
             rank: align_row.rank,
             aa_sequence: align_row.aa_sequence,
             length: align_row.length
@@ -88,9 +83,9 @@ FOREACH(_ IN CASE
 )
 WITH align_row
 MATCH (gfe:GFE { gfe_name: align_row.gfe_name })
-MATCH (gen:GEN_ALIGN { gfe_name: align_row.gfe_name })
-MATCH (nuc:NUC_ALIGN { gfe_name: align_row.gfe_name })
-MATCH (prot:PROT_ALIGN { gfe_name: align_row.gfe_name }) 
+MATCH (gen:GenomicAlignment { gfe_name: align_row.gfe_name })
+MATCH (nuc:NucleotideAlignment { gfe_name: align_row.gfe_name })
+MATCH (prot:ProteinAlignment { gfe_name: align_row.gfe_name }) 
 MERGE (gfe)-[:HAS_ALIGNMENT]->(gen)
 MERGE (gfe)-[:HAS_ALIGNMENT]->(nuc) 
 MERGE (gfe)-[:HAS_ALIGNMENT]->(prot);
@@ -131,28 +126,14 @@ FOREACH(_ IN CASE
             ard_name: groups_row.ard_name
         })
 )
-FOREACH(_ IN CASE 
-    WHEN groups_row.ard_name = '2nd_FIELD' THEN [1] 
-    ELSE [] END |
-        MERGE (:`2nd_FIELD` {
-            locus: groups_row.locus,
-            allele_id: groups_row.allele_id,
-            name: groups_row.hla_name,
-            a_name: groups_row.a_name,
-            ard_id: groups_row.ard_id,
-            ard_name: groups_row.ard_name
-        })
-)
 WITH groups_row
 MATCH (hla:IMGT_HLA { name: groups_row.hla_name })
 MATCH (_g:G { name: groups_row.hla_name }) 
 MATCH (_lg:lg { name: groups_row.hla_name }) 
-MATCH (_lgx:lgx { name: groups_row.hla_name }) 
-MATCH (second:`2nd_FIELD` { name: groups_row.hla_name }) 
+MATCH (_lgx:lgx { name: groups_row.hla_name })
 MERGE (hla)-[:G]->(_g)
 MERGE (hla)-[:lg]->(_lg)
-MERGE (hla)-[:lgx]->(_lgx)
-MERGE (hla)-[:`2nd_FIELD`]->(second);
+MERGE (hla)-[:lgx]->(_lgx);
 USING PERIODIC COMMIT 10000 LOAD CSV WITH HEADERS FROM 'file:///all_cds.RELEASE.csv' as cds_row
 MERGE (:CDS {
     gfe_name: cds_row.gfe_name,
