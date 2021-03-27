@@ -41,23 +41,25 @@ fi
 echo "Creating new data directory in root..."
 mkdir -p "${CSV_DATA_DIR}"
 
-# # Run load script
-# echo "Building GFE data..."
-# python3 "${BIN_DIR}"/build_gfedb_optimized.py \
-# 	-o "${CSV_DATA_DIR}" \
-# 	-r "${RELEASES}" \
-# 	${KIRFLAG} \
-# 	${ALIGNFLAG} \
-# 	-v \
-# 	-l $1
-
 # Profile load script
 echo "Building GFE data..."
-# coverage run "${BIN_DIR}"/build_gfedb_optimized.py \
-python3 -m filprofiler run "${BIN_DIR}"/build_gfedb_optimized.py \
+
+# Run load script
+
+echo "Building GFE data..."
+python3 "${BIN_DIR}"/build_gfedb_optimized.py \
 	-o "${CSV_DATA_DIR}" \
 	-r "${RELEASES}" \
 	${KIRFLAG} \
 	${ALIGNFLAG} \
 	-v \
-	-l $1 # > memory_profile_logging.log
+	-l $1
+
+# # coverage run "${BIN_DIR}"/build_gfedb_optimized.py \
+# python3 -m filprofiler run "${BIN_DIR}"/build_gfedb_optimized.py \
+# 	-o "${CSV_DATA_DIR}" \
+# 	-r "${RELEASES}" \
+# 	${KIRFLAG} \
+# 	${ALIGNFLAG} \
+# 	-v \
+# 	-l $1 # > memory_profile_logging.log

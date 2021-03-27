@@ -78,31 +78,36 @@ def hla_alignments(dbversion):
     nuc_aln = {l: {} for l in hla_loci}
     prot_aln = {l: {} for l in hla_loci}
 
+    logging.info(f'HLA alignments:\n{hla_align}')
+
     for loc in hla_align:
         msf_gen = ''.join([data_dir, dbversion, "/", loc.split("-")[1], "_gen.msf"])
         msf_nuc = ''.join([data_dir, dbversion, "/", loc.split("-")[1], "_nuc.msf"])
         msf_prot = ''.join([data_dir, dbversion, "/", loc.split("-")[1], "_prot.msf"])
 
-        logging.info(''.join(["Loading ", msf_gen]))
+        logging.info(' '.join(["Loading", msf_gen]))
         align_gen = AlignIO.read(open(msf_gen), "msf")
         gen_seq = {"HLA-" + a.name: str(a.seq) for a in align_gen}
-        logging.info(''.join(["Loaded ", str(len(gen_seq)), " genomic ", loc, " sequences"]))
+        del align_gen
+        logging.info(' '.join(["Loaded", str(len(gen_seq)), "genomic", loc, "alignments"]))
         gen_aln.update({loc: gen_seq})
 
-        logging.info(''.join(["Loading ", msf_nuc]))
+        logging.info(' '.join(["Loading", msf_nuc]))
         align_nuc = AlignIO.read(open(msf_nuc), "msf")
         nuc_seq = {"HLA-" + a.name: str(a.seq) for a in align_nuc}
-        logging.info(''.join(["Loaded ", str(len(nuc_seq)), " nuc ", loc, " sequences"]))
+        del align_nuc
+        logging.info(' '.join(["Loaded", str(len(nuc_seq)), "nucleotide", loc, "alignments"]))
         nuc_aln.update({loc: nuc_seq})
 
         # https://github.com/ANHIG/IMGTHLA/issues/158
         # if str(dbversion) == ["3320", "3360"]:
         #    continue
 
-        logging.info(''.join(["Loading ", msf_prot]))
+        logging.info(' '.join(["Loading ", msf_prot]))
         align_prot = AlignIO.read(open(msf_prot), "msf")
         prot_seq = {"HLA-" + a.name: str(a.seq) for a in align_prot}
-        logging.info(''.join(["Loaded ", str(len(prot_seq)), " prot ", loc, " sequences"]))
+        del align_prot
+        logging.info(' '.join(["Loaded", str(len(prot_seq)), "protein", loc, "alignments"]))
         prot_aln.update({loc: prot_seq})
 
     return gen_aln, nuc_aln, prot_aln
@@ -156,15 +161,6 @@ def get_cds(allele):
 #@profile
 def build_hla_graph(**kwargs):
 
-    # #logging.info(f'kwargs:\n{kwargs}')
-    # dbversion = kwargs.get("dbversion")
-    # alignments = kwargs.get("alignments", False)
-    # verbose = kwargs.get("verbose", False)
-    # debug = kwargs.get("debug", False)
-    # gfe_maker = kwargs.get("gfe_maker")
-    # limit = kwargs.get("limit", None)
-    # #to_csv = kwargs.get("to_csv", False)
-
     dbversion, alignments, verbose, debug, gfe_maker, limit = \
         kwargs.get("dbversion"), \
         kwargs.get("alignments", False), \
@@ -183,6 +179,9 @@ def build_hla_graph(**kwargs):
         gfe_sequences, gen_alignments, nuc_alignments, prot_alignments, all_features, all_groups, all_cds = \
             [], [], [], [], [], [], []
 
+
+        #################
+        logging.info(f'a_gen type: {type(a_gen)}')
         for idx, allele in enumerate(a_gen):
 
             if hasattr(allele, 'seq'):
@@ -334,7 +333,7 @@ def build_hla_graph(**kwargs):
                     [ast.literal_eval(str(feature) \
                         .replace('\'', '"') \
                         .replace('\n', '')) \
-                        for feature in features]
+                        for feature in features]               
 
                 # Append allele id's
                 # Note: Some alleles may have the same feature, but it may not be the same rank, 
@@ -376,7 +375,10 @@ def build_hla_graph(**kwargs):
             # Break point for testing
             if limit and idx == limit:
                     break
+        
+        #################
 
+        
         csv_output = {
             "gfe_sequences": gfe_sequences,
             "all_features": all_features,
@@ -446,6 +448,9 @@ def build_hla_graph(**kwargs):
             a_gen=a_gen, 
             alignments=alignments, 
             limit=limit)
+
+    del a_gen
+    del alignments
 
     return csv_output
 
