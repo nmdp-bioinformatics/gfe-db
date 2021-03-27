@@ -20,6 +20,9 @@ import ast
 import time
 #import pdb;
 #from memory_profiler import profile
+from pympler import muppy, summary
+import json
+
 
 imgt_hla = 'https://www.ebi.ac.uk/ipd/imgt/hla/docs/release.html'
 imgt_hla_media_url = 'https://media.githubusercontent.com/media/ANHIG/IMGTHLA/'
@@ -162,13 +165,14 @@ def get_cds(allele):
 #@profile
 def build_hla_graph(**kwargs):
 
-    dbversion, alignments, verbose, debug, gfe_maker, limit = \
+    dbversion, alignments, verbose, debug, gfe_maker, limit, num_alleles = \
         kwargs.get("dbversion"), \
         kwargs.get("alignments", False), \
         kwargs.get("verbose", False), \
         kwargs.get("debug", False), \
         kwargs.get("gfe_maker"), \
-        kwargs.get("limit", None)
+        kwargs.get("limit", None), \
+        kwargs.get("num_alleles")
 
     def _build_csv_files(a_gen, alignments, limit):
 
@@ -376,18 +380,28 @@ def build_hla_graph(**kwargs):
                 all_features = all_features + features        
                 all_groups = all_groups + allele_groups
 
-            elapsed_time = time.time()-t0
+            elapsed_time = round(time.time()-t0, 2)
+            time_remaining = round(((num_alleles - idx) * elapsed_time) / 60, 2)
+
+            alleles_remaining = num_alleles - idx
 
             logging.info(f'Alleles processed: {idx}')
+            logging.info(f'Alleles remaining: {alleles_remaining}')
             logging.info(f'Elapsed time: {elapsed_time}')
-
-            time_remaining = round(((28000 - idx) * elapsed_time) / 60, 2)
             logging.info(f'Estimated time remaining: {time_remaining} minutes')
-
-
+            
             # Break point for testing
             if limit and idx == limit:
                     break
+
+            # Print a summary of memory usage every n alleles
+            if idx % 20 == 0:
+                all_objects = muppy.get_objects()
+                sum1 = summary.summarize(all_objects)
+                #print(sum1)
+                summary.print_(sum1)
+                # with open("summary.json", "a+") as f:
+                #     f.write(json.dumps(sum1))
         
         #################
 
@@ -524,6 +538,13 @@ def main():
                         type=int,
                         action="store")
 
+    parser.add_argument("-c", "--count",
+                    required=False,
+                    help="Number of alleles",
+                    default=1,
+                    type=int,
+                    action="store")
+
     parser.add_argument("-r", "--releases",
                         required=False,
                         help="IMGT/DB releases",
@@ -552,6 +573,7 @@ def main():
     release_n = args.number
     releases = args.releases if args.releases else None
     verbosity = 1
+    num_alleles = args.count
 
     debug = True if args.debug else False
     kir = True if args.kir else False
@@ -662,11 +684,13 @@ def main():
     for dbversion in dbversions:
         
         logging.info(f'\n\nBuilding graph for IMGTHLA version {dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}...')
+        logging.info(f'Limit: {args.limit}')
         csv_output = build_hla_graph(
             dbversion=dbversion, 
             alignments=align, 
             verbose=verbose,
             limit=args.limit,
+            num_alleles=num_alleles,
             gfe_maker=gfe_maker)
 
         write_csv_file(csv_output, dbversion, path=''.join([data_dir, "csv/"]))
@@ -682,4 +706,8 @@ def main():
 if __name__ == '__main__':
     """The following will be run if file is executed directly,
     but not if imported as a module"""
+
     main()
+
+    # show the dirt ;-)
+    dump_garbage()

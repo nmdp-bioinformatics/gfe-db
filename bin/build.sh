@@ -9,8 +9,9 @@ export ALIGN=True
 export KIR=False
 
 RELEASES=$(echo "${RELEASES}" | sed s'/"//g')
-
+NUM_ALLELES=$(cat data/hla.$RELEASES.dat | grep -c "ID ")
 echo "RELEASES: ""$RELEASES"
+echo "NUM_ALLELES: $NUM_ALLELES"
 
 # Check RELEASES 
 echo "Check releases..."
@@ -53,6 +54,7 @@ python3 "${BIN_DIR}"/build_gfedb_optimized.py \
 	${KIRFLAG} \
 	${ALIGNFLAG} \
 	-v \
+	-c "${NUM_ALLELES}" \
 	-l $1
 
 # # coverage run "${BIN_DIR}"/build_gfedb_optimized.py \
