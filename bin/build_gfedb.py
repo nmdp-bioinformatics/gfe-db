@@ -17,6 +17,8 @@ import os
 import urllib.request
 import re
 import ast
+#import pdb;
+from memory_profiler import profile
 
 imgt_hla = 'https://www.ebi.ac.uk/ipd/imgt/hla/docs/release.html'
 imgt_hla_media_url = 'https://media.githubusercontent.com/media/ANHIG/IMGTHLA/'
@@ -150,6 +152,7 @@ def get_cds(allele):
 
 
 # Build the datasets for the HLA graph
+@profile
 def build_hla_graph(**kwargs):
 
     #logging.info(f'kwargs:\n{kwargs}')
@@ -631,6 +634,8 @@ def main():
         write_csv_file(csv_output, dbversion, path=data_dir + "csv/")
 
         logging.info(f'Finished build for version {dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}')
+
+        #pdb.set_trace()
 
     logging.info(f'****** Build complete ******')
 

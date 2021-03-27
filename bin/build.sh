@@ -3,8 +3,8 @@ CSV_DATA_DIR="data/csv"
 #LIMIT=$1
 
 # For development
-export IMGT="3420,3430"
-export RELEASES="3420,3430"  # this value should be either 3360 or 3370 
+export IMGT="3420"
+export RELEASES="3420"  # this value should be either 3360 or 3370 
 export ALIGN=True
 export KIR=False
 
@@ -41,12 +41,23 @@ fi
 echo "Creating new data directory in root..."
 mkdir -p "${CSV_DATA_DIR}"
 
-# Run load script
+# # Run load script
+# echo "Building GFE data..."
+# python3 "${BIN_DIR}"/build_gfedb_optimized.py \
+# 	-o "${CSV_DATA_DIR}" \
+# 	-r "${RELEASES}" \
+# 	${KIRFLAG} \
+# 	${ALIGNFLAG} \
+# 	-v \
+# 	-l $1
+
+# Profile load script
 echo "Building GFE data..."
-python3 "${BIN_DIR}"/build_gfedb.py \
+# coverage run "${BIN_DIR}"/build_gfedb_optimized.py \
+python3 -m filprofiler run "${BIN_DIR}"/build_gfedb_optimized.py \
 	-o "${CSV_DATA_DIR}" \
 	-r "${RELEASES}" \
 	${KIRFLAG} \
 	${ALIGNFLAG} \
 	-v \
-	-l $1
+	-l $1 # > memory_profile_logging.log

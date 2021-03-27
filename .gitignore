@@ -71,6 +71,10 @@ target/
 .python-version
 .venv*
 
+# Profiling tools
+profile*
+fil*
+
 # Project files
 tags
 .idea/
