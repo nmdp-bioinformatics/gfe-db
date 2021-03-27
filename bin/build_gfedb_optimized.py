@@ -376,7 +376,9 @@ def build_hla_graph(**kwargs):
                 all_features = all_features + features        
                 all_groups = all_groups + allele_groups
 
+            logging.info(f'Index: {idx}')
             logging.info(f'Elapsed time: {time.time()-t0}')
+
 
             # Break point for testing
             if limit and idx == limit:
