@@ -376,8 +376,13 @@ def build_hla_graph(**kwargs):
                 all_features = all_features + features        
                 all_groups = all_groups + allele_groups
 
-            logging.info(f'Index: {idx}')
-            logging.info(f'Elapsed time: {time.time()-t0}')
+            elapsed_time = time.time()-t0
+
+            logging.info(f'Alleles processed: {idx}')
+            logging.info(f'Elapsed time: {elapsed_time}')
+
+            time_remaining = round(((28000 - idx) * elapsed_time) / 60, 2)
+            logging.info(f'Estimated time remaining: {time_remaining} minutes')
 
 
             # Break point for testing
