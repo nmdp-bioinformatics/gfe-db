@@ -17,6 +17,7 @@ import os
 import urllib.request
 import re
 import ast
+import time
 #import pdb;
 #from memory_profiler import profile
 
@@ -182,7 +183,10 @@ def build_hla_graph(**kwargs):
 
         #################
         logging.info(f'a_gen type: {type(a_gen)}')
+
         for idx, allele in enumerate(a_gen):
+
+            t0 = time.time()
 
             if hasattr(allele, 'seq'):
                 hla_name = allele.description.split(",")[0]
@@ -371,6 +375,8 @@ def build_hla_graph(**kwargs):
 
                 all_features = all_features + features        
                 all_groups = all_groups + allele_groups
+
+            logging.info(f'Elapsed time: {time.time()-t0}')
 
             # Break point for testing
             if limit and idx == limit:
