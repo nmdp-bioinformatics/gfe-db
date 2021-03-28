@@ -1,6 +1,11 @@
-BIN_DIR=$(dirname "$0")
-SRC_DIR=$(dirname $(dirname "$0"))/src
-DATA_DIR=$(dirname $(dirname "$0"))/data
+ROOT=$(dirname $(dirname "$0"))
+BIN_DIR=$ROOT/bin
+SRC_DIR=$ROOT/src
+DATA_DIR=$ROOT/data
+
+# echo $(ls $BIN_DIR)
+# echo $(ls $SRC_DIR)
+# echo $(ls $DATA_DIR/csv/)
 
 # For development
 export RELEASES="3420 3430"  # this value should be either 3360 or 3370 
@@ -27,12 +32,12 @@ if [ "$ALIGN" == "True" ]; then
 	sh $BIN_DIR/get_alignments.sh
 fi
 
-if [ ! -d "$DIRECTORY" ]; then
+if [ ! -d "$DATA_DIR" ]; then
 	echo "Creating new data directory in root..."
 	mkdir -p $DATA_DIR
 else
 	# Remove previously created csv files
-	rm $DATA_DIR/*.csv
+	rm -r $DATA_DIR/csv/*.csv
 fi
 
 # Run load script
@@ -42,7 +47,7 @@ echo "" > summary_diff.txt
 # Build csv files
 for release in $RELEASES; do
 
-	echo "Building GFE data for version $release..."
+	echo -e "\nBuilding graph for IMGTHLA version $release..."
 	NUM_ALLELES=$(cat $DATA_DIR/hla.$release.dat | grep -c "ID ")
 	echo "Total alleles: $NUM_ALLELES"
 
@@ -54,4 +59,6 @@ for release in $RELEASES; do
 		-v \
 		-c "$NUM_ALLELES" \
 		-l $1
+
+	echo "************ Build complete ************"
 done

@@ -10,12 +10,12 @@ from Bio.SeqRecord import SeqRecord
 from seqann.models.annotation import Annotation
 from Bio import SeqIO
 from pyard import ARD
-from pympler import tracker, muppy, summary
 from csv import DictWriter
 from pathlib import Path
 from constants import *
+from pympler import tracker, muppy, summary
 
-logging.basicConfig(format='%(asctime)s - %(name)-25s - %(levelname)-5s - %(message)s',
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S',
                     level=logging.INFO)
 
@@ -32,36 +32,36 @@ def hla_alignments(dbversion):
     nuc_aln = {l: {} for l in hla_loci}
     prot_aln = {l: {} for l in hla_loci}
 
-    logging.info(f'HLA alignments:\n{hla_align}')
+    #logging.info(f'HLA alignments:\n{hla_align}')
 
     for loc in hla_align:
         msf_gen = ''.join([data_dir, dbversion, "/", loc.split("-")[1], "_gen.msf"])
         msf_nuc = ''.join([data_dir, dbversion, "/", loc.split("-")[1], "_nuc.msf"])
         msf_prot = ''.join([data_dir, dbversion, "/", loc.split("-")[1], "_prot.msf"])
 
-        logging.info(' '.join(["Loading", msf_gen.split('/')[-1]]))
+        logging.info(f'Loading {"/".join(msf_gen.split("/")[-3:])}')
         align_gen = AlignIO.read(open(msf_gen), "msf")
         gen_seq = {"HLA-" + a.name: str(a.seq) for a in align_gen}
         del align_gen
-        logging.info(' '.join(["Loaded", str(len(gen_seq)), "genomic", loc, "alignments"]))
+        logging.info(f'{str(len(gen_seq))} genomic alignments loaded')
         gen_aln.update({loc: gen_seq})
 
-        logging.info(' '.join(["Loading", msf_nuc.split('/')[-1]]))
+        logging.info(f'Loading {"/".join(msf_nuc.split("/")[-3:])}')
         align_nuc = AlignIO.read(open(msf_nuc), "msf")
         nuc_seq = {"HLA-" + a.name: str(a.seq) for a in align_nuc}
         del align_nuc
-        logging.info(' '.join(["Loaded", str(len(nuc_seq)), "nucleotide", loc, "alignments"]))
+        logging.info(f'{str(len(nuc_seq))} nucelotide alignments loaded')
         nuc_aln.update({loc: nuc_seq})
 
         # https://github.com/ANHIG/IMGTHLA/issues/158
         # if str(dbversion) == ["3320", "3360"]:
         #    continue
 
-        logging.info(' '.join(["Loading ", msf_prot.split('/')[-1]]))
+        logging.info(f'Loading {"/".join(msf_prot.split("/")[-3:])}')
         align_prot = AlignIO.read(open(msf_prot), "msf")
         prot_seq = {"HLA-" + a.name: str(a.seq) for a in align_prot}
         del align_prot
-        logging.info(' '.join(["Loaded", str(len(prot_seq)), "protein", loc, "alignments"]))
+        logging.info(f'{str(len(prot_seq))} protein alignments loaded')
         prot_aln.update({loc: prot_seq})
 
     return gen_aln, nuc_aln, prot_aln
@@ -133,28 +133,52 @@ def append_dict_as_row(file_path, dict_row):
 
     return
 
+# Outputs memory of objects during execution to sheck for memory leaks
+def memory_profiler(mode='all'):
+
+    # Print a summary of memory usage every n alleles
+    all_objects = muppy.get_objects()
+    sum2 = summary.summarize(all_objects)
+
+    original_stdout = sys.stdout
+
+    if mode == 'all' or mode == 'agg':
+        with open("summary_agg.txt", "a+") as f:
+            sys.stdout = f
+            # tr.print_diff()
+            summary.print_(sum2)
+            sys.stdout = original_stdout;
+
+    if mode == 'all' or mode == 'diff':
+        with open("summary_diff.txt", "a+") as f:
+            sys.stdout = f
+            tr.print_diff()
+            #summary.print_(sum2)
+            sys.stdout = original_stdout;    
+
+    return
 
 # Build the datasets for the HLA graph
 def build_hla_graph(**kwargs):
 
-    dbversion, alignments, verbose, debug, gfe_maker, limit, num_alleles = \
+    dbversion, alignments, verbose, debug, gfe_maker, limit = \
         kwargs.get("dbversion"), \
         kwargs.get("alignments", False), \
         kwargs.get("verbose", False), \
         kwargs.get("debug", False), \
         kwargs.get("gfe_maker"), \
         kwargs.get("limit", None), \
-        kwargs.get("num_alleles")
+    
+    num_alleles = limit if limit else kwargs.get("num_alleles")
 
     def _stream_to_csv(a_gen, alignments, limit):
 
         i = 0
-
-        logging.info(f'a_gen type: {type(a_gen)}')
+        total_time_elapsed = 0
 
         for idx, allele in enumerate(a_gen):
 
-            t0 = time.time()
+            start_time = time.time()
 
             if hasattr(allele, 'seq'):
                 hla_name = allele.description.split(",")[0]
@@ -265,7 +289,7 @@ def build_hla_graph(**kwargs):
                     "imgt_release": imgt_release
                 }
 
-                logging.info(f'Streaming GFE to file...')
+                logging.info(f'Streaming GFEs to file...')
                 file_name = ''.join([data_dir, "csv/gfe_stream.csv"])
                 append_dict_as_row(file_name, gfe_sequence)
 
@@ -337,43 +361,27 @@ def build_hla_graph(**kwargs):
 
                 del features
 
-            elapsed_time = round(time.time()-t0, 2)
-            time_remaining = round(((num_alleles - idx) * elapsed_time) / 60, 2)
-
-            alleles_remaining = num_alleles - idx
-
-            logging.info(f'Alleles processed: {idx}')
+            elapsed_time = time.time() - start_time
+            alleles_remaining = num_alleles - (idx + 1)
+            total_time_elapsed += elapsed_time
+            avg_time_elapsed = total_time_elapsed / (idx + 1)
+            #total_time_elapsed += ((alleles_remaining * elapsed_time) / 60)
+            #avg_time_elapsed = total_time_elapsed / num_alleles
+            #time_remaining = elapsed_time * alleles_remaining
+            
+            logging.info(f'Alleles processed: {idx + 1}')
             logging.info(f'Alleles remaining: {alleles_remaining}')
-            logging.info(f'Elapsed time: {elapsed_time}')
-            logging.info(f'Estimated time remaining: {time_remaining} minutes')
+            logging.info(f'Elapsed time: {round(elapsed_time, 2)}')
+            logging.info(f'Avg elapsed time: {round(avg_time_elapsed, 2)}')
+            #logging.info(f'Estimated time remaining: {time.strftime("%H:%M:%S", time.gmtime(time_remaining))} minutes')
             
             # Break point for testing
-            if limit and idx == limit:
+            if limit and idx + 1 == limit:
                     break
 
-            # Print a summary of memory usage every n alleles
+            # Output memory profile to check for leaks
             if idx % 20 == 0:
-                all_objects = muppy.get_objects()
-                sum2 = summary.summarize(all_objects)
-                # #diff = summary.get_diff(sum1, sum2)
-                # #summary.print_(diff)
-                # #logging.info(f'Memory usage:\n{}\n')
-                # summary.print_(sum2)
-                # with open("summary.json", "a+") as f:
-                #     f.write(json.dumps(sum1))
-
-                original_stdout = sys.stdout
-                with open("summary_agg.txt", "a+") as f:
-                    sys.stdout = f
-                    # tr.print_diff()
-                    summary.print_(sum2)
-                    sys.stdout = original_stdout;
-
-                with open("summary_diff.txt", "a+") as f:
-                    sys.stdout = f
-                    tr.print_diff()
-                    #summary.print_(sum2)
-                    sys.stdout = original_stdout;                
+                memory_profiler()
 
         return
 
