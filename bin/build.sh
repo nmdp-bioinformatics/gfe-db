@@ -48,7 +48,12 @@ echo "Building GFE data..."
 # Run load script
 echo "" > summary_agg.txt
 echo "" > summary_diff.txt
-python3 "${BIN_DIR}"/build_gfedb_optimized.py \
+
+# Remove previously created csv files
+rm $CSV_DATA_DIR/*.csv
+
+# Build csv files
+python3 "${BIN_DIR}"/build_gfedb_stream.py \
 	-o "${CSV_DATA_DIR}" \
 	-r "${RELEASES}" \
 	${KIRFLAG} \

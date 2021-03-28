@@ -22,7 +22,7 @@ import time
 #import pdb;
 #from memory_profiler import profile
 from pympler import tracker, muppy, summary
-import json
+import gc
 
 tr = tracker.SummaryTracker()
 
@@ -94,14 +94,14 @@ def hla_alignments(dbversion):
         logging.info(' '.join(["Loading", msf_gen]))
         align_gen = AlignIO.read(open(msf_gen), "msf")
         gen_seq = {"HLA-" + a.name: str(a.seq) for a in align_gen}
-        del align_gen
+        # del align_gen.clear()
         logging.info(' '.join(["Loaded", str(len(gen_seq)), "genomic", loc, "alignments"]))
         gen_aln.update({loc: gen_seq})
 
         logging.info(' '.join(["Loading", msf_nuc]))
         align_nuc = AlignIO.read(open(msf_nuc), "msf")
         nuc_seq = {"HLA-" + a.name: str(a.seq) for a in align_nuc}
-        del align_nuc
+        # del align_nuc.clear()
         logging.info(' '.join(["Loaded", str(len(nuc_seq)), "nucleotide", loc, "alignments"]))
         nuc_aln.update({loc: nuc_seq})
 
@@ -112,7 +112,7 @@ def hla_alignments(dbversion):
         logging.info(' '.join(["Loading ", msf_prot]))
         align_prot = AlignIO.read(open(msf_prot), "msf")
         prot_seq = {"HLA-" + a.name: str(a.seq) for a in align_prot}
-        del align_prot
+        # del align_prot.clear()
         logging.info(' '.join(["Loaded", str(len(prot_seq)), "protein", loc, "alignments"]))
         prot_aln.update({loc: prot_seq})
 
@@ -369,12 +369,10 @@ def build_hla_graph(**kwargs):
                 for _list, _dict in data:
                     _list.append(_dict)
 
-                del data
-
                 # Alignments, features, and ARD groups can all be concatenated since the keys are the same
                 if alignments_data:
                     all_alignments = gen_alignments + nuc_alignments + prot_alignments
-                    del alignments_data
+                    # del alignments_data
 
                     # Drop duplicate rows
                     all_alignments = pd.DataFrame(all_alignments) \
@@ -436,16 +434,19 @@ def build_hla_graph(**kwargs):
         # Add alignments data if there is
         if alignments:
             csv_output["all_alignments"] = all_alignments
-            del all_alignments
+            # del all_alignments
 
-        del allele_groups
-        del features
-        del gfe_sequence
-        del cds
-        del gfe_sequences
-        del all_features
-        del all_groups
-        del all_cds
+        # # To Do : use .clear() method for dictionaries
+        # del allele_groups
+        # del features
+        # del gfe_sequence
+        # del cds
+        # del gfe_sequences
+        # del all_features
+        # del all_groups
+        # del all_cds
+
+        gc.collect()
 
         return csv_output
 
@@ -496,8 +497,8 @@ def build_hla_graph(**kwargs):
             alignments=alignments, 
             limit=limit)
 
-    del a_gen
-    del alignments
+    # del a_gen
+    # del alignments
 
     return csv_output
 
@@ -715,9 +716,9 @@ def main():
 
         write_csv_file(csv_output, dbversion, path=''.join([data_dir, "csv/"]))
 
+        print("csv_output: ", type(csv_output))
+        print("csv_output keys: ", csv_output.keys())
         logging.info(f'Finished build for version {dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}')
-
-        #pdb.set_trace()
 
     logging.info(f'****** Build complete ******')
 
