@@ -29,6 +29,7 @@ LOAD CSV WITH HEADERS FROM 'file:///all_features.3420.csv' as row
 MATCH (gfe:GFE { gfe_name: row.gfe_name })
 MATCH (f:Feature { gfe_name: row.gfe_name })
 MERGE (gfe)-[:HAS_FEATURE]->(f);
+
 // USING PERIODIC COMMIT 50000 
 LOAD CSV WITH HEADERS FROM 'file:///all_alignments.3420.csv' as align_row
 FOREACH(_ IN CASE 
