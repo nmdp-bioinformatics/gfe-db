@@ -4,6 +4,7 @@ import logging
 import re
 import ast
 import time
+import urllib.request
 from Bio import AlignIO
 from Bio.SeqFeature import SeqFeature
 from Bio.SeqRecord import SeqRecord
@@ -145,7 +146,6 @@ def memory_profiler(mode='all'):
     if mode == 'all' or mode == 'agg':
         with open("summary_agg.txt", "a+") as f:
             sys.stdout = f
-            # tr.print_diff()
             summary.print_(sum2)
             sys.stdout = original_stdout;
 
@@ -153,7 +153,6 @@ def memory_profiler(mode='all'):
         with open("summary_diff.txt", "a+") as f:
             sys.stdout = f
             tr.print_diff()
-            #summary.print_(sum2)
             sys.stdout = original_stdout;    
 
     return
@@ -161,15 +160,16 @@ def memory_profiler(mode='all'):
 # Build the datasets for the HLA graph
 def build_hla_graph(**kwargs):
 
-    dbversion, alignments, verbose, debug, gfe_maker, limit = \
+    dbversion, alignments, verbose, debug, gfe_maker, limit, mem_profile = \
         kwargs.get("dbversion"), \
         kwargs.get("alignments", False), \
         kwargs.get("verbose", False), \
         kwargs.get("debug", False), \
         kwargs.get("gfe_maker"), \
         kwargs.get("limit", None), \
+        kwargs.get("mem_profile", False)
     
-    num_alleles = limit if limit else kwargs.get("num_alleles")
+    #num_alleles = limit if limit else kwargs.get("num_alleles")
 
     def _stream_to_csv(a_gen, alignments, limit):
 
@@ -183,11 +183,6 @@ def build_hla_graph(**kwargs):
             if hasattr(allele, 'seq'):
                 hla_name = allele.description.split(",")[0]
                 loc = allele.description.split(",")[0].split("*")[0]
-
-                # if hla_name in skip_alleles:
-                #     logging.info(
-                #         "SKIPPING = " + allele.description.split(",")[0] + " " + dbversion)
-                #     continue
 
                 if debug and (loc != "HLA-A" and i > 20):
                     continue
@@ -219,6 +214,7 @@ def build_hla_graph(**kwargs):
                         aligned_nuc = ''
                         aligned_prot = ''
 
+                        # Retrieve and stream the genomic, nucleotide and protein alignments
                         if alignments:
                             if allele.description.split(",")[0] in gen_aln[loc]:
                                 aligned_gen = gen_aln[loc][allele.description.split(",")[
@@ -229,7 +225,7 @@ def build_hla_graph(**kwargs):
                                     "gfe_name": gfe,
                                     "hla_name": hla_name,
                                     "a_name": a_name, # hla_name.split("-")[1]
-                                    "length": len(aligned_gen), # trim whitespace?
+                                    "length": len(aligned_gen),
                                     "rank": "0", # TO DO: confirm how this value is derived
                                     "bp_sequence": aligned_gen,
                                     "aa_sequence": "",
@@ -284,6 +280,7 @@ def build_hla_graph(**kwargs):
                         logging.error(f'Failed to get data for allele ID {allele.id}')
                         logging.error(err)                        
                 
+                # Build and stream the GFE rows
                 try:
                     gfe_sequence = {
                         "gfe_name": gfe,
@@ -304,6 +301,7 @@ def build_hla_graph(**kwargs):
                     logging.error(f'Failed to write GFE data for allele ID {allele.id}')
                     logging.error(err)   
 
+                # Build and stream the ARD group rows
                 try:
                     logging.info(f'Streaming groups to file...')
                     for group in groups:
@@ -327,6 +325,7 @@ def build_hla_graph(**kwargs):
                     logging.error(f'Failed to write groups for allele {allele.id}')
                     logging.error(err)
 
+                # Build and stream the CDS rows
                 try:
                     # Build CDS dict for CSV export, foreign key: allele_id, hla_name
                     bp_seq, aa_seq = get_cds(allele)
@@ -351,6 +350,7 @@ def build_hla_graph(**kwargs):
                     logging.error(f'Failed to write CDS data for allele {allele.id}')
                     logging.error(err)
 
+                # Build and stream the features rows
                 try:
                     # features preprocessing steps
                     # 1) Convert seqann type to python dict using literal_eval
@@ -389,15 +389,15 @@ def build_hla_graph(**kwargs):
                     logging.error(err)
 
             elapsed_time = time.time() - start_time
-            alleles_remaining = num_alleles - (idx + 1)
+            # alleles_remaining = num_alleles - (idx + 1)
             total_time_elapsed += elapsed_time
             avg_time_elapsed = total_time_elapsed / (idx + 1)
-            #total_time_elapsed += ((alleles_remaining * elapsed_time) / 60)
-            #avg_time_elapsed = total_time_elapsed / num_alleles
-            #time_remaining = elapsed_time * alleles_remaining
+            # total_time_elapsed += ((alleles_remaining * elapsed_time) / 60)
+            # avg_time_elapsed = total_time_elapsed / num_alleles
+            # time_remaining = elapsed_time * alleles_remaining
             
             logging.info(f'Alleles processed: {idx + 1}')
-            logging.info(f'Alleles remaining: {alleles_remaining}')
+            # logging.info(f'Alleles remaining: {alleles_remaining}')
             logging.info(f'Elapsed time: {round(elapsed_time, 2)}')
             logging.info(f'Avg elapsed time: {round(avg_time_elapsed, 2)}')
             #logging.info(f'Estimated time remaining: {time.strftime("%H:%M:%S", time.gmtime(time_remaining))} minutes')
@@ -407,38 +407,35 @@ def build_hla_graph(**kwargs):
                     break
 
             # Output memory profile to check for leaks
-            if idx % 20 == 0:
+            if mem_profile and idx % 20 == 0:
                 memory_profiler()
 
         return
 
 
-    # Loop through DB versions and build CSVs
-    #for dbversion in dbversions:
-
     imgt_release = f'{dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}'
-    db_striped = ''.join(dbversion.split("."))
+    db_stripped = ''.join(dbversion.split("."))
     
     logging.debug(f'dbversion: {dbversion}')
     logging.debug(f'imgt_release: {imgt_release}')
-    logging.debug(f'db_striped: {db_striped}')
+    logging.debug(f'db_stripped: {db_stripped}')
 
     if alignments:
-        gen_aln, nuc_aln, prot_aln = hla_alignments(db_striped)
+        gen_aln, nuc_aln, prot_aln = hla_alignments(db_stripped)
 
     logging.info("Loading ARD...")
-    ard = ARD(db_striped)
+    ard = ARD(db_stripped)
 
-    # The github URL changed from 3350 to media
-    if int(db_striped) < 3350:
-        dat_url = ''.join([imgt_hla_raw_url, db_striped, '/hla.dat'])
-    else:
-        dat_url = ''.join([imgt_hla_media_url, db_striped, '/hla.dat'])
-
-    dat_file = ''.join([data_dir, 'hla.', db_striped, ".dat"])
-
-    ### TO DO: move to build.sh
+    ### TO DO: move DAT download to build.sh
     # Downloading DAT file
+    # The github URL changed from 3350 to media
+    if int(db_stripped) < 3350:
+        dat_url = ''.join([imgt_hla_raw_url, db_stripped, '/hla.dat'])
+    else:
+        dat_url = ''.join([imgt_hla_media_url, db_stripped, '/hla.dat'])
+
+    dat_file = ''.join([data_dir, 'hla.', db_stripped, ".dat"])
+
     logging.info("Downloading DAT file...")
     if not os.path.isfile(dat_file):
         if verbose:

@@ -10,7 +10,6 @@ import logging
 import argparse
 import os
 import sys
-import urllib.request
 from gfedb_utils import build_hla_graph
 from constants import *
 import pandas as pd
@@ -37,28 +36,23 @@ def main():
                         help="Bool for loading alignments",
                         action="store_true")
 
-    parser.add_argument("-d", "--debug",
-                        required=False,
-                        help="Bool for debugging",
-                        action="store_true")
-
     parser.add_argument("-o", "--out_dir",
                         required=True,
                         help="Output directory",
                         type=str,
                         action="store")
 
-    parser.add_argument("-n", "--number",
-                        required=False,
-                        help="Number of IMGT/DB releases",
-                        default=1,
-                        type=int,
-                        action="store")
+    # TO DO: add option to specify last n releases
+    # parser.add_argument("-n", "--number",
+    #                     required=False,
+    #                     help="Number of IMGT/DB releases",
+    #                     default=1,
+    #                     type=int,
+    #                     action="store")
 
     parser.add_argument("-c", "--count",
                         required=False,
                         help="Number of alleles",
-                        default=1,
                         type=int,
                         action="store")
 
@@ -67,6 +61,11 @@ def main():
                         help="IMGT/DB release",
                         type=str,
                         action="store")
+
+    parser.add_argument("-p", "--profile",
+                        required=False,
+                        help="Enable memory profiling",
+                        action='store_true')
 
     parser.add_argument("-v", "--verbose",
                         help="Option for running in verbose",
@@ -84,31 +83,20 @@ def main():
 
     logging.info(f'args: {vars(args)}')
 
-    #logging.info(f'args:\n{vars(args)}')
-
     last_release = pd.read_html(imgt_hla)[0]['Release'][0].replace(".", "")
     #logging.info(f'last_release: {last_release}')
 
-    release_n = args.number
     dbversion = args.release if args.release else last_release
     verbosity = 1
     num_alleles = args.count
-
-    debug = True if args.debug else False
+    limit = args.limit #min(args.count, args.limit)
+    mem_profile = args.profile
     kir = True if args.kir else False
     align = True if args.align else False
     verbose = True if args.verbose else False
     load_loci = hla_loci + kir_loci if kir else hla_loci
 
-    if debug:
-        logging.info("Running in debug mode")
-        load_loci = ["HLA-A"]
-        kir = False
-        verbose = True
-        verbosity = 2
-        release_n = 1
-
-    # # Get last five IMGT/HLA releases
+    # # TO DO: Get last n IMGT/HLA releases
     # if releases:
     #     dbversions = [db for db in releases.split(",")]
     # else:
@@ -119,21 +107,21 @@ def main():
         load_features=False, 
         store_features=True,
         loci=load_loci)
-
-    # TO DO: for this for loop into the build.sh script
-    #for dbversion in dbversions:
     
-    #logging.info(f'\n\nBuilding graph for IMGTHLA version {dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}...')
-    #logging.info(f'Limit: {args.limit}')
+    logging.info(f'Building graph for IMGTHLA version {dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}...')
+    logging.info(f'Total alleles: {num_alleles}')
+
     build_hla_graph(
         dbversion=dbversion, 
         alignments=align, 
         verbose=verbose,
-        limit=args.limit,
-        num_alleles=num_alleles,
-        gfe_maker=gfe_maker)
+        limit=limit,
+        #num_alleles=num_alleles,
+        gfe_maker=gfe_maker,
+        mem_profile=mem_profile)
 
     logging.info(f'Finished build for version {dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}')
+    logging.info(f'************************ Build complete ************************')
 
     return
 
