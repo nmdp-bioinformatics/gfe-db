@@ -15,9 +15,8 @@ MERGE (gfe)-[:HAS_SEQUENCE]->(seq);
 
 // USING PERIODIC COMMIT 50000
 LOAD CSV WITH HEADERS FROM 'file:///all_features.3420.csv' as row
-MERGE (f:Feature { sequence: row.sequence })
+MERGE (f:Feature { gfe_name: row.gfe_name, sequence: row.sequence })
 ON CREATE SET f.locus = row.locus,
-    f.gfe_name = row.gfe_name,
     f.rank = row.rank,
     f.term = row.term,
     f.accession = row.accession,
@@ -44,6 +43,11 @@ FOREACH(_ IN CASE
 );
 // USING PERIODIC COMMIT 50000 
 LOAD CSV WITH HEADERS FROM 'file:///all_alignments.3420.csv' as align_row
+MATCH (gfe:GFE { gfe_name: align_row.gfe_name })
+MATCH (gen:GenomicAlignment { gfe_name: align_row.gfe_name })
+MERGE (gfe)-[:HAS_ALIGNMENT]->(gen);
+// USING PERIODIC COMMIT 50000 
+LOAD CSV WITH HEADERS FROM 'file:///all_alignments.3420.csv' as align_row
 FOREACH(_ IN CASE 
     WHEN align_row.label = 'NUC_ALIGN' THEN [1] 
     ELSE [] END |
@@ -55,6 +59,11 @@ FOREACH(_ IN CASE
 );
 // USING PERIODIC COMMIT 50000 
 LOAD CSV WITH HEADERS FROM 'file:///all_alignments.3420.csv' as align_row
+MATCH (gfe:GFE { gfe_name: align_row.gfe_name })
+MATCH (nuc:NucleotideAlignment { gfe_name: align_row.gfe_name })
+MERGE (gfe)-[:HAS_ALIGNMENT]->(nuc);
+// USING PERIODIC COMMIT 50000 
+LOAD CSV WITH HEADERS FROM 'file:///all_alignments.3420.csv' as align_row
 FOREACH(_ IN CASE 
     WHEN align_row.label = 'PROT_ALIGN' THEN [1] 
     ELSE [] END |
@@ -64,16 +73,6 @@ FOREACH(_ IN CASE
             prot.aa_sequence = align_row.aa_sequence,
             prot.length = align_row.length
 );
-// USING PERIODIC COMMIT 50000 
-LOAD CSV WITH HEADERS FROM 'file:///all_alignments.3420.csv' as align_row
-MATCH (gfe:GFE { gfe_name: align_row.gfe_name })
-MATCH (gen:GenomicAlignment { gfe_name: align_row.gfe_name })
-MERGE (gfe)-[:HAS_ALIGNMENT]->(gen);
-// USING PERIODIC COMMIT 50000 
-LOAD CSV WITH HEADERS FROM 'file:///all_alignments.3420.csv' as align_row
-MATCH (gfe:GFE { gfe_name: align_row.gfe_name })
-MATCH (nuc:NucleotideAlignment { gfe_name: align_row.gfe_name })
-MERGE (gfe)-[:HAS_ALIGNMENT]->(nuc);
 // USING PERIODIC COMMIT 50000 
 LOAD CSV WITH HEADERS FROM 'file:///all_alignments.3420.csv' as align_row
 MATCH (gfe:GFE { gfe_name: align_row.gfe_name })
@@ -137,5 +136,5 @@ MATCH (seq:Sequence { gfe_name: cds_row.gfe_name })
 MATCH (cds:CDS { gfe_name: cds_row.gfe_name })
 MERGE (seq)-[:HAS_CDS]->(cds);
 
-// CREATE CONSTRAINT gfe_constraint IF NOT EXISTS ON (gfe:GFE) ASSERT gfe.gfe_name IS UNIQUE;
-// CREATE CONSTRAINT imgt_constraint IF NOT EXISTS ON (imgt:IMGT_HLA) ASSERT imgt.name IS UNIQUE;
+CREATE CONSTRAINT gfe_constraint IF NOT EXISTS ON (gfe:GFE) ASSERT gfe.gfe_name IS UNIQUE;
+CREATE CONSTRAINT imgt_constraint IF NOT EXISTS ON (imgt:IMGT_HLA) ASSERT imgt.name IS UNIQUE;
