@@ -1,9 +1,13 @@
 USING PERIODIC COMMIT 50000
 LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as row
 MERGE (gfe:GFE { gfe_name: row.gfe_name }) // static property
-ON CREATE SET gfe.locus = row.locus
-MERGE (imgt:IMGT_HLA { locus: row.locus })
-ON CREATE SET imgt.name = row.hla_name
+ON CREATE SET gfe.locus = row.locus;
+USING PERIODIC COMMIT 50000
+LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.3420.csv' as row
+MERGE (imgt:IMGT_HLA { name: row.hla_name })
+ON CREATE SET imgt.locus = row.locus;
+USING PERIODIC COMMIT 50000
+LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as row
 MERGE (seq:Sequence { gfe_name: row.gfe_name })
 ON CREATE SET seq.locus = row.locus,
     seq.sequence = row.sequence,
@@ -141,4 +145,3 @@ MERGE (seq)-[:HAS_CDS]->(cds);
 
 CREATE CONSTRAINT gfe_constraint IF NOT EXISTS ON (gfe:GFE) ASSERT gfe.gfe_name IS UNIQUE;
 CREATE CONSTRAINT imgt_constraint IF NOT EXISTS ON (imgt:IMGT_HLA) ASSERT imgt.name IS UNIQUE;
-CREATE CONSTRAINT sequence_constraint IF NOT EXISTS ON (seq:Sequence) ASSERT seq.gfe_name IS UNIQUE;

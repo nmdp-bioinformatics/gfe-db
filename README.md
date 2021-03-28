@@ -102,8 +102,8 @@ docker start gfe
 ## 5. Load the GFE data
 Make sure the environment variables in `bin/build.sh` are exported.
 ```bash
-export IMGT="3420,3430"
-export RELEASES="3420,3430" 
+# export IMGT="3420 3430"
+export RELEASES="3420 3430" 
 export ALIGN=True
 export KIR=False
 ```
