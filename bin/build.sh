@@ -46,8 +46,7 @@ mkdir -p "${CSV_DATA_DIR}"
 echo "Building GFE data..."
 
 # Run load script
-
-echo "Building GFE data..."
+echo "" > summary.txt
 python3 "${BIN_DIR}"/build_gfedb_optimized.py \
 	-o "${CSV_DATA_DIR}" \
 	-r "${RELEASES}" \
