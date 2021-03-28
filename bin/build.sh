@@ -53,7 +53,7 @@ echo "" > summary_diff.txt
 rm $CSV_DATA_DIR/*.csv
 
 # Build csv files
-python3 "${BIN_DIR}"/build_gfedb_stream.py \
+python3 "${BIN_DIR}"/build_gfedb.py \
 	-o "${CSV_DATA_DIR}" \
 	-r "${RELEASES}" \
 	${KIRFLAG} \

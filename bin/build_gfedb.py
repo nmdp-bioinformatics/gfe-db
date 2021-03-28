@@ -5,7 +5,7 @@
 #       between SEQUENCE and features
 import pandas as pd
 from seqann.models.annotation import Annotation
-from seqann import gfe
+from seqann.gfe import GFE
 from Bio.SeqFeature import SeqFeature
 from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
@@ -14,11 +14,19 @@ from Bio import AlignIO
 import logging
 import argparse
 import os
+import sys
 import urllib.request
 import re
 import ast
+import time
 #import pdb;
-from memory_profiler import profile
+#from memory_profiler import profile
+from pympler import tracker, muppy, summary
+import gc
+from csv import DictWriter
+from pathlib import Path
+
+tr = tracker.SummaryTracker()
 
 imgt_hla = 'https://www.ebi.ac.uk/ipd/imgt/hla/docs/release.html'
 imgt_hla_media_url = 'https://media.githubusercontent.com/media/ANHIG/IMGTHLA/'
@@ -62,14 +70,15 @@ kir_aligloci = ["KIR2DL4", "KIR2DP1", "KIR2DS1", "KIR2DS2", "KIR2DS3",
 
 ard_groups = ['G', 'lg', 'lgx']
 
-def kir_alignments():
-    alignments = {l: {} for l in kir_loci}
-    for loc in kir_aligloci:
-        msf_file = data_dir + "/kir/" + loc + "_gen.msf"
-        align = AlignIO.read(open(msf_file), "msf")
-        names = {a.name: str(a.seq) for a in align}
-        alignments.update({loc: names})
-    return alignments
+# # Not used
+# def kir_alignments():
+#     alignments = {l: {} for l in kir_loci}
+#     for loc in kir_aligloci:
+#         msf_file = data_dir + "/kir/" + loc + "_gen.msf"
+#         align = AlignIO.read(open(msf_file), "msf")
+#         names = {a.name: str(a.seq) for a in align}
+#         alignments.update({loc: names})
+#     return alignments
 
 
 def hla_alignments(dbversion):
@@ -77,31 +86,36 @@ def hla_alignments(dbversion):
     nuc_aln = {l: {} for l in hla_loci}
     prot_aln = {l: {} for l in hla_loci}
 
-    for loc in hla_align:
-        msf_gen = data_dir + dbversion + "/" + loc.split("-")[1] + "_gen.msf"
-        msf_nuc = data_dir + dbversion + "/" + loc.split("-")[1] + "_nuc.msf"
-        msf_prot = data_dir + dbversion + "/" + loc.split("-")[1] + "_prot.msf"
+    logging.info(f'HLA alignments:\n{hla_align}')
 
-        logging.info("Loading " + msf_gen)
+    for loc in hla_align:
+        msf_gen = ''.join([data_dir, dbversion, "/", loc.split("-")[1], "_gen.msf"])
+        msf_nuc = ''.join([data_dir, dbversion, "/", loc.split("-")[1], "_nuc.msf"])
+        msf_prot = ''.join([data_dir, dbversion, "/", loc.split("-")[1], "_prot.msf"])
+
+        logging.info(' '.join(["Loading", msf_gen]))
         align_gen = AlignIO.read(open(msf_gen), "msf")
         gen_seq = {"HLA-" + a.name: str(a.seq) for a in align_gen}
-        logging.info("Loaded " + str(len(gen_seq)) + " genomic " + loc + " sequences")
+        # del align_gen.clear()
+        logging.info(' '.join(["Loaded", str(len(gen_seq)), "genomic", loc, "alignments"]))
         gen_aln.update({loc: gen_seq})
 
-        logging.info("Loading " + msf_nuc)
+        logging.info(' '.join(["Loading", msf_nuc]))
         align_nuc = AlignIO.read(open(msf_nuc), "msf")
         nuc_seq = {"HLA-" + a.name: str(a.seq) for a in align_nuc}
-        logging.info("Loaded " + str(len(nuc_seq)) + " nuc " + loc + " sequences")
+        # del align_nuc.clear()
+        logging.info(' '.join(["Loaded", str(len(nuc_seq)), "nucleotide", loc, "alignments"]))
         nuc_aln.update({loc: nuc_seq})
 
         # https://github.com/ANHIG/IMGTHLA/issues/158
         # if str(dbversion) == ["3320", "3360"]:
         #    continue
 
-        logging.info("Loading " + msf_prot)
+        logging.info(' '.join(["Loading ", msf_prot]))
         align_prot = AlignIO.read(open(msf_prot), "msf")
         prot_seq = {"HLA-" + a.name: str(a.seq) for a in align_prot}
-        logging.info("Loaded " + str(len(prot_seq)) + " prot " + loc + " sequences")
+        # del align_prot.clear()
+        logging.info(' '.join(["Loaded", str(len(prot_seq)), "protein", loc, "alignments"]))
         prot_aln.update({loc: prot_seq})
 
     return gen_aln, nuc_aln, prot_aln
@@ -113,7 +127,7 @@ def get_features(seqrecord):
                range(0, j) if seqrecord.features[i].type != "source"
                and seqrecord.features[i].type != "CDS" and isinstance(seqrecord.features[i], SeqFeature)
                and not seqrecord.features[i].qualifiers]
-    feats = [[str(feat.type + "_" + feat.qualifiers['number'][0]), SeqRecord(seq=feat.extract(seqrecord.seq), id="1")]
+    feats = [[''.join([str(feat.type), "_", str(feat.qualifiers['number'][0])]), SeqRecord(seq=feat.extract(seqrecord.seq), id="1")]
              for feat in seqrecord.features if feat.type != "source"
              and feat.type != "CDS" and isinstance(feat, SeqFeature)
              and 'number' in feat.qualifiers]
@@ -150,36 +164,51 @@ def get_cds(allele):
                 
     return bp_seq, aa_seq
 
+# Streams dictionaries as rows to a file
+def append_dict_as_row(file_path, dict_row):
+
+    header = list(dict_row.keys())
+
+    # Check if file exists
+    csv_file = Path(file_path)
+    if not csv_file.is_file():
+
+        # Create the file and add the header
+        with open(file_path, 'a+', newline='') as write_obj:
+            dict_writer = DictWriter(write_obj, fieldnames=header)
+            dict_writer.writeheader()
+
+    # Do not add an else statement or the first line will be skipped
+    with open(file_path, 'a+', newline='') as write_obj:
+        dict_writer = DictWriter(write_obj, fieldnames=header)
+        dict_writer.writerow(dict_row)
+
+    return
 
 # Build the datasets for the HLA graph
-@profile
+#@profile
 def build_hla_graph(**kwargs):
 
-    #logging.info(f'kwargs:\n{kwargs}')
-    dbversion = kwargs.get("dbversion")
-    alignments = kwargs.get("alignments", False)
-    verbose = kwargs.get("verbose", False)
-    debug = kwargs.get("debug", False)
-    gfe_maker = kwargs.get("gfe_maker")
-    limit = kwargs.get("limit", None)
-    #to_csv = kwargs.get("to_csv", False)
+    dbversion, alignments, verbose, debug, gfe_maker, limit, num_alleles = \
+        kwargs.get("dbversion"), \
+        kwargs.get("alignments", False), \
+        kwargs.get("verbose", False), \
+        kwargs.get("debug", False), \
+        kwargs.get("gfe_maker"), \
+        kwargs.get("limit", None), \
+        kwargs.get("num_alleles")
 
-    def _build_csv_files(a_gen, alignments, limit):
+    def _stream_to_csv(a_gen, alignments, limit):
 
         i = 0
 
-        ### Initialize lists for CSV output (input to LOAD CSV in Neo4j)
-        # Lists contain unique dicts and are converted to dataframes, 
-        # then output to CSV for Neo4j import
-        gfe_sequences = []
-        gen_alignments = []
-        nuc_alignments = []
-        prot_alignments = []
-        all_features = []
-        all_groups = []
-        all_cds = []
+        logging.info(f'a_gen type: {type(a_gen)}')
 
         for idx, allele in enumerate(a_gen):
+
+            t0 = time.time()
+            # all_objects = muppy.get_objects()
+            # sum1 = summary.summarize(all_objects)
 
             if hasattr(allele, 'seq'):
                 hla_name = allele.description.split(",")[0]
@@ -232,8 +261,13 @@ def build_hla_graph(**kwargs):
                                 "length": len(aligned_gen), # trim whitespace?
                                 "rank": "0", # TO DO: confirm how this value is derived
                                 "bp_sequence": aligned_gen,
+                                "aa_sequence": "",
                                 "imgt_release": imgt_release
-                            }                                    
+                            }
+                            
+                            logging.info(f'Streaming genomic alignments to file...')
+                            file_path = f'{data_dir}csv/all_alignments-stream.csv'
+                            append_dict_as_row(file_path, gen_alignment)
 
                         if allele.description.split(",")[0] in nuc_aln[loc]:
                             aligned_nuc = nuc_aln[loc][allele.description.split(",")[
@@ -248,8 +282,13 @@ def build_hla_graph(**kwargs):
                                 "length": len(aligned_nuc),
                                 "rank": "0", # TO DO: confirm how this value is derived
                                 "bp_sequence": aligned_nuc,
+                                "aa_sequence": "",
                                 "imgt_release": imgt_release
                             }
+
+                            logging.info(f'Streaming nucleotide alignments to file...')
+                            file_path = f'{data_dir}csv/all_alignments-stream.csv'
+                            append_dict_as_row(file_path, nuc_alignment)
 
                         if allele.description.split(",")[0] in prot_aln[loc]:
                             aligned_prot = prot_aln[loc][allele.description.split(",")[
@@ -263,23 +302,15 @@ def build_hla_graph(**kwargs):
                                 "a_name": a_name, # hla_name.split("-")[1]
                                 "length": len(aligned_prot),
                                 "rank": "0", # TO DO: confirm how this value is derived
+                                "bp_sequence": "",
                                 "aa_sequence": aligned_prot,
                                 "imgt_release": imgt_release
                             }
 
-                        # Append data to respective list
-                        alignments_data = zip(
-                            [gen_alignments, nuc_alignments, prot_alignments],
-                            [gen_alignment, nuc_alignment, prot_alignment]
-                        )
-
-                        for _list, _dict in alignments_data:
-                            _list.append(_dict)
-                        
+                            logging.info(f'Streaming protein alignments to file...')
+                            file_path = f'{data_dir}csv/all_alignments-stream.csv'
+                            append_dict_as_row(file_path, prot_alignment)                        
                
-
-                ### Build dicts describing nodes and edges for each allele
-                # Separate CSV file
                 gfe_sequence = {
                     "gfe_name": gfe,
                     "allele_id": allele.id,
@@ -291,9 +322,14 @@ def build_hla_graph(**kwargs):
                     "imgt_release": imgt_release
                 }
 
+                logging.info(f'Streaming GFE to file...')
+                file_name = ''.join([data_dir, "csv/gfe_stream.csv"])
+                append_dict_as_row(file_name, gfe_sequence)
+
                 # Separate CSV file, GFE foreign key: allele_id
                 allele_groups = []
 
+                logging.info(f'Streaming groups to file...')
                 for group in groups:
                     group_dict = {
                         "gfe_name": gfe,
@@ -305,6 +341,9 @@ def build_hla_graph(**kwargs):
                         "locus": loc,
                         "imgt_release": imgt_release
                     }
+
+                    file_path = f'{data_dir}csv/all_groups-stream.csv'
+                    append_dict_as_row(file_path, group_dict)
 
                     allele_groups.append(group_dict)
 
@@ -320,6 +359,10 @@ def build_hla_graph(**kwargs):
                     "imgt_release": imgt_release
                 }
 
+                logging.info(f'Streaming CDS to file...')
+                file_path = f'{data_dir}csv/all_cds-stream.csv'
+                append_dict_as_row(file_path, cds)
+
                 # features preprocessing steps
                 # 1) Convert seqann type to python dict using literal_eval
                 # 2) add GFE foreign keys: allele_id, hla_name
@@ -330,11 +373,12 @@ def build_hla_graph(**kwargs):
                     [ast.literal_eval(str(feature) \
                         .replace('\'', '"') \
                         .replace('\n', '')) \
-                        for feature in features]
+                        for feature in features]               
 
                 # Append allele id's
                 # Note: Some alleles may have the same feature, but it may not be the same rank, 
                 # so a feature should be identified with its allele by allele_id or HLA name
+                logging.info(f'Streaming features to file...')
                 for feature in features:
                     feature["gfe_name"] = gfe
                     feature["term"] = feature["term"].upper()
@@ -345,43 +389,48 @@ def build_hla_graph(**kwargs):
                     # Avoid null values in CSV for Neo4j import
                     feature["hash_code"] = "none" if not feature["hash_code"] else feature["hash_code"]
 
-                # Append data to respective list
-                data = zip(
-                    [gfe_sequences, all_cds],
-                    [gfe_sequence, cds]
-                )
+                    file_path = f'{data_dir}csv/all_features-stream.csv'
+                    append_dict_as_row(file_path, feature)
 
-                for _list, _dict in data:
-                    _list.append(_dict)
+            elapsed_time = round(time.time()-t0, 2)
+            time_remaining = round(((num_alleles - idx) * elapsed_time) / 60, 2)
 
-                # Alignments, features, and ARD groups can all be concatenated since the keys are the same
-                if alignments_data:
-                    all_alignments = gen_alignments + nuc_alignments + prot_alignments
+            alleles_remaining = num_alleles - idx
 
-                    # Drop duplicate rows
-                    all_alignments = pd.DataFrame(all_alignments) \
-                        .drop_duplicates() \
-                        .to_dict('records')
-
-                all_features = all_features + features        
-                all_groups = all_groups + allele_groups
-
+            logging.info(f'Alleles processed: {idx}')
+            logging.info(f'Alleles remaining: {alleles_remaining}')
+            logging.info(f'Elapsed time: {elapsed_time}')
+            logging.info(f'Estimated time remaining: {time_remaining} minutes')
+            
             # Break point for testing
             if limit and idx == limit:
                     break
 
-        csv_output = {
-            "gfe_sequences": gfe_sequences,
-            "all_features": all_features,
-            "all_groups": all_groups,
-            "all_cds": all_cds
-        }
+            # Print a summary of memory usage every n alleles
+            if idx % 20 == 0:
+                all_objects = muppy.get_objects()
+                sum2 = summary.summarize(all_objects)
+                # #diff = summary.get_diff(sum1, sum2)
+                # #summary.print_(diff)
+                # #logging.info(f'Memory usage:\n{}\n')
+                # summary.print_(sum2)
+                # with open("summary.json", "a+") as f:
+                #     f.write(json.dumps(sum1))
 
-        # Add alignments data if there is
-        if alignments:
-            csv_output["all_alignments"] = all_alignments
+                original_stdout = sys.stdout
+                with open("summary_agg.txt", "a+") as f:
+                    sys.stdout = f
+                    # tr.print_diff()
+                    summary.print_(sum2)
+                    sys.stdout = original_stdout;
 
-        return csv_output
+                with open("summary_diff.txt", "a+") as f:
+                    sys.stdout = f
+                    tr.print_diff()
+                    #summary.print_(sum2)
+                    sys.stdout = original_stdout;                
+
+        return
 
 
     # Loop through DB versions and build CSVs
@@ -402,11 +451,11 @@ def build_hla_graph(**kwargs):
 
     # The github URL changed from 3350 to media
     if int(db_striped) < 3350:
-        dat_url = imgt_hla_raw_url + db_striped + '/hla.dat'
+        dat_url = ''.join([imgt_hla_raw_url, db_striped, '/hla.dat'])
     else:
-        dat_url = imgt_hla_media_url + db_striped + '/hla.dat'
+        dat_url = ''.join([imgt_hla_media_url, db_striped, '/hla.dat'])
 
-    dat_file = data_dir + 'hla.' + db_striped + ".dat"
+    dat_file = ''.join([data_dir, 'hla.', db_striped, ".dat"])
 
     # Downloading DAT file
     logging.info("Downloading DAT file...")
@@ -425,33 +474,14 @@ def build_hla_graph(**kwargs):
     
     logging.info("Building CSV files...")
     csv_output = \
-        _build_csv_files(
+        _stream_to_csv(
             a_gen=a_gen, 
             alignments=alignments, 
             limit=limit)
 
+
+
     return csv_output
-
-
-# Write CSV files to local directory
-def write_csv_file(csv_output, dbversion, path):
-    """Takes a dict of form "csv_name": data where csv_name is the CSV file to export
-    and data is a list of dictionaries.
-    """
-
-    try:
-        # Output to CSV, include dbversion in name
-        for csv_name, data in csv_output.items():
-            dataframe = pd.DataFrame(data)
-            file_name = path + f"{csv_name}.{dbversion}.csv"
-            dataframe.to_csv(file_name, index=False)
-            logging.info(f'Saved {file_name.split("/")[-1]} to {path}')
-
-        return 
-
-    except Exception as err:
-        logging.error(f'Failed to save CSV files to "{path}"')
-        raise err
 
 
 def main():
@@ -489,6 +519,13 @@ def main():
                         type=int,
                         action="store")
 
+    parser.add_argument("-c", "--count",
+                        required=False,
+                        help="Number of alleles",
+                        default=1,
+                        type=int,
+                        action="store")
+
     parser.add_argument("-r", "--releases",
                         required=False,
                         help="IMGT/DB releases",
@@ -511,12 +548,10 @@ def main():
 
     logging.info(f'args:\n{vars(args)}')
 
-    # Not used
-    # out_dir = args.out_dir if args.out_dir else ""
-
     release_n = args.number
     releases = args.releases if args.releases else None
     verbosity = 1
+    num_alleles = args.count
 
     debug = True if args.debug else False
     kir = True if args.kir else False
@@ -538,104 +573,26 @@ def main():
     else:
         dbversions = pd.read_html(imgt_hla)[0]['Release'][0:release_n].tolist()
 
-    # # Get latest IMGT/KIR release
-    # kir_release = pd.read_html(imgt_kir)[0]['Release'][0]
+    gfe_maker = GFE(verbose=verbose, 
+        verbosity=verbosity,
+        load_features=False, 
+        store_features=True,
+        loci=load_loci)
 
-    gfe_maker = gfe.GFE(verbose=verbose, verbosity=verbosity,
-                        load_features=False, store_features=True,
-                        loci=load_loci)
-
-    if kir:
-
-        # # Replace this block with function:
-        # build_kir_graph(**kwargs)
-
-        logging.info(f'KIR: {kir}')
-
-        # if verbose:
-        #     logging.info("Adding KIR to GFE DB")
-
-        # kir_file = data_dir + 'KIR.dat'
-
-        # if alignments:
-        #     aligned = kir_alignments()
-
-        # # Downloading KIR
-        # if not os.path.isfile(kir_file):
-        #     if verbose:
-        #         logging.info("Downloading KIR dat file from " + kir_url)
-        #     urllib.request.urlretrieve(kir_url, kir_file)
-
-        # kir_gen = SeqIO.parse(kir_file, "imgt")
-        # if verbose:
-        #     logging.info("Finished parsing KIR dat file")
-
-        # i = 0
-        # for allele in kir_gen:
-        #     if hasattr(allele, 'seq'):
-        #         loc = allele.description.split(",")[0].split("*")[0]
-        #         if loc in kir_loci and len(str(allele.seq)) > 5:
-        #             if debug:
-        #                 logging.info("KIR = " + allele.description.split(",")[0] + " " + kir_release)
-
-        #             groups = []
-        #             complete_annotation = get_features(allele)
-        #             ambigs = [a for a in complete_annotation if re.search("/", a)]
-
-        #             aligned_seq = ''
-        #             if alignments:
-        #                 if allele.description.split(",")[0] in aligned[loc]:
-        #                     aligned_seq = aligned[loc][allele.description.split(",")[0]]
-
-        #             if ambigs:
-        #                 logging.info("AMBIGS " + allele.description.split(",")[0] + " " + kir_release)
-        #                 annotations = []
-        #                 for ambig in ambigs:
-        #                     if debug:
-        #                         logging.info("AMBIG = " + ambig)
-        #                     aterm = ambig.split("/")[0].split("_")[0]
-        #                     anno = {a: complete_annotation[a] for a in complete_annotation if a not in ambigs}
-        #                     anno.update({ambig.split("/")[0]: complete_annotation[ambig]})
-        #                     annotations.append(anno)
-
-        #                     anno2 = {a: complete_annotation[a] for a in complete_annotation if a not in ambigs}
-        #                     anno2.update({aterm + "_" + ambig.split("/")[1]: complete_annotation[ambig]})
-        #                     annotations.append(anno2)
-
-        #                 for annotation in annotations:
-        #                     ann = Annotation(annotation=annotation,
-        #                                      method='match',
-        #                                      complete_annotation=True)
-
-        #                     features, gfe = gfe_maker.get_gfe(ann, loc)
-        #                     
-        #                     # Build the KIR graph
-        #                     build_kir_graph(...)
-
-        #             else:
-        #                 ann = Annotation(annotation=complete_annotation,
-        #                                  method='match',
-        #                                  complete_annotation=True)
-        #                 features, gfe = gfe_maker.get_gfe(ann, loc)
-
-        #                 # Build the KIR graph
-        #                 build_kir_graph(...)
-
+    # TO DO: for this for loop into the build.sh script
     for dbversion in dbversions:
         
         logging.info(f'\n\nBuilding graph for IMGTHLA version {dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}...')
-        csv_output = build_hla_graph(
+        logging.info(f'Limit: {args.limit}')
+        build_hla_graph(
             dbversion=dbversion, 
             alignments=align, 
             verbose=verbose,
             limit=args.limit,
+            num_alleles=num_alleles,
             gfe_maker=gfe_maker)
 
-        write_csv_file(csv_output, dbversion, path=data_dir + "csv/")
-
         logging.info(f'Finished build for version {dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}')
-
-        #pdb.set_trace()
 
     logging.info(f'****** Build complete ******')
 
