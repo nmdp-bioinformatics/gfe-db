@@ -410,11 +410,17 @@ def build_hla_graph(**kwargs):
                 #     f.write(json.dumps(sum1))
 
                 original_stdout = sys.stdout
-                with open("summary.txt", "a+") as f:
+                with open("summary_agg.txt", "a+") as f:
                     sys.stdout = f
                     # tr.print_diff()
                     summary.print_(sum2)
                     sys.stdout = original_stdout;
+
+                with open("summary_diff.txt", "a+") as f:
+                    sys.stdout = f
+                    tr.print_diff()
+                    #summary.print_(sum2)
+                    sys.stdout = original_stdout;                
                 
         
         #################
