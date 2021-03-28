@@ -1,74 +1,31 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-# TODO: **** ADD HAS_FEATURE
-#       between SEQUENCE and features
-import pandas as pd
-from seqann.models.annotation import Annotation
-from seqann.gfe import GFE
-from Bio.SeqFeature import SeqFeature
-from Bio.SeqRecord import SeqRecord
-from Bio import SeqIO
-from pyard import ARD
-from Bio import AlignIO
-import logging
-import argparse
 import os
 import sys
-import urllib.request
+import logging
 import re
 import ast
 import time
-#import pdb;
-#from memory_profiler import profile
+from Bio import AlignIO
+from Bio.SeqFeature import SeqFeature
+from Bio.SeqRecord import SeqRecord
+from seqann.models.annotation import Annotation
+from Bio import SeqIO
+from pyard import ARD
 from pympler import tracker, muppy, summary
-import gc
 from csv import DictWriter
 from pathlib import Path
+from constants import *
 
-tr = tracker.SummaryTracker()
-
-imgt_hla = 'https://www.ebi.ac.uk/ipd/imgt/hla/docs/release.html'
-imgt_hla_media_url = 'https://media.githubusercontent.com/media/ANHIG/IMGTHLA/'
-imgt_hla_raw_url = 'https://raw.githubusercontent.com/ANHIG/IMGTHLA/'
-
-imgt_kir = 'https://www.ebi.ac.uk/ipd/kir/docs/version.html'
-kir_url = 'ftp://ftp.ebi.ac.uk/pub/databases/ipd/kir/KIR.dat'
-
-data_dir = os.path.dirname(__file__) + "/../data/"
-
-logging.basicConfig(format='%(asctime)s - %(name)-25s - %(levelname)-5s - %(funcName)s:%(lineno)d: - %(message)s',
+logging.basicConfig(format='%(asctime)s - %(name)-25s - %(levelname)-5s - %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S',
                     level=logging.INFO)
+
+tr = tracker.SummaryTracker()
 
 expre_chars = ['N', 'Q', 'L', 'S']
 isutr = lambda f: True if re.search("UTR", f) else False
 to_second = lambda a: ":".join(a.split(":")[0:2]) + list(a)[-1] if list(a)[-1] in expre_chars and len(
     a.split(":")) > 2 else ":".join(a.split(":")[0:2])
 
-# The alleles are removed when the allele_nodes.csv is built
-skip_alleles = ["HLA-DRB5*01:11", "HLA-DRB5*01:12", "HLA-DRB5*01:13",
-                "HLA-DRB5*02:03", "HLA-DRB5*02:04", "HLA-DRB5*02:05",
-                "HLA-DRB5*01:01:02", "HLA-DRB5*01:03", "HLA-DRB5*01:05",
-                "HLA-DRB5*01:06", "HLA-DRB5*01:07", "HLA-DRB5*01:09",
-                "HLA-DRB5*01:10N", "HLA-C*05:208N", "HLA-C*05:206"]
-
-hla_loci = ['HLA-A', 'HLA-B', 'HLA-C', 'HLA-DRB1', 'HLA-DQB1',
-            'HLA-DPB1', 'HLA-DQA1', 'HLA-DPA1', 'HLA-DRB3',
-            'HLA-DRB4', 'HLA-DRB5']
-
-hla_align = ['HLA-A', 'HLA-B', 'HLA-C', 'HLA-DRB1', 'HLA-DQB1',
-             'HLA-DPB1', 'HLA-DQA1', 'HLA-DPA1']
-
-kir_loci = ["KIR3DS1", "KIR3DP1", "KIR3DL3", "KIR3DL2", "KIR3DL1",
-            "KIR2DS5", "KIR2DS4", "KIR2DS3", "KIR2DS2", "KIR2DS1",
-            "KIR2DP1", "KIR2DL5B", "KIR2DL5A", "KIR2DL4"]
-
-kir_aligloci = ["KIR2DL4", "KIR2DP1", "KIR2DS1", "KIR2DS2", "KIR2DS3",
-                "KIR2DS4", "KIR2DS5", "KIR3DL1", "KIR3DL2", "KIR3DL3",
-                "KIR3DP1"]
-
-ard_groups = ['G', 'lg', 'lgx']
 
 def hla_alignments(dbversion):
     gen_aln = {l: {} for l in hla_loci}
@@ -82,14 +39,14 @@ def hla_alignments(dbversion):
         msf_nuc = ''.join([data_dir, dbversion, "/", loc.split("-")[1], "_nuc.msf"])
         msf_prot = ''.join([data_dir, dbversion, "/", loc.split("-")[1], "_prot.msf"])
 
-        logging.info(' '.join(["Loading", msf_gen]))
+        logging.info(' '.join(["Loading", msf_gen.split('/')[-1]]))
         align_gen = AlignIO.read(open(msf_gen), "msf")
         gen_seq = {"HLA-" + a.name: str(a.seq) for a in align_gen}
         del align_gen
         logging.info(' '.join(["Loaded", str(len(gen_seq)), "genomic", loc, "alignments"]))
         gen_aln.update({loc: gen_seq})
 
-        logging.info(' '.join(["Loading", msf_nuc]))
+        logging.info(' '.join(["Loading", msf_nuc.split('/')[-1]]))
         align_nuc = AlignIO.read(open(msf_nuc), "msf")
         nuc_seq = {"HLA-" + a.name: str(a.seq) for a in align_nuc}
         del align_nuc
@@ -100,7 +57,7 @@ def hla_alignments(dbversion):
         # if str(dbversion) == ["3320", "3360"]:
         #    continue
 
-        logging.info(' '.join(["Loading ", msf_prot]))
+        logging.info(' '.join(["Loading ", msf_prot.split('/')[-1]]))
         align_prot = AlignIO.read(open(msf_prot), "msf")
         prot_seq = {"HLA-" + a.name: str(a.seq) for a in align_prot}
         del align_prot
@@ -134,6 +91,7 @@ def get_features(seqrecord):
 
     return annotation
 
+
 # Returns base pair and amino acid sequences from CDS data
 def get_cds(allele):
 
@@ -152,6 +110,7 @@ def get_cds(allele):
                 aa_seq = cds_features.qualifiers['translation'][0]
                 
     return bp_seq, aa_seq
+
 
 # Streams dictionaries as rows to a file
 def append_dict_as_row(file_path, dict_row):
@@ -173,6 +132,7 @@ def append_dict_as_row(file_path, dict_row):
         dict_writer.writerow(dict_row)
 
     return
+
 
 # Build the datasets for the HLA graph
 def build_hla_graph(**kwargs):
@@ -442,6 +402,7 @@ def build_hla_graph(**kwargs):
 
     dat_file = ''.join([data_dir, 'hla.', db_striped, ".dat"])
 
+    ### TO DO: move to build.sh
     # Downloading DAT file
     logging.info("Downloading DAT file...")
     if not os.path.isfile(dat_file):
@@ -456,132 +417,10 @@ def build_hla_graph(**kwargs):
     if verbose:
         logging.info("Finished parsing dat file")
 
-    
-    logging.info("Building CSV files...")
-    csv_output = \
-        _stream_to_csv(
-            a_gen=a_gen, 
-            alignments=alignments, 
-            limit=limit)
-
-    return csv_output
-
-
-def main():
-    """This is run if file is directly executed, but not if imported as
-    module. Having this in a separate function  allows importing the file
-    into interactive python, and still able to execute the
-    function for testing"""
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("-k", "--kir",
-                        required=False,
-                        help="Bool for KIR",
-                        action='store_true')
-
-    parser.add_argument("-a", "--align",
-                        required=False,
-                        help="Bool for loading alignments",
-                        action="store_true")
-
-    parser.add_argument("-d", "--debug",
-                        required=False,
-                        help="Bool for debugging",
-                        action="store_true")
-
-    parser.add_argument("-o", "--out_dir",
-                        required=True,
-                        help="Output directory",
-                        type=str,
-                        action="store")
-
-    parser.add_argument("-n", "--number",
-                        required=False,
-                        help="Number of IMGT/DB releases",
-                        default=1,
-                        type=int,
-                        action="store")
-
-    parser.add_argument("-c", "--count",
-                        required=False,
-                        help="Number of alleles",
-                        default=1,
-                        type=int,
-                        action="store")
-
-    parser.add_argument("-r", "--releases",
-                        required=False,
-                        help="IMGT/DB releases",
-                        type=str,
-                        action="store")
-
-    parser.add_argument("-v", "--verbose",
-                        help="Option for running in verbose",
-                        action="store_true")
-
-    parser.add_argument("-l", "--limit",
-                        required=False,
-                        help="Limit number of records in output",
-                        default=None,
-                        nargs='?',
-                        type=int,
-                        action="store")
-
-    args = parser.parse_args()
-
-    logging.info(f'args:\n{vars(args)}')
-
-    release_n = args.number
-    releases = args.releases if args.releases else None
-    verbosity = 1
-    num_alleles = args.count
-
-    debug = True if args.debug else False
-    kir = True if args.kir else False
-    align = True if args.align else False
-    verbose = True if args.verbose else False
-    load_loci = hla_loci + kir_loci if kir else hla_loci
-
-    if debug:
-        logging.info("Running in debug mode")
-        load_loci = ["HLA-A"]
-        kir = False
-        verbose = True
-        verbosity = 2
-        release_n = 1
-
-    # Get last five IMGT/HLA releases
-    if releases:
-        dbversions = [db for db in releases.split(",")]
-    else:
-        dbversions = pd.read_html(imgt_hla)[0]['Release'][0:release_n].tolist()
-
-    gfe_maker = GFE(verbose=verbose, 
-        verbosity=verbosity,
-        load_features=False, 
-        store_features=True,
-        loci=load_loci)
-
-    # TO DO: for this for loop into the build.sh script
-    for dbversion in dbversions:
-        
-        logging.info(f'\n\nBuilding graph for IMGTHLA version {dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}...')
-        logging.info(f'Limit: {args.limit}')
-        build_hla_graph(
-            dbversion=dbversion, 
-            alignments=align, 
-            verbose=verbose,
-            limit=args.limit,
-            num_alleles=num_alleles,
-            gfe_maker=gfe_maker)
-
-        logging.info(f'Finished build for version {dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}')
-
-    logging.info(f'****** Build complete ******')
+    logging.info("Streaming rows CSV files...")
+    _stream_to_csv(
+        a_gen=a_gen, 
+        alignments=alignments, 
+        limit=limit)
 
     return
-
-if __name__ == '__main__':
-    """The following will be run if file is executed directly,
-    but not if imported as a module"""
-    main()
