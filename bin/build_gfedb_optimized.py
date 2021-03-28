@@ -191,6 +191,8 @@ def build_hla_graph(**kwargs):
         for idx, allele in enumerate(a_gen):
 
             t0 = time.time()
+            all_objects = muppy.get_objects()
+            sum1 = summary.summarize(all_objects)
 
             if hasattr(allele, 'seq'):
                 hla_name = allele.description.split(",")[0]
@@ -397,9 +399,10 @@ def build_hla_graph(**kwargs):
             # Print a summary of memory usage every n alleles
             if idx % 20 == 0:
                 all_objects = muppy.get_objects()
-                sum1 = summary.summarize(all_objects)
-                #print(sum1)
-                summary.print_(sum1)
+                sum2 = summary.summarize(all_objects)
+                diff = summary.get_diff(sum1, sum2)
+                #logging.info(f'Memory usage:\n{}\n')
+                summary.print_(diff)
                 # with open("summary.json", "a+") as f:
                 #     f.write(json.dumps(sum1))
         
