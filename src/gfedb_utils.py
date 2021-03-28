@@ -297,7 +297,7 @@ def build_hla_graph(**kwargs):
                     }
 
                     logging.info(f'Streaming GFEs to file...')
-                    file_name = ''.join([data_dir, "csv/gfe_sequence.{dbversion}.csv"])
+                    file_name = ''.join([data_dir, f'csv/gfe_sequences.{dbversion}.csv'])
                     append_dict_as_row(file_name, gfe_sequence)
 
                 except Exception as err:
