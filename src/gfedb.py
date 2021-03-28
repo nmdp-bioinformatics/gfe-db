@@ -90,7 +90,7 @@ def main():
     #logging.info(f'last_release: {last_release}')
 
     release_n = args.number
-    release = args.release if args.release else last_release
+    dbversion = args.release if args.release else last_release
     verbosity = 1
     num_alleles = args.count
 
@@ -126,14 +126,14 @@ def main():
     #logging.info(f'\n\nBuilding graph for IMGTHLA version {dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}...')
     #logging.info(f'Limit: {args.limit}')
     build_hla_graph(
-        dbversion=release, 
+        dbversion=dbversion, 
         alignments=align, 
         verbose=verbose,
         limit=args.limit,
         num_alleles=num_alleles,
         gfe_maker=gfe_maker)
 
-    logging.info(f'Finished build for version {release[0]}.{release[1:3]}.{release[3]}')
+    logging.info(f'Finished build for version {dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}')
 
     return
 

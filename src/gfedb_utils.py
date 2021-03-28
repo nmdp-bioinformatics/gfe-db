@@ -192,112 +192,119 @@ def build_hla_graph(**kwargs):
                 if debug and (loc != "HLA-A" and i > 20):
                     continue
 
-                #if (loc in hla_loci or loc == "DRB5") and (len(str(allele.seq)) > 5):
+                if (loc in hla_loci or loc == "DRB5") and (len(str(allele.seq)) > 5):
+
+                    try:
+                        if debug:
+                            logging.info(
+                                "HLA = " + allele.description.split(",")[0] + " " + dbversion)
+
+                        a_name = allele.description.split(",")[0].split("-")[1]
+                        groups = [["HLA-" + ard.redux(a_name, grp), grp] if ard.redux(a_name, grp) != a_name else None for
+                                    grp in ard_groups]
+                        seco = [[to_second(a_name), "2nd_FIELD"]]
+                        groups = list(filter(None, groups)) + seco
+                        complete_annotation = get_features(allele)
+                        ann = Annotation(annotation=complete_annotation,
+                                            method='match',
+                                            complete_annotation=True)
+
+                        # This process takes a long time
+                        logging.info(f"Getting GFE data for allele {allele.id}...")
+                        features, gfe = gfe_maker.get_gfe(ann, loc)
+
+                        # gen_aln, nuc_aln, prot_aln
+                        alignments_data = None
+                        aligned_gen = ''
+                        aligned_nuc = ''
+                        aligned_prot = ''
+
+                        if alignments:
+                            if allele.description.split(",")[0] in gen_aln[loc]:
+                                aligned_gen = gen_aln[loc][allele.description.split(",")[
+                                    0]]
+
+                                gen_alignment = {
+                                    "label": "GEN_ALIGN",
+                                    "gfe_name": gfe,
+                                    "hla_name": hla_name,
+                                    "a_name": a_name, # hla_name.split("-")[1]
+                                    "length": len(aligned_gen), # trim whitespace?
+                                    "rank": "0", # TO DO: confirm how this value is derived
+                                    "bp_sequence": aligned_gen,
+                                    "aa_sequence": "",
+                                    "imgt_release": imgt_release
+                                }
+                                
+                                logging.info(f'Streaming genomic alignments to file...')
+                                file_path = f'{data_dir}csv/all_alignments.{dbversion}.csv'
+                                append_dict_as_row(file_path, gen_alignment)
+
+                            if allele.description.split(",")[0] in nuc_aln[loc]:
+                                aligned_nuc = nuc_aln[loc][allele.description.split(",")[
+                                    0]]
+
+                                nuc_alignment = {
+                                    "label": "NUC_ALIGN",
+                                    "gfe_name": gfe,
+                                    "hla_name": hla_name,
+                                    "a_name": a_name, # hla_name.split("-")[1]
+                                    "length": len(aligned_nuc),
+                                    "rank": "0", # TO DO: confirm how this value is derived
+                                    "bp_sequence": aligned_nuc,
+                                    "aa_sequence": "",
+                                    "imgt_release": imgt_release
+                                }
+
+                                logging.info(f'Streaming nucleotide alignments to file...')
+                                file_path = f'{data_dir}csv/all_alignments.{dbversion}.csv'
+                                append_dict_as_row(file_path, nuc_alignment)
+
+                            if allele.description.split(",")[0] in prot_aln[loc]:
+                                aligned_prot = prot_aln[loc][allele.description.split(",")[
+                                    0]]
+
+                                prot_alignment = {
+                                    "label": "PROT_ALIGN",
+                                    "gfe_name": gfe,
+                                    "hla_name": hla_name,
+                                    "a_name": a_name, # hla_name.split("-")[1]
+                                    "length": len(aligned_prot),
+                                    "rank": "0", # TO DO: confirm how this value is derived
+                                    "bp_sequence": "",
+                                    "aa_sequence": aligned_prot,
+                                    "imgt_release": imgt_release
+                                }
+
+                                logging.info(f'Streaming protein alignments to file...')
+                                file_path = f'{data_dir}csv/all_alignments.{dbversion}.csv'
+                                append_dict_as_row(file_path, prot_alignment)
+
+                    except Exception as err:
+                        logging.error(f'Failed to get data for allele ID {allele.id}')
+                        logging.error(err)                        
+                
                 try:
-                    if debug:
-                        logging.info(
-                            "HLA = " + allele.description.split(",")[0] + " " + dbversion)
+                    gfe_sequence = {
+                        "gfe_name": gfe,
+                        "allele_id": allele.id,
+                        "locus": loc,
+                        "hla_name": hla_name,
+                        "a_name": a_name, # hla_name.split("-")[1]
+                        "sequence": str(allele.seq),
+                        "length": len(str(allele.seq)),
+                        "imgt_release": imgt_release
+                    }
 
-                    a_name = allele.description.split(",")[0].split("-")[1]
-                    groups = [["HLA-" + ard.redux(a_name, grp), grp] if ard.redux(a_name, grp) != a_name else None for
-                                grp in ard_groups]
-                    seco = [[to_second(a_name), "2nd_FIELD"]]
-                    groups = list(filter(None, groups)) + seco
-                    complete_annotation = get_features(allele)
-                    ann = Annotation(annotation=complete_annotation,
-                                        method='match',
-                                        complete_annotation=True)
+                    logging.info(f'Streaming GFEs to file...')
+                    file_name = ''.join([data_dir, "csv/gfe_sequence.{dbversion}.csv"])
+                    append_dict_as_row(file_name, gfe_sequence)
 
-                    # This process takes a long time
-                    logging.info(f"Getting GFE data for allele {allele.id}...")
-                    features, gfe = gfe_maker.get_gfe(ann, loc)
-
-                    # gen_aln, nuc_aln, prot_aln
-                    alignments_data = None
-                    aligned_gen = ''
-                    aligned_nuc = ''
-                    aligned_prot = ''
-
-                    if alignments:
-                        if allele.description.split(",")[0] in gen_aln[loc]:
-                            aligned_gen = gen_aln[loc][allele.description.split(",")[
-                                0]]
-
-                            gen_alignment = {
-                                "label": "GEN_ALIGN",
-                                "gfe_name": gfe,
-                                "hla_name": hla_name,
-                                "a_name": a_name, # hla_name.split("-")[1]
-                                "length": len(aligned_gen), # trim whitespace?
-                                "rank": "0", # TO DO: confirm how this value is derived
-                                "bp_sequence": aligned_gen,
-                                "aa_sequence": "",
-                                "imgt_release": imgt_release
-                            }
-                            
-                            logging.info(f'Streaming genomic alignments to file...')
-                            file_path = f'{data_dir}csv/all_alignments-stream.csv'
-                            append_dict_as_row(file_path, gen_alignment)
-
-                        if allele.description.split(",")[0] in nuc_aln[loc]:
-                            aligned_nuc = nuc_aln[loc][allele.description.split(",")[
-                                0]]
-
-                            nuc_alignment = {
-                                "label": "NUC_ALIGN",
-                                "gfe_name": gfe,
-                                "hla_name": hla_name,
-                                "a_name": a_name, # hla_name.split("-")[1]
-                                "length": len(aligned_nuc),
-                                "rank": "0", # TO DO: confirm how this value is derived
-                                "bp_sequence": aligned_nuc,
-                                "aa_sequence": "",
-                                "imgt_release": imgt_release
-                            }
-
-                            logging.info(f'Streaming nucleotide alignments to file...')
-                            file_path = f'{data_dir}csv/all_alignments-stream.csv'
-                            append_dict_as_row(file_path, nuc_alignment)
-
-                        if allele.description.split(",")[0] in prot_aln[loc]:
-                            aligned_prot = prot_aln[loc][allele.description.split(",")[
-                                0]]
-
-                            prot_alignment = {
-                                "label": "PROT_ALIGN",
-                                "gfe_name": gfe,
-                                "hla_name": hla_name,
-                                "a_name": a_name, # hla_name.split("-")[1]
-                                "length": len(aligned_prot),
-                                "rank": "0", # TO DO: confirm how this value is derived
-                                "bp_sequence": "",
-                                "aa_sequence": aligned_prot,
-                                "imgt_release": imgt_release
-                            }
-
-                            logging.info(f'Streaming protein alignments to file...')
-                            file_path = f'{data_dir}csv/all_alignments-stream.csv'
-                            append_dict_as_row(file_path, prot_alignment)                        
                 except Exception as err:
-                    logging.error(f'Failed to get data for {hla_name}')
-                    logging.error(err)
+                    logging.error(f'Failed to write GFE data for allele ID {allele.id}')
+                    logging.error(err)   
 
-                gfe_sequence = {
-                    "gfe_name": gfe,
-                    "allele_id": allele.id,
-                    "locus": loc,
-                    "hla_name": hla_name,
-                    "a_name": a_name, # hla_name.split("-")[1]
-                    "sequence": str(allele.seq),
-                    "length": len(str(allele.seq)),
-                    "imgt_release": imgt_release
-                }
-
-                logging.info(f'Streaming GFEs to file...')
-                file_name = ''.join([data_dir, "csv/gfe_stream.csv"])
-                append_dict_as_row(file_name, gfe_sequence)
-
-                if groups:
+                try:
                     logging.info(f'Streaming groups to file...')
                     for group in groups:
                         group_dict = {
@@ -311,60 +318,75 @@ def build_hla_graph(**kwargs):
                             "imgt_release": imgt_release
                         }
 
-                        file_path = f'{data_dir}csv/all_groups-stream.csv'
+                        file_path = f'{data_dir}csv/all_groups.{dbversion}.csv'
                         append_dict_as_row(file_path, group_dict)
 
                     del groups
 
-                # Build CDS dict for CSV export, foreign key: allele_id, hla_name
-                bp_seq, aa_seq = get_cds(allele)
+                except Exception as err:
+                    logger.error(f'Failed to write groups for allele {allele.id}')
+                    logger.error(err)
 
-                cds = {
-                    "gfe_name": gfe,
-                    "allele_id": allele.id,
-                    "hla_name": hla_name,
-                    "bp_sequence": bp_seq,
-                    "aa_sequence": aa_seq,
-                    "imgt_release": imgt_release
-                }
+                try:
+                    # Build CDS dict for CSV export, foreign key: allele_id, hla_name
+                    bp_seq, aa_seq = get_cds(allele)
 
-                logging.info(f'Streaming CDS to file...')
-                file_path = f'{data_dir}csv/all_cds-stream.csv'
-                append_dict_as_row(file_path, cds)
+                    cds = {
+                        "gfe_name": gfe,
+                        "allele_id": allele.id,
+                        "hla_name": hla_name,
+                        "bp_sequence": bp_seq,
+                        "aa_sequence": aa_seq,
+                        "imgt_release": imgt_release
+                    }
 
-                del bp_seq
-                del aa_seq
+                    logging.info(f'Streaming CDS to file...')
+                    file_path = f'{data_dir}csv/all_cds.{dbversion}.csv'
+                    append_dict_as_row(file_path, cds)
 
-                # features preprocessing steps
-                # 1) Convert seqann type to python dict using literal_eval
-                # 2) add GFE foreign keys: allele_id, hla_name
-                # 3) calculate columns: length
+                    del bp_seq
+                    del aa_seq
 
-                # features contains list of seqann objects, converts to dict, destructive step
-                features = \
-                    [ast.literal_eval(str(feature) \
-                        .replace('\'', '"') \
-                        .replace('\n', '')) \
-                        for feature in features]               
+                except Exception as err:
+                    logger.error(f'Failed to write CDS data for allele {allele.id}')
+                    logger.error(err)
 
-                # Append allele id's
-                # Note: Some alleles may have the same feature, but it may not be the same rank, 
-                # so a feature should be identified with its allele by allele_id or HLA name
-                logging.info(f'Streaming features to file...')
-                for feature in features:
-                    feature["gfe_name"] = gfe
-                    feature["term"] = feature["term"].upper()
-                    feature["allele_id"] = allele.id 
-                    feature["hla_name"] = hla_name
-                    feature["imgt_release"] = imgt_release
+                try:
+                    # features preprocessing steps
+                    # 1) Convert seqann type to python dict using literal_eval
+                    # 2) add GFE foreign keys: allele_id, hla_name
+                    # 3) calculate columns: length
 
-                    # Avoid null values in CSV for Neo4j import
-                    feature["hash_code"] = "none" if not feature["hash_code"] else feature["hash_code"]
+                    # features contains list of seqann objects, converts to dict, destructive step
+                    features = \
+                        [ast.literal_eval(str(feature) \
+                            .replace('\'', '"') \
+                            .replace('\n', '')) \
+                            for feature in features]               
 
-                    file_path = f'{data_dir}csv/all_features-stream.csv'
-                    append_dict_as_row(file_path, feature)
+                    # Append allele id's
+                    # Note: Some alleles may have the same feature, but it may not be the same rank, 
+                    # so a feature should be identified with its allele by allele_id or HLA name
+                    
+                    logging.info(f'Streaming features to file...')
+                    for feature in features:
+                        feature["gfe_name"] = gfe
+                        feature["term"] = feature["term"].upper()
+                        feature["allele_id"] = allele.id 
+                        feature["hla_name"] = hla_name
+                        feature["imgt_release"] = imgt_release
 
-                del features
+                        # Avoid null values in CSV for Neo4j import
+                        feature["hash_code"] = "none" if not feature["hash_code"] else feature["hash_code"]
+
+                        file_path = f'{data_dir}csv/all_features.{dbversion}.csv'
+                        append_dict_as_row(file_path, feature)
+
+                    del features
+
+                except Exception as err:
+                    logger.error(f'Failed to write features for allele {allele.id}')
+                    logger.error(err)
 
             elapsed_time = time.time() - start_time
             alleles_remaining = num_alleles - (idx + 1)
