@@ -192,7 +192,8 @@ def build_hla_graph(**kwargs):
                 if debug and (loc != "HLA-A" and i > 20):
                     continue
 
-                if (loc in hla_loci or loc == "DRB5") and (len(str(allele.seq)) > 5):
+                #if (loc in hla_loci or loc == "DRB5") and (len(str(allele.seq)) > 5):
+                try:
                     if debug:
                         logging.info(
                             "HLA = " + allele.description.split(",")[0] + " " + dbversion)
@@ -277,7 +278,10 @@ def build_hla_graph(**kwargs):
                             logging.info(f'Streaming protein alignments to file...')
                             file_path = f'{data_dir}csv/all_alignments-stream.csv'
                             append_dict_as_row(file_path, prot_alignment)                        
-               
+                except Exception as err:
+                    logging.error(f'Failed to get data for {hla_name}')
+                    logging.error(err)
+
                 gfe_sequence = {
                     "gfe_name": gfe,
                     "allele_id": allele.id,
@@ -293,23 +297,24 @@ def build_hla_graph(**kwargs):
                 file_name = ''.join([data_dir, "csv/gfe_stream.csv"])
                 append_dict_as_row(file_name, gfe_sequence)
 
-                logging.info(f'Streaming groups to file...')
-                for group in groups:
-                    group_dict = {
-                        "gfe_name": gfe,
-                        "allele_id": allele.id,
-                        "hla_name": hla_name,
-                        "a_name": a_name,
-                        "ard_id": group[0],
-                        "ard_name": group[1],
-                        "locus": loc,
-                        "imgt_release": imgt_release
-                    }
+                if groups:
+                    logging.info(f'Streaming groups to file...')
+                    for group in groups:
+                        group_dict = {
+                            "gfe_name": gfe,
+                            "allele_id": allele.id,
+                            "hla_name": hla_name,
+                            "a_name": a_name,
+                            "ard_id": group[0],
+                            "ard_name": group[1],
+                            "locus": loc,
+                            "imgt_release": imgt_release
+                        }
 
-                    file_path = f'{data_dir}csv/all_groups-stream.csv'
-                    append_dict_as_row(file_path, group_dict)
+                        file_path = f'{data_dir}csv/all_groups-stream.csv'
+                        append_dict_as_row(file_path, group_dict)
 
-                del groups
+                    del groups
 
                 # Build CDS dict for CSV export, foreign key: allele_id, hla_name
                 bp_seq, aa_seq = get_cds(allele)
