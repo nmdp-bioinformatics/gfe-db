@@ -70,17 +70,6 @@ kir_aligloci = ["KIR2DL4", "KIR2DP1", "KIR2DS1", "KIR2DS2", "KIR2DS3",
 
 ard_groups = ['G', 'lg', 'lgx']
 
-# # Not used
-# def kir_alignments():
-#     alignments = {l: {} for l in kir_loci}
-#     for loc in kir_aligloci:
-#         msf_file = data_dir + "/kir/" + loc + "_gen.msf"
-#         align = AlignIO.read(open(msf_file), "msf")
-#         names = {a.name: str(a.seq) for a in align}
-#         alignments.update({loc: names})
-#     return alignments
-
-
 def hla_alignments(dbversion):
     gen_aln = {l: {} for l in hla_loci}
     nuc_aln = {l: {} for l in hla_loci}
@@ -96,14 +85,14 @@ def hla_alignments(dbversion):
         logging.info(' '.join(["Loading", msf_gen]))
         align_gen = AlignIO.read(open(msf_gen), "msf")
         gen_seq = {"HLA-" + a.name: str(a.seq) for a in align_gen}
-        # del align_gen.clear()
+        del align_gen
         logging.info(' '.join(["Loaded", str(len(gen_seq)), "genomic", loc, "alignments"]))
         gen_aln.update({loc: gen_seq})
 
         logging.info(' '.join(["Loading", msf_nuc]))
         align_nuc = AlignIO.read(open(msf_nuc), "msf")
         nuc_seq = {"HLA-" + a.name: str(a.seq) for a in align_nuc}
-        # del align_nuc.clear()
+        del align_nuc
         logging.info(' '.join(["Loaded", str(len(nuc_seq)), "nucleotide", loc, "alignments"]))
         nuc_aln.update({loc: nuc_seq})
 
@@ -114,7 +103,7 @@ def hla_alignments(dbversion):
         logging.info(' '.join(["Loading ", msf_prot]))
         align_prot = AlignIO.read(open(msf_prot), "msf")
         prot_seq = {"HLA-" + a.name: str(a.seq) for a in align_prot}
-        # del align_prot.clear()
+        del align_prot
         logging.info(' '.join(["Loaded", str(len(prot_seq)), "protein", loc, "alignments"]))
         prot_aln.update({loc: prot_seq})
 
@@ -252,7 +241,6 @@ def build_hla_graph(**kwargs):
                             aligned_gen = gen_aln[loc][allele.description.split(",")[
                                 0]]
 
-                            # Separate CSV file, GFE foreign key: a_name
                             gen_alignment = {
                                 "label": "GEN_ALIGN",
                                 "gfe_name": gfe,
@@ -273,7 +261,6 @@ def build_hla_graph(**kwargs):
                             aligned_nuc = nuc_aln[loc][allele.description.split(",")[
                                 0]]
 
-                            # Separate CSV file, GFE foreign key: a_name
                             nuc_alignment = {
                                 "label": "NUC_ALIGN",
                                 "gfe_name": gfe,
@@ -294,7 +281,6 @@ def build_hla_graph(**kwargs):
                             aligned_prot = prot_aln[loc][allele.description.split(",")[
                                 0]]
 
-                            # Separate CSV file, GFE foreign key: a_name
                             prot_alignment = {
                                 "label": "PROT_ALIGN",
                                 "gfe_name": gfe,
@@ -326,9 +312,6 @@ def build_hla_graph(**kwargs):
                 file_name = ''.join([data_dir, "csv/gfe_stream.csv"])
                 append_dict_as_row(file_name, gfe_sequence)
 
-                # Separate CSV file, GFE foreign key: allele_id
-                allele_groups = []
-
                 logging.info(f'Streaming groups to file...')
                 for group in groups:
                     group_dict = {
@@ -345,7 +328,7 @@ def build_hla_graph(**kwargs):
                     file_path = f'{data_dir}csv/all_groups-stream.csv'
                     append_dict_as_row(file_path, group_dict)
 
-                    allele_groups.append(group_dict)
+                del groups
 
                 # Build CDS dict for CSV export, foreign key: allele_id, hla_name
                 bp_seq, aa_seq = get_cds(allele)
@@ -362,6 +345,9 @@ def build_hla_graph(**kwargs):
                 logging.info(f'Streaming CDS to file...')
                 file_path = f'{data_dir}csv/all_cds-stream.csv'
                 append_dict_as_row(file_path, cds)
+
+                del bp_seq
+                del aa_seq
 
                 # features preprocessing steps
                 # 1) Convert seqann type to python dict using literal_eval
@@ -391,6 +377,8 @@ def build_hla_graph(**kwargs):
 
                     file_path = f'{data_dir}csv/all_features-stream.csv'
                     append_dict_as_row(file_path, feature)
+
+                del features
 
             elapsed_time = round(time.time()-t0, 2)
             time_remaining = round(((num_alleles - idx) * elapsed_time) / 60, 2)
@@ -478,8 +466,6 @@ def build_hla_graph(**kwargs):
             a_gen=a_gen, 
             alignments=alignments, 
             limit=limit)
-
-
 
     return csv_output
 
