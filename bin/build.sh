@@ -1,4 +1,5 @@
 BIN_DIR=$(dirname "$0")
+SRC_DIR=$(dirname $(dirname "$0"))/src
 CSV_DATA_DIR="data/csv"
 #LIMIT=$1
 
@@ -53,7 +54,7 @@ echo "" > summary_diff.txt
 rm $CSV_DATA_DIR/*.csv
 
 # Build csv files
-python3 "${BIN_DIR}"/build_gfedb.py \
+python3 "${SRC_DIR}"/build_gfedb.py \
 	-o "${CSV_DATA_DIR}" \
 	-r "${RELEASES}" \
 	${KIRFLAG} \

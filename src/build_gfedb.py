@@ -175,7 +175,6 @@ def append_dict_as_row(file_path, dict_row):
     return
 
 # Build the datasets for the HLA graph
-#@profile
 def build_hla_graph(**kwargs):
 
     dbversion, alignments, verbose, debug, gfe_maker, limit, num_alleles = \
@@ -196,8 +195,6 @@ def build_hla_graph(**kwargs):
         for idx, allele in enumerate(a_gen):
 
             t0 = time.time()
-            # all_objects = muppy.get_objects()
-            # sum1 = summary.summarize(all_objects)
 
             if hasattr(allele, 'seq'):
                 hla_name = allele.description.split(",")[0]
