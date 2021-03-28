@@ -74,6 +74,7 @@ target/
 # Profiling tools
 profile*
 fil*
+summary_*
 
 # Project files
 tags
