@@ -21,7 +21,7 @@ import ast
 import time
 #import pdb;
 #from memory_profiler import profile
-from pympler import tracker
+from pympler import tracker, muppy, summary
 import json
 
 tr = tracker.SummaryTracker()
@@ -400,8 +400,8 @@ def build_hla_graph(**kwargs):
 
             # Print a summary of memory usage every n alleles
             if idx % 20 == 0:
-                # all_objects = muppy.get_objects()
-                # sum2 = summary.summarize(all_objects)
+                all_objects = muppy.get_objects()
+                sum2 = summary.summarize(all_objects)
                 # #diff = summary.get_diff(sum1, sum2)
                 # #summary.print_(diff)
                 # #logging.info(f'Memory usage:\n{}\n')
@@ -412,7 +412,8 @@ def build_hla_graph(**kwargs):
                 original_stdout = sys.stdout
                 with open("summary.txt", "a+") as f:
                     sys.stdout = f
-                    tr.print_diff()
+                    # tr.print_diff()
+                    summary.print_(sum2)
                     sys.stdout = original_stdout;
                 
         
