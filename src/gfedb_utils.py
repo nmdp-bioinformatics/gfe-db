@@ -324,8 +324,8 @@ def build_hla_graph(**kwargs):
                     del groups
 
                 except Exception as err:
-                    logger.error(f'Failed to write groups for allele {allele.id}')
-                    logger.error(err)
+                    logging.error(f'Failed to write groups for allele {allele.id}')
+                    logging.error(err)
 
                 try:
                     # Build CDS dict for CSV export, foreign key: allele_id, hla_name
@@ -348,8 +348,8 @@ def build_hla_graph(**kwargs):
                     del aa_seq
 
                 except Exception as err:
-                    logger.error(f'Failed to write CDS data for allele {allele.id}')
-                    logger.error(err)
+                    logging.error(f'Failed to write CDS data for allele {allele.id}')
+                    logging.error(err)
 
                 try:
                     # features preprocessing steps
@@ -385,8 +385,8 @@ def build_hla_graph(**kwargs):
                     del features
 
                 except Exception as err:
-                    logger.error(f'Failed to write features for allele {allele.id}')
-                    logger.error(err)
+                    logging.error(f'Failed to write features for allele {allele.id}')
+                    logging.error(err)
 
             elapsed_time = time.time() - start_time
             alleles_remaining = num_alleles - (idx + 1)
