@@ -1,7 +1,7 @@
 #!/bin/bash
 
 CYPHER_PATH=neo4j
-SCRIPT=load_refactor.cyp
+SCRIPT=load.cyp
 
 echo "Load script: $CYPHER_PATH/$SCRIPT"
 

@@ -84,7 +84,7 @@ output/
 numeric.v3.zip
 *.pem
 resize_ebs.sh
-# neo4j/load_*
+neo4j/load_*
 *.msf
 *.dat
 
