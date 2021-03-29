@@ -7,8 +7,8 @@ CREATE INDEX feature_index FOR (f:Feature) ON (f.gfe_name);
 CREATE INDEX gen_align_index FOR (gen:GenomicAlignment) ON (gen.gfe_name);
 CREATE INDEX nuc_align_index FOR (nuc:NucleotideAlignment) ON (nuc.gfe_name);
 CREATE INDEX prot_align_index FOR (prot:ProteinAlignment) ON (prot.gfe_name);
-CREATE INDEX g_index FOR (_g:G) ON (_g.hla_name, _g.ard_id);
-CREATE INDEX lg_index FOR (_lg:lg) ON (_lg.hla_name, _lg.ard_id);
-CREATE INDEX lgx_index FOR (_lgx:lgx) ON (_lgx.hla_name, _lgx.ard_id);
+CREATE INDEX g_index FOR (_g:G) ON (_g.name, _g.ard_id, _g.allele_id);
+CREATE INDEX lg_index FOR (_lg:lg) ON (_lg.name, _lg.ard_id, _lg.allele_id);
+CREATE INDEX lgx_index FOR (_lgx:lgx) ON (_lgx.name, _lgx.ard_id, _lgx.allele_id);
 // Requires enterprise license
 // CREATE CONSTRAINT feature_key_constraint IF NOT EXISTS ON (f:Feature) ASSERT (f.sequence, f.gfe_name) IS NODE KEY;

@@ -3,7 +3,7 @@
 CYPHER_PATH=neo4j
 SCRIPT=load_refactor.cyp
 
-echo "Load script: $CYPHER_PATH"
+echo "Load script: $CYPHER_PATH/$SCRIPT"
 
 echo "Creating constraints and indexes..."
 cat $CYPHER_PATH/create_index.cyp | \

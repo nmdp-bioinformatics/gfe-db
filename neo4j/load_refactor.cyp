@@ -108,9 +108,7 @@ ON CREATE SET cds.bp_sequence = cds_row.bp_sequence,
     cds.aa_sequence = cds_row.aa_sequence,
     cds.aa_length = size(cds_row.aa_sequence);
 
-RETURN "Creating relationships...";
-
-// Move below
+RETURN "Creating (:IMGT_HLA)-[:HAS_GFE]->(:GFE) ...";
 USING PERIODIC COMMIT 50000
 LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as row
 MATCH (gfe:GFE { gfe_name: row.gfe_name })
@@ -119,63 +117,63 @@ MERGE (imgt)-[rel:HAS_GFE]->(gfe)
 ON CREATE SET rel.release = [row.imgt_release]
 ON MATCH SET rel.release = rel.release + [row.imgt_release];
 
-// Move below
+RETURN "Creating (:GFE)-[:HAS_SEQUENCE]->(:Sequence) ...";
 USING PERIODIC COMMIT 50000
 LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as row
 MATCH (gfe:GFE { gfe_name: row.gfe_name })
-MATCH (seq:GFE { gfe_name: row.gfe_name })
+MATCH (seq:Sequence { gfe_name: row.gfe_name })
 MERGE (gfe)-[:HAS_SEQUENCE]->(seq);
 
-// move down
+RETURN "Creating (:GFE)-[:HAS_FEATURE]->(:Feature) ...";
 USING PERIODIC COMMIT 50000
 LOAD CSV WITH HEADERS FROM 'file:///all_features.RELEASE.csv' as row
 MATCH (gfe:GFE { gfe_name: row.gfe_name })
 MATCH (f:Feature { gfe_name: row.gfe_name })
 MERGE (gfe)-[:HAS_FEATURE]->(f);
 
-// move below
+RETURN "Creating (:GFE)-[:HAS_ALIGNMENT]->(:GenomicAlignment) ...";
 USING PERIODIC COMMIT 50000 
 LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
 MATCH (gfe:GFE { gfe_name: align_row.gfe_name })
 MATCH (gen:GenomicAlignment { gfe_name: align_row.gfe_name })
 MERGE (gfe)-[:HAS_ALIGNMENT]->(gen);
 
-// move below
+RETURN "Creating (:GFE)-[:HAS_ALIGNMENT]->(:NucleotideAlignment) ...";
 USING PERIODIC COMMIT 50000 
 LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
 MATCH (gfe:GFE { gfe_name: align_row.gfe_name })
 MATCH (nuc:NucleotideAlignment { gfe_name: align_row.gfe_name })
 MERGE (gfe)-[:HAS_ALIGNMENT]->(nuc);
 
-// move below
+RETURN "Creating (:GFE)-[:HAS_ALIGNMENT]->(:ProteinAlignment) ...";
 USING PERIODIC COMMIT 50000 
 LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
 MATCH (gfe:GFE { gfe_name: align_row.gfe_name })
 MATCH (prot:ProteinAlignment { gfe_name: align_row.gfe_name })
 MERGE (gfe)-[:HAS_ALIGNMENT]->(prot);
 
-// move below
+RETURN "Creating (:IMGT_HLA)-[:G]->(:G) ...";
 USING PERIODIC COMMIT 50000 
 LOAD CSV WITH HEADERS FROM 'file:///all_groups.RELEASE.csv' as groups_row
 MATCH (hla:IMGT_HLA { name: groups_row.hla_name })
 MATCH (_g:G { name: groups_row.hla_name }) 
 MERGE (hla)-[:G]->(_g);
 
-// move below
+RETURN "Creating (:IMGT_HLA)-[:lg]->(:lg) ...";
 USING PERIODIC COMMIT 50000 
 LOAD CSV WITH HEADERS FROM 'file:///all_groups.RELEASE.csv' as groups_row
 MATCH (hla:IMGT_HLA { name: groups_row.hla_name })
 MATCH (_lg:lg { name: groups_row.hla_name }) 
 MERGE (hla)-[:lg]->(_lg);
 
-// move below
+RETURN "Creating (:IMGT_HLA)-[:lgx]->(:lgx) ...";
 USING PERIODIC COMMIT 50000 
 LOAD CSV WITH HEADERS FROM 'file:///all_groups.RELEASE.csv' as groups_row
 MATCH (hla:IMGT_HLA { name: groups_row.hla_name })
 MATCH (_lgx:lgx { name: groups_row.hla_name })
 MERGE (hla)-[:lgx]->(_lgx);
 
-// move below    
+RETURN "Creating (:Sequence)-[:HAS_CDS]->(:CDS) ...";
 USING PERIODIC COMMIT 50000 
 LOAD CSV WITH HEADERS FROM 'file:///all_cds.RELEASE.csv' as cds_row
 MATCH (seq:Sequence { gfe_name: cds_row.gfe_name })
