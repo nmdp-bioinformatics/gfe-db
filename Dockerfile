@@ -13,6 +13,7 @@ ENV NEO4J_dbms_security_allow__csv__import__from__file__urls=true
 ENV NEO4J_apoc_import_file_enabled=true
 ENV NEO4J_apoc_import_file_use__neo4j__config=true
 ENV NEO4J_apoc_export_file_enabled=true 
+ENV NEO4JLABS_PLUGINS=["apoc", "graph-data-science"]
 # ENV GDS_LIB_VERSION=1.4.1
 # ENV APOC_LIB_VERSION=4.2.0.2
 # ENV GITHUB_GDS_URI=https://github.com/neo4j/graph-data-science/releases/download
@@ -34,14 +35,9 @@ ENV NEO4J_apoc_export_file_enabled=true
 #         --location ${NEO4J_GDS_URI} \
 #         --output $NEO4J_DIR/plugins/neo4j-graph-data-science-${GDS_LIB_VERSION}-standalone.jar'
 
-# # Copy GFE data as CSV files
-# COPY data/csv/ /var/lib/neo4j/import/
-
-# Mount the data directory directly into Neo4j import directory
+# Mount the directories directly into Neo4j import directory
 VOLUME /data/csv/ /var/lib/neo4j/import/
 VOLUME /neo4j/plugins/ /var/lib/neo4j/plugins/
-
-# # Use with -v "$(pwd)"/neo4j/logs:/var/lib/neo4j/logs
-# VOLUME /neo4j/logs/ /var/lib/neo4j/logs/
+VOLUME /neo4j/logs/ /var/lib/neo4j/logs/
 
 EXPOSE 7474 7473 7687
