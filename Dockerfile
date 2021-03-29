@@ -1,7 +1,7 @@
 FROM neo4j:latest
 
-# RUN apt-get update \
-#     && apt-get install -y curl openssl apt-utils zip unzip
+RUN apt-get update \
+    && apt-get install -y curl openssl apt-utils zip unzip
 
 ENV NEO4J_AUTH=neo4j/gfedb
 ENV NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
@@ -11,8 +11,8 @@ ENV NEO4J_dbms_memory_pagecache_size=1G
 ENV NEO4J_dbms_security_procedures_unrestricted=apoc.*,gds.*
 ENV NEO4J_dbms_security_allow__csv__import__from__file__urls=true
 ENV NEO4J_apoc_import_file_enabled=true
-# ENV NEO4J_apoc_import_file_use__neo4j__config=true
-# ENV NEO4J_apoc_export_file_enabled=true 
+ENV NEO4J_apoc_import_file_use__neo4j__config=true
+ENV NEO4J_apoc_export_file_enabled=true 
 ENV GDS_LIB_VERSION=1.4.1
 ENV APOC_LIB_VERSION=4.2.0.2
 ENV GITHUB_GDS_URI=https://github.com/neo4j/graph-data-science/releases/download

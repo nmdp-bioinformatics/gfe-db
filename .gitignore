@@ -84,20 +84,7 @@ output/
 numeric.v3.zip
 *.pem
 resize_ebs.sh
-neo4j/load_*
+# neo4j/load_*
 *.msf
 *.dat
 
-## Deprecated files from Neo4j 3.1.9
-Dockerfile-alpine
-Dockerfile-gfe-base
-Dockerrun.dev.json
-Dockerrun.kir.json
-Dockerrun.prod.json
-README-local-development.md
-test-build-all.sh
-mod-imgt/
-bin/load_graph_docker.sh
-bin/load_graph.sh
-bin/neo4j.conf.template
-README-neo4j-3.1.9.md
