@@ -152,6 +152,7 @@ MATCH (gfe:GFE { gfe_name: align_row.gfe_name })
 MATCH (prot:ProteinAlignment { gfe_name: align_row.gfe_name })
 MERGE (gfe)-[:HAS_ALIGNMENT]->(prot);
 
+// apoc.periodic.iterate()
 RETURN "Creating (:IMGT_HLA)-[:G]->(:G) ...";
 USING PERIODIC COMMIT 50000 
 LOAD CSV WITH HEADERS FROM 'file:///all_groups.RELEASE.csv' as groups_row
@@ -159,6 +160,7 @@ MATCH (hla:IMGT_HLA { name: groups_row.hla_name })
 MATCH (_g:G { name: groups_row.hla_name }) 
 MERGE (hla)-[:G]->(_g);
 
+// apoc.periodic.iterate()
 RETURN "Creating (:IMGT_HLA)-[:lg]->(:lg) ...";
 USING PERIODIC COMMIT 50000 
 LOAD CSV WITH HEADERS FROM 'file:///all_groups.RELEASE.csv' as groups_row
@@ -166,6 +168,7 @@ MATCH (hla:IMGT_HLA { name: groups_row.hla_name })
 MATCH (_lg:lg { name: groups_row.hla_name }) 
 MERGE (hla)-[:lg]->(_lg);
 
+// apoc.periodic.iterate()
 RETURN "Creating (:IMGT_HLA)-[:lgx]->(:lgx) ...";
 USING PERIODIC COMMIT 50000 
 LOAD CSV WITH HEADERS FROM 'file:///all_groups.RELEASE.csv' as groups_row
