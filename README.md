@@ -173,7 +173,6 @@ ENV NEO4J_dbms_memory_heap_initial__size=2G \
  * [gfe.b12x.org](http://gfe.b12x.org)
 
 <br>
-
 <p align="center">
   <img src="https://bethematch.org/content/site/images/btm_logo.png">
 </p>

@@ -332,6 +332,7 @@ def build_hla_graph(**kwargs):
 
                     cds = {
                         "gfe_name": gfe,
+                        "gfe_sequence": str(allele.seq),
                         "allele_id": allele.id,
                         "hla_name": hla_name,
                         "bp_sequence": bp_seq,

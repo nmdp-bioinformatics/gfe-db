@@ -11,10 +11,6 @@ else
 	rm -r $DATA_DIR/csv/*.csv
 fi
 
-# echo $(ls $BIN_DIR)
-# echo $(ls $SRC_DIR)
-# echo $(ls $DATA_DIR/csv/)
-
 # For development
 export RELEASES="3420 3430"  # this value should be either 3360 or 3370 
 export ALIGN=True

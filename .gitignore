@@ -87,4 +87,4 @@ resize_ebs.sh
 neo4j/load_*
 *.msf
 *.dat
-
+nodes-*.txt
