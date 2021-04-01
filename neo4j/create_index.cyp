@@ -1,8 +1,8 @@
 // This properties should be unique
 CREATE CONSTRAINT gfe_constraint IF NOT EXISTS ON (gfe:GFE) ASSERT gfe.gfe_name IS UNIQUE;
 CREATE CONSTRAINT imgt_hla_constraint IF NOT EXISTS ON (imgt:IMGT_HLA) ASSERT imgt.name IS UNIQUE;
-// CREATE CONSTRAINT seq_constraint IF NOT EXISTS ON (seq:Sequence) ASSERT seq.seq_id IS UNIQUE; // Hashed
-CREATE INDEX seq_index FOR (seq:Sequence) ON (seq.seq_id); // Constraint slows down loading
+CREATE CONSTRAINT seq_constraint IF NOT EXISTS ON (seq:Sequence) ASSERT seq.seq_id IS UNIQUE; // Hashed
+// CREATE INDEX seq_index FOR (seq:Sequence) ON (seq.seq_id); // Constraint slows down loading
 // CREATE CONSTRAINT cds_constraint IF NOT EXISTS ON (cds:CDS) ASSERT cds.seq_id IS UNIQUE; // Not sure if this is unique
 
 // // Alignments
