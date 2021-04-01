@@ -19,7 +19,5 @@ do
         docker exec -i gfe cypher-shell -u neo4j -p gfedb
     duration=$(( SECONDS - start_release ))
     echo "$duration seconds"
-    cat $CYPHER_PATH/$SCRIPT | \
-        sed "s/RELEASE/$RELEASE/g"
 done
 echo "Done"
