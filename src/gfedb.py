@@ -84,7 +84,7 @@ def main():
 
     args = parser.parse_args()
 
-    logging.info(f'args: {vars(args)}')
+    logging.debug(f'args: {vars(args)}')
 
     last_release = pd.read_html(imgt_hla)[0]['Release'][0].replace(".", "")
     #logging.info(f'last_release: {last_release}')
@@ -111,8 +111,8 @@ def main():
         store_features=True,
         loci=load_loci)
     
-    logging.info(f'Building graph for IMGTHLA version {dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}...')
-    logging.info(f'Total alleles: {num_alleles}')
+    logging.info(f'***************** Building graph for IMGTHLA version {dbversion[0]}.{dbversion[1:3]}.{dbversion[3]} *****************')
+    # logging.info(f'Total alleles: {num_alleles}')
 
     build_hla_graph(
         dbversion=dbversion, 

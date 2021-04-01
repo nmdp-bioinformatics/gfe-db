@@ -14,14 +14,14 @@ from pyard import ARD
 from csv import DictWriter
 from pathlib import Path
 from constants import *
-# from pympler import tracker, muppy, summary
 import hashlib
 
+# Output memory profile to check for leaks
 _mem_profile = True if '-p' in sys.argv else False
 
-# # Output memory profile to check for leaks
 if _mem_profile:
     from pympler import tracker, muppy, summary
+    tr = tracker.SummaryTracker()
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S',
@@ -29,21 +29,22 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 
 logging.debug(f'args: {sys.argv}')
-
-if _mem_profile:
-    tr = tracker.SummaryTracker()
-
+    
 expre_chars = ['N', 'Q', 'L', 'S']
 isutr = lambda f: True if re.search("UTR", f) else False
 to_second = lambda a: ":".join(a.split(":")[0:2]) + list(a)[-1] if list(a)[-1] in expre_chars and len(
     a.split(":")) > 2 else ":".join(a.split(":")[0:2])
 
 
-def seq_hasher(seq):
+def seq_hasher(seq, n=32):
     """Takes a nucleotide or amino acid sequence and returns an integer UUID. 
-    Used to create shorter unique IDs since Neo4j cannot index a full sequence."""
+    Used to create shorter unique IDs since Neo4j cannot index a full sequence.
+    Can be also be used for any string."""
 
+    m = hashlib.md5()
+    m.update(seq)
 
+    return str(int(m.hexdigest(), 16))[:n]
 
 def hla_alignments(dbversion):
     gen_aln = {l: {} for l in hla_loci}
@@ -240,6 +241,7 @@ def build_hla_graph(**kwargs):
 
                                 gen_alignment = {
                                     "label": "GEN_ALIGN",
+                                    "seq_id": seq_hasher(aligned_gen.encode('utf-8')),
                                     "gfe_name": gfe,
                                     "hla_name": hla_name,
                                     "a_name": a_name, # hla_name.split("-")[1]
@@ -249,6 +251,8 @@ def build_hla_graph(**kwargs):
                                     "aa_sequence": "",
                                     "imgt_release": imgt_release
                                 }
+
+                                del aligned_gen
                                 
                                 logging.info(f'Streaming genomic alignments to file...')
                                 file_path = f'{data_dir}csv/all_alignments.{dbversion}.csv'
@@ -260,6 +264,7 @@ def build_hla_graph(**kwargs):
 
                                 nuc_alignment = {
                                     "label": "NUC_ALIGN",
+                                    "seq_id": seq_hasher(aligned_nuc.encode('utf-8')),
                                     "gfe_name": gfe,
                                     "hla_name": hla_name,
                                     "a_name": a_name, # hla_name.split("-")[1]
@@ -269,6 +274,8 @@ def build_hla_graph(**kwargs):
                                     "aa_sequence": "",
                                     "imgt_release": imgt_release
                                 }
+
+                                del aligned_nuc
 
                                 logging.info(f'Streaming nucleotide alignments to file...')
                                 file_path = f'{data_dir}csv/all_alignments.{dbversion}.csv'
@@ -280,6 +287,7 @@ def build_hla_graph(**kwargs):
 
                                 prot_alignment = {
                                     "label": "PROT_ALIGN",
+                                    "seq_id": seq_hasher(aligned_prot.encode('utf-8')),
                                     "gfe_name": gfe,
                                     "hla_name": hla_name,
                                     "a_name": a_name, # hla_name.split("-")[1]
@@ -289,6 +297,8 @@ def build_hla_graph(**kwargs):
                                     "aa_sequence": aligned_prot,
                                     "imgt_release": imgt_release
                                 }
+
+                                del aligned_prot
 
                                 logging.info(f'Streaming protein alignments to file...')
                                 file_path = f'{data_dir}csv/all_alignments.{dbversion}.csv'
@@ -300,16 +310,22 @@ def build_hla_graph(**kwargs):
                 
                 # Build and stream the GFE rows
                 try:
+
+                    _seq = str(allele.seq)
+
                     gfe_sequence = {
                         "gfe_name": gfe,
                         "allele_id": allele.id,
                         "locus": loc,
                         "hla_name": hla_name,
                         "a_name": a_name, # hla_name.split("-")[1]
-                        "sequence": str(allele.seq),
-                        "length": len(str(allele.seq)),
+                        "seq_id": seq_hasher(_seq.encode('utf-8')),
+                        "sequence": _seq,
+                        "length": len(_seq),
                         "imgt_release": imgt_release
                     }
+
+                    del _seq
 
                     logging.info(f'Streaming GFEs to file...')
                     file_name = ''.join([data_dir, f'csv/gfe_sequences.{dbversion}.csv'])
@@ -350,12 +366,14 @@ def build_hla_graph(**kwargs):
 
                     cds = {
                         "gfe_name": gfe,
-                        "gfe_sequence": str(allele.seq),
-                        "allele_id": allele.id,
-                        "hla_name": hla_name,
+                        # "gfe_sequence": str(allele.seq),
+                        # "allele_id": allele.id,
+                        # "hla_name": hla_name,
+                        "bp_seq_id": seq_hasher(bp_seq.encode('utf-8')),
                         "bp_sequence": bp_seq,
+                        "aa_seq_id": seq_hasher(aa_seq.encode('utf-8')),
                         "aa_sequence": aa_seq,
-                        "imgt_release": imgt_release
+                        # "imgt_release": imgt_release
                     }
 
                     logging.info(f'Streaming CDS to file...')
@@ -425,7 +443,7 @@ def build_hla_graph(**kwargs):
             if limit and idx + 1 == limit:
                     break
 
-            # Output memory profile to check for leaks
+            # Output memory profile to check for leaks; TO DO: make a parameter for frequency of profiling
             if _mem_profile and idx % 20 == 0:
                 memory_profiler()
 
@@ -435,9 +453,9 @@ def build_hla_graph(**kwargs):
     imgt_release = f'{dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}'
     # dbversion = ''.join(dbversion.split("."))
     
-    logging.info(f'dbversion: {dbversion}')
-    logging.info(f'imgt_release: {imgt_release}')
-    logging.info(f'dbversion: {dbversion}')
+    logging.debug(f'dbversion: {dbversion}')
+    logging.debug(f'imgt_release: {imgt_release}')
+    logging.debug(f'dbversion: {dbversion}')
 
     if alignments:
         gen_aln, nuc_aln, prot_aln = hla_alignments(dbversion)

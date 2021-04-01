@@ -9,7 +9,8 @@ RETURN '(:Sequence)' AS `Creating nodes...`;
 USING PERIODIC COMMIT 50000
 LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as row
 MERGE (seq:Sequence { gfe_name: row.gfe_name })
-ON CREATE SET seq.locus = row.locus,
+ON CREATE SET seq.seq_id = row.seq_id,
+    seq.locus = row.locus,
     seq.sequence = row.sequence,
     seq.length = row.length;
 
@@ -31,6 +32,7 @@ FOREACH(_ IN CASE
     ELSE [] END |
         MERGE (gen:GenomicAlignment { bp_sequence: align_row.bp_sequence })
         ON CREATE SET gen.label = 'GEN',
+            gen.seq_id = align_row.seq_id,
             gen.rank = align_row.rank
 );
 
@@ -42,6 +44,7 @@ FOREACH(_ IN CASE
     ELSE [] END |
         MERGE (nuc:NucleotideAlignment { bp_sequence: align_row.bp_sequence })
         ON CREATE SET nuc.label = 'NUC', 
+            nuc.seq_id = align_row.seq_id,
             nuc.rank = align_row.rank
 );
 
@@ -53,6 +56,7 @@ FOREACH(_ IN CASE
     ELSE [] END |
         MERGE (prot:ProteinAlignment { aa_sequence: align_row.aa_sequence })
         ON CREATE SET prot.label = 'PROT', 
+            prot.seq_id = align_row.seq_id,
             prot.rank = align_row.rank
 );
 
@@ -60,10 +64,19 @@ RETURN '(:CDS)' AS `Creating nodes...`;
 USING PERIODIC COMMIT 50000 
 LOAD CSV WITH HEADERS FROM 'file:///all_cds.RELEASE.csv' as cds_row
 MERGE (cds:CDS { gfe_name: cds_row.gfe_name })
-ON CREATE SET cds.bp_sequence = cds_row.bp_sequence,
+ON CREATE SET cds.bp_seq_id = cds_row.bp_seq_id,
+    cds.bp_sequence = cds_row.bp_sequence,
     cds.bp_length = size(cds_row.bp_sequence),
+    cds.aa_seq_id = cds_row.aa_seq_id,
     cds.aa_sequence = cds_row.aa_sequence,
     cds.aa_length = size(cds_row.aa_sequence);
+
+RETURN '(:IMGT_HLA)' AS `Creating nodes...`;
+USING PERIODIC COMMIT 50000
+LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as row
+MERGE (imgt:IMGT_HLA { name: row.hla_name })
+ON CREATE SET imgt.releases = [replace(row.imgt_release, '.', '')]
+ON MATCH SET imgt.releases = imgt.releases + [replace(row.imgt_release, '.', '')];
 
 RETURN '(:G)' AS `Creating nodes...`;
 USING PERIODIC COMMIT 50000 
@@ -74,13 +87,6 @@ FOREACH(_ IN CASE
         MERGE (_g:G { ard_id: groups_row.ard_id })
         ON CREATE SET _g.label = 'G'
 );
-
-RETURN '(:IMGT_HLA)' AS `Creating nodes...`;
-USING PERIODIC COMMIT 50000
-LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as row
-MERGE (imgt:IMGT_HLA { name: row.hla_name })
-ON CREATE SET imgt.releases = [replace(row.imgt_release, '.', '')]
-ON MATCH SET imgt.releases = imgt.releases + [replace(row.imgt_release, '.', '')];
 
 RETURN '(:lg)' AS `Creating nodes...`;
 USING PERIODIC COMMIT 50000 
