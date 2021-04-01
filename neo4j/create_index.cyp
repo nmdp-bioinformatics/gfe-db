@@ -1,15 +1,19 @@
 // TO DO: update these for the new schemas
 CREATE CONSTRAINT gfe_constraint IF NOT EXISTS ON (gfe:GFE) ASSERT gfe.gfe_name IS UNIQUE;
 CREATE CONSTRAINT imgt_hla_constraint IF NOT EXISTS ON (imgt:IMGT_HLA) ASSERT imgt.name IS UNIQUE;
-// CREATE CONSTRAINT seq_constraint IF NOT EXISTS ON (seq:Sequence) ASSERT seq.sequence IS UNIQUE; // Too large
+// CREATE CONSTRAINT seq_constraint IF NOT EXISTS ON (seq:Sequence) ASSERT seq.sequence IS UNIQUE; // Hash this
+
+// // Alignments
+// CREATE CONSTRAINT gen_constraint IF NOT EXISTS ON (gen:GenomicAlignment) ASSERT gen.bp_sequence IS UNIQUE;
+// CREATE CONSTRAINT nuc_constraint IF NOT EXISTS ON (nuc:NucleotideAlignment) ASSERT nuc.bp_sequence IS UNIQUE;
+// CREATE CONSTRAINT prot_constraint IF NOT EXISTS ON (prot:ProteinAlignment) ASSERT prot.aa_sequence IS UNIQUE;
+
+// Groups
+CREATE CONSTRAINT g_constraint IF NOT EXISTS ON (_g:G) ASSERT _g.ard_id IS UNIQUE;
+CREATE CONSTRAINT lg_constraint IF NOT EXISTS ON (_lg:lg) ASSERT _lg.ard_id IS UNIQUE;
+CREATE CONSTRAINT lgx_constraint IF NOT EXISTS ON (_lgx:lgx) ASSERT _lgx.ard_id IS UNIQUE;
+
 CREATE INDEX cds_index FOR (cds:CDS) ON (cds.gfe_name);
-CREATE INDEX seq_index FOR (seq:Sequence) ON (seq.gfe_name);
-CREATE INDEX feature_index FOR (f:Feature) ON (f.gfe_name);
-CREATE INDEX gen_align_index FOR (gen:GenomicAlignment) ON (gen.gfe_name);
-CREATE INDEX nuc_align_index FOR (nuc:NucleotideAlignment) ON (nuc.gfe_name);
-CREATE INDEX prot_align_index FOR (prot:ProteinAlignment) ON (prot.gfe_name);
-CREATE INDEX g_index FOR (_g:G) ON (_g.name, _g.ard_id, _g.allele_id);
-CREATE INDEX lg_index FOR (_lg:lg) ON (_lg.name, _lg.ard_id, _lg.allele_id);
-CREATE INDEX lgx_index FOR (_lgx:lgx) ON (_lgx.name, _lgx.ard_id, _lgx.allele_id);
-// Requires enterprise license
-// CREATE CONSTRAINT feature_key_constraint IF NOT EXISTS ON (f:Feature) ASSERT (f.sequence, f.gfe_name) IS NODE KEY;
+
+// Has to be index, composite constraints are only available in enterprise version
+CREATE INDEX feature_index FOR (f:Feature) ON (f.locus, f.rank, f.term, f.accession);
