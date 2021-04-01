@@ -104,12 +104,9 @@ docker stop gfe
 docker start gfe
 ```
 ## 5. Load the GFE data
-Make sure the environment variables in `bin/build.sh` are exported.
+Make sure the environment variables in `bin/set_env.sh ` are exported to the environment.
 ```bash
-# export IMGT="3420 3430"
-export RELEASES="3420 3430" 
-export ALIGN=True
-export KIR=False
+source bin/set_env.sh 
 ```
 Once the container is running and the Neo4j server is up, the data can be loaded using the Cypher script.
 ```

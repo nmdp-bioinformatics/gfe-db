@@ -5,6 +5,13 @@ SCRIPT=load.cyp
 
 echo "Load script: $CYPHER_PATH/$SCRIPT"
 
+# Check if RELEASES is set
+if [ -z ${RELEASES+x} ]; then 
+    echo "RELEASES is not set. Please specify the release versions to load."; 
+else 
+    echo "Loading IMGT/HLA release versions: $RELEASES";
+fi
+
 echo "Creating constraints and indexes..."
 cat $CYPHER_PATH/create_index.cyp | \
     docker exec -i gfe cypher-shell -u neo4j -p gfedb

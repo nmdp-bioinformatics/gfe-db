@@ -15,11 +15,11 @@ else
 	rm -r $DATA_DIR/csv/*.csv
 fi
 
-# For development
-export RELEASES="3420, 3430"  # add a comma
-export ALIGN=True
-export KIR=False
-export MEM_PROFILE=False
+# # For development
+# export RELEASES="3420, 3430"
+# export ALIGN=True
+# export KIR=False
+# export MEM_PROFILE=False
 
 # Check if RELEASES is set
 if [ -z ${RELEASES+x} ]; then 
