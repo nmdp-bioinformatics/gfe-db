@@ -435,8 +435,8 @@ def build_hla_graph(**kwargs):
             
             logging.info(f'Alleles processed: {idx + 1}')
             # logging.info(f'Alleles remaining: {alleles_remaining}')
-            logging.info(f'Elapsed time: {round(elapsed_time, 2)}')
-            logging.info(f'Avg elapsed time: {round(avg_time_elapsed, 2)}')
+            logging.info(f'Elapsed time: {round(elapsed_time, 4)}')
+            logging.info(f'Avg elapsed time: {round(avg_time_elapsed, 4)}')
             #logging.info(f'Estimated time remaining: {time.strftime("%H:%M:%S", time.gmtime(time_remaining))} minutes')
             
             # Break point for testing

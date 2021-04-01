@@ -25,6 +25,7 @@ do
         sed "s/RELEASE/$RELEASE/g" | \
         docker exec -i gfe cypher-shell -u neo4j -p gfedb
     duration=$(( SECONDS - start_release ))
-    echo "$duration seconds"
+    echo "Loaded in $duration seconds"
+    echo -e "\n"
 done
 echo "Done"
