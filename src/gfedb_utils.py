@@ -14,18 +14,35 @@ from pyard import ARD
 from csv import DictWriter
 from pathlib import Path
 from constants import *
-from pympler import tracker, muppy, summary
+# from pympler import tracker, muppy, summary
+import hashlib
+
+_mem_profile = True if '-p' in sys.argv else False
+
+# # Output memory profile to check for leaks
+if _mem_profile:
+    from pympler import tracker, muppy, summary
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S',
                     level=logging.INFO)
 
-tr = tracker.SummaryTracker()
+
+logging.debug(f'args: {sys.argv}')
+
+if _mem_profile:
+    tr = tracker.SummaryTracker()
 
 expre_chars = ['N', 'Q', 'L', 'S']
 isutr = lambda f: True if re.search("UTR", f) else False
 to_second = lambda a: ":".join(a.split(":")[0:2]) + list(a)[-1] if list(a)[-1] in expre_chars and len(
     a.split(":")) > 2 else ":".join(a.split(":")[0:2])
+
+
+def seq_hasher(seq):
+    """Takes a nucleotide or amino acid sequence and returns an integer UUID. 
+    Used to create shorter unique IDs since Neo4j cannot index a full sequence."""
+
 
 
 def hla_alignments(dbversion):
@@ -135,39 +152,40 @@ def append_dict_as_row(file_path, dict_row):
     return
 
 # Outputs memory of objects during execution to sheck for memory leaks
-def memory_profiler(mode='all'):
+if _mem_profile:
+    def memory_profiler(mode='all'):
 
-    # Print a summary of memory usage every n alleles
-    all_objects = muppy.get_objects()
-    sum2 = summary.summarize(all_objects)
+        # Print a summary of memory usage every n alleles
+        all_objects = muppy.get_objects()
+        sum2 = summary.summarize(all_objects)
 
-    original_stdout = sys.stdout
+        original_stdout = sys.stdout
 
-    if mode == 'all' or mode == 'agg':
-        with open("summary_agg.txt", "a+") as f:
-            sys.stdout = f
-            summary.print_(sum2)
-            sys.stdout = original_stdout;
+        if mode == 'all' or mode == 'agg':
+            with open("summary_agg.txt", "a+") as f:
+                sys.stdout = f
+                summary.print_(sum2)
+                sys.stdout = original_stdout;
 
-    if mode == 'all' or mode == 'diff':
-        with open("summary_diff.txt", "a+") as f:
-            sys.stdout = f
-            tr.print_diff()
-            sys.stdout = original_stdout;    
+        if mode == 'all' or mode == 'diff':
+            with open("summary_diff.txt", "a+") as f:
+                sys.stdout = f
+                tr.print_diff()
+                sys.stdout = original_stdout;    
 
-    return
+        return
 
 # Build the datasets for the HLA graph
 def build_hla_graph(**kwargs):
 
-    dbversion, alignments, verbose, debug, gfe_maker, limit, mem_profile = \
+    dbversion, alignments, verbose, debug, gfe_maker, limit = \
         kwargs.get("dbversion"), \
         kwargs.get("alignments", False), \
         kwargs.get("verbose", False), \
         kwargs.get("debug", False), \
         kwargs.get("gfe_maker"), \
-        kwargs.get("limit", None), \
-        kwargs.get("mem_profile", False)
+        kwargs.get("limit", None) #, \
+        # kwargs.get("mem_profile", False)
     
     #num_alleles = limit if limit else kwargs.get("num_alleles")
 
@@ -408,34 +426,34 @@ def build_hla_graph(**kwargs):
                     break
 
             # Output memory profile to check for leaks
-            if mem_profile and idx % 20 == 0:
+            if _mem_profile and idx % 20 == 0:
                 memory_profiler()
 
         return
 
 
     imgt_release = f'{dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}'
-    db_stripped = ''.join(dbversion.split("."))
+    # dbversion = ''.join(dbversion.split("."))
     
-    logging.debug(f'dbversion: {dbversion}')
-    logging.debug(f'imgt_release: {imgt_release}')
-    logging.debug(f'db_stripped: {db_stripped}')
+    logging.info(f'dbversion: {dbversion}')
+    logging.info(f'imgt_release: {imgt_release}')
+    logging.info(f'dbversion: {dbversion}')
 
     if alignments:
-        gen_aln, nuc_aln, prot_aln = hla_alignments(db_stripped)
+        gen_aln, nuc_aln, prot_aln = hla_alignments(dbversion)
 
     logging.info("Loading ARD...")
-    ard = ARD(db_stripped)
+    ard = ARD(dbversion)
 
     ### TO DO: move DAT download to build.sh
     # Downloading DAT file
     # The github URL changed from 3350 to media
-    if int(db_stripped) < 3350:
-        dat_url = ''.join([imgt_hla_raw_url, db_stripped, '/hla.dat'])
+    if int(dbversion) < 3350:
+        dat_url = ''.join([imgt_hla_raw_url, dbversion, '/hla.dat'])
     else:
-        dat_url = ''.join([imgt_hla_media_url, db_stripped, '/hla.dat'])
+        dat_url = ''.join([imgt_hla_media_url, dbversion, '/hla.dat'])
 
-    dat_file = ''.join([data_dir, 'hla.', db_stripped, ".dat"])
+    dat_file = ''.join([data_dir, 'hla.', dbversion, ".dat"])
 
     logging.info("Downloading DAT file...")
     if not os.path.isfile(dat_file):

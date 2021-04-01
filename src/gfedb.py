@@ -10,9 +10,12 @@ import logging
 import argparse
 import os
 import sys
+import time
+import pandas as pd
 from gfedb_utils import build_hla_graph
 from constants import *
-import pandas as pd
+
+start = time.time()
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S',
@@ -121,7 +124,8 @@ def main():
         mem_profile=mem_profile)
 
     logging.info(f'Finished build for version {dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}')
-    logging.info(f'************************ Build complete ************************')
+    end = time.time()
+    logging.info(f'************************ Build finished in {round(end - start, 2)} seconds ************************')
 
     return
 

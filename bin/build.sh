@@ -1,5 +1,7 @@
 #!/bin/bash
 
+START_EXECUTION=$SECONDS
+
 ROOT=$(dirname $(dirname "$0"))
 BIN_DIR=$ROOT/bin
 SRC_DIR=$ROOT/src
@@ -23,11 +25,11 @@ export MEM_PROFILE=False
 if [ -z ${RELEASES+x} ]; then 
     echo "RELEASES is not set. Please specify the release versions to load."; 
 else 
-    echo "Loading IMGT/HLA release versions: $RELEASES"; 
+    echo "Loading IMGT/HLA release versions: $RELEASES";
 fi
 
-#RELEASES=$(echo "$RELEASES" | sed s'/"//g')
-echo "IMGT versions: $RELEASES"
+# #RELEASES=$(echo "$RELEASES" | sed s'/"//g')
+# echo "IMGT versions: $RELEASES"
 
 # Load KIR data
 echo "Check KIR..."
@@ -50,7 +52,7 @@ fi
 # Memory profiling
 MEM_PROFILE_FLAG=""
 if [ "$MEM_PROFILE" == "True" ]; then
-	echo "Memory profiling is set to $MEM_PROFILE"
+	echo "Memory profiling is set to $MEM_PROFILE."
 	MEM_PROFILE_FLAG="-p"
 	echo "" > summary_agg.txt
 	echo "" > summary_diff.txt
@@ -67,12 +69,15 @@ fi
 # done
 
 # Build csv files
+# $RELEASES=${echo "$RELEASES" | sed s'/,//g'}
 for release in $RELEASES; do
 
 	# # TO DO: handle downloading DAT files outside python script
 	# NUM_ALLELES=$(cat $DATA_DIR/hla.$release.dat | grep -c "ID ")
 	# echo "ALLELES: $NUM_ALLELES"
 	
+	release=$(echo "$release" | sed s'/,//g')
+
 	echo -e "\n"
 	python3 "$SRC_DIR"/gfedb.py \
 		-o "$DATA_DIR/csv" \
@@ -84,5 +89,7 @@ for release in $RELEASES; do
 		-l $1
 		# -c "$NUM_ALLELES" \
 	echo -e "\n"
-
 done
+
+END_EXECUTION=$(( SECONDS - start_release ))
+echo "Finished in $END_EXECUTION seconds"
