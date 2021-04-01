@@ -6,12 +6,10 @@ This repo is a fork of gfe-db, a graph database representing IPD-IMGT/HLA sequen
 ## Running the GFE database in Neo4j 4.2 using Docker
 This README outlines the steps for building and running a development version of `gfe-db` in a local Docker container. Docker will deploy an instance of Neo4j 4.2 including the [APOC](https://neo4j.com/labs/apoc/4.1/) and [Graph Data Science](https://neo4j.com/docs/graph-data-science/current/) plugins. GFE data is stored in the `data/csv/` directory which is mounted as an external volume within the container when run. This keeps the data outside the container so that it can be updated easily.
 
-## Development Constraints
-This pipeline is under development.
-* The graph schema is being redesigned.
-* KIR data is not yet included.
-* Releases other than IPD-IMGT/HLA Release 3.36.0 are not yet included (coming next).
-* Loading the full GFE dataset of 20,000+ alleles might fail, or take an excessive amount of time. (Load scripts are in the processed of being optimized for this.)
+## New Features
+* Multiple IMGT/HLA releases can be loaded into the same graph. The release versions will show up as separate edges with a `releases` property.
+* This version uses a Neo4j 4.2 Docker image. Loading can be optimized by setting the `NEO4J_dbms_memory_heap_initial__size` and `NEO4J_dbms_memory_heap_max__size` environment variables to half your available RAM.
+* Schema is updated.
 
 Please feel free to open issues regarding specific bugs and feature requests.
 
@@ -22,10 +20,11 @@ Please feel free to open issues regarding specific bugs and feature requests.
 │   ├── __init__.py
 │   ├── build.sh                    # Entrypoint for build step
 │   ├── build_gfedb.py              # Generates CSVs for Neo4j graph
-│   └── get_alignments.sh           # Alignments are included by default            
+│   ├── get_alignments.sh           # Alignments are included by default    
+│   └── load_db.sh                  # Loads multiple IMGT/HLA versions
 ├── (data)                          # Created during build step
-│   ├── 3360                        # IMGT/HLA release 3.36.0
-│   ├── csv                         # CSVs loaded into Neo4j
+│   ├── 3360                        # Alignments
+│   ├── csv                         # CSVs loaded into Neo4j for each IMGT release
 │   │   ├── all_alignments.3360.csv
 │   │   ├── all_cds.3360.csv
 │   │   ├── all_features.3360.csv
@@ -42,6 +41,10 @@ Please feel free to open issues regarding specific bugs and feature requests.
 ├── README.md                       # Instructions for this workflow
 └── requirements.txt                # Python dependencies
 ```
+## Prerequisites
+* Python 3.8
+* Docker
+
 ## 1. Getting Started
 Clone the repo.
 ```bash
@@ -59,14 +62,18 @@ Install the requirements.
 ```bash
 pip install -r requirements.txt
 ```
+Make sure the environment variables in `bin/set_env.sh ` are exported to the environment.
+```bash
+source bin/set_env.sh 
+```
 
 ## 2. Build the GFE dataset
-Run this script to generate a set CSV files of GFE data in the `data/csv/` directory. It is recommended to limit the number of alleles to avoid excessive build and load times.
+Run this script to generate a set CSV files of GFE data in the `data/csv/` directory. It is recommended to limit the number of alleles and start with a small number to avoid excessive build and load times.
 ```bash
-# Limit the build to 100 alleles (recommended)
-bash bin/build.sh 100
+# Limit the build to 1000 alleles (recommended for local development)
+bash bin/build.sh 1000
 
-# Build complete database (not recommended)
+# Build complete database (takes a while)
 bash bin/build.sh
 ```
 
@@ -80,8 +87,12 @@ docker build --tag gfe-db .
 Run the container to start Neo4j in Docker.
 ```
 # Run container to start Neo4j
-docker run -d --name gfe -v "$(pwd)"/data/csv/:/var/lib/neo4j/import \
-    -p 7474:7474 -p 7473:7473 -p 7687:7687 gfe-db
+docker run -d --name gfe \
+  -v "$(pwd)"/data/csv/:/var/lib/neo4j/import \
+  -v "$(pwd)"/neo4j/plugins:/var/lib/neo4j/plugins \
+  -v "$(pwd)"/neo4j/logs:/var/lib/neo4j/logs \
+  -p 7474:7474 -p 7473:7473 \
+  -p 7687:7687 gfe-db
 ```
 If desired, access the container logs during startup. This will indicate when Neo4j is ready.
 ```bash
@@ -98,7 +109,7 @@ docker start gfe
 ## 5. Load the GFE data
 Once the container is running and the Neo4j server is up, the data can be loaded using the Cypher script.
 ```
-cat neo4j/load.cyp | docker exec --interactive gfe cypher-shell -u neo4j -p gfedb
+bash bin/load_db.sh
 ```
 *Note: This step is not yet optimized for the full dataset, so proceed with caution. For local development on the GFE graph, it is recommended to specify a limited number of alleles during the build step.*
 ## 6. Access Neo4j
@@ -138,14 +149,21 @@ The username and password is set as follows:
 ENV NEO4J_AUTH=neo4j/gfedb
 ```
 ## Memory Management
-Optimal memory for Neo4j depends on available RAM. Loading and querying a larger dataset will require more memory allocated. For more information on memory management in Neo4j, see the [Neo4j Operations Manual](https://neo4j.com/docs/operations-manual/current/performance/memory-configuration/).
+Optimal memory for Neo4j depends on available RAM. Loading and querying a larger dataset will require more memory allocated. Make sure that the Docker daemon is configured to handle whatever values are given here. For more information on memory management in Neo4j, see the [Neo4j Operations Manual](https://neo4j.com/docs/operations-manual/current/performance/memory-configuration/).
 ```Dockerfile
-# Dockerfile
-ENV NEO4J_dbms_memory_heap_initial__size=2G \
-    NEO4J_dbms_memory_heap_max__size=2G
-
-# Rebuild the image after updating these
+# Dockerfile; Rebuild the image after updating these
+ENV NEO4J_dbms_memory_heap_initial__size=2G
+ENV NEO4J_dbms_memory_heap_max__size=2G
 ```
+# Troubleshooting
+* Check that the environment variables have been exported from Step 1
+* Sometimes Neo4j sets permissions on mounted volumes. To get around this run this from the project root:
+  ```bash
+  sudo chmod -R 777 .
+  ```
+* Check the the virtual environment is activated: `source .venv/bin/activate`
+* Check that requirements are installed: `pip install -r requirements.txt`
+* Check the Python 3.8 is being used
 
 # Related Links
 
@@ -158,7 +176,6 @@ ENV NEO4J_dbms_memory_heap_initial__size=2G \
  * [gfe.b12x.org](http://gfe.b12x.org)
 
 <br>
-
 <p align="center">
   <img src="https://bethematch.org/content/site/images/btm_logo.png">
 </p>

@@ -61,12 +61,20 @@ docs/_build/
 # PyBuilder
 target/
 
+# VS Code
+.vscode
+
 # Jupyter Notebook
 .ipynb_checkpoints
 
 # pyenv python configuration file
 .python-version
-.venv
+.venv*
+
+# Profiling tools
+profile*
+fil*
+summary_*
 
 # Project files
 tags
@@ -76,18 +84,7 @@ output/
 numeric.v3.zip
 *.pem
 resize_ebs.sh
-neo4j/bulk_load.cyp
-
-## Deprecated files from Neo4j 3.1.9
-Dockerfile-alpine
-Dockerfile-gfe-base
-Dockerrun.dev.json
-Dockerrun.kir.json
-Dockerrun.prod.json
-README-local-development.md
-test-build-all.sh
-mod-imgt/
-bin/load_graph_docker.sh
-bin/load_graph.sh
-bin/neo4j.conf.template
-README-neo4j-3.1.9.md
+neo4j/load_*
+*.msf
+*.dat
+nodes-*.txt
