@@ -1,0 +1,12 @@
+DROP CONSTRAINT gfe_constraint;
+DROP CONSTRAINT imgt_hla_constraint;
+DROP CONSTRAINT seq_constraint;
+DROP CONSTRAINT gen_constraint;
+DROP CONSTRAINT nuc_constraint;
+DROP CONSTRAINT prot_constraint;
+DROP CONSTRAINT g_constraint;
+DROP CONSTRAINT lg_constraint;
+DROP CONSTRAINT lgx_constraint;
+DROP INDEX cds_index;
+DROP INDEX feature_index;
+MATCH (n) DETACH DELETE n;
