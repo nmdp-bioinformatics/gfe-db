@@ -1,3 +1,5 @@
+#!/bin/bash
+
 ROOT=$(dirname $(dirname "$0"))
 BIN_DIR=$ROOT/bin
 SRC_DIR=$ROOT/src
@@ -12,10 +14,17 @@ else
 fi
 
 # For development
-export RELEASES="3420 3430"  # this value should be either 3360 or 3370 
+export RELEASES="3420, 3430"  # add a comma
 export ALIGN=True
 export KIR=False
 export MEM_PROFILE=False
+
+# Check if RELEASES is set
+if [ -z ${RELEASES+x} ]; then 
+    echo "RELEASES is not set. Please specify the release versions to load."; 
+else 
+    echo "Loading IMGT/HLA release versions: $RELEASES"; 
+fi
 
 #RELEASES=$(echo "$RELEASES" | sed s'/"//g')
 echo "IMGT versions: $RELEASES"
@@ -47,7 +56,7 @@ if [ "$MEM_PROFILE" == "True" ]; then
 	echo "" > summary_diff.txt
 fi
 
-# # Handle downloading dat files outside the python script
+# # TO DO: Handle downloading dat files outside the python script
 # for release in $RELEASES; do
 # 	if [ ! -f "$DATA_DIR/hla.$release.dat" ]; then
 # 		echo "Downloading DAT file for IPD-IMGT/HLA version $release..."

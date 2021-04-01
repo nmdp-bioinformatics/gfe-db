@@ -1,7 +1,7 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # For development
-export IMGT="3420,3430"
-export RELEASES="3420,3430"  # this value should be either 3360 or 3370 
+export RELEASES="3420, 3430"  # add a comma
 export ALIGN=True
 export KIR=False
+export MEM_PROFILE=False
