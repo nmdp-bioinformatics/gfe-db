@@ -162,12 +162,12 @@ sudo -R chmod 777 .
 ```
 
 ## Build gfe-db
-Run this script to generate a set CSV files of GFE data in the `data/csv/` directory. It is recommended to limit the number of alleles and start with a small number to avoid excessive build and load times.
+Run this script to generate a set CSV files of GFE data in the `data/csv/` directory. For testing, specify a limit to the number of alleles processed.
 ```bash
 # Limit the build to 1000 alleles (recommended for testing)
 bash bin/build.sh 1000
 
-# Build complete database (takes a while)
+# Build complete database
 bash bin/build.sh
 ```
 
