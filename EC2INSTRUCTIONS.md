@@ -42,7 +42,7 @@ Create another security group for SSH access and name it `gfe-db-ssh` or somethi
 | SSH  | TCP      | 22         | \<your IP> | SSH access to Neo4j server|
 
 ### Launch Instance
-* Using the AWS EC2 console or AWS CLI, launch an instance with the following configuration.
+Using the AWS EC2 console or AWS CLI, launch an instance with the following configuration.
 * Amazon Linux 2 AMI
 * `c5d.18xlarge`
 * Enable both **Auto-assign Public IP** and **Enable termination protection**.
@@ -121,7 +121,7 @@ Install the requirements.
 pip install -r requirements.txt
 ```
 ### Export Environment Variables
-Make sure the environment variables in `bin/set_env.sh ` are exported to the environment.
+Make sure the environment variables in `bin/set_env.sh` are exported to the environment.
 ```bash
 source bin/set_env.sh 
 ```
@@ -171,6 +171,10 @@ bash bin/build.sh 1000
 bash bin/build.sh
 ```
 
+Access Neo4j at port 7474 on the Public DNS of the EC2 server in your browser.
+```bash
+<Public_IPv4_DNS>:7474
+```
 
 
 # References & Links
