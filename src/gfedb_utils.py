@@ -69,7 +69,7 @@ def hla_alignments(dbversion):
         align_nuc = AlignIO.read(open(msf_nuc), "msf")
         nuc_seq = {"HLA-" + a.name: str(a.seq) for a in align_nuc}
         del align_nuc
-        logging.info(f'{str(len(nuc_seq))} nucelotide alignments loaded')
+        logging.info(f'{str(len(nuc_seq))} nucleotide alignments loaded')
         nuc_aln.update({loc: nuc_seq})
 
         # https://github.com/ANHIG/IMGTHLA/issues/158

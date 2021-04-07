@@ -7,7 +7,7 @@ This repo is a fork of gfe-db, a graph database representing IPD-IMGT/HLA sequen
 This README outlines the steps for building and running a development version of `gfe-db` in a local Docker container. Docker will deploy an instance of Neo4j 4.2 including the [APOC](https://neo4j.com/labs/apoc/4.1/) and [Graph Data Science](https://neo4j.com/docs/graph-data-science/current/) plugins. GFE data is stored in the `data/csv/` directory which is mounted as an external volume within the container when run. This keeps the data outside the container so that it can be updated easily.
 
 ## New Features
-* Multiple IMGT/HLA releases can be loaded into the same graph. The release versions will show up as separate edges with a `releases` property.
+* Multiple IMGT/HLA releases can be loaded into the same graph. The release versions will show up as separate edges with a `releases` array property.
 * This version uses a Neo4j 4.2 Docker image. Loading can be optimized by setting the `NEO4J_dbms_memory_heap_initial__size` and `NEO4J_dbms_memory_heap_max__size` environment variables to half your available RAM.
 * Schema is updated.
 
@@ -16,29 +16,33 @@ Please feel free to open issues regarding specific bugs and feature requests.
 ## Project Files
 ```bash
 .
-├── bin                             # Executable scripts
-│   ├── __init__.py
-│   ├── build.sh                    # Entrypoint for build step
-│   ├── build_gfedb.py              # Generates CSVs for Neo4j graph
-│   ├── get_alignments.sh           # Alignments are included by default    
-│   └── load_db.sh                  # Loads multiple IMGT/HLA versions
+├── bin
+│   ├── build.sh                    # Executable scripts
+│   ├── get_alignments.sh           # Alignments are included by default
+│   ├── load_db.sh                  # Loads multiple IMGT/HLA versions
+│   └── set_env.sh                  # Exports environment variables
 ├── (data)                          # Created during build step
 │   ├── 3360                        # Alignments
 │   ├── csv                         # CSVs loaded into Neo4j for each IMGT release
-│   │   ├── all_alignments.3360.csv
-│   │   ├── all_cds.3360.csv
-│   │   ├── all_features.3360.csv
-│   │   ├── all_groups.3360.csv
-│   │   └── gfe_sequences.3360.csv
-│   └── hla.3360.dat                # Allele data
+│   └── hla.3360.dat                # Allele data                
 ├── neo4j                           # Neo4j load scripts
-│   └── load.cyp                    # Merges new nodes with existing
+│   ├── create_index.cyp
+│   ├── delete_db.cyp
+│   ├── load.cyp                    # Merges new nodes with existing
+│   ├── logs
+│   └── plugins
 ├── notebooks                       # Development jupyter notebooks
+├── src                             # Build modules
+│   ├── __init__.py
+│   ├── constants.py
+│   ├── gfedb.py                    
+│   └── gfedb_utils.py              
 ├── .dockerignore                   # Files for Docker to ignore
 ├── .gitignore                      # Files for git to ignore
 ├── Dockerfile                      # Docker image for Neo4j 4.2
 ├── LICENSE
 ├── README.md                       # Instructions for this workflow
+├── EC2INSTRUCTIONS.md              # Instructions for deployment on EC2
 └── requirements.txt                # Python dependencies
 ```
 ## Prerequisites
