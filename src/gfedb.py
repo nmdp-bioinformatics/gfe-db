@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# TODO: **** ADD HAS_FEATURE
-#       between SEQUENCE and features
-# from seqann.models.annotation import Annotation
-
 from seqann.gfe import GFE
 import logging
 import argparse

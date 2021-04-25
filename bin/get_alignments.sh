@@ -12,7 +12,7 @@ echo "ALIGN RELEASES = ${RELEASES}"
 
 loci="A B C DRB1 DQB1 DPB1 DPA1 DQA1"
 
-for dbversion in ${RELEASES};do
+for dbversion in ${RELEASES}; do
   dbversion_trimmed=$(echo ${dbversion} | sed 's/\.//g')
   mkdir -p "${DATA_DIR}/${dbversion_trimmed}"
 	for loc in ${loci}

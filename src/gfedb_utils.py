@@ -199,6 +199,7 @@ def build_hla_graph(**kwargs):
 
             start_time = time.time()
 
+            # TO DO - delete
             if hasattr(allele, 'seq'):
                 hla_name = allele.description.split(",")[0]
                 loc = allele.description.split(",")[0].split("*")[0]
@@ -214,11 +215,17 @@ def build_hla_graph(**kwargs):
                                 "HLA = " + allele.description.split(",")[0] + " " + dbversion)
 
                         a_name = allele.description.split(",")[0].split("-")[1]
+
+
+                        # Build groups
                         groups = [["HLA-" + ard.redux(a_name, grp), grp] if ard.redux(a_name, grp) != a_name else None for
                                     grp in ard_groups]
-                        seco = [[to_second(a_name), "2nd_FIELD"]]
-                        groups = list(filter(None, groups)) + seco
+                        # seco = [[to_second(a_name), "2nd_FIELD"]]
+                        groups = list(filter(None, groups)) # + seco
+
+
                         complete_annotation = get_features(allele)
+
                         ann = Annotation(annotation=complete_annotation,
                                             method='match',
                                             complete_annotation=True)
@@ -463,21 +470,24 @@ def build_hla_graph(**kwargs):
     logging.info("Loading ARD...")
     ard = ARD(dbversion)
 
-    ### TO DO: move DAT download to build.sh
-    # Downloading DAT file
-    # The github URL changed from 3350 to media
-    if int(dbversion) < 3350:
-        dat_url = ''.join([imgt_hla_raw_url, dbversion, '/hla.dat'])
-    else:
-        dat_url = ''.join([imgt_hla_media_url, dbversion, '/hla.dat'])
+    # ### TO DO: move DAT download to build.sh
+    # # Downloading DAT file
+    # # The github URL changed from 3350 to media
+    # if int(dbversion) < 3350:
+    #     dat_url = ''.join([imgt_hla_raw_url, dbversion, '/hla.dat'])
+    # else:
+    #     dat_url = ''.join([imgt_hla_media_url, dbversion, '/hla.dat'])
 
+
+    ### TO DO - refactor [x]
     dat_file = ''.join([data_dir, 'hla.', dbversion, ".dat"])
 
-    logging.info("Downloading DAT file...")
-    if not os.path.isfile(dat_file):
-        if verbose:
-            logging.info("Downloading dat file from " + dat_url)
-        urllib.request.urlretrieve(dat_url, dat_file)
+    # if not os.path.isfile(dat_file):
+    #     logging.info("Downloading DAT file...")
+
+    #     if verbose:
+    #         logging.info("Downloading dat file from " + dat_url)
+    #     urllib.request.urlretrieve(dat_url, dat_file)
 
     # Parse DAT file
     logging.info("Parsing DAT file...")

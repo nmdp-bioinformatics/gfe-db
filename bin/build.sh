@@ -7,19 +7,14 @@ BIN_DIR=$ROOT/bin
 SRC_DIR=$ROOT/src
 DATA_DIR=$ROOT/data
 
-if [ ! -d "$DATA_DIR" ]; then
-	echo "Creating new data directory in root..."
-	mkdir -p $DATA_DIR/csv/
-else
-	# Remove previously created csv files
-	rm -r $DATA_DIR/csv/*.csv
-fi
+# For development
+export RELEASES="3420, 3430"
+export ALIGN=True
+export KIR=False
+export MEM_PROFILE=False
 
-# # For development
-# export RELEASES="3420, 3430"
-# export ALIGN=True
-# export KIR=False
-# export MEM_PROFILE=False
+# #RELEASES=$(echo "$RELEASES" | sed s'/"//g')
+# echo "IMGT versions: $RELEASES"
 
 # Check if RELEASES is set
 if [ -z ${RELEASES+x} ]; then 
@@ -28,8 +23,14 @@ else
     echo "Loading IMGT/HLA release versions: $RELEASES";
 fi
 
-# #RELEASES=$(echo "$RELEASES" | sed s'/"//g')
-# echo "IMGT versions: $RELEASES"
+# Check if data directory exists
+if [ ! -d "$DATA_DIR" ]; then
+	echo "Creating new data directory in root..."
+	mkdir -p $DATA_DIR/
+else
+	echo "Data directory: $DATA_DIR"
+	#rm -r $DATA_DIR/
+fi
 
 # Load KIR data
 echo "Check KIR..."
@@ -58,26 +59,37 @@ if [ "$MEM_PROFILE" == "True" ]; then
 	echo "" > summary_diff.txt
 fi
 
-# # TO DO: Handle downloading dat files outside the python script
-# for release in $RELEASES; do
-# 	if [ ! -f "$DATA_DIR/hla.$release.dat" ]; then
-# 		echo "Downloading DAT file for IPD-IMGT/HLA version $release..."
-# 		curl -o hla.$release.dat -k https://media.githubusercontent.com/media/ANHIG/IMGTHLA/3420/hla.dat
-# 	else
-# 		echo "DAT file for IPD-IMGT/HLA version $release is already present..."
-# 	fi
-# done
-
 # Build csv files
 # $RELEASES=${echo "$RELEASES" | sed s'/,//g'}
+
+#RELEASES="3000, 4000"
+
 for release in $RELEASES; do
+
+	release=$(echo "$release" | sed s'/,//g')
+
+	echo
+	echo "Building release: $release..."
 
 	# # TO DO: handle downloading DAT files outside python script
 	# NUM_ALLELES=$(cat $DATA_DIR/hla.$release.dat | grep -c "ID ")
 	# echo "ALLELES: $NUM_ALLELES"
-	
-	release=$(echo "$release" | sed s'/,//g')
 
+	if [ -f $DATA_DIR/hla.$release.dat ]; then
+		echo "DAT file for release $release already exists"
+	else
+		echo "Downloading DAT file for release $release..."
+		if [ "$(echo "$release" | bc -l)" -le 3350  ]; then
+			imgt_hla_raw_url='https://raw.githubusercontent.com/ANHIG/IMGTHLA/'
+			echo "Downloading from $imgt_hla_raw_url..."
+			curl -o $DATA_DIR/hla.$release.dat -k $imgt_hla_raw_url/$release/hla.dat -f
+		else
+			imgt_hla_media_url='https://media.githubusercontent.com/media/ANHIG/IMGTHLA/'
+			echo "Downloading from $imgt_hla_media_url..."
+			curl -o $DATA_DIR/hla.$release.dat -k $imgt_hla_media_url/$release/hla.dat -f
+		fi
+	fi
+	
 	echo -e "\n"
 	python3 "$SRC_DIR"/gfedb.py \
 		-o "$DATA_DIR/csv" \
