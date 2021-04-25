@@ -93,7 +93,7 @@ def main():
     kir = True if args.kir else False
     align = True if args.align else False
     verbose = True if args.verbose else False
-    load_loci = hla_loci + kir_loci if kir else hla_loci
+    
 
     # # TO DO: Get last n IMGT/HLA releases
     # if releases:
