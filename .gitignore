@@ -88,3 +88,4 @@ neo4j/load_*
 *.msf
 *.dat
 nodes-*.txt
+_.*

@@ -62,7 +62,7 @@ fi
 # Build csv files
 # $RELEASES=${echo "$RELEASES" | sed s'/,//g'}
 
-#RELEASES="3000, 4000"
+rm -rf $DATA_DIR/csv/*.csv
 
 for release in $RELEASES; do
 
@@ -71,7 +71,6 @@ for release in $RELEASES; do
 	echo
 	echo "Building release: $release..."
 
-	# # TO DO: handle downloading DAT files outside python script
 	# NUM_ALLELES=$(cat $DATA_DIR/hla.$release.dat | grep -c "ID ")
 	# echo "ALLELES: $NUM_ALLELES"
 
@@ -81,16 +80,16 @@ for release in $RELEASES; do
 		echo "Downloading DAT file for release $release..."
 		if [ "$(echo "$release" | bc -l)" -le 3350  ]; then
 			imgt_hla_raw_url='https://raw.githubusercontent.com/ANHIG/IMGTHLA/'
-			echo "Downloading from $imgt_hla_raw_url..."
-			curl -o $DATA_DIR/hla.$release.dat -k $imgt_hla_raw_url/$release/hla.dat -f
+			echo "Downloaded: $imgt_hla_raw_url/$release/hla.dat to ..."
+			curl -L $imgt_hla_raw_url/$release/hla.dat > $DATA_DIR/hla.$release.dat
 		else
 			imgt_hla_media_url='https://media.githubusercontent.com/media/ANHIG/IMGTHLA/'
-			echo "Downloading from $imgt_hla_media_url..."
-			curl -o $DATA_DIR/hla.$release.dat -k $imgt_hla_media_url/$release/hla.dat -f
+			echo "Downloaded: $imgt_hla_media_url/$release/hla.dat to ..."
+			curl -L $imgt_hla_media_url/$release/hla.dat > $DATA_DIR/hla.$release.dat
 		fi
 	fi
 	
-	echo -e "\n"
+	# echo -e "\n"
 	python3 "$SRC_DIR"/gfedb.py \
 		-o "$DATA_DIR/csv" \
 		-r "$release" \
