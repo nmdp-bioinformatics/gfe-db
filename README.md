@@ -54,18 +54,29 @@ Clone the repo.
 ```bash
 git clone https://github.com/abk7777/gfe-db.git
 ```
+
 Create a virtual environment and activate.
 ```bash
-# Create .venv
+# Create .venv and activate
 python3 -m venv .venv
-
-# Activate
 source .venv/bin/activate
-```
-Install the requirements.
-```bash
+
+# Update pip to avoid conflicts
+pip install -U pip
+
+# Install libraries
 pip install -r requirements.txt
 ```
+
+To use the virtual environment inside Jupyter Notebook it is necessary to create a kernel.
+```bash
+# Install ipykernal
+pip install ipykernel
+
+# Add the kernel
+python3 -m ipykernel install --user --name <kernel name>
+```
+
 Make sure the environment variables in `bin/set_env.sh ` are exported to the environment.
 ```bash
 source bin/set_env.sh 
@@ -110,6 +121,7 @@ docker stop gfe
 # Start container
 docker start gfe
 ```
+
 ## 5. Load the GFE data
 Once the container is running and the Neo4j server is up, the data can be loaded using the Cypher script.
 ```
@@ -124,7 +136,9 @@ To view the schema, run this command.
 CALL db.schema.visualization;
 ```
 
-## 7. Clean up Docker
+## 7. Clean up
+
+### Clean up Docker
 Delete the Docker container.
 ```bash
 docker stop gfe
@@ -144,6 +158,13 @@ The fastest way to remove all Docker images, containers and volumes is the `prun
 # Use with caution
 docker system prune --volumes -a
 ```
+
+### Delete Jupyter Notebook kernel
+To delete the Jupyter Notebook kernel, run the command.
+```bash
+jupyter kernelspec uninstall <kernel name>
+```
+
 # Configuring Neo4j in Dockerfile
 Configuration settings for Neo4j are passed through environment variables in the Dockerfile.
 ## Username & Password

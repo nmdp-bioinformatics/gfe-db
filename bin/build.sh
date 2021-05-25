@@ -11,7 +11,7 @@ DATA_DIR=$ROOT/data
 export RELEASES="3420, 3430"
 export ALIGN=True
 export KIR=False
-export MEM_PROFILE=False
+export MEM_PROFILE=True
 
 # #RELEASES=$(echo "$RELEASES" | sed s'/"//g')
 # echo "IMGT versions: $RELEASES"
@@ -26,9 +26,10 @@ fi
 # Check if data directory exists
 if [ ! -d "$DATA_DIR" ]; then
 	echo "Creating new data directory in root..."
-	mkdir -p $DATA_DIR/
+	mkdir -p $DATA_DIR/csv
 else
 	echo "Data directory: $DATA_DIR"
+	echo "CSV directory: $DATA_DIR/csv"
 	#rm -r $DATA_DIR/
 fi
 
