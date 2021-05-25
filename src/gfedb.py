@@ -19,10 +19,15 @@ from csv import DictWriter
 from pathlib import Path
 from constants import *
 
-logger = logging.getLogger()
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S',
-                    level=logging.INFO)
+logger = logging.getLogger() # .addHandler(logging.StreamHandler(sys.stdout))
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    level=logging.INFO,
+    handlers=[    
+        logging.FileHandler(f'{log_dir}/logs.txt'),    
+        logging.StreamHandler()
+        ])
 
 # Outputs memory of objects during execution to check for memory leaks
 if '-p' in sys.argv:
@@ -63,7 +68,7 @@ def parse_dat(data_dir, dbversion):
     
     except Exception as err:
         logging.error(f'Could not parse file: {dat_file}')
-        raise err
+        # raise err
 
 
 def seq_hasher(seq, n=32):
@@ -129,6 +134,10 @@ def get_features(seqrecord):
     feat_list = fiveutr + feats + threeutr
     annotation = {k[0]: k[1] for k in feat_list}
 
+    del fiveutr
+    del feats
+    del threeutr
+
     return annotation
 
     
@@ -148,12 +157,17 @@ def get_cds(allele):
             else:
                 bp_seq = str(cds_features.extract(allele.seq))
                 aa_seq = cds_features.qualifiers['translation'][0]
-                
+
+        del cds_features
+          
     return bp_seq, aa_seq
 
 
 # Streams dictionaries as rows to a file
 def append_dict_as_row(dict_row, file_path):
+
+    if not dict_row:
+        return
 
     try:
         header = list(dict_row.keys())
@@ -172,10 +186,12 @@ def append_dict_as_row(dict_row, file_path):
             dict_writer = DictWriter(write_obj, fieldnames=header)
             dict_writer.writerow(dict_row)
 
+        del dict_row
+
         return
     except Exception as err:
         logging.error(f'Could not add row')
-        raise err
+        # raise err
 
 
 def get_groups(allele):
@@ -215,7 +231,7 @@ def build_GFE(allele):
                
     except Exception as err:
         logging.error(f'Failed to write GFE data for allele ID {allele.id}')
-        raise err 
+        # raise err 
 
 
 def build_feature(allele, feature):
@@ -286,10 +302,10 @@ def build_alignment(allele, alignments, align_type="genomic"):
     
         except Exception as err:
             logging.error(f'Failed to write {align_type} alignment for allele {allele.id}')
-            raise err
+            # raise err
     
     else:
-        logging.info(f'No {align_type} alignments found')
+        logging.info(f'No {align_type} alignments found for {allele.id}')
         return
 
 
@@ -301,8 +317,8 @@ def build_group(group, allele):
             "allele_id": allele.id,
             "hla_name": hla_name,
             #"a_name": hla_name.split("-")[1],
-            "ard_id": group[0],
-            "ard_name": group[1],
+            "ard_id": group[0] if group else "",
+            "ard_name": group[1] if group else "",
             "locus": locus,
             "imgt_release": imgt_release
         }
@@ -311,7 +327,7 @@ def build_group(group, allele):
 
     except Exception as err:
         logging.error(f'Failed to write groups for allele {allele.id}')
-        raise err
+        # # raise err
 
 
 def build_cds(allele):
@@ -336,7 +352,7 @@ def build_cds(allele):
 
     except Exception as err:
         logging.error(f'Failed to write CDS data for allele {allele.id}')
-        raise err
+        # raise err
 
 
 def gfe_from_allele(allele, gfe_maker):
@@ -365,8 +381,12 @@ def process_allele(allele, alignments_dict, csv_path=None):
 
     # gfe_sequences.RELEASE.csv
     file_name = f'{csv_path}/gfe_sequences.{dbversion}.csv'
-    gfe_row = build_GFE(allele)
-    append_dict_as_row(gfe_row, file_name)
+    #gfe_row = build_GFE(allele)
+    append_dict_as_row(
+        build_GFE(allele), 
+        file_name)
+
+    #del gfe_row
 
     # all_features.RELEASE.csv
     
@@ -389,8 +409,12 @@ def process_allele(allele, alignments_dict, csv_path=None):
     file_name = f'{csv_path}/all_features.{dbversion}.csv'
 
     for feature in features:
-        feature_row = build_feature(allele=allele, feature=feature)
-        append_dict_as_row(feature_row, file_name)
+        #feature_row = build_feature(allele=allele, feature=feature)
+        append_dict_as_row(
+            build_feature(allele=allele, feature=feature), 
+            file_name)
+    
+    del features
 
     # all_alignments.RELEASE.csv
     if alignments_dict:
@@ -409,12 +433,21 @@ def process_allele(allele, alignments_dict, csv_path=None):
     file_name = f'{csv_path}/all_groups.{dbversion}.csv'
 
     for group in groups:
-        group_row = build_group(group, allele)
-        append_dict_as_row(group_row, file_name)
+        #group_row = build_group(group, allele)
+        append_dict_as_row(
+            build_group(group, allele), 
+            file_name)
+
+    del groups
 
     # all_cds.RELEASE.csv
     file_name = f'{csv_path}/all_cds.{dbversion}.csv'
-    append_dict_as_row(build_cds(allele), file_name)
+    append_dict_as_row(
+        build_cds(allele), 
+        file_name)
+
+    if _mem_profile and idx % 20 == 0:
+        memory_profiler()
         
     return
 
@@ -492,14 +525,13 @@ if __name__ == '__main__':
     imgt_release = f'{dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}'
     kir = True if '-k' in sys.argv else False
     align = True if '-a' in sys.argv else False
-    alignments = True if args.align else False
     _mem_profile = True if '-p' in sys.argv else False
     verbose = True if '-v' in sys.argv else False
-    verbosity = args.verbosity if args.verbosity else None
+    verbosity = 1 #args.verbosity if args.verbosity else None
     limit = args.limit if args.limit else None #min(args.count, args.limit)
 
     # Load alignments data
-    if alignments:
+    if align:
         alignments_dict = {}
 
         for align_type in ["genomic", "nucleotide", "protein"]:

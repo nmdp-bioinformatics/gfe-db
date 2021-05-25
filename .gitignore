@@ -90,3 +90,4 @@ neo4j/load_*
 nodes-*.txt
 _.*
 *.yml
+logs.txt

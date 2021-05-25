@@ -6,6 +6,7 @@ ROOT=$(dirname $(dirname "$0"))
 BIN_DIR=$ROOT/bin
 SRC_DIR=$ROOT/src
 DATA_DIR=$ROOT/data
+LOGS_DIR=$ROOT/logs
 
 # For development
 export RELEASES="3420, 3430"
@@ -30,7 +31,15 @@ if [ ! -d "$DATA_DIR" ]; then
 else
 	echo "Data directory: $DATA_DIR"
 	echo "CSV directory: $DATA_DIR/csv"
-	#rm -r $DATA_DIR/
+fi
+
+# Check if data directory exists
+if [ ! -d "$LOGS_DIR" ]; then
+	echo "Creating new data directory in root..."
+	mkdir -p $LOGS_DIR
+	touch $LOGS_DIR/logs.txt
+else
+	rm $LOGS_DIR/logs.txt
 fi
 
 # Load KIR data
