@@ -27,7 +27,7 @@ fi
 
 # Check if data directory exists
 if [ ! -d "$DATA_DIR" ]; then
-	echo "Creating new data directory in root..."
+	echo "Creating new directory in root: $DATA_DIR"
 	mkdir -p $DATA_DIR
 else
 	echo "Data directory: $DATA_DIR"
@@ -35,7 +35,7 @@ fi
 
 # Check if data directory exists
 if [ ! -d "$LOGS_DIR" ]; then
-	echo "Creating new data directory in root..."
+	echo "Creating new directory in root: $LOGS_DIR"
 	mkdir -p $LOGS_DIR
 	touch $LOGS_DIR/logs.txt
 else
@@ -80,7 +80,7 @@ for release in $RELEASES; do
 
 	# Check if data directory exists
 	if [ ! -d "$DATA_DIR/$release/csv" ]; then
-		echo "Creating new data directory in root..."
+		echo "Creating new directory in root: $DATA_DIR/$release/csv..."
 		mkdir -p $DATA_DIR/$release/csv
 	else
 		echo "CSV directory: $DATA_DIR/$release/csv"
@@ -119,8 +119,9 @@ for release in $RELEASES; do
 		# -c "$NUM_ALLELES" \
 	echo -e "\n"
 
-	# # Copy CSVs to S3
-	# aws s3 cp $DATA_DIR/csv/*.$release.csv s3://$GFE_BUCKET/release/$release/*.$release.csv
+	# Copy CSVs to S3
+	echo "Copying CSVs to S3..."
+	aws s3 --recursive cp $DATA_DIR/$release/csv/ s3://$GFE_BUCKET/data/$release/csv/
 done
 
 END_EXECUTION=$(( SECONDS - $START_EXECUTION ))
