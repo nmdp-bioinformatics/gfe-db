@@ -7,9 +7,10 @@ BIN_DIR=$ROOT/bin
 SRC_DIR=$ROOT/src
 DATA_DIR=$ROOT/data
 LOGS_DIR=$ROOT/logs
+GFE_BUCKET=gfe-db-4498
 
 # For development
-export RELEASES="3420, 3430"
+export RELEASES="3410, 3420"
 export ALIGN=True
 export KIR=False
 export MEM_PROFILE=True
@@ -27,10 +28,9 @@ fi
 # Check if data directory exists
 if [ ! -d "$DATA_DIR" ]; then
 	echo "Creating new data directory in root..."
-	mkdir -p $DATA_DIR/csv
+	mkdir -p $DATA_DIR
 else
 	echo "Data directory: $DATA_DIR"
-	echo "CSV directory: $DATA_DIR/csv"
 fi
 
 # Check if data directory exists
@@ -72,11 +72,19 @@ fi
 # Build csv files
 # $RELEASES=${echo "$RELEASES" | sed s'/,//g'}
 
-rm -rf $DATA_DIR/csv/*.csv
+# rm -rf $DATA_DIR/csv/*.csv
 
 for release in $RELEASES; do
 
 	release=$(echo "$release" | sed s'/,//g')
+
+	# Check if data directory exists
+	if [ ! -d "$DATA_DIR/$release/csv" ]; then
+		echo "Creating new data directory in root..."
+		mkdir -p $DATA_DIR/$release/csv
+	else
+		echo "CSV directory: $DATA_DIR/$release/csv"
+	fi
 
 	echo
 	echo "Building release: $release..."
@@ -84,24 +92,24 @@ for release in $RELEASES; do
 	# NUM_ALLELES=$(cat $DATA_DIR/hla.$release.dat | grep -c "ID ")
 	# echo "ALLELES: $NUM_ALLELES"
 
-	if [ -f $DATA_DIR/hla.$release.dat ]; then
+	if [ -f $DATA_DIR/$release/hla.$release.dat ]; then
 		echo "DAT file for release $release already exists"
 	else
 		echo "Downloading DAT file for release $release..."
 		if [ "$(echo "$release" | bc -l)" -le 3350  ]; then
-			imgt_hla_raw_url='https://raw.githubusercontent.com/ANHIG/IMGTHLA/'
+			imgt_hla_raw_url='https://raw.githubusercontent.com/ANHIG/IMGTHLA'
 			echo "Downloaded: $imgt_hla_raw_url/$release/hla.dat to ..."
-			curl -L $imgt_hla_raw_url/$release/hla.dat > $DATA_DIR/hla.$release.dat
+			curl -L $imgt_hla_raw_url/$release/hla.dat > $DATA_DIR/$release/hla.$release.dat
 		else
-			imgt_hla_media_url='https://media.githubusercontent.com/media/ANHIG/IMGTHLA/'
+			imgt_hla_media_url='https://media.githubusercontent.com/media/ANHIG/IMGTHLA'
 			echo "Downloaded: $imgt_hla_media_url/$release/hla.dat to ..."
-			curl -L $imgt_hla_media_url/$release/hla.dat > $DATA_DIR/hla.$release.dat
+			curl -L $imgt_hla_media_url/$release/hla.dat > $DATA_DIR/$release/hla.$release.dat
 		fi
 	fi
 	
 	# echo -e "\n"
 	python3 "$SRC_DIR"/gfedb.py \
-		-o "$DATA_DIR/csv" \
+		-o "$DATA_DIR/$release/csv" \
 		-r "$release" \
 		$KIRFLAG \
 		$ALIGNFLAG \
@@ -110,7 +118,10 @@ for release in $RELEASES; do
 		-l $1
 		# -c "$NUM_ALLELES" \
 	echo -e "\n"
+
+	# # Copy CSVs to S3
+	# aws s3 cp $DATA_DIR/csv/*.$release.csv s3://$GFE_BUCKET/release/$release/*.$release.csv
 done
 
-END_EXECUTION=$(( SECONDS - start_release ))
+END_EXECUTION=$(( SECONDS - $START_EXECUTION ))
 echo "Finished in $END_EXECUTION seconds"

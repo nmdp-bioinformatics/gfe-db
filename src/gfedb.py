@@ -62,7 +62,7 @@ def parse_dat(data_dir, dbversion):
     
     try:
         logging.info("Parsing DAT file...")
-        dat_file = ''.join([data_dir, 'hla.', dbversion, ".dat"])
+        dat_file = ''.join([data_dir, '/hla.', dbversion, ".dat"])
         
         return SeqIO.parse(dat_file, "imgt")
     
@@ -97,7 +97,7 @@ def parse_hla_alignments(dbversion, align_type="gen"):
     
     for locus in hla_align:
 
-        msf = ''.join([data_dir, dbversion, "/", locus.split("-")[1], f"_{align_type}.msf"])
+        msf = ''.join([data_dir, "/alignments/", locus.split("-")[1], f"_{align_type}.msf"])
 
         logging.info(f'Loading {"/".join(msf.split("/")[-3:])}')
         align_data = AlignIO.read(open(msf), "msf")
@@ -520,8 +520,8 @@ if __name__ == '__main__':
 
     logging.debug(f'Input args: {vars(args)}')
 
-    out_dir = args.out_dir
     dbversion = args.release if args.release else pd.read_html(imgt_hla)[0]['Release'][0].replace(".", "")
+    out_dir = args.out_dir
     imgt_release = f'{dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}'
     kir = True if '-k' in sys.argv else False
     align = True if '-a' in sys.argv else False
@@ -529,6 +529,8 @@ if __name__ == '__main__':
     verbose = True if '-v' in sys.argv else False
     verbosity = 1 #args.verbosity if args.verbosity else None
     limit = args.limit if args.limit else None #min(args.count, args.limit)
+
+    data_dir = f'{data_dir}/{dbversion}'
 
     # Load alignments data
     if align:
@@ -540,7 +542,7 @@ if __name__ == '__main__':
             })
 
     logging.info(f'****** Building graph for IMGTHLA version {imgt_release} ******')
-
+    
     alleles = parse_dat(data_dir, dbversion)
 
     ard = ARD(dbversion)
