@@ -36,9 +36,6 @@ imgt_hla_raw_url = 'https://raw.githubusercontent.com/ANHIG/IMGTHLA/'
 imgt_kir = 'https://www.ebi.ac.uk/ipd/kir/docs/version.html'
 kir_url = 'ftp://ftp.ebi.ac.uk/pub/databases/ipd/kir/KIR.dat'
 
-data_dir = os.path.dirname(__file__) + "/../data"
-log_dir = os.path.dirname(__file__) + "/../logs"
-
 # dbversion = 
 
 

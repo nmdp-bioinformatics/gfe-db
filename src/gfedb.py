@@ -20,6 +20,7 @@ from pathlib import Path
 from constants import *
 
 logger = logging.getLogger() # .addHandler(logging.StreamHandler(sys.stdout))
+log_dir = os.path.dirname(__file__) + "/../logs"
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
@@ -530,7 +531,8 @@ if __name__ == '__main__':
     verbosity = 1 #args.verbosity if args.verbosity else None
     limit = args.limit if args.limit else None #min(args.count, args.limit)
 
-    data_dir = f'{data_dir}/{dbversion}'
+    #data_dir = f'{data_dir}/{dbversion}'
+    data_dir = os.path.dirname(__file__) + f"/../data/{dbversion}"
 
     # Load alignments data
     if align:
