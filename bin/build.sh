@@ -39,7 +39,7 @@ if [ ! -d "$LOGS_DIR" ]; then
 	mkdir -p $LOGS_DIR
 	touch $LOGS_DIR/logs.txt
 else
-	rm $LOGS_DIR/logs.txt
+	rm -f $LOGS_DIR/logs.txt
 fi
 
 # Load KIR data
