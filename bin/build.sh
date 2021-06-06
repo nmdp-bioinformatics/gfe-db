@@ -9,6 +9,8 @@ DATA_DIR=$ROOT/data
 LOGS_DIR=$ROOT/logs
 GFE_BUCKET=gfe-db-4498
 
+# aws stepfunctions get-activity-task ...
+
 # For development
 export RELEASES="3410, 3420"
 export ALIGN=True
@@ -126,3 +128,5 @@ done
 
 END_EXECUTION=$(( SECONDS - $START_EXECUTION ))
 echo "Finished in $END_EXECUTION seconds"
+
+# Publish to SNS

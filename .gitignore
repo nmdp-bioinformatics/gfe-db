@@ -91,3 +91,4 @@ nodes-*.txt
 _.*
 *.yml
 logs.txt
+cfn/
