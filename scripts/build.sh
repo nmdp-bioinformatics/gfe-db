@@ -3,7 +3,7 @@
 START_EXECUTION=$SECONDS
 
 ROOT=$(dirname $(dirname "$0"))
-BIN_DIR=$ROOT/bin
+BIN_DIR=$ROOT/scripts
 SRC_DIR=$ROOT/src
 DATA_DIR=$ROOT/data
 LOGS_DIR=$ROOT/logs
@@ -12,7 +12,7 @@ GFE_BUCKET=gfe-db-4498
 # aws stepfunctions get-activity-task ...
 
 # For development
-export RELEASES="3410, 3420"
+export RELEASES="3410"
 export ALIGN=True
 export KIR=False
 export MEM_PROFILE=True
@@ -119,11 +119,11 @@ for release in $RELEASES; do
 		-v \
 		-l $1
 		# -c "$NUM_ALLELES" \
-	echo -e "\n"
+	# echo -e "\n"
 
-	# Copy CSVs to S3
-	echo "Copying CSVs to S3..."
-	aws s3 --recursive cp $DATA_DIR/$release/csv/ s3://$GFE_BUCKET/data/$release/csv/
+	# # Copy CSVs to S3
+	# echo "Copying CSVs to S3..."
+	# aws s3 --recursive cp $DATA_DIR/$release/csv/ s3://$GFE_BUCKET/data/$release/csv/
 done
 
 END_EXECUTION=$(( SECONDS - $START_EXECUTION ))
