@@ -7,7 +7,7 @@ BIN_DIR=$ROOT/scripts
 SRC_DIR=$ROOT/src
 DATA_DIR=$ROOT/data
 LOGS_DIR=$ROOT/logs
-GFE_BUCKET=gfe-db-4498
+# GFE_BUCKET=gfe-db-4498
 
 # aws stepfunctions get-activity-task ...
 
@@ -122,8 +122,8 @@ for release in $RELEASES; do
 	# echo -e "\n"
 
 	# # Copy CSVs to S3
-	# echo "Copying CSVs to S3..."
-	# aws s3 --recursive cp $DATA_DIR/$release/csv/ s3://$GFE_BUCKET/data/$release/csv/
+	echo "Copying CSVs to S3..."
+	aws s3 --recursive cp $DATA_DIR/$release/csv/ s3://$GFE_BUCKET/data/$release/csv/
 done
 
 END_EXECUTION=$(( SECONDS - $START_EXECUTION ))

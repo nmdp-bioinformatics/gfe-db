@@ -2,6 +2,8 @@ FROM python:3.8
 
 RUN apt update && apt-get install bc
 
+ENV GFE_BUCKET=gfe-db-4498
+
 WORKDIR /gfe-db
 RUN mkdir data
 
