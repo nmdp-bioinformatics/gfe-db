@@ -123,7 +123,7 @@ for release in $RELEASES; do
 
 	# # Copy CSVs to S3
 	echo "Copying CSVs to S3..."
-	aws s3 --recursive cp $DATA_DIR/$release/csv/ s3://$GFE_BUCKET/data/$release/csv/
+	aws s3 --recursive --quiet cp $DATA_DIR/$release/csv/ s3://$GFE_BUCKET/data/$release/csv/
 done
 
 END_EXECUTION=$(( SECONDS - $START_EXECUTION ))

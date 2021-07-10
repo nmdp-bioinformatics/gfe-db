@@ -160,17 +160,6 @@ Resources:
             mount -a
             sudo yum update -y
             sudo yum install amazon-cloudwatch-agent -y
-            # sudo amazon-linux-extras disable docker
-            # sudo amazon-linux-extras install -y ecs; sudo systemctl enable --now ecs
-            # curl -s http://localhost:51678/v1/metadata | python -mjson.tool 
-            # sudo amazon-linux-extras install python3.8 docker
-            # service docker start
-            # usermod -a -G docker ec2-user
-            # chkconfig docker on
-            # cd /local1
-            # chown -R ec2-user .
-            # docker pull 531868584498.dkr.ecr.us-east-1.amazonaws.com/gfe-db-build-service:latest
-            # docker run -d --rm --name gfe-db-build-service -v "$(pwd)"/data:/gfe-db/data gfe-db-build-service
 
             --==MYBOUNDARY==
   gfedbBuildServiceRepository:
