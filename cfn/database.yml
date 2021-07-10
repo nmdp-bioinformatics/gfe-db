@@ -1,0 +1,141 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: GFE database
+Parameters:
+  gfedbKeyName:
+    Type: String
+    Default: gfe-db-3
+    Description: Key pair name for the GFE database
+    NoEcho: true
+  gfedbImageId:
+    Type: AWS::EC2::Image::Id
+    Default: ami-0d5eff06f840b45e9
+  gfeVPC:
+    Type: String
+    Default: vpc-8a3d74f0
+  # gfedbRepo:
+  #   Type: String
+  #   Default: https://github.com/abk7777/gfe-db.git
+  gfeBucketArn:
+    Type: String
+    Default: "arn:aws:s3:::gfe-db-4498"
+Resources:
+  gfedbSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: gfedb-sg
+      GroupDescription: Security group for the GFE database
+      VpcId: !Ref gfeVPC
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
+        - CidrIp: 0.0.0.0/0
+          FromPort: 7474
+          IpProtocol: tcp
+          ToPort: 7474
+        - CidrIp: 0.0.0.0/0
+          FromPort: 7473
+          IpProtocol: tcp
+          ToPort: 7473
+        - CidrIp: 0.0.0.0/0
+          FromPort: 7687
+          IpProtocol: tcp
+          ToPort: 7687
+  gfedbServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName: !Ref gfedbKeyName
+      DisableApiTermination: false
+      ImageId: !Ref gfedbImageId
+      InstanceType: m5d.xlarge
+      IamInstanceProfile: !Ref gfedbProfile
+      Monitoring: true
+      SecurityGroupIds:
+        - !Ref gfedbSG
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash -x
+          IDX=1
+          for DEV in /dev/disk/by-id/nvme-Amazon_EC2_NVMe_Instance_Storage_*-ns-1; do
+            mkfs.xfs ${DEV}
+            mkdir -p /local${IDX}
+            echo ${DEV} /local${IDX} xfs defaults,noatime 1 2 >> /etc/fstab
+            IDX=$((${IDX} + 1))
+          done
+          mount -a
+          sudo yum update -y
+          # curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          # unzip awscliv2.zip
+          sudo yum install git -y
+          sudo amazon-linux-extras install docker
+          service docker start
+          usermod -a -G docker ec2-user
+          chkconfig docker on
+          cd /local1
+          chown -R ec2-user .
+          git clone https://github.com/abk7777/gfe-db.git
+          cd gfe-db
+          git checkout fix/optimize-build
+          docker build -t gfe-db .
+          docker run -d --name gfe \
+            -v "$(pwd)"/data/csv/:/var/lib/neo4j/import \
+            -v "$(pwd)"/neo4j/plugins:/var/lib/neo4j/plugins \
+            -v "$(pwd)"/neo4j/logs:/var/lib/neo4j/logs \
+            -p 7474:7474 -p 7473:7473 \
+            -p 7687:7687 gfe-db
+      Tags:
+        - Key: Name
+          Value: gfedb
+  gfedbRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      Path: /
+      Policies:
+        - PolicyName: gfedbPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "s3:GetObject"
+                Resource: 
+                  - !Ref gfeBucketArn
+                  - !Join
+                    - ""
+                    - - !Ref gfeBucketArn
+                      - "/data/*/csv/*"
+              - Effect: "Allow"
+                Action:
+                  - "ecr:GetAuthorizationToken"
+                  - "ecr:BatchCheckLayerAvailability"
+                  - "ecr:GetDownloadUrlForLayer"
+                  - "ecr:GetRepositoryPolicy"
+                  - "ecr:DescribeRepositories"
+                  - "ecr:ListImages"
+                  - "ecr:DescribeImages"
+                  - "ecr:BatchGetImage"
+                  - "ecr:InitiateLayerUpload"
+                  - "ecr:UploadLayerPart"
+                  - "ecr:CompleteLayerUpload"
+                  - "ecr:PutImage"
+                  - "cloudtrail:LookupEvents"
+                Resource: "*"
+  gfedbProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref gfedbRole
+Outputs:
+  gfedbServerPublicDNS:
+    Description: Public DNS for SSH access into the database server
+    Value: !GetAtt gfedbServer.PublicDnsName

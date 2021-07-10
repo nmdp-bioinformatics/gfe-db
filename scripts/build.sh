@@ -7,12 +7,12 @@ BIN_DIR=$ROOT/scripts
 SRC_DIR=$ROOT/src
 DATA_DIR=$ROOT/data
 LOGS_DIR=$ROOT/logs
-# GFE_BUCKET=gfe-db-4498
+GFE_BUCKET=gfe-db-4498
 
 # aws stepfunctions get-activity-task ...
 
 # For development
-export RELEASES="3410"
+export RELEASES="3410,3420"
 export ALIGN=True
 export KIR=False
 export MEM_PROFILE=True

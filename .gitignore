@@ -88,7 +88,7 @@ neo4j/load_*
 *.msf
 *.dat
 nodes-*.txt
-_.*
-*.yml
+_*
 logs.txt
-cfn/
+config/
+logs/
