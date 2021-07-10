@@ -1,21 +1,18 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: "gfe-db build service using AWS Batch"
 Parameters:
-  gfedbBuildKeyName:
-    Type: String
-    Default: gfe-build-service
-    Description: Key pair name for the GFE build server instance.
-    NoEcho: true
   gfedbBuildImageId:
     Type: AWS::EC2::Image::Id
-    Default: ami-05c75efdc7843b54e # ami-0d5eff06f840b45e9
+    Default: ami-05c75efdc7843b54e
     Description: ECS Optimized Amazon Linux 2 AMI for us-east-1
   gfeVPC:
     Type: String
     Default: vpc-8a3d74f0
+    Description: Default VPC
   gfeSubnet:
     Type: String
     Default: subnet-5c44793b
+    Description: Public subnet with internet access
 Resources:
   gfedbBuildSG:
     Type: AWS::EC2::SecurityGroup
@@ -23,11 +20,11 @@ Resources:
       GroupName: gfedb-build-server-sg
       GroupDescription: Security group for the GFE DB build server
       VpcId: !Ref gfeVPC
-      SecurityGroupIngress:
-        - CidrIp: 66.214.236.87/32
-          FromPort: 22
-          IpProtocol: tcp
-          ToPort: 22
+      # SecurityGroupIngress: # Uncomment to allow SSH access to build instance
+      #   - CidrIp: 66.214.236.87/32
+      #     FromPort: 22
+      #     IpProtocol: tcp
+      #     ToPort: 22
   gfedbBatchServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -40,8 +37,6 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole
-        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
-        - arn:aws:iam::aws:policy/AmazonS3FullAccess
   IamInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
@@ -68,12 +63,30 @@ Resources:
             Version: "2012-10-17"
             Statement:
               - Action:
-                - logs:CreateLogGroup
-                - logs:CreateLogStream
-                - logs:PutLogEvents
-                - logs:DescribeLogStreams
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
                 Effect: Allow
                 Resource: arn:aws:logs:*:*:*"
+        - PolicyName: gfeDBBuildServiceS3ReadWritePolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3:GetBucketLocation
+                  - s3:GetObjectVersion
+                  - s3:GetLifecycleConfiguration
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                  - s3:PutLifecycleConfiguration
+                  - s3:DeleteObject
+                Resource:
+                  - arn:aws:s3:::gfe-db-4498
+                  - arn:aws:s3:::gfe-db-4498/*
   gfedbBatchProcessingJobDefinition:
     Type: AWS::Batch::JobDefinition
     Properties:
@@ -130,7 +143,6 @@ Resources:
     Type: AWS::EC2::LaunchTemplate
     Properties:
       LaunchTemplateData:
-        KeyName: !Ref gfedbBuildKeyName
         DisableApiTermination: false
         InstanceInitiatedShutdownBehavior: stop
         ImageId: !Ref gfedbBuildImageId
