@@ -41,8 +41,6 @@ Resources:
                   - batch:DescribeJobs
                   - batch:TerminateJob
                 Resource: "*"
-                  # - !Sub arn:aws:batch:${AWS::Region}:${AWS::AccountId}:job-definition/*
-                  # - !Sub arn:aws:batch:${AWS::Region}:${AWS::AccountId}:job-queue/*
               - Effect: Allow
                 Action: 
                   - events:PutTargets
@@ -50,24 +48,6 @@ Resources:
                   - events:DescribeRule
                 Resource: 
                   - !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule
-        # - PolicyName: gfeDBPipelineS3ReadWritePolicy
-        #   PolicyDocument:
-        #     Version: "2012-10-17"
-        #     Statement:
-        #       - Effect: Allow
-        #         Action: 
-        #           - s3:GetObject
-        #           - s3:ListBucket
-        #           - s3:GetBucketLocation
-        #           - s3:GetObjectVersion
-        #           - s3:GetLifecycleConfiguration
-        #           - s3:PutObject
-        #           - s3:PutObjectAcl
-        #           - s3:PutLifecycleConfiguration
-        #           - s3:DeleteObject
-        #         Resource:
-        #           - arn:aws:s3:::gfe-db-4498
-        #           - arn:aws:s3:::gfe-db-4498/*
   StateMachine:
     Type: AWS::StepFunctions::StateMachine
     Properties:
@@ -84,7 +64,26 @@ Resources:
                         "JobDefinition": "gfedbBatchJobDefinition",
                         "JobName": "build-gfe-db",
                         "JobQueue": "gfedbBatchProcessingJobQueue",
-                        "Parameters.$": "$$.Execution.Input.releases"
+                        "ContainerOverrides": {
+                            "Environment": [
+                                {
+                                    "Name": "RELEASES",
+                                    "Value.$": "$.params.environment.RELEASES"
+                                },
+                                {
+                                    "Name": "ALIGN",
+                                    "Value.$": "$.params.environment.ALIGN"
+                                },
+                                {
+                                    "Name": "KIR",
+                                    "Value.$": "$.params.environment.KIR"
+                                },
+                                {
+                                    "Name": "MEM_PROFILE",
+                                    "Value.$": "$.params.environment.MEM_PROFILE"
+                                }
+                            ]
+                        }
                     },
                     "End": true
                 }
@@ -100,5 +99,23 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: gfe-db-pipeline-execution-logs
-# Outputs:
-
+Outputs:
+  WorkflowArn:
+    Description: Workflow statemachine ARN
+    Value: !Ref StateMachine
+  WorkflowName:
+    Description: Workflow statemachine Name
+    Value: !GetAtt StateMachine.Name
+  WorkflowInput:
+    Description: Example input for workflow statemachine
+    Value: |-
+      {
+          "params": {
+              "environment": {
+                  "RELEASES": "3410,3420",
+                  "ALIGN": "True",
+                  "KIR": "False",
+                  "MEM_PROFILE": "False"
+              }
+          }
+      }
