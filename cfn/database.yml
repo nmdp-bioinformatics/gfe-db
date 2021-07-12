@@ -67,7 +67,7 @@ Resources:
           sudo yum update -y
           # curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
           # unzip awscliv2.zip
-          sudo yum install git -y
+          sudo yum install git amazon-cloudwatch-agent -y
           sudo amazon-linux-extras install docker
           service docker start
           usermod -a -G docker ec2-user

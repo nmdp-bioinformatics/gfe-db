@@ -8,9 +8,10 @@ mkdir -p "${DATA_DIR}"
 base_url="https://raw.githubusercontent.com/ANHIG/IMGTHLA"
 
 RELEASES=`echo ${RELEASES} | sed s'/"//'g | sed s'/,/ /g'`
-echo "ALIGN RELEASES = ${RELEASES}"
+# echo "ALIGN RELEASES = ${RELEASES}"
 
 loci="A B C DRB1 DQB1 DPB1 DPA1 DQA1"
+echo "loci: $loci"
 
 for dbversion in ${RELEASES}; do
   dbversion_trimmed=$(echo ${dbversion} | sed 's/\.//g')
@@ -50,6 +51,8 @@ done
 
 if [ "$KIR" = "True" ]; then
 	kir_loci="'KIR3DS1 KIR3DP1 KIR3DL3 KIR3DL2 KIR3DL1 KIR2DS5 KIR2DS4 KIR2DS3 KIR2DS2 KIR2DS1 KIR2DP1 KIR2DL4"
+	echo "kir_loci: $kir_loci"
+	
 	kir_base="ftp://ftp.ebi.ac.uk/pub/databases/ipd/kir/msf"
 
 	mkdir -p "${DATA_DIR}/${dbversion_trimmed}/kir"
