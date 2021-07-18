@@ -7,27 +7,32 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
 <!-- ![GFE Schema](img/gfe-schema.png) -->
 
 ## Table of Contents
-<!-- - [gfe-db](#gfe-db)
-  * [Table of Contents](#table-of-contents) -->
-  * [Project Structure](#project-structure)
-  * [Description](#description)
-    + [New Features](#new-features)
-  * [Installation](#installation)
-    + [Prerequisites](#prerequisites)
-    + [Environment Variables](#environment-variables)
-  * [Usage](#usage)
-    + [Run Neo4j Docker](#run-neo4j-docker)
-    + [Build GFE dataset](#build-gfe-dataset)
-    + [Load the dataset into Neo4j](#load-the-dataset-into-neo4j)
-  * [Notebooks](#notebooks)
-    + [`0.0-load-gfe-db`](#-00-load-gfe-db-)
-    + [`1.0-refactor-gfedb_utils`](#-10-refactor-gfedb-utils-)
-    + [Adding a kernel spec to Jupyter Notebook](#adding-a-kernel-spec-to-jupyter-notebook)
-  * [Deployment](#deployment)
-  * [Clean Up](#clean-up)
-    + [Local Clean-up](#local-clean-up)
-  * [Authors](#authors)
-  * [References & Links](#references---links)
+- [gfe-db](#gfe-db)
+  - [Table of Contents](#table-of-contents)
+  - [Project Structure](#project-structure)
+  - [Description](#description)
+    - [New Features](#new-features)
+  - [Installation](#installation)
+    - [Prerequisites](#prerequisites)
+    - [Creating a Python Virtual Environment](#creating-a-python-virtual-environment)
+    - [Environment Variables](#environment-variables)
+  - [Usage](#usage)
+    - [Run Neo4j Docker](#run-neo4j-docker)
+    - [Build GFE dataset](#build-gfe-dataset)
+    - [Load the dataset into Neo4j](#load-the-dataset-into-neo4j)
+  - [Notebooks](#notebooks)
+    - [`0.0-load-gfe-db`](#00-load-gfe-db)
+    - [`1.0-refactor-gfedb_utils`](#10-refactor-gfedb_utils)
+    - [Adding a kernel spec to Jupyter Notebook](#adding-a-kernel-spec-to-jupyter-notebook)
+  - [Configuring Neo4j in Dockerfile](#configuring-neo4j-in-dockerfile)
+    - [Username & Password](#username--password)
+    - [Memory Management](#memory-management)
+  - [Deployment](#deployment)
+  - [Clean Up](#clean-up)
+    - [Local Clean-up](#local-clean-up)
+- [Troubleshooting](#troubleshooting)
+  - [Authors](#authors)
+  - [References & Links](#references--links)
 
 ## Project Structure
 ```bash
@@ -86,17 +91,6 @@ Please feel free to open issues regarding specific bugs and feature requests.
 * Docker
 * AWS CLI
 
-<!-- ### Neo4j Plugins
-Neo4j is launched with two plugins:
-* APOC (required))
-* Neo4j Graph Data Science Library (optional)
-
-```bash
-cd neo4j/plugins && \
-curl -LO https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/4.2.0.2/apoc-4.2.0.2-all.jar && \
-curl -LO https://github.com/neo4j/graph-data-science/releases/download/1.5.1/neo4j-graph-data-science-1.5.1-standalone.zip
-``` -->
-
 ### Creating a Python Virtual Environment
 Run these commands to create a virtual environment that will install the libraries listed in `requirements.txt`.
 ```bash
@@ -129,7 +123,7 @@ export MEM_PROFILE=<boolean>
 source scripts/set_env.sh
 ```
 
-*Important:* *Always use a `.env` file or AWS SSM Parameter Store for sensitive variables like credentials and API keys. Never hard-code them, including when developing. AWS will quarantine an account if any credentials get accidentally exposed and this will cause problems. **MAKE SURE `.env` IS LISTED IN `.gitignore`.***
+*Important:* *Always use a `.env` file or AWS SSM Parameter Store for sensitive variables like credentials and API keys. Never hard-code them, including when developing. AWS will quarantine an account if any credentials get accidentally exposed and this will cause problems. **MAKE SURE `.env` IS LISTED IN `.gitignore`.**
 
 ## Usage
 Follow these steps in sequence to build and load `gfe-db` locally.
