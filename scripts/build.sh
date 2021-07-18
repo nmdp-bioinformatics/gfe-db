@@ -12,12 +12,12 @@ export CYPHER_PATH=neo4j/cypher
 # SCRIPT=load.cyp
 export SCRIPT=load.cyp
 
-# For development
-export GFE_BUCKET=gfe-db-4498
-export RELEASES="3420"
-export ALIGN=True
-export KIR=False
-export MEM_PROFILE=True
+# # For development
+# export GFE_BUCKET=gfe-db-4498
+# export RELEASES="3420"
+# export ALIGN=True
+# export KIR=False
+# export MEM_PROFILE=True
 
 # Check for environment variables
 if [[ -z "${GFE_BUCKET}" ]]; then
