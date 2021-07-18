@@ -12,12 +12,12 @@ export CYPHER_PATH=neo4j/cypher
 # SCRIPT=load.cyp
 export SCRIPT=load.cyp
 
-# # For development
-# export GFE_BUCKET=gfe-db-4498
-# export RELEASES="3420"
-# export ALIGN=True
-# export KIR=False
-# export MEM_PROFILE=True
+# For development
+export GFE_BUCKET=gfe-db-4498
+export RELEASES="3420"
+export ALIGN=True
+export KIR=False
+export MEM_PROFILE=True
 
 # Check for environment variables
 if [[ -z "${GFE_BUCKET}" ]]; then
@@ -125,29 +125,29 @@ for release in ${RELEASES}; do
 	# 	-v \
 	# 	-l $1
 
-	# # Copy CSVs to S3
+	# Copy CSVs to S3
 	echo -e "Uploading CSVs to s3://$GFE_BUCKET/data/$release/csv/:\n$(ls $DATA_DIR/$release/csv/)"
 	aws s3 --recursive --quiet cp $DATA_DIR/$release/csv/ s3://$GFE_BUCKET/data/$release/csv/
 
-	# ls data/$release/csv
-	echo "Creating pre-signed URLs..."
-	export urls=()
-	for filename in ./data/$release/csv/*.csv; do
-		filename=`basename $filename`
-		# echo $filename
-		url=$(aws s3 presign --expires-in 3600 s3://$GFE_BUCKET/data/$release/csv/$filename)
-		urls+=($(echo $url | sed 's/\&/\\&/'))
-	done
+	# # ls data/$release/csv
+	# echo "Creating pre-signed URLs..."
+	# export urls=()
+	# for filename in ./data/$release/csv/*.csv; do
+	# 	filename=`basename $filename`
+	# 	# echo $filename
+	# 	url=$(aws s3 presign --expires-in 3600 s3://$GFE_BUCKET/data/$release/csv/$filename)
+	# 	urls+=($(echo $url | sed 's/\&/\\&/'))
+	# done
 
 	# echo "URLS:"
 	# printf '%s\n' "${urls[@]}"
 
-	# Update URLs in Cypher script
-	sed -i.bak "s+file:///all_alignments.RELEASE.csv+"${urls[0]}"+g" $CYPHER_PATH/$SCRIPT
-	sed -i.bak "s+file:///all_cds.RELEASE.csv+"${urls[1]}"+g" $CYPHER_PATH/$SCRIPT
-	sed -i.bak "s+file:///all_features.RELEASE.csv+"${urls[2]}"+g" $CYPHER_PATH/$SCRIPT
-	sed -i.bak "s+file:///all_groups.RELEASE.csv+"${urls[3]}"+g" $CYPHER_PATH/$SCRIPT
-	sed -i.bak "s+file:///gfe_sequences.RELEASE.csv+"${urls[4]}"+g" $CYPHER_PATH/$SCRIPT
+	# # Update URLs in Cypher script
+	# sed -i.bak "s+file:///all_alignments.RELEASE.csv+"${urls[0]}"+g" $CYPHER_PATH/$SCRIPT
+	# sed -i.bak "s+file:///all_cds.RELEASE.csv+"${urls[1]}"+g" $CYPHER_PATH/$SCRIPT
+	# sed -i.bak "s+file:///all_features.RELEASE.csv+"${urls[2]}"+g" $CYPHER_PATH/$SCRIPT
+	# sed -i.bak "s+file:///all_groups.RELEASE.csv+"${urls[3]}"+g" $CYPHER_PATH/$SCRIPT
+	# sed -i.bak "s+file:///gfe_sequences.RELEASE.csv+"${urls[4]}"+g" $CYPHER_PATH/$SCRIPT
 
 	sh $BIN_DIR/load_db.sh
 

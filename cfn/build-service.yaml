@@ -106,7 +106,7 @@ Resources:
         Command:
           - bash
           - scripts/build.sh
-          - '10'
+          # - '10'
         Environment:
           - Name: GFE_BUCKET
             Value: gfe-db-4498
