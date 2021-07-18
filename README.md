@@ -30,7 +30,7 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
   - [Deployment](#deployment)
   - [Clean Up](#clean-up)
     - [Local Clean-up](#local-clean-up)
-- [Troubleshooting](#troubleshooting)
+  - [Troubleshooting](#troubleshooting)
   - [Authors](#authors)
   - [References & Links](#references--links)
 
@@ -270,7 +270,7 @@ To delete the Jupyter Notebook kernel, run the command.
 jupyter kernelspec uninstall gfe-db
 ```
 
-# Troubleshooting
+## Troubleshooting
 * Check that the environment variables have been exported
 * Sometimes Neo4j sets permissions on mounted volumes. To get around this run this from the project root:
   ```bash
