@@ -26,7 +26,7 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S',
     level=logging.INFO,
     handlers=[    
-        logging.FileHandler(f'{log_dir}/logs.txt'),    
+        logging.FileHandler(f'{log_dir}/gfeBuildLogs.txt'),    
         logging.StreamHandler()
         ])
 

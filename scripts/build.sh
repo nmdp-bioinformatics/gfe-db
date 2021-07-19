@@ -2,11 +2,11 @@
 
 START_EXECUTION=$SECONDS
 
-ROOT=$(dirname $(dirname "$0"))
-BIN_DIR=$ROOT/scripts
-SRC_DIR=$ROOT/src
+export ROOT=$(dirname $(dirname "$0"))
+export BIN_DIR=$ROOT/scripts
+export SRC_DIR=$ROOT/src
 export DATA_DIR=$ROOT/data
-LOGS_DIR=$ROOT/logs
+export LOGS_DIR=$ROOT/logs
 export CYPHER_PATH=neo4j/cypher
 export SCRIPT=load.cyp
 
@@ -114,6 +114,7 @@ for release in ${RELEASES}; do
 		fi
 	fi
 	
+	# Builds CSV files
 	python3 "$SRC_DIR"/gfedb.py \
 		-o "$DATA_DIR/$release/csv" \
 		-r "$release" \
@@ -123,36 +124,8 @@ for release in ${RELEASES}; do
 		-v \
 		-l $1
 
-	# # Copy CSVs to S3
-	# for csv_prefix in $DATA_DIR/$release/csv/*.csv; do
-	# 	echo s3://$GFE_BUCKET/data/$release/csv/$csv_prefix >> csv_prefixes.txt
-	# done
-
 	echo -e "Uploading CSVs to s3://$GFE_BUCKET/data/$release/csv/:\n$(ls $DATA_DIR/$release/csv/)"
 	aws s3 --recursive cp $DATA_DIR/$release/csv/ s3://$GFE_BUCKET/data/$release/csv/ > $LOGS_DIR/s3CopyLog.txt
-
-	# # ls data/$release/csv
-	# echo "Creating pre-signed URLs..."
-	# export urls=()
-	# for filename in ./data/$release/csv/*.csv; do
-	# 	filename=`basename $filename`
-	# 	# echo $filename
-	# 	url=$(aws s3 presign --expires-in 3600 s3://$GFE_BUCKET/data/$release/csv/$filename)
-	# 	urls+=($(echo $url | sed 's/\&/\\&/'))
-	# done
-
-	# echo "URLS:"
-	# printf '%s\n' "${urls[@]}"
-
-	# # Update URLs in Cypher script
-	# sed -i.bak "s+file:///all_alignments.RELEASE.csv+"${urls[0]}"+g" $CYPHER_PATH/$SCRIPT
-	# sed -i.bak "s+file:///all_cds.RELEASE.csv+"${urls[1]}"+g" $CYPHER_PATH/$SCRIPT
-	# sed -i.bak "s+file:///all_features.RELEASE.csv+"${urls[2]}"+g" $CYPHER_PATH/$SCRIPT
-	# sed -i.bak "s+file:///all_groups.RELEASE.csv+"${urls[3]}"+g" $CYPHER_PATH/$SCRIPT
-	# sed -i.bak "s+file:///gfe_sequences.RELEASE.csv+"${urls[4]}"+g" $CYPHER_PATH/$SCRIPT
-
-	# sh $BIN_DIR/load_db.sh
-
 
 done
 
