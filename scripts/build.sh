@@ -5,11 +5,9 @@ START_EXECUTION=$SECONDS
 ROOT=$(dirname $(dirname "$0"))
 BIN_DIR=$ROOT/scripts
 SRC_DIR=$ROOT/src
-DATA_DIR=$ROOT/data
+export DATA_DIR=$ROOT/data
 LOGS_DIR=$ROOT/logs
-
 export CYPHER_PATH=neo4j/cypher
-# SCRIPT=load.cyp
 export SCRIPT=load.cyp
 
 # # For development
@@ -116,18 +114,22 @@ for release in ${RELEASES}; do
 		fi
 	fi
 	
-	# python3 "$SRC_DIR"/gfedb.py \
-	# 	-o "$DATA_DIR/$release/csv" \
-	# 	-r "$release" \
-	# 	$KIRFLAG \
-	# 	$ALIGNFLAG \
-	# 	$MEM_PROFILE_FLAG \
-	# 	-v \
-	# 	-l $1
+	python3 "$SRC_DIR"/gfedb.py \
+		-o "$DATA_DIR/$release/csv" \
+		-r "$release" \
+		$KIRFLAG \
+		$ALIGNFLAG \
+		$MEM_PROFILE_FLAG \
+		-v \
+		-l $1
 
-	# Copy CSVs to S3
+	# # Copy CSVs to S3
+	# for csv_prefix in $DATA_DIR/$release/csv/*.csv; do
+	# 	echo s3://$GFE_BUCKET/data/$release/csv/$csv_prefix >> csv_prefixes.txt
+	# done
+
 	echo -e "Uploading CSVs to s3://$GFE_BUCKET/data/$release/csv/:\n$(ls $DATA_DIR/$release/csv/)"
-	aws s3 --recursive --quiet cp $DATA_DIR/$release/csv/ s3://$GFE_BUCKET/data/$release/csv/
+	aws s3 --recursive cp $DATA_DIR/$release/csv/ s3://$GFE_BUCKET/data/$release/csv/ > $LOGS_DIR/s3CopyLog.txt
 
 	# # ls data/$release/csv
 	# echo "Creating pre-signed URLs..."
@@ -149,7 +151,7 @@ for release in ${RELEASES}; do
 	# sed -i.bak "s+file:///all_groups.RELEASE.csv+"${urls[3]}"+g" $CYPHER_PATH/$SCRIPT
 	# sed -i.bak "s+file:///gfe_sequences.RELEASE.csv+"${urls[4]}"+g" $CYPHER_PATH/$SCRIPT
 
-	sh $BIN_DIR/load_db.sh
+	# sh $BIN_DIR/load_db.sh
 
 
 done

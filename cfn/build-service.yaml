@@ -153,6 +153,11 @@ Resources:
           Enabled: true
         SecurityGroupIds:
           - !Ref gfedbBuildSG
+        TagSpecifications:
+          - ResourceType: instance
+            Tags: 
+              - Key: Name
+                Value: gfe-db-build-service
         UserData:
           Fn::Base64: |
             MIME-Version: 1.0
