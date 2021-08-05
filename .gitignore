@@ -76,6 +76,9 @@ profile*
 fil*
 summary_*
 
+# Environment variables
+.env
+
 # Project files
 tags
 .idea/
@@ -88,3 +91,12 @@ neo4j/load_*
 *.msf
 *.dat
 nodes-*.txt
+_*
+logs.txt
+config/
+logs/
+0.1-gfe-sandbox.ipynb 
+0.1-dev-build-graph.ipynb
+0.1-gfe-eda.ipynb
+*.bak
+img/
