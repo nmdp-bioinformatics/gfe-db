@@ -34,44 +34,37 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
   - [Authors](#authors)
   - [References & Links](#references--links)
 
+
 ## Project Structure
-```bash
-.
-├── Dockerfile
-├── LICENSE
-├── README.md
-├── cfn
-│   ├── build-service.yaml
-│   ├── database.yml
-│   └── pipeline.yaml
-├── data
-│   └── 3420
-│       ├── alignments
-│       └── csv
-├── neo4j
-│   ├── Dockerfile
-│   ├── cypher
-│   │   ├── create_index.cyp
-│   │   ├── delete_db.cyp
-│   │   ├── load.cyp
+```
+├── bin
+│   ├── build.sh                    # Executable scripts
+│   ├── get_alignments.sh           # Alignments are included by default
+│   ├── load_db.sh                  # Loads multiple IMGT/HLA versions
+│   └── set_env.sh                  # Exports environment variables
+├── (data)                          # Created during build step
+│   ├── 3360                        # Alignments
+│   ├── csv                         # CSVs loaded into Neo4j for each IMGT release
+│   └── hla.3360.dat                # Allele data                
+├── neo4j                           # Neo4j load scripts
+│   ├── create_index.cyp
+│   ├── delete_db.cyp
+│   ├── load.cyp                    # Merges new nodes with existing
 │   ├── logs
-│   │   └── debug.log
 │   └── plugins
-│       ├── apoc-4.2.0.2-all.jar
-│       └── neo4j-graph-data-science-1.5.1-standalone.jar
-├── notebooks
-│   ├── 0.0-load-gfe-db.ipynb
-│   └── 1.0-refactor-gfedb_utils.ipynb
-├── requirements.txt
-├── scripts
-│   ├── build.sh
-│   ├── get_alignments.sh
-│   ├── load_db.sh
-│   └── set_env.sh
-└── src
-    ├── constants.py
-    ├── gfedb.py
-    └── gfedb_utils.py
+├── notebooks                       # Development jupyter notebooks
+├── src                             # Build modules
+│   ├── __init__.py
+│   ├── constants.py
+│   ├── gfedb.py                    
+│   └── gfedb_utils.py              
+├── .dockerignore                   # Files for Docker to ignore
+├── .gitignore                      # Files for git to ignore
+├── Dockerfile                      # Docker image for Neo4j 4.2
+├── LICENSE
+├── README.md                       # Instructions for this workflow
+├── EC2INSTRUCTIONS.md              # Instructions for deployment on EC2
+└── requirements.txt                # Python dependencies
 ```
 
 ## Description
