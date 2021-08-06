@@ -1,5 +1,8 @@
 import os
 
+# for dev, will be input on command line
+kir = False
+
 # The alleles are removed when the allele_nodes.csv is built
 skip_alleles = ["HLA-DRB5*01:11", "HLA-DRB5*01:12", "HLA-DRB5*01:13",
                 "HLA-DRB5*02:03", "HLA-DRB5*02:04", "HLA-DRB5*02:05",
@@ -22,6 +25,8 @@ kir_aligloci = ["KIR2DL4", "KIR2DP1", "KIR2DS1", "KIR2DS2", "KIR2DS3",
                 "KIR2DS4", "KIR2DS5", "KIR3DL1", "KIR3DL2", "KIR3DL3",
                 "KIR3DP1"]
 
+load_loci = hla_loci + kir_loci if kir else hla_loci
+
 ard_groups = ['G', 'lg', 'lgx']
 
 imgt_hla = 'https://www.ebi.ac.uk/ipd/imgt/hla/docs/release.html'
@@ -31,4 +36,21 @@ imgt_hla_raw_url = 'https://raw.githubusercontent.com/ANHIG/IMGTHLA/'
 imgt_kir = 'https://www.ebi.ac.uk/ipd/kir/docs/version.html'
 kir_url = 'ftp://ftp.ebi.ac.uk/pub/databases/ipd/kir/KIR.dat'
 
-data_dir = os.path.dirname(__file__) + "/../data/"
+# dbversion = 
+
+
+    # if stream:
+    #     logging.info(f'Streaming alignments to file...')
+        
+    #     file_path = f'{data_dir}csv/all_alignments.{dbversion}.csv'
+        
+    #     for alignment in [gen_alignment, nuc_alignment, prot_alignment]:
+    #         append_dict_as_row(file_path, alignment)
+    
+    #     del aligned_nuc
+    #     del aligned_gen
+    #     del aligned_prot
+        
+    #     return
+    # else:
+    #     return gen_alignment, nuc_alignment, prot_alignment
