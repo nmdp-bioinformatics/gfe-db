@@ -227,13 +227,13 @@ aws cloudformation deploy \
 # Deploy build service
 aws cloudformation deploy \
   --template-file cfn/build-service.yaml \
-  --stack-name test-gfe-db-docker \
+  --stack-name gfe-db-build-service \
   --capabilities CAPABILITY_NAMED_IAM
 
 # Deploy update pipeline
 aws cloudformation deploy \
   --template-file cfn/pipeline.yaml \
-  --stack-name test-gfe-db-pipeline \
+  --stack-name gfe-db-pipeline \
   --capabilities CAPABILITY_NAMED_IAM
 ```
 
