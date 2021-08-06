@@ -2,6 +2,8 @@
 
 This covers how to build and deploy `gfe-db` on an EC2 instance running Neo4j in Docker.
 
+*Please note: These instructions are out of date. To deploy `gfe-db` to an EC2 instance it is recommended to deploy the CloudFormation template instead. Instructions to do can be found in the README under "Deployment"*
+
 ## Table of Contents
 <!-- - [EC2 Deployment](#ec2-deployment)
   - [Table of Contents](#table-of-contents) -->
