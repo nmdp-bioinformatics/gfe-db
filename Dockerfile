@@ -9,8 +9,6 @@ RUN apt update && \
 RUN pip3 --no-cache-dir install --upgrade awscli
 
 ENV GFE_BUCKET=gfe-db-4498
-ENV AWS_ACCESS_KEY_ID=''
-ENV AWS_SECRET_ACCESS_KEY=''
 
 WORKDIR /gfe-db
 RUN mkdir data
