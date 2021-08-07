@@ -115,7 +115,7 @@ for release in ${RELEASES}; do
 	fi
 	
 	# Builds CSV files
-	python3 "$SRC_DIR"/gfedb.py \
+	python3 "$SRC_DIR"/build_gfedb.py \
 		-o "$DATA_DIR/$release/csv" \
 		-r "$release" \
 		$KIRFLAG \
@@ -126,6 +126,7 @@ for release in ${RELEASES}; do
 
 	echo -e "Uploading CSVs to s3://$GFE_BUCKET/data/$release/csv/:\n$(ls $DATA_DIR/$release/csv/)"
 	aws s3 --recursive cp $DATA_DIR/$release/csv/ s3://$GFE_BUCKET/data/$release/csv/ > $LOGS_DIR/s3CopyLog.txt
+	aws s3 cp $LOGS_DIR/s3CopyLog.txt s3://$GFE_BUCKET/logs/$release/s3CopyLog.txt
 
 done
 
