@@ -532,7 +532,8 @@ if __name__ == '__main__':
     limit = args.limit if args.limit else None #min(args.count, args.limit)
 
     #data_dir = f'{data_dir}/{dbversion}'
-    data_dir = os.path.dirname(__file__) + f"/../data/{dbversion}"
+    # data_dir = os.path.dirname(__file__) + f"/../data/{dbversion}"
+    data_dir = os.environ["DATA_DIR"] + f"/../data/{dbversion}"
 
     # Load alignments data
     if align:

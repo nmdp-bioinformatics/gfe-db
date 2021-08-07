@@ -155,7 +155,7 @@ bash bin/build.sh 100
 
 <!-- ```
 # Build and run Docker locally
-docker build -t gfe-db-build-service .
+docker build -t gfe-db-build-service build/
 docker run -v "$(pwd)"/data:/data gfe-db-build-service:latest
 ``` -->
 

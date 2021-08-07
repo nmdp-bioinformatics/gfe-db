@@ -15,3 +15,6 @@ export KIR=False
 export MEM_PROFILE=True
 # export CYPHER_PATH=neo4j/cypher
 # export SCRIPT=load.cyp
+
+export NEO4J_USER="neo4j"
+export NEO4J_PASSWORD="gfedb"

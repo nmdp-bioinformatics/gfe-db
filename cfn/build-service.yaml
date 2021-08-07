@@ -115,7 +115,7 @@ Resources:
           - Name: GFE_BUCKET
             Value: gfe-db-4498
       RetryStrategy:
-        Attempts: 3
+        Attempts: 1
   gfedbBatchProcessingJobQueue:
     Type: AWS::Batch::JobQueue
     Properties:
