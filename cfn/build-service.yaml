@@ -134,7 +134,7 @@ Resources:
         DesiredvCpus: 0
         MaxvCpus: 32
         InstanceTypes:
-          - c5d.large
+          - c5d.xlarge
         Subnets:
           - !Ref gfeSubnet
         SecurityGroupIds:
@@ -150,7 +150,7 @@ Resources:
         DisableApiTermination: false
         InstanceInitiatedShutdownBehavior: stop
         ImageId: !Ref gfedbBuildImageId
-        InstanceType: c5d.large
+        InstanceType: c5d.xlarge
         IamInstanceProfile:
           Name: !Ref IamInstanceProfile
         Monitoring:

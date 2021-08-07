@@ -23,6 +23,7 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
     - [Username & Password](#username--password)
     - [Memory Management](#memory-management)
   - [Deployment](#deployment)
+- [Deploy update pipeline](#deploy-update-pipeline)
   - [Clean Up](#clean-up)
     - [Local Clean-up](#local-clean-up)
   - [Troubleshooting](#troubleshooting)
@@ -230,13 +231,14 @@ aws cloudformation deploy \
   --template-file cfn/build-service.yaml \
   --stack-name gfe-db-build-service \
   --capabilities CAPABILITY_NAMED_IAM
-
+```
+<!-- ```
 # Deploy update pipeline
 aws cloudformation deploy \
   --template-file cfn/pipeline.yaml \
   --stack-name gfe-db-pipeline \
   --capabilities CAPABILITY_NAMED_IAM
-```
+``` -->
 
 To delete a stack and it's resources, run the command. S3 buckets must be empty before they can be deleted.
 ```bash

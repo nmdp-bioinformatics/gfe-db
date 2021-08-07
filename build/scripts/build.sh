@@ -2,13 +2,14 @@
 
 START_EXECUTION=$SECONDS
 
-export ROOT=$(dirname $(dirname "$0"))
-export BIN_DIR=$ROOT/scripts
-export SRC_DIR=$ROOT/src
-export DATA_DIR=$ROOT/../data
-export LOGS_DIR=$ROOT/logs
-export CYPHER_PATH=neo4j/cypher
-export SCRIPT=load.cyp
+# export ROOT=$(dirname $(dirname "$0"))
+# export BIN_DIR=$ROOT/scripts
+# export SRC_DIR=$ROOT/src
+# export DATA_DIR=$ROOT/../data
+# export LOGS_DIR=$ROOT/logs
+# export CYPHER_PATH=neo4j/cypher
+# export SCRIPT=load.cyp
+export CYPHER_PATH=$NEO4J_DIR/cypher
 
 # # For development
 # export GFE_BUCKET=gfe-db-4498

@@ -8,10 +8,13 @@ RUN apt update && \
 
 RUN pip3 --no-cache-dir install --upgrade awscli
 
-ENV GFE_BUCKET=gfe-db-4498
 ENV AWS_ACCESS_KEY_ID=''
 ENV AWS_SECRET_ACCESS_KEY=''
 
+ENV GFE_BUCKET=gfe-db-4498
+ENV NEO4J_HOST=44.192.54.30
+ENV NEO4J_USERNAME=neo4j
+ENV NEO4J_PASSWORD=gfedb
 ENV RELEASES="3440"
 ENV ALIGN=True
 ENV KIR=False
