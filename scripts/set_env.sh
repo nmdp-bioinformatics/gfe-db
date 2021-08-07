@@ -13,5 +13,5 @@ export RELEASES="3440"
 export ALIGN=True
 export KIR=False
 export MEM_PROFILE=True
-export CYPHER_PATH=neo4j/cypher
-export SCRIPT=load.cyp
+# export CYPHER_PATH=neo4j/cypher
+# export SCRIPT=load.cyp

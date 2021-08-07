@@ -13,6 +13,10 @@ Parameters:
     Type: String
     Default: subnet-5c44793b
     Description: Public subnet with internet access
+  gfedbBuildServiceRepository:
+    Type: String
+    Default: gfe-db-build-service
+    Description: ECR repository for build service
 Resources:
   gfedbBuildSG:
     Type: AWS::EC2::SecurityGroup
@@ -102,16 +106,16 @@ Resources:
               - !Ref gfedbBuildServiceRepository
               - :latest
         Vcpus: 2
-        Memory: 2000
+        Memory: 4000
         Command:
           - bash
           - scripts/build.sh
-          # - '10'
+          - '1000'
         Environment:
           - Name: GFE_BUCKET
             Value: gfe-db-4498
       RetryStrategy:
-        Attempts: 1
+        Attempts: 3
   gfedbBatchProcessingJobQueue:
     Type: AWS::Batch::JobQueue
     Properties:
@@ -179,26 +183,123 @@ Resources:
             sudo yum install amazon-cloudwatch-agent -y
 
             --==MYBOUNDARY==
-  gfedbBuildServiceRepository:
-    Type: AWS::ECR::Repository
+  gfeDBPipelineExecutionRole:
+    Type: AWS::IAM::Role
     Properties:
-      RepositoryName: "gfe-db-build-service"
-      RepositoryPolicyText:
-        Version: "2012-10-17"
+      AssumeRolePolicyDocument:
+        Version: "2008-10-17"
         Statement:
-          - Sid: AllowPushPull
+          - Sid: ""
             Effect: Allow
             Principal:
-              AWS:
-                - !Sub arn:aws:iam::${AWS::AccountId}:role/${EcsInstanceRole}
-            Action:
-              - "ecr:GetDownloadUrlForLayer"
-              - "ecr:BatchGetImage"
-              - "ecr:BatchCheckLayerAvailability"
-              - "ecr:PutImage"
-              - "ecr:InitiateLayerUpload"
-              - "ecr:UploadLayerPart"
-              - "ecr:CompleteLayerUpload"
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
+      Policies:
+        - PolicyName: gfeDBPipelineLogsPolicy
+          PolicyDocument: 
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogDelivery
+                  - logs:GetLogDelivery
+                  - logs:UpdateLogDelivery
+                  - logs:DeleteLogDelivery
+                  - logs:ListLogDeliveries
+                  - logs:PutResourcePolicy
+                  - logs:DescribeResourcePolicies
+                  - logs:DescribeLogGroups
+                Resource: "*"
+        - PolicyName: gfeDBPipelineBatchExecutionPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - batch:SubmitJob
+                  - batch:DescribeJobs
+                  - batch:TerminateJob
+                Resource: "*"
+              - Effect: Allow
+                Action: 
+                  - events:PutTargets
+                  - events:PutRule
+                  - events:DescribeRule
+                Resource: 
+                  - !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule
+  StateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: gfe-db-pipeline
+      RoleArn: !GetAtt gfeDBPipelineExecutionRole.Arn #
+      DefinitionString: |-
+        {
+            "StartAt": "BUILD_GFE-DB",
+            "States": {
+                "BUILD_GFE-DB": {
+                    "Type": "Task",
+                    "Resource": "arn:aws:states:::batch:submitJob.sync",
+                    "Parameters": {
+                        "JobDefinition": "gfedbBatchJobDefinition",
+                        "JobName": "build-gfe-db",
+                        "JobQueue": "gfedbBatchProcessingJobQueue",
+                        "ContainerOverrides": {
+                            "Environment": [
+                                {
+                                    "Name": "RELEASES",
+                                    "Value.$": "$.params.environment.RELEASES"
+                                },
+                                {
+                                    "Name": "ALIGN",
+                                    "Value.$": "$.params.environment.ALIGN"
+                                },
+                                {
+                                    "Name": "KIR",
+                                    "Value.$": "$.params.environment.KIR"
+                                },
+                                {
+                                    "Name": "MEM_PROFILE",
+                                    "Value.$": "$.params.environment.MEM_PROFILE"
+                                }
+                            ]
+                        }
+                    },
+                    "End": true
+                }
+            }
+        }
+      LoggingConfiguration: 
+        Destinations:
+          - CloudWatchLogsLogGroup: 
+              LogGroupArn: !GetAtt gfeDBPipelineLogGroup.Arn
+        IncludeExecutionData: true
+        Level: ALL
+  gfeDBPipelineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: gfe-db-pipeline-execution-logs
+  # gfedbBuildServiceRepository:
+  #   Type: AWS::ECR::Repository
+  #   Properties:
+  #     RepositoryName: "gfe-db-build-service"
+  #     RepositoryPolicyText:
+  #       Version: "2012-10-17"
+  #       Statement:
+  #         - Sid: AllowPushPull
+  #           Effect: Allow
+  #           Principal:
+  #             AWS:
+  #               - !Sub arn:aws:iam::${AWS::AccountId}:role/${EcsInstanceRole}
+  #           Action:
+  #             - "ecr:GetDownloadUrlForLayer"
+  #             - "ecr:BatchGetImage"
+  #             - "ecr:BatchCheckLayerAvailability"
+  #             - "ecr:PutImage"
+  #             - "ecr:InitiateLayerUpload"
+  #             - "ecr:UploadLayerPart"
+  #             - "ecr:CompleteLayerUpload"
 Outputs:
   gfedbComputeEnvironmentArn:
     Value: !Ref gfedbComputeEnvironment
@@ -206,3 +307,22 @@ Outputs:
     Value: !Ref gfedbBatchProcessingJobQueue
   gfedbBatchProcessingJobDefinitionArn:
     Value: !Ref gfedbBatchProcessingJobDefinition
+  WorkflowArn:
+    Description: Workflow statemachine ARN
+    Value: !Ref StateMachine
+  WorkflowName:
+    Description: Workflow statemachine Name
+    Value: !GetAtt StateMachine.Name
+  WorkflowInput:
+    Description: Example input for workflow statemachine
+    Value: |-
+      {
+          "params": {
+              "environment": {
+                  "RELEASES": "3410,3420",
+                  "ALIGN": "True",
+                  "KIR": "False",
+                  "MEM_PROFILE": "False"
+              }
+          }
+      }

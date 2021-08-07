@@ -100,3 +100,4 @@ logs/
 0.1-gfe-eda.ipynb
 *.bak
 img/
+cicd.yml
