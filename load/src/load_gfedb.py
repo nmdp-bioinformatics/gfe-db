@@ -11,9 +11,8 @@ logger.setLevel(logging.INFO)
 
 # Environment variables
 root = os.environ["ROOT"]
-neo4j_dir = os.environ["NEO4J_DIR"]
-cypher_dir = "/".join([neo4j_dir, "cypher"])
-load_script = os.environ["SCRIPT"]
+cypher_dir = os.environ["CYPHER_DIR"]
+load_script = os.environ["LOAD_SCRIPT"]
 s3_bucket = os.environ["GFE_BUCKET"]
 release = os.environ["RELEASES"]
 
@@ -126,7 +125,6 @@ if __name__ == "__main__":
 
     s3_urls = list(map(lambda x: x.replace("RELEASE", release), s3_urls))
 
-    # Get the service client.
     s3 = boto3.client('s3')
     presigned_urls = generate_presigned_urls(s3_urls)
 
@@ -135,7 +133,6 @@ if __name__ == "__main__":
     cypher = list(filter(lambda x: x != "\n", cypher_script.split(";")))
     cypher = list(map(lambda x: "".join([x, ";"]), cypher))
 
-    #limit = 1
     start = time.time()
     for idx, statement in enumerate(cypher):
         print(f'Executing statement: {statement}')
@@ -145,8 +142,6 @@ if __name__ == "__main__":
         statement_elapsed_time = round(statement_end - statement_start, 2)
         logger.info(f'Statement: {statement}\nTime elapsed: {statement_elapsed_time}\nResponse: {response}')
         print(f'Time elapsed: {statement_elapsed_time}\nResponse: {response}\n\n')
-        #if limit and idx + 1 == limit:
-        #    break
             
     end = time.time()
     time_elapsed = round(end - start, 2)

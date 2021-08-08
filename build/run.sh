@@ -2,21 +2,11 @@
 
 START_EXECUTION=$SECONDS
 
-# export ROOT=$(dirname $(dirname "$0"))
-# export BIN_DIR=$ROOT/scripts
-# export SRC_DIR=$ROOT/src
-# export DATA_DIR=$ROOT/../data
-# export LOGS_DIR=$ROOT/logs
-# export CYPHER_PATH=neo4j/cypher
-# export SCRIPT=load.cyp
-export CYPHER_PATH=$NEO4J_DIR/cypher
-
-# # For development
-# export GFE_BUCKET=gfe-db-4498
-# export RELEASES="3420"
-# export ALIGN=True
-# export KIR=False
-# export MEM_PROFILE=True
+export ROOT=$(dirname $(dirname "$0"))
+export BIN_DIR=$ROOT/build/scripts
+export SRC_DIR=$ROOT/build/src
+export DATA_DIR=$ROOT/data
+export LOGS_DIR=$ROOT/build/logs
 
 # Check for environment variables
 if [[ -z "${GFE_BUCKET}" ]]; then

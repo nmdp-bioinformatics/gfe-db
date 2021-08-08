@@ -1,9 +1,9 @@
 #!/bin/bash
 
-export ROOT=$(pwd)
-export LOAD_DIR=$ROOT/load
-export NEO4J_DIR=$ROOT/neo4j
-export SCRIPT=load.cyp
+export ROOT=$(dirname $(dirname "$0"))
+export SRC_DIR=$ROOT/load/src
+export CYPHER_DIR=$ROOT/load/cypher
+export LOAD_SCRIPT=load.cyp
 
 # Check if RELEASES is set
 if [ -z ${RELEASES+x} ]; then 
@@ -12,5 +12,5 @@ else
     echo "Loading IMGT/HLA release versions: $RELEASES";
 fi
 
-# Load Neo4j thruogh the HTTP API
-python3 "$LOAD_DIR"/src/load_gfedb.py
+# Load Neo4j through the HTTP API
+python3 $SRC_DIR/load_gfedb.py

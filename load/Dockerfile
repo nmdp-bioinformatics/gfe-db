@@ -8,12 +8,12 @@ RUN apt update && \
 
 # Overidden by AWS Batch
 ENV GFE_BUCKET=gfe-db-4498
-ENV RELEASES="3440"
-ENV ALIGN=True
-ENV KIR=False
-ENV MEM_PROFILE=True
+ENV RELEASES=3440
+ENV NEO4J_HOST=44.192.54.30
+ENV NEO4J_USERNAME=neo4j
+ENV NEO4J_PASSWORD=gfedb
 
-WORKDIR /gfe-db
+WORKDIR /gfe-db/load
 
 COPY requirements.txt requirements.txt
 RUN pip3 --no-cache-dir install -r requirements.txt
