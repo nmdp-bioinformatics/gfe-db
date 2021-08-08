@@ -228,8 +228,8 @@ aws cloudformation deploy \
 
 # Deploy build service
 aws cloudformation deploy \
-  --template-file cfn/build-service.yaml \
-  --stack-name gfe-db-build-service \
+  --template-file cfn/update-pipeline.yaml \
+  --stack-name gfe-db-update-pipeline \
   --capabilities CAPABILITY_NAMED_IAM
 
 # Deploy CI/CD

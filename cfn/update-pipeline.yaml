@@ -13,10 +13,14 @@ Parameters:
     Type: String
     Default: subnet-5c44793b
     Description: Public subnet with internet access
-  gfedbBuildServiceRepository:
-    Type: String
-    Default: gfe-db-build-service
-    Description: ECR repository for build service
+  # gfedbBuildServiceRepository:
+  #   Type: String
+  #   Default: gfe-db-build-service
+  #   Description: ECR repository for build service
+  # gfedbLoadServiceRepository:
+  #   Type: String
+  #   Default: gfe-db-load-service
+  #   Description: ECR repository for load service
 Resources:
   gfedbBuildSG:
     Type: AWS::EC2::SecurityGroup
@@ -29,6 +33,19 @@ Resources:
       #     FromPort: 22
       #     IpProtocol: tcp
       #     ToPort: 22
+  gfedbLoadSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: gfedb-load-server-sg
+      GroupDescription: Security group for the GFE DB build server
+      VpcId: !Ref gfeVPC
+      SecurityGroupIngress:
+        - CidrIp: 66.214.236.87/32
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
+
+  ### Permissions ###
   gfedbBatchServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -91,11 +108,13 @@ Resources:
                 Resource:
                   - arn:aws:s3:::gfe-db-4498
                   - arn:aws:s3:::gfe-db-4498/*
-  gfedbBatchProcessingJobDefinition:
+
+  ### Build gfe-db ###
+  gfedbBuildJobDefinition:
     Type: AWS::Batch::JobDefinition
     Properties:
       Type: container
-      JobDefinitionName: gfedbBatchJobDefinition
+      JobDefinitionName: gfedbBuildJobDefinition
       ContainerProperties:
         Image: !Join
             - ""
@@ -116,15 +135,15 @@ Resources:
             Value: gfe-db-4498
       RetryStrategy:
         Attempts: 1
-  gfedbBatchProcessingJobQueue:
+  gfedbBuildJobQueue:
     Type: AWS::Batch::JobQueue
     Properties:
-      JobQueueName: gfedbBatchProcessingJobQueue
+      JobQueueName: gfedbBuildJobQueue
       Priority: 1
       ComputeEnvironmentOrder:
         - Order: 1
-          ComputeEnvironment: !Ref gfedbComputeEnvironment
-  gfedbComputeEnvironment:
+          ComputeEnvironment: !Ref gfedbBuildComputeEnvironment
+  gfedbBuildComputeEnvironment:
     Type: AWS::Batch::ComputeEnvironment
     Properties:
       Type: MANAGED
@@ -183,6 +202,67 @@ Resources:
             sudo yum install amazon-cloudwatch-agent -y
 
             --==MYBOUNDARY==
+
+  ### Load gfe-db ###
+  gfedbLoadJobDefinition:
+    Type: AWS::Batch::JobDefinition
+    Properties:
+      Type: container
+      JobDefinitionName: gfedbLoadJobDefinition
+      ContainerProperties:
+        Image: !Join
+            - ""
+            - - !Ref AWS::AccountId
+              - .dkr.ecr.
+              - !Ref AWS::Region
+              - .amazonaws.com/
+              - !Ref gfedbLoadServiceRepository
+              - :latest
+        Vcpus: 1
+        Memory: 4000
+        Command:
+          - bash
+          - run.sh
+        Environment:
+          - Name: GFE_BUCKET
+            Value: gfe-db-4498
+          - Name: NEO4J_HOST
+            Value: 44.192.54.30
+          - Name: NEO4J_USERNAME
+            Value: neo4j
+          - Name: NEO4J_PASSWORD
+            Value: gfedb
+      RetryStrategy:
+        Attempts: 1
+  gfedbLoadJobQueue:
+    Type: AWS::Batch::JobQueue
+    Properties:
+      JobQueueName: gfedbLoadJobQueue
+      Priority: 1
+      ComputeEnvironmentOrder:
+        - Order: 1
+          ComputeEnvironment: !Ref gfedbLoadComputeEnvironment
+  gfedbLoadComputeEnvironment:
+    Type: AWS::Batch::ComputeEnvironment
+    Properties:
+      Type: MANAGED
+      ComputeResources:
+        Type: EC2
+        MinvCpus: 0
+        DesiredvCpus: 0
+        MaxvCpus: 2
+        InstanceTypes:
+          - optimal
+        Subnets:
+          - !Ref gfeSubnet
+        SecurityGroupIds:
+          - !Ref gfedbLoadSG
+        InstanceRole: !Ref IamInstanceProfile
+        # LaunchTemplate:
+        #   LaunchTemplateId: !Ref gfedbBuildLaunchTemplate
+      ServiceRole: !GetAtt gfedbBatchServiceRole.Arn
+
+### Orchestrate building and loading ###
   gfeDBPipelineExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -229,6 +309,46 @@ Resources:
                   - events:DescribeRule
                 Resource: 
                   - !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule
+  gfedbBuildServiceRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: "gfe-db-build-service"
+      RepositoryPolicyText:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowPushPull
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub arn:aws:iam::${AWS::AccountId}:role/${EcsInstanceRole}
+            Action:
+              - "ecr:GetDownloadUrlForLayer"
+              - "ecr:BatchGetImage"
+              - "ecr:BatchCheckLayerAvailability"
+              - "ecr:PutImage"
+              - "ecr:InitiateLayerUpload"
+              - "ecr:UploadLayerPart"
+              - "ecr:CompleteLayerUpload"
+  gfedbLoadServiceRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: "gfedb-load-service"
+      RepositoryPolicyText:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowPushPull
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub arn:aws:iam::${AWS::AccountId}:role/${EcsInstanceRole}
+            Action:
+              - "ecr:GetDownloadUrlForLayer"
+              - "ecr:BatchGetImage"
+              - "ecr:BatchCheckLayerAvailability"
+              - "ecr:PutImage"
+              - "ecr:InitiateLayerUpload"
+              - "ecr:UploadLayerPart"
+              - "ecr:CompleteLayerUpload"
   StateMachine:
     Type: AWS::StepFunctions::StateMachine
     Properties:
@@ -244,7 +364,7 @@ Resources:
                     "Parameters": {
                         "JobDefinition": "gfedbBatchJobDefinition",
                         "JobName": "build-gfe-db",
-                        "JobQueue": "gfedbBatchProcessingJobQueue",
+                        "JobQueue": "gfedbBuildJobQueue",
                         "ContainerOverrides": {
                             "Environment": [
                                 {
@@ -280,33 +400,13 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: gfe-db-pipeline-execution-logs
-  # gfedbBuildServiceRepository:
-  #   Type: AWS::ECR::Repository
-  #   Properties:
-  #     RepositoryName: "gfe-db-build-service"
-  #     RepositoryPolicyText:
-  #       Version: "2012-10-17"
-  #       Statement:
-  #         - Sid: AllowPushPull
-  #           Effect: Allow
-  #           Principal:
-  #             AWS:
-  #               - !Sub arn:aws:iam::${AWS::AccountId}:role/${EcsInstanceRole}
-  #           Action:
-  #             - "ecr:GetDownloadUrlForLayer"
-  #             - "ecr:BatchGetImage"
-  #             - "ecr:BatchCheckLayerAvailability"
-  #             - "ecr:PutImage"
-  #             - "ecr:InitiateLayerUpload"
-  #             - "ecr:UploadLayerPart"
-  #             - "ecr:CompleteLayerUpload"
 Outputs:
-  gfedbComputeEnvironmentArn:
-    Value: !Ref gfedbComputeEnvironment
-  gfedbBatchProcessingJobQueueArn:
-    Value: !Ref gfedbBatchProcessingJobQueue
-  gfedbBatchProcessingJobDefinitionArn:
-    Value: !Ref gfedbBatchProcessingJobDefinition
+  gfedbBuildComputeEnvironmentArn:
+    Value: !Ref gfedbBuildComputeEnvironment
+  gfedbBuildJobQueueArn:
+    Value: !Ref gfedbBuildJobQueue
+  gfedbBuildJobDefinitionArn:
+    Value: !Ref gfedbBuildJobDefinition
   EcsInstanceRoleArn:
     Value: !GetAtt EcsInstanceRole.Arn
     Export:

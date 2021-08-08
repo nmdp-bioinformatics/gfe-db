@@ -5,10 +5,6 @@ export SRC_DIR=$ROOT/src
 export CYPHER_DIR=$ROOT/cypher
 export LOAD_SCRIPT=load.cyp
 
-export NEO4J_HOST=44.192.54.30
-export NEO4J_USERNAME=neo4j
-export NEO4J_PASSWORD=gfedb
-
 # Check for environment variables
 if [[ -z "${GFE_BUCKET}" ]]; then
 	echo "GFE_BUCKET not set"
