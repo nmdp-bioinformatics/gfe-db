@@ -124,11 +124,11 @@ Resources:
               - .amazonaws.com/
               - !Ref gfedbBuildServiceRepository
               - :latest
-        Vcpus: 2
-        Memory: 16000
+        Vcpus: 8
+        Memory: 8000 # Keep this around half the available RAM to avoid getting stuck in RUNNABLE status 
         Command:
           - bash
-          - scripts/build.sh
+          - run.sh
         Environment:
           - Name: GFE_BUCKET
             Value: gfe-db-4498
@@ -217,7 +217,7 @@ Resources:
               - .amazonaws.com/
               - !Ref gfedbLoadServiceRepository
               - :latest
-        Vcpus: 1
+        Vcpus: 2
         Memory: 4000
         Command:
           - bash

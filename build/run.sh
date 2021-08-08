@@ -121,13 +121,16 @@ for release in ${RELEASES}; do
 		-v \
 		-l $LIMIT
 
+	# TO DO: Use this S3 hierarchy: root/release/csv | logs
 	echo -e "Uploading CSVs to s3://$GFE_BUCKET/data/$release/csv/:\n$(ls $DATA_DIR/$release/csv/)"
 	aws s3 --recursive cp $DATA_DIR/$release/csv/ s3://$GFE_BUCKET/data/$release/csv/ > $LOGS_DIR/s3CopyLog.txt
+	echo
 	mv $LOGS_DIR/gfeBuildLogs.txt $LOGS_DIR/gfeBuildLogs.$release.txt
 	mv $LOGS_DIR/s3CopyLog.txt $LOGS_DIR/s3CopyLog.$release.txt
 	mv $LOGS_DIR/summary_agg.txt $LOGS_DIR/summary_agg.$release.txt
 	mv $LOGS_DIR/summary_diff.txt $LOGS_DIR/summary_diff.$release.txt
-	aws s3 --recursive cp $LOGS_DIR/ s3://$GFE_BUCKET/$release/logs/
+	echo -e "Uploading logs to s3://$GFE_BUCKET/logs/$release/:\n$(ls $LOGS_DIR/)"
+	aws s3 --recursive cp $LOGS_DIR/ s3://$GFE_BUCKET/logs/$release/
 
 done
 
