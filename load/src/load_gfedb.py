@@ -6,6 +6,7 @@ import json
 import requests
 import boto3
 
+# TODO: Clean up logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -135,14 +136,13 @@ if __name__ == "__main__":
 
     start = time.time()
     for idx, statement in enumerate(cypher):
-        print(f'Executing statement: {statement}')
+        logger.info(f'Executing statement: {statement}')
         statement_start = time.time()
         response = run_cypher(statement)
         statement_end = time.time()
         statement_elapsed_time = round(statement_end - statement_start, 2)
-        logger.info(f'Statement: {statement}\nTime elapsed: {statement_elapsed_time}\nResponse: {response}')
-        print(f'Loaded in {statement_elapsed_time} s\nResponse: {response}\n')
+        logger.info(f'Loaded in {statement_elapsed_time} s\nResponse: {response}\n')
             
     end = time.time()
     time_elapsed = round(end - start, 2)
-    print(f"Total time elapsed: {time_elapsed} seconds")
+    logger.info(f"Total time elapsed: {time_elapsed} seconds")

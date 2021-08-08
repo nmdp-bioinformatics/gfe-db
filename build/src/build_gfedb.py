@@ -45,13 +45,13 @@ if '-p' in sys.argv:
         original_stdout = sys.stdout
 
         if mode == 'all' or mode == 'agg':
-            with open(f"{log_dir}/summary_agg.txt", "a+") as f:
+            with open(f"{log_dir}/mem_profile_agg.txt", "a+") as f:
                 sys.stdout = f
                 summary.print_(obj_sum)
                 sys.stdout = original_stdout;
 
         if mode == 'all' or mode == 'diff':
-            with open(f"{log_dir}/summary_diff.txt", "a+") as f:
+            with open(f"{log_dir}/mem_profile_diff.txt", "a+") as f:
                 sys.stdout = f
                 tr.print_diff()
                 sys.stdout = original_stdout;    
@@ -543,6 +543,8 @@ if __name__ == '__main__':
             alignments_dict.update({
                 align_type: parse_hla_alignments(dbversion, align_type=align_type)
             })
+    else:
+        alignments_dict = None
 
     logging.info(f'****** Building graph for IMGTHLA version {imgt_release} ******')
     
