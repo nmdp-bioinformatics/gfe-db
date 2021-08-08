@@ -30,4 +30,4 @@ COPY . .
 
 VOLUME data/ data/
 
-CMD ["bash", "scripts/build.sh", "100"]
+ENTRYPOINT ["bash", "scripts/build.sh", "1000"]

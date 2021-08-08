@@ -142,12 +142,12 @@ if __name__ == "__main__":
         statement_start = time.time()
         response = run_cypher(statement)
         statement_end = time.time()
-        statement_elapsed_time = statement_end - statement_start
+        statement_elapsed_time = round(statement_end - statement_start, 2)
         logger.info(f'Statement: {statement}\nTime elapsed: {statement_elapsed_time}\nResponse: {response}')
         print(f'Time elapsed: {statement_elapsed_time}\nResponse: {response}\n\n')
         #if limit and idx + 1 == limit:
         #    break
             
     end = time.time()
-    time_elapsed = end - start
+    time_elapsed = round(end - start, 2)
     print(f"Time elapsed: {time_elapsed} seconds")
