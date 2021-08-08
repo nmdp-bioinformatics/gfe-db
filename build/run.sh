@@ -112,7 +112,7 @@ for release in ${RELEASES}; do
 		$ALIGNFLAG \
 		$MEM_PROFILE_FLAG \
 		-v \
-		-l $1
+		-l $LIMIT
 
 	echo -e "Uploading CSVs to s3://$GFE_BUCKET/data/$release/csv/:\n$(ls $DATA_DIR/$release/csv/)"
 	aws s3 --recursive cp $DATA_DIR/$release/csv/ s3://$GFE_BUCKET/data/$release/csv/ > $LOGS_DIR/s3CopyLog.txt

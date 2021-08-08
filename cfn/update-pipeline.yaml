@@ -125,11 +125,10 @@ Resources:
               - !Ref gfedbBuildServiceRepository
               - :latest
         Vcpus: 2
-        Memory: 4000
+        Memory: 16000
         Command:
           - bash
           - scripts/build.sh
-          - '1000'
         Environment:
           - Name: GFE_BUCKET
             Value: gfe-db-4498
@@ -153,7 +152,7 @@ Resources:
         DesiredvCpus: 0
         MaxvCpus: 32
         InstanceTypes:
-          - c5d.xlarge
+          - c5d.2xlarge
         Subnets:
           - !Ref gfeSubnet
         SecurityGroupIds:
