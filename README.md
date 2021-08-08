@@ -19,6 +19,11 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
   - [Usage](#usage)
     - [Run Neo4j Docker](#run-neo4j-docker)
     - [Build GFE dataset](#build-gfe-dataset)
+    - [Load the dataset into Neo4j](#load-the-dataset-into-neo4j)
+  - [Notebooks](#notebooks)
+    - [`0.0-load-gfe-db`](#00-load-gfe-db)
+    - [`1.0-refactor-gfedb_utils`](#10-refactor-gfedb_utils)
+    - [Adding a kernel spec to Jupyter Notebook](#adding-a-kernel-spec-to-jupyter-notebook)
   - [Configuring Neo4j in Dockerfile](#configuring-neo4j-in-dockerfile)
     - [Username & Password](#username--password)
     - [Memory Management](#memory-management)
@@ -154,11 +159,25 @@ bash bin/build.sh
 bash bin/build.sh 100
 ```
 
-<!-- ```
+```
 # Build and run Docker locally
 docker build -t gfe-db-build-service build/
-docker run -v "$(pwd)"/data:/data gfe-db-build-service:latest
-``` -->
+docker run \
+  -v "$(pwd)"/../data:/opt/data \
+  -v "$(pwd)"/logs:/opt/app/logs \
+  -e GFE_BUCKET='gfe-db-4498' \
+  -e RELEASES='3440' \
+  -e ALIGN='True' \
+  -e KIR='False' \
+  -e MEM_PROFILE='True' \
+  -e LIMIT='10' \
+  --name gfe-db-build-service \
+  gfe-db-build-service:latest
+
+# Load from Docker locally
+docker build -t gfe-db-load-service load/
+docker run gfe-db-load-service:latest
+```
 
 ### Load the dataset into Neo4j
 Once the container is running, the Neo4j server is up, and the dataset has been created, run the command to load it into Neo4j.

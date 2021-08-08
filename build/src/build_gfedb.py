@@ -45,13 +45,13 @@ if '-p' in sys.argv:
         original_stdout = sys.stdout
 
         if mode == 'all' or mode == 'agg':
-            with open("summary_agg.txt", "a+") as f:
+            with open(f"{log_dir}/summary_agg.txt", "a+") as f:
                 sys.stdout = f
                 summary.print_(obj_sum)
                 sys.stdout = original_stdout;
 
         if mode == 'all' or mode == 'diff':
-            with open("summary_diff.txt", "a+") as f:
+            with open(f"{log_dir}/summary_diff.txt", "a+") as f:
                 sys.stdout = f
                 tr.print_diff()
                 sys.stdout = original_stdout;    

@@ -3,10 +3,10 @@
 START_EXECUTION=$SECONDS
 
 export ROOT=$(dirname $(dirname "$0"))
-export BIN_DIR=$ROOT/build/scripts
-export SRC_DIR=$ROOT/build/src
-export DATA_DIR=$ROOT/data
-export LOGS_DIR=$ROOT/build/logs
+export BIN_DIR=$ROOT/scripts
+export SRC_DIR=$ROOT/src
+export DATA_DIR=$ROOT/../data
+export LOGS_DIR=$ROOT/logs
 
 # Check for environment variables
 if [[ -z "${GFE_BUCKET}" ]]; then
@@ -29,6 +29,13 @@ else
 	echo -e "GFE_BUCKET: $GFE_BUCKET\nRELEASES: $RELEASES\nALIGN: $ALIGN\nKIR: $KIR\nMEM_PROFILE: $MEM_PROFILE"
 fi
 
+# Check limit
+if [[ -z "${LIMIT}" ]]; then
+	echo "No limit set, building GFEs for all alleles"
+else
+	echo "Build is limited to $LIMIT alleles"
+fi
+
 # Check if data directory exists
 if [ ! -d "$DATA_DIR" ]; then
 	echo "Creating new directory in root: $DATA_DIR"
@@ -37,12 +44,22 @@ else
 	echo "Data directory: $DATA_DIR"
 fi
 
-# Check if data directory exists
+# Check if logs directory exists
 if [ ! -d "$LOGS_DIR" ]; then
 	echo "Creating logs directory: $LOGS_DIR"
 	mkdir -p $LOGS_DIR
 else
 	echo "Logs directory: $LOGS_DIR"
+fi
+
+# Memory profiling
+if [ "$MEM_PROFILE" == "True" ]; then
+	echo "Memory profiling is set to $MEM_PROFILE."
+	MEM_PROFILE_FLAG="-p"
+	touch $LOGS_DIR/summary_agg.txt
+	touch $LOGS_DIR/summary_diff.txt
+else
+	MEM_PROFILE_FLAG=""
 fi
 
 # Load KIR data
@@ -60,16 +77,6 @@ if [ "$ALIGN" == "True" ]; then
 	sh $BIN_DIR/get_alignments.sh
 else
 	ALIGNFLAG=""
-fi
-
-# Memory profiling
-if [ "$MEM_PROFILE" == "True" ]; then
-	echo "Memory profiling is set to $MEM_PROFILE."
-	MEM_PROFILE_FLAG="-p"
-	echo "" > summary_agg.txt
-	echo "" > summary_diff.txt
-else
-	MEM_PROFILE_FLAG=""
 fi
 
 # Build csv files
@@ -116,7 +123,11 @@ for release in ${RELEASES}; do
 
 	echo -e "Uploading CSVs to s3://$GFE_BUCKET/data/$release/csv/:\n$(ls $DATA_DIR/$release/csv/)"
 	aws s3 --recursive cp $DATA_DIR/$release/csv/ s3://$GFE_BUCKET/data/$release/csv/ > $LOGS_DIR/s3CopyLog.txt
-	aws s3 cp $LOGS_DIR/s3CopyLog.txt s3://$GFE_BUCKET/logs/$release/s3CopyLog.txt
+	mv $LOGS_DIR/gfeBuildLogs.txt $LOGS_DIR/gfeBuildLogs.$release.txt
+	mv $LOGS_DIR/s3CopyLog.txt $LOGS_DIR/s3CopyLog.$release.txt
+	mv $LOGS_DIR/summary_agg.txt $LOGS_DIR/summary_agg.$release.txt
+	mv $LOGS_DIR/summary_diff.txt $LOGS_DIR/summary_diff.$release.txt
+	aws s3 --recursive cp $LOGS_DIR/ s3://$GFE_BUCKET/$release/logs/
 
 done
 

@@ -381,7 +381,11 @@ Resources:
                                 {
                                     "Name": "MEM_PROFILE",
                                     "Value.$": "$.params.environment.MEM_PROFILE"
-                                }
+                                },
+                                {
+                                    "Name": "LIMIT",
+                                    "Value.$": "$.params.environment.LIMIT"
+                                }                        
                             ]
                         }
                     },
@@ -398,7 +402,7 @@ Resources:
                             "Environment": [
                                 {
                                     "Name": "RELEASES",
-                                    "Value.$": "$.params.environment.RELEASES"
+                                    "Value.$": "$$.Execution.Input.params.environment.RELEASES"
                                 }
                             ]
                         }
@@ -443,7 +447,8 @@ Outputs:
                   "RELEASES": "3410",
                   "ALIGN": "True",
                   "KIR": "False",
-                  "MEM_PROFILE": "False"
+                  "MEM_PROFILE": "False",
+                  "LIMIT": ""
               }
           }
       }
