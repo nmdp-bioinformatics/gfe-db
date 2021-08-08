@@ -141,8 +141,8 @@ if __name__ == "__main__":
         statement_end = time.time()
         statement_elapsed_time = round(statement_end - statement_start, 2)
         logger.info(f'Statement: {statement}\nTime elapsed: {statement_elapsed_time}\nResponse: {response}')
-        print(f'Time elapsed: {statement_elapsed_time}\nResponse: {response}\n\n')
+        print(f'Loaded in {statement_elapsed_time} s\nResponse: {response}\n')
             
     end = time.time()
     time_elapsed = round(end - start, 2)
-    print(f"Time elapsed: {time_elapsed} seconds")
+    print(f"Total time elapsed: {time_elapsed} seconds")

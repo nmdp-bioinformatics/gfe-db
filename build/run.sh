@@ -39,11 +39,10 @@ fi
 
 # Check if data directory exists
 if [ ! -d "$LOGS_DIR" ]; then
-	echo "Creating new directory in root: $LOGS_DIR"
+	echo "Creating logs directory: $LOGS_DIR"
 	mkdir -p $LOGS_DIR
-	touch $LOGS_DIR/logs.txt
 else
-	rm -f $LOGS_DIR/logs.txt
+	echo "Logs directory: $LOGS_DIR"
 fi
 
 # Load KIR data

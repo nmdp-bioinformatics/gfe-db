@@ -13,11 +13,11 @@ ENV NEO4J_HOST=44.192.54.30
 ENV NEO4J_USERNAME=neo4j
 ENV NEO4J_PASSWORD=gfedb
 
-WORKDIR /gfe-db/load
+WORKDIR /opt/app
 
 COPY requirements.txt requirements.txt
 RUN pip3 --no-cache-dir install -r requirements.txt
 
 COPY . .
 
-ENTRYPOINT ["bash", "load_db.sh"]
+ENTRYPOINT ["bash", "run.sh"]
