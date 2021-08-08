@@ -362,7 +362,7 @@ Resources:
                     "Type": "Task",
                     "Resource": "arn:aws:states:::batch:submitJob.sync",
                     "Parameters": {
-                        "JobDefinition": "gfedbBatchJobDefinition",
+                        "JobDefinition": "gfedbBuildJobDefinition",
                         "JobName": "build-gfe-db",
                         "JobQueue": "gfedbBuildJobQueue",
                         "ContainerOverrides": {
@@ -382,6 +382,24 @@ Resources:
                                 {
                                     "Name": "MEM_PROFILE",
                                     "Value.$": "$.params.environment.MEM_PROFILE"
+                                }
+                            ]
+                        }
+                    },
+                    "Next": "LOAD_GFE-DB"
+                },
+                "LOAD_GFE-DB": {
+                    "Type": "Task",
+                    "Resource": "arn:aws:states:::batch:submitJob.sync",
+                    "Parameters": {
+                        "JobDefinition": "gfedbLoadJobDefinition",
+                        "JobName": "load-gfe-db",
+                        "JobQueue": "gfedbLoadJobQueue",
+                        "ContainerOverrides": {
+                            "Environment": [
+                                {
+                                    "Name": "RELEASES",
+                                    "Value.$": "$.params.environment.RELEASES"
                                 }
                             ]
                         }
@@ -423,7 +441,7 @@ Outputs:
       {
           "params": {
               "environment": {
-                  "RELEASES": "3410,3420",
+                  "RELEASES": "3410",
                   "ALIGN": "True",
                   "KIR": "False",
                   "MEM_PROFILE": "False"

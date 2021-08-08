@@ -11,12 +11,6 @@ RUN pip3 --no-cache-dir install --upgrade awscli
 ENV AWS_ACCESS_KEY_ID=''
 ENV AWS_SECRET_ACCESS_KEY=''
 
-# Overidden by AWS Batch
-ENV RELEASES=3440
-ENV ALIGN=True
-ENV KIR=False
-ENV MEM_PROFILE=True
-
 WORKDIR /gfe-db
 RUN mkdir data
 
@@ -27,4 +21,4 @@ COPY . .
 
 VOLUME data/ data/
 
-ENTRYPOINT ["bash", "scripts/build.sh"]
+ENTRYPOINT ["bash", "run.sh"]
