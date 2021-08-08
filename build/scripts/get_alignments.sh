@@ -1,9 +1,9 @@
 #!/bin/bash
 
-BIN_DIR=$(dirname "$0")
+# BIN_DIR=$(dirname "$0")
 
-DATA_DIR=${BIN_DIR}/../data
-mkdir -p "${DATA_DIR}"
+# DATA_DIR=${BIN_DIR}/../data
+# mkdir -p "${DATA_DIR}"
 
 base_url="https://raw.githubusercontent.com/ANHIG/IMGTHLA"
 

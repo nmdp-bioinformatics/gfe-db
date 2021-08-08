@@ -8,16 +8,14 @@ RUN apt update && \
 
 RUN pip3 --no-cache-dir install --upgrade awscli
 
-ENV GFE_BUCKET=gfe-db-4498
-
-WORKDIR /gfe-db
-RUN mkdir data
+WORKDIR /opt/app
+RUN mkdir /opt/data
 
 COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
 
 COPY . .
 
-VOLUME data/ data/
+VOLUME data/ /opt/data
 
-CMD ["bash", "scripts/build.sh", "10"]
+ENTRYPOINT ["bash", "run.sh"]

@@ -28,6 +28,7 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
     - [Username & Password](#username--password)
     - [Memory Management](#memory-management)
   - [Deployment](#deployment)
+- [Deploy update pipeline](#deploy-update-pipeline)
   - [Clean Up](#clean-up)
     - [Local Clean-up](#local-clean-up)
   - [Troubleshooting](#troubleshooting)
@@ -158,6 +159,26 @@ bash bin/build.sh
 bash bin/build.sh 100
 ```
 
+```
+# Build and run Docker locally
+docker build -t gfe-db-build-service build/
+docker run \
+  -v "$(pwd)"/../data:/opt/data \
+  -v "$(pwd)"/logs:/opt/app/logs \
+  -e GFE_BUCKET='gfe-db-4498' \
+  -e RELEASES='3440' \
+  -e ALIGN='True' \
+  -e KIR='False' \
+  -e MEM_PROFILE='True' \
+  -e LIMIT='10' \
+  --name gfe-db-build-service \
+  gfe-db-build-service:latest
+
+# Load from Docker locally
+docker build -t gfe-db-load-service load/
+docker run gfe-db-load-service:latest
+```
+
 ### Load the dataset into Neo4j
 Once the container is running, the Neo4j server is up, and the dataset has been created, run the command to load it into Neo4j.
 ```
@@ -226,16 +247,22 @@ aws cloudformation deploy \
 
 # Deploy build service
 aws cloudformation deploy \
-  --template-file cfn/build-service.yaml \
-  --stack-name gfe-db-build-service \
+  --template-file cfn/update-pipeline.yaml \
+  --stack-name gfe-db-update-pipeline \
   --capabilities CAPABILITY_NAMED_IAM
 
+# Deploy CI/CD
+aws cloudformation deploy \
+  --template-file cfn/cicd.yaml \
+  --stack-name gfe-db-cicd
+```
+<!-- ```
 # Deploy update pipeline
 aws cloudformation deploy \
   --template-file cfn/pipeline.yaml \
   --stack-name gfe-db-pipeline \
   --capabilities CAPABILITY_NAMED_IAM
-```
+``` -->
 
 To delete a stack and it's resources, run the command. S3 buckets must be empty before they can be deleted.
 ```bash
