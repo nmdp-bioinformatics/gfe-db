@@ -307,6 +307,10 @@ Outputs:
     Value: !Ref gfedbBatchProcessingJobQueue
   gfedbBatchProcessingJobDefinitionArn:
     Value: !Ref gfedbBatchProcessingJobDefinition
+  EcsInstanceRoleArn:
+    Value: !GetAtt EcsInstanceRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-EcsInstanceRoleArn"
   WorkflowArn:
     Description: Workflow statemachine ARN
     Value: !Ref StateMachine

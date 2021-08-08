@@ -1,0 +1,167 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "gfe-db build service using AWS Batch"
+Parameters:
+  gfedbBuildStack:
+    Type: String
+    Default: gfe-db-build-service
+    Description: Build service for gfe-db
+Resources:
+  # gfedbCodeCommitRepository:
+  #   Type: AWS::CodeCommit::Repository
+  #   Properties:
+  #     RepositoryName: gfe-db
+  #     RepositoryDescription: gfe-db build service and database
+  # gfedbBuildServiceCodeBuildProject:
+  #   Type: AWS::CodeBuild::Project
+  #   Properties:
+  #     Name: gfe-db-job-build
+  #     Description: gfedb build service
+  #     ServiceRole: !GetAtt gfedbCodeBuildRole.Arn
+  #     Artifacts:
+  #       Type: NO_ARTIFACTS
+  #     Environment:
+  #       Type: LINUX_CONTAINER
+  #       ComputeType: BUILD_GENERAL1_MEDIUM
+  #       Image: aws/codebuild/amazonlinux2-x86_64-standard:2.0
+  #       PrivilegedMode: true
+  #       EnvironmentVariables:
+  #         - Name: REPOSITORY_URI
+  #           Type: PLAINTEXT
+  #           Value: !Join
+  #               - ""
+  #               - - !Ref AWS::AccountId
+  #                 - .dkr.ecr.
+  #                 - !Ref AWS::Region
+  #                 - .amazonaws.com/
+  #                 - !Ref gfedbBuildServiceRepository
+  #                 - :latest
+  #         - Name: AWS_DEFAULT_REGION
+  #           Type: PLAINTEXT
+  #           Value: !Ref AWS::Region
+  #     Source:
+  #       BuildSpec: config/buildspec.yml
+  #       Location: !Join
+  #           - ""
+  #           - - "https://git-codecommit."
+  #             - !Ref AWS::Region
+  #             - ".amazonaws.com/v1/repos/"
+  #             - gfe-db-batch-processing-job-repo
+  #       Type: CODECOMMIT
+  #     SourceVersion: refs/heads/master
+  #     TimeoutInMinutes: 10
+  # gfedbCodeBuildRole:
+  #   Type: AWS::IAM::Role
+  #   Properties:
+  #     ManagedPolicyArns:
+  #       - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess
+  #       - arn:aws:iam::aws:policy/AWSCodeCommitFullAccess
+  #     AssumeRolePolicyDocument:
+  #       Statement:
+  #         - Action: ["sts:AssumeRole"]
+  #           Effect: Allow
+  #           Principal:
+  #             Service: [codebuild.amazonaws.com]
+  #       Version: "2012-10-17"
+  #     Path: /
+  #     Policies:
+  #       - PolicyName: gfedbCodeBuildAccess
+  #         PolicyDocument:
+  #           Version: "2012-10-17"
+  #           Statement:
+  #             - Action:
+  #                 - "logs:*"
+  #                 - "ec2:CreateNetworkInterface"
+  #                 - "ec2:DescribeNetworkInterfaces"
+  #                 - "ec2:DeleteNetworkInterface"
+  #                 - "ec2:DescribeSubnets"
+  #                 - "ec2:DescribeSecurityGroups"
+  #                 - "ec2:DescribeDhcpOptions"
+  #                 - "ec2:DescribeVpcs"
+  #                 - "ec2:CreateNetworkInterfacePermission"
+  #               Effect: Allow
+  #               Resource: "*"
+  # CloudWatchEventsCodeBuildRole:
+  #   Type: AWS::IAM::Role
+  #   Properties:
+  #     RoleName: gfe-db-batch-processing-job-cw-events-codebuild-role
+  #     AssumeRolePolicyDocument:
+  #       Version: 2012-10-17
+  #       Statement:
+  #         - Effect: Allow
+  #           Principal:
+  #             Service:
+  #               - events.amazonaws.com
+  #           Action: sts:AssumeRole
+  #     Policies:
+  #       - PolicyName: aws-events-code-build
+  #         PolicyDocument:
+  #           Version: 2012-10-17
+  #           Statement:
+  #             - Effect: Allow
+  #               Action:
+  #                 - "codebuild:StartBuild"
+  #               Resource: !GetAtt gfedbCodeBuildProject.Arn
+  # CloudWatchEventCodeBuildEventRule:
+  #   Type: AWS::Events::Rule
+  #   Properties:
+  #     Description: "This event rule triggers the build on code commit event"
+  #     EventPattern:
+  #       source:
+  #         - "aws.codecommit"
+  #       detail-type:
+  #         - "CodeCommit Repository State Change"
+  #       detail:
+  #         event:
+  #           - "referenceCreated"
+  #           - "referenceUpdated"
+  #         referenceType:
+  #           - "branch"
+  #         referenceName:
+  #           - "master"
+  #     State: "ENABLED"
+  #     Targets:
+  #       - Arn: !GetAtt gfedbCodeBuildProject.Arn
+  #         Id: cloudwatch-codebuild-eventrules
+  #         RoleArn: !GetAtt CloudWatchEventsCodeBuildRole.Arn
+  gfedbBuildServiceRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: "gfe-db-build-service"
+      RepositoryPolicyText:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowPushPull
+            Effect: Allow
+            Principal:
+              AWS:
+                - Fn::ImportValue:
+                    !Sub ${gfedbBuildStack}-EcsInstanceRoleArn
+            Action:
+              - "ecr:GetDownloadUrlForLayer"
+              - "ecr:BatchGetImage"
+              - "ecr:BatchCheckLayerAvailability"
+              - "ecr:PutImage"
+              - "ecr:InitiateLayerUpload"
+              - "ecr:UploadLayerPart"
+              - "ecr:CompleteLayerUpload"
+  gfedbLoadServiceRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: "gfedb-load-service"
+      RepositoryPolicyText:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowPushPull
+            Effect: Allow
+            Principal:
+              AWS:
+                - Fn::ImportValue:
+                    !Sub ${gfedbBuildStack}-EcsInstanceRoleArn
+            Action:
+              - "ecr:GetDownloadUrlForLayer"
+              - "ecr:BatchGetImage"
+              - "ecr:BatchCheckLayerAvailability"
+              - "ecr:PutImage"
+              - "ecr:InitiateLayerUpload"
+              - "ecr:UploadLayerPart"
+              - "ecr:CompleteLayerUpload"
