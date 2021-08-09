@@ -16,7 +16,11 @@ Parameters:
   gfeBucket:
     Type: String
     Default: <bucket name>
-    Description: Bucket for data and logs
+    Description: Bucket for data and logs gfedbEndpoint
+  gfedbEndpoint:
+    Type: String
+    Default: <Neo4j URL>
+    Description: Endpoint for Neo4j server 
   # gfedbBuildServiceRepository:
   #   Type: String
   #   Default: gfe-db-build-service
@@ -228,9 +232,9 @@ Resources:
           - run.sh
         Environment:
           - Name: GFE_BUCKET
-            Value: gfe-db-4498
+            Value: !Ref gfeBucket
           - Name: NEO4J_HOST
-            Value: 44.192.54.30
+            Value: !Ref gfedbEndpoint
           - Name: NEO4J_USERNAME
             Value: neo4j
           - Name: NEO4J_PASSWORD
