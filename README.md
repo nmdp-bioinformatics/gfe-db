@@ -278,7 +278,7 @@ aws cloudformation deploy \
 
 ## Clean Up
 
-To delete a stack and it's resources, run the command. S3 buckets and ECR repositories must be empty before they can be deleted.
+To delete a stack and it's resources, use the CloudFormation console or run the command. S3 buckets and ECR repositories must be empty before they can be deleted.
 ```bash
 aws cloudformation delete-stack --stack-name <stack name>
 ```
