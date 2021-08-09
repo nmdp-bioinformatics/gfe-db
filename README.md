@@ -242,7 +242,7 @@ ENV NEO4J_dbms_memory_heap_max__size=2G
 `gfe-db` is deployed using Docker to an EC2 instance. Automated builds and loading of `gfe-db` on AWS is orchestrated using AWS Batch and StepFunctions. The infrastructure is defined using CloudFormation templates.
 
 1. Make sure to update your AWS credentials in `~/.aws/credentials`
-2. Create an S3 bucket and add the name to the `gfeBucket` parameter in `update-pipeline.yaml`.
+2. Create an S3 bucket and add the name to the `gfeBucket` and `gfedbEndpoint` parameters in `update-pipeline.yaml`.
 3. Deploy the CloudFormation stacks.
 ```bash
 # Deploy database server
