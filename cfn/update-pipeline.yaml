@@ -13,6 +13,10 @@ Parameters:
     Type: String
     Default: subnet-5c44793b
     Description: Public subnet with internet access
+  gfeBucket:
+    Type: String
+    Default: <bucket name>
+    Description: Bucket for data and logs
   # gfedbBuildServiceRepository:
   #   Type: String
   #   Default: gfe-db-build-service
@@ -131,7 +135,7 @@ Resources:
           - run.sh
         Environment:
           - Name: GFE_BUCKET
-            Value: gfe-db-4498
+            Value: !Ref gfeBucket
       RetryStrategy:
         Attempts: 1
   gfedbBuildJobQueue:
