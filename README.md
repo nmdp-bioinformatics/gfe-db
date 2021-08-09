@@ -257,8 +257,9 @@ aws cloudformation deploy \
   --stack-name gfe-db-update-pipeline \
   --capabilities CAPABILITY_NAMED_IAM
 ```
-2. Follow the instructions in each ECR repo to push the images to that repective repo.
-3. Trigger an update using StepFunctions by starting an execution with the following input:
+4. Follow the instructions in each ECR repo to push the images to that respective repo.
+5. In the Neo4j browser, run the `load/cypher/create_index.cyp` script.
+6. Trigger an update using StepFunctions by starting an execution with the following input:
    ```json
    {
      "params": {
