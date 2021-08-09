@@ -2,20 +2,11 @@
 
 START_EXECUTION=$SECONDS
 
-ROOT=$(dirname $(dirname "$0"))
-BIN_DIR=$ROOT/scripts
-SRC_DIR=$ROOT/src
-export DATA_DIR=$ROOT/data
-LOGS_DIR=$ROOT/logs
-export CYPHER_PATH=neo4j/cypher
-export SCRIPT=load.cyp
-
-# # For development
-# export GFE_BUCKET=gfe-db-4498
-# export RELEASES="3420"
-# export ALIGN=True
-# export KIR=False
-# export MEM_PROFILE=True
+export ROOT=$(dirname $(dirname "$0"))
+export BIN_DIR=$ROOT/scripts
+export SRC_DIR=$ROOT/src
+export DATA_DIR=$ROOT/../data
+export LOGS_DIR=$ROOT/logs
 
 # Check for environment variables
 if [[ -z "${GFE_BUCKET}" ]]; then
@@ -38,6 +29,13 @@ else
 	echo -e "GFE_BUCKET: $GFE_BUCKET\nRELEASES: $RELEASES\nALIGN: $ALIGN\nKIR: $KIR\nMEM_PROFILE: $MEM_PROFILE"
 fi
 
+# Check limit
+if [[ -z "${LIMIT}" ]]; then
+	echo "No limit set, building GFEs for all alleles"
+else
+	echo "Build is limited to $LIMIT alleles"
+fi
+
 # Check if data directory exists
 if [ ! -d "$DATA_DIR" ]; then
 	echo "Creating new directory in root: $DATA_DIR"
@@ -46,13 +44,22 @@ else
 	echo "Data directory: $DATA_DIR"
 fi
 
-# Check if data directory exists
+# Check if logs directory exists
 if [ ! -d "$LOGS_DIR" ]; then
-	echo "Creating new directory in root: $LOGS_DIR"
+	echo "Creating logs directory: $LOGS_DIR"
 	mkdir -p $LOGS_DIR
-	touch $LOGS_DIR/logs.txt
 else
-	rm -f $LOGS_DIR/logs.txt
+	echo "Logs directory: $LOGS_DIR"
+fi
+
+# Memory profiling
+if [ "$MEM_PROFILE" == "True" ]; then
+	echo "Memory profiling is set to $MEM_PROFILE."
+	MEM_PROFILE_FLAG="-p"
+	touch $LOGS_DIR/mem_profile_agg.txt
+	touch $LOGS_DIR/mem_profile_diff.txt
+else
+	MEM_PROFILE_FLAG=""
 fi
 
 # Load KIR data
@@ -70,16 +77,6 @@ if [ "$ALIGN" == "True" ]; then
 	sh $BIN_DIR/get_alignments.sh
 else
 	ALIGNFLAG=""
-fi
-
-# Memory profiling
-if [ "$MEM_PROFILE" == "True" ]; then
-	echo "Memory profiling is set to $MEM_PROFILE."
-	MEM_PROFILE_FLAG="-p"
-	echo "" > summary_agg.txt
-	echo "" > summary_diff.txt
-else
-	MEM_PROFILE_FLAG=""
 fi
 
 # Build csv files
@@ -114,45 +111,25 @@ for release in ${RELEASES}; do
 		fi
 	fi
 	
-	python3 "$SRC_DIR"/gfedb.py \
+	# Builds CSV files
+	python3 "$SRC_DIR"/build_gfedb.py \
 		-o "$DATA_DIR/$release/csv" \
 		-r "$release" \
 		$KIRFLAG \
 		$ALIGNFLAG \
 		$MEM_PROFILE_FLAG \
 		-v \
-		-l $1
+		-l $LIMIT
 
-	# # Copy CSVs to S3
-	# for csv_prefix in $DATA_DIR/$release/csv/*.csv; do
-	# 	echo s3://$GFE_BUCKET/data/$release/csv/$csv_prefix >> csv_prefixes.txt
-	# done
-
+	# TODO: Use this S3 hierarchy: root/release/csv | logs
 	echo -e "Uploading CSVs to s3://$GFE_BUCKET/data/$release/csv/:\n$(ls $DATA_DIR/$release/csv/)"
 	aws s3 --recursive cp $DATA_DIR/$release/csv/ s3://$GFE_BUCKET/data/$release/csv/ > $LOGS_DIR/s3CopyLog.txt
-
-	# # ls data/$release/csv
-	# echo "Creating pre-signed URLs..."
-	# export urls=()
-	# for filename in ./data/$release/csv/*.csv; do
-	# 	filename=`basename $filename`
-	# 	# echo $filename
-	# 	url=$(aws s3 presign --expires-in 3600 s3://$GFE_BUCKET/data/$release/csv/$filename)
-	# 	urls+=($(echo $url | sed 's/\&/\\&/'))
-	# done
-
-	# echo "URLS:"
-	# printf '%s\n' "${urls[@]}"
-
-	# # Update URLs in Cypher script
-	# sed -i.bak "s+file:///all_alignments.RELEASE.csv+"${urls[0]}"+g" $CYPHER_PATH/$SCRIPT
-	# sed -i.bak "s+file:///all_cds.RELEASE.csv+"${urls[1]}"+g" $CYPHER_PATH/$SCRIPT
-	# sed -i.bak "s+file:///all_features.RELEASE.csv+"${urls[2]}"+g" $CYPHER_PATH/$SCRIPT
-	# sed -i.bak "s+file:///all_groups.RELEASE.csv+"${urls[3]}"+g" $CYPHER_PATH/$SCRIPT
-	# sed -i.bak "s+file:///gfe_sequences.RELEASE.csv+"${urls[4]}"+g" $CYPHER_PATH/$SCRIPT
-
-	# sh $BIN_DIR/load_db.sh
-
+	mv $LOGS_DIR/gfeBuildLogs.txt $LOGS_DIR/gfeBuildLogs.$release.txt
+	mv $LOGS_DIR/s3CopyLog.txt $LOGS_DIR/s3CopyLog.$release.txt
+	mv $LOGS_DIR/mem_profile_agg.txt $LOGS_DIR/mem_profile_agg.$release.txt
+	mv $LOGS_DIR/mem_profile_diff.txt $LOGS_DIR/mem_profile_diff.$release.txt
+	echo -e "Uploading logs to s3://$GFE_BUCKET/logs/$release/:\n$(ls $LOGS_DIR/)"
+	aws s3 --recursive cp $LOGS_DIR/ s3://$GFE_BUCKET/logs/$release/ > $LOGS_DIR/s3CopyLog.txt
 
 done
 

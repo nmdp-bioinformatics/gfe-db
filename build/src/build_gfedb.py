@@ -26,7 +26,7 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S',
     level=logging.INFO,
     handlers=[    
-        logging.FileHandler(f'{log_dir}/logs.txt'),    
+        logging.FileHandler(f'{log_dir}/gfeBuildLogs.txt'),    
         logging.StreamHandler()
         ])
 
@@ -45,13 +45,13 @@ if '-p' in sys.argv:
         original_stdout = sys.stdout
 
         if mode == 'all' or mode == 'agg':
-            with open("summary_agg.txt", "a+") as f:
+            with open(f"{log_dir}/mem_profile_agg.txt", "a+") as f:
                 sys.stdout = f
                 summary.print_(obj_sum)
                 sys.stdout = original_stdout;
 
         if mode == 'all' or mode == 'diff':
-            with open("summary_diff.txt", "a+") as f:
+            with open(f"{log_dir}/mem_profile_diff.txt", "a+") as f:
                 sys.stdout = f
                 tr.print_diff()
                 sys.stdout = original_stdout;    
@@ -532,7 +532,8 @@ if __name__ == '__main__':
     limit = args.limit if args.limit else None #min(args.count, args.limit)
 
     #data_dir = f'{data_dir}/{dbversion}'
-    data_dir = os.path.dirname(__file__) + f"/../data/{dbversion}"
+    # data_dir = os.path.dirname(__file__) + f"/../data/{dbversion}"
+    data_dir = os.environ["DATA_DIR"] + f"/../data/{dbversion}"
 
     # Load alignments data
     if align:
@@ -542,6 +543,8 @@ if __name__ == '__main__':
             alignments_dict.update({
                 align_type: parse_hla_alignments(dbversion, align_type=align_type)
             })
+    else:
+        alignments_dict = None
 
     logging.info(f'****** Building graph for IMGTHLA version {imgt_release} ******')
     

@@ -12,7 +12,6 @@ __pycache__/
 # Distribution / packaging
 .Python
 venv/
-build/
 develop-eggs/
 dist/
 downloads/
@@ -100,3 +99,4 @@ logs/
 0.1-gfe-eda.ipynb
 *.bak
 img/
+cicd.yml
