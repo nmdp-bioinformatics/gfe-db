@@ -15,6 +15,7 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
     - [Load Service](#load-service)
     - [Database Service](#database-service)
     - [CloudFormation Templates](#cloudformation-templates)
+  - [To Do's](#to-dos)
   - [Installation](#installation)
     - [Prerequisites](#prerequisites)
     - [Creating a Python Virtual Environment](#creating-a-python-virtual-environment)
@@ -86,6 +87,26 @@ CloudFormation templates define the architecture that is deployed to AWS. The ba
 - StepFunctions state machine to orchestrate the build and load service
 - ECR repositories to host the container images used for the build and load services
 - EC2 Launch Template for deploying Neo4j
+
+## To Do's
+- [ ] Use Fargate with AWS Batch for the load service instead of EC2 to save cost
+- [ ] Create nested cloudformation templates
+- [ ] Add CI/CD for Docker images
+- [ ] Add trigger for when a new IMGT/HLA version is released
+- [ ] Before uploading CSVs, the S3 prefix should be cleared of previously built data.
+- [ ] Load script can be optimized
+  - [ ] Better logging
+  - [ ] Clean up the Cypher script to avoid Neo4j errors
+- [ ] Add a Makefile
+- [ ] Add SSL policy for Neo4j to use HTTPS
+- [ ] Deploy Neo4j with the APOC and Data Science plugins
+- [ ] Update the userdata in the database.yml template to use the current version
+- [ ] Add structured logs to the scripts
+- [ ] Remove logs, CSVs from S3 prefix before a new build begins
+- [ ] Update the Neo4j configuration to set users and roles for security
+- [ ] Add architecture diagram to documentation
+- [ ] Add constraints to cfn parameters
+- [ ] Add mappings for CFN params for different regions
 
 ## Installation
 Follow these steps to work with the files locally.

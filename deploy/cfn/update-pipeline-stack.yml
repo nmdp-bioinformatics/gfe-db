@@ -1,26 +1,21 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: "gfe-db build service using AWS Batch"
 Parameters:
-  gfedbBuildImageId:
-    Type: AWS::EC2::Image::Id
-    Default: ami-05c75efdc7843b54e
-    Description: ECS Optimized Amazon Linux 2 AMI for us-east-1
   gfeVPC:
     Type: String
-    Default: vpc-8a3d74f0
     Description: Default VPC
   gfeSubnet:
     Type: String
-    Default: subnet-5c44793b
     Description: Public subnet with internet access
+  gfedbBuildImageId:
+    Type: AWS::EC2::Image::Id
+    Description: ECS Optimized Amazon Linux 2 AMI for us-east-1
   gfeBucket:
     Type: String
-    Default: <bucket name>
     Description: Bucket for data and logs gfedbEndpoint
   gfedbEndpoint:
     Type: String
-    Default: <Neo4j URL>
-    Description: Endpoint for Neo4j server 
+    Description: Endpoint for Neo4j server (ouput from database-stack.yml)
   # gfedbBuildServiceRepository:
   #   Type: String
   #   Default: gfe-db-build-service

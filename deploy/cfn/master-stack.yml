@@ -1,0 +1,86 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Master stack which creates all required nested stacks
+Parameters:
+  AppName:
+    Type: String
+    Default: gfe-db
+  Stage:
+    Type: String
+    Default: dev
+  TemplatePath:
+    Type: String
+    Default: cfn-nested-stacks-4498
+    Description: S3 path for templates
+  gfeVPC:
+    Type: String
+    Default: vpc-549f8a33 # us-east-1: vpc-8a3d74f0 # us-west-1: vpc-549f8a33
+  gfeSubnet:
+    Type: String
+    Default: subnet-0aa7f439e04e262a2 # us-east-1: subnet-5c44793b # us-west-1: subnet-0aa7f439e04e262a2
+    Description: Public subnet with internet access
+  gfedbImageId:
+    Type: AWS::EC2::Image::Id
+    Default: ami-04b6c97b14c54de18 # us-east-1: ami-0d5eff06f840b45e9 # us-west-1: ami-04b6c97b14c54de18
+  gfedbBuildImageId:
+    Type: AWS::EC2::Image::Id
+    Default: ami-0e5f238acb2af0d19 # us-east-1: ami-05c75efdc7843b54e # us-west-1: ami-0e5f238acb2af0d19
+    Description: ECS Optimized Amazon Linux 2 AMI for us-east-1
+  gfedbKeyName:
+    Type: String
+    Default: gfe-db-3-us-west-1 # us-east-1: gfe-db-3 # us-west-1: gfe-db-3-us-west-1
+    Description: Key pair name for the GFE database
+    NoEcho: true
+  gfeBucket:
+    Type: String
+    Default: "gfe-db-4498"
+    Description: Bucket for data and logs gfedbEndpoint
+  gfeBucketArn:
+    Type: String
+    Default: "arn:aws:s3:::gfe-db-4498"
+Resources:
+  DatabaseStack:
+      Type: "AWS::CloudFormation::Stack"
+      Properties:
+        TemplateURL: !Join
+          - "/"
+          - - !Sub "https://s3.${AWS::Region}.amazonaws.com"
+            - !Ref TemplatePath
+            - !Ref AppName
+            - !Ref Stage
+            - database-stack.yml
+        Parameters:
+          gfeVPC: !Ref gfeVPC
+          gfedbKeyName: !Ref gfedbKeyName
+          gfedbImageId: !Ref gfedbImageId
+          gfeBucketArn: !Ref gfeBucketArn
+        Tags:
+          - Key: Name
+            Value: !Ref AppName
+          - Key: Stage
+            Value: !Ref Stage
+  UpdatePipelineStack:
+      Type: "AWS::CloudFormation::Stack"
+      Properties:
+        TemplateURL: !Join
+          - "/"
+          - - !Sub "https://s3.${AWS::Region}.amazonaws.com"
+            - !Ref TemplatePath
+            - !Ref AppName
+            - !Ref Stage
+            - update-pipeline-stack.yml
+        Parameters:
+          gfeVPC: !Ref gfeVPC
+          gfeSubnet: !Ref gfeSubnet
+          gfedbBuildImageId: !Ref gfedbBuildImageId
+          gfeBucket: !Ref gfeBucket
+          gfedbEndpoint: !GetAtt DatabaseStack.Outputs.gfedbEndpoint  
+        Tags:
+          - Key: Name
+            Value: !Ref AppName
+          - Key: Stage
+            Value: !Ref Stage
+# Outputs:
+#   WebELBURL:
+#     Description: "URL endpoint of web ELB"
+#     Value:
+#       Fn::GetAtt: ServerStack.Outputs.WebELBURL

@@ -1,23 +1,16 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: GFE database
+Description: gfe-db Neo4j server
 Parameters:
+  gfeVPC:
+    Type: String
   gfedbKeyName:
     Type: String
-    Default: gfe-db-3
     Description: Key pair name for the GFE database
     NoEcho: true
   gfedbImageId:
     Type: AWS::EC2::Image::Id
-    Default: ami-0d5eff06f840b45e9
-  gfeVPC:
-    Type: String
-    Default: vpc-8a3d74f0
-  # gfedbRepo:
-  #   Type: String
-  #   Default: https://github.com/abk7777/gfe-db.git
   gfeBucketArn:
     Type: String
-    Default: "arn:aws:s3:::gfe-db-4498"
 Resources:
   gfedbSG:
     Type: AWS::EC2::SecurityGroup
@@ -88,9 +81,6 @@ Resources:
             -v "$(pwd)"/neo4j/logs:/var/lib/neo4j/logs \
             -p 7474:7474 -p 7473:7473 \
             -p 7687:7687 gfe-db
-      Tags:
-        - Key: Name
-          Value: gfedb
   gfedbRole:
     Type: AWS::IAM::Role
     Properties:
@@ -140,6 +130,6 @@ Resources:
       Roles:
         - !Ref gfedbRole
 Outputs:
-  gfedbServerPublicDNS:
+  gfedbEndpoint:
     Description: Public DNS for SSH access into the database server
     Value: !GetAtt gfedbServer.PublicDnsName
