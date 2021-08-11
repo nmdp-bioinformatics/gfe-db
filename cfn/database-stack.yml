@@ -1,23 +1,34 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: gfe-db Neo4j server
 Parameters:
-  gfeVPC:
-    Type: String
   gfedbKeyName:
     Type: String
     Description: Key pair name for the GFE database
     NoEcho: true
   gfedbImageId:
     Type: AWS::EC2::Image::Id
+  # LatestAmiId:
+  #   Type:  'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+  #   Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
   gfeBucketArn:
     Type: String
 Resources:
-  gfedbSG:
+  gfedbVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+  gfedbPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/24
+      VpcId: !Ref gfedbVPC
+      MapPublicIpOnLaunch: true
+  gfedbSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: gfedb-sg
+      GroupName: gfe-db-sg
       GroupDescription: Security group for the GFE database
-      VpcId: !Ref gfeVPC
+      VpcId: !Ref gfedbVPC
       SecurityGroupIngress:
         - CidrIp: 0.0.0.0/0
           FromPort: 80
@@ -39,7 +50,29 @@ Resources:
           FromPort: 7687
           IpProtocol: tcp
           ToPort: 7687
-  gfedbServer:
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref gfedbVPC
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref gfedbVPC
+      InternetGatewayId: !Ref InternetGateway
+  Route:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref gfedbPublicSubnet
+  gfedbDatabase:
     Type: AWS::EC2::Instance
     Properties:
       KeyName: !Ref gfedbKeyName
@@ -48,8 +81,15 @@ Resources:
       InstanceType: m5d.xlarge
       IamInstanceProfile: !Ref gfedbProfile
       Monitoring: true
-      SecurityGroupIds:
-        - !Ref gfedbSG
+      # SecurityGroupIds:
+      #   - !Ref gfedbSecurityGroup
+      NetworkInterfaces:
+        # - NetworkInterfaceId: # !Ref NetworkInterface
+        - AssociatePublicIpAddress: true
+          DeviceIndex: "0"
+          GroupSet: 
+            - !Ref gfedbSecurityGroup
+          SubnetId: !Ref gfedbPublicSubnet
       UserData:
         Fn::Base64: |
           #!/bin/bash -x
@@ -129,7 +169,22 @@ Resources:
     Properties:
       Roles:
         - !Ref gfedbRole
+  # NetworkInterface:
+  #   Type: AWS::EC2::NetworkInterface
+  #   Properties:
+  #     Description: gfedbNetworkInterface
+  #     GroupSet: 
+  #       - !Ref gfedbSecurityGroup
+  #     SourceDestCheck: true
+  #     SubnetId: !Ref gfedbPublicSubnet
 Outputs:
+  gfedbVPC:
+    Description: VPC for gfe-db
+    Value: !Ref gfedbVPC
+  gfedbPublicSubnet:
+    Description: Public Subnet for Neo4j database server
+    Value: !Ref gfedbPublicSubnet
   gfedbEndpoint:
     Description: Public DNS for SSH access into the database server
-    Value: !GetAtt gfedbServer.PublicDnsName
+    Value: !GetAtt gfedbDatabase.PublicDnsName
+    

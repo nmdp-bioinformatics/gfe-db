@@ -1,11 +1,11 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: "gfe-db build service using AWS Batch"
 Parameters:
-  gfeVPC:
-    Type: String
+  gfedbVPC:
+    Type: AWS::EC2::VPC::Id
     Description: Default VPC
-  gfeSubnet:
-    Type: String
+  gfedbPublicSubnet:
+    Type: AWS::EC2::Subnet::Id
     Description: Public subnet with internet access
   gfedbBuildImageId:
     Type: AWS::EC2::Image::Id
@@ -30,7 +30,7 @@ Resources:
     Properties:
       GroupName: gfedb-build-server-sg
       GroupDescription: Security group for the GFE DB build server
-      VpcId: !Ref gfeVPC
+      VpcId: !Ref gfedbVPC
       # SecurityGroupIngress: # Uncomment to allow SSH access to build instance
       #   - CidrIp: 66.214.236.87/32
       #     FromPort: 22
@@ -41,12 +41,12 @@ Resources:
     Properties:
       GroupName: gfedb-load-server-sg
       GroupDescription: Security group for the GFE DB build server
-      VpcId: !Ref gfeVPC
-      SecurityGroupIngress:
-        - CidrIp: 66.214.236.87/32
-          FromPort: 22
-          IpProtocol: tcp
-          ToPort: 22
+      VpcId: !Ref gfedbVPC
+      # SecurityGroupIngress:
+      #   - CidrIp: 66.214.236.87/32
+      #     FromPort: 22
+      #     IpProtocol: tcp
+      #     ToPort: 22
 
   ### Permissions ###
   gfedbBatchServiceRole:
@@ -157,7 +157,7 @@ Resources:
         InstanceTypes:
           - c5d.2xlarge
         Subnets:
-          - !Ref gfeSubnet
+          - !Ref gfedbPublicSubnet
         SecurityGroupIds:
           - !Ref gfedbBuildSG
         InstanceRole: !Ref IamInstanceProfile
@@ -256,7 +256,7 @@ Resources:
         InstanceTypes:
           - optimal
         Subnets:
-          - !Ref gfeSubnet
+          - !Ref gfedbPublicSubnet
         SecurityGroupIds:
           - !Ref gfedbLoadSG
         InstanceRole: !Ref IamInstanceProfile

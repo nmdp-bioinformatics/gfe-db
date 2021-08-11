@@ -11,13 +11,13 @@ Parameters:
     Type: String
     Default: cfn-nested-stacks-4498
     Description: S3 path for templates
-  gfeVPC:
-    Type: String
-    Default: vpc-549f8a33 # us-east-1: vpc-8a3d74f0 # us-west-1: vpc-549f8a33
-  gfeSubnet:
-    Type: String
-    Default: subnet-0aa7f439e04e262a2 # us-east-1: subnet-5c44793b # us-west-1: subnet-0aa7f439e04e262a2
-    Description: Public subnet with internet access
+  # gfedbVPC:
+  #   Type: String
+  #   Default: vpc-549f8a33 # us-east-1: vpc-8a3d74f0 # us-west-1: vpc-549f8a33
+  # gfeSubnet:
+  #   Type: String
+  #   Default: subnet-0aa7f439e04e262a2 # us-east-1: subnet-5c44793b # us-west-1: subnet-0aa7f439e04e262a2
+  #   Description: Public subnet with internet access
   gfedbImageId:
     Type: AWS::EC2::Image::Id
     Default: ami-04b6c97b14c54de18 # us-east-1: ami-0d5eff06f840b45e9 # us-west-1: ami-04b6c97b14c54de18
@@ -49,7 +49,6 @@ Resources:
             - !Ref Stage
             - database-stack.yml
         Parameters:
-          gfeVPC: !Ref gfeVPC
           gfedbKeyName: !Ref gfedbKeyName
           gfedbImageId: !Ref gfedbImageId
           gfeBucketArn: !Ref gfeBucketArn
@@ -69,8 +68,8 @@ Resources:
             - !Ref Stage
             - update-pipeline-stack.yml
         Parameters:
-          gfeVPC: !Ref gfeVPC
-          gfeSubnet: !Ref gfeSubnet
+          gfedbVPC: !GetAtt DatabaseStack.Outputs.gfedbVPC
+          gfedbPublicSubnet: !GetAtt DatabaseStack.Outputs.gfedbPublicSubnet
           gfedbBuildImageId: !Ref gfedbBuildImageId
           gfeBucket: !Ref gfeBucket
           gfedbEndpoint: !GetAtt DatabaseStack.Outputs.gfedbEndpoint  
@@ -79,8 +78,3 @@ Resources:
             Value: !Ref AppName
           - Key: Stage
             Value: !Ref Stage
-# Outputs:
-#   WebELBURL:
-#     Description: "URL endpoint of web ELB"
-#     Value:
-#       Fn::GetAtt: ServerStack.Outputs.WebELBURL
