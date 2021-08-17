@@ -90,7 +90,7 @@ CloudFormation templates define the architecture that is deployed to AWS. The ba
 
 ## To Do's
 - [ ] Use Fargate with AWS Batch for the load service instead of EC2 to save cost
-- [ ] Create nested cloudformation templates
+- [x] Create nested cloudformation templates
 - [ ] Add CI/CD for Docker images
 - [ ] Add trigger for when a new IMGT/HLA version is released
 - [ ] Before uploading CSVs, the S3 prefix should be cleared of previously built data.
@@ -109,8 +109,8 @@ CloudFormation templates define the architecture that is deployed to AWS. The ba
 - [ ] Add mappings for CFN params for different regions
 
 ## Installation
-Follow these steps to work with the files locally.
-- Create separate virtual environments inside the `build/` and `load/` directories and (optional) create kernels to use each environment inside Jupyter Notebook.
+<!-- Follow these steps to work with the files locally.
+- Create separate virtual environments inside the `build/` and `load/` directories and (optional) create kernels to use each environment inside Jupyter Notebook. -->
 
 ### Prerequisites
 * Python 3.8
@@ -262,25 +262,16 @@ ENV NEO4J_dbms_memory_heap_max__size=2G
 ## Deployment
 `gfe-db` is deployed using Docker to an EC2 instance. Automated builds and loading of `gfe-db` on AWS is orchestrated using AWS Batch and StepFunctions. The infrastructure is defined using CloudFormation templates.
 
-1. Make sure to update your AWS credentials in `~/.aws/credentials`
-2. Create an S3 bucket and add the name to the `gfeBucket` and `gfedbEndpoint` parameters in `update-pipeline.yaml`.
+1. Make sure to update your AWS credentials in `~/.aws/credentials`. Run `aws configure` to set the default region.
+2. Create an EC2 key pair and add it's name to the `gfedbKeyName` paramter in `master-stack.yaml`.
 3. Deploy the CloudFormation stacks.
-```bash
-# Deploy database server
-aws cloudformation deploy \
-   --template-file cfn/database.yml \
-   --stack-name gfe-db \
-   --capabilities CAPABILITY_NAMED_IAM
-
-# Deploy build service
-aws cloudformation deploy \
-  --template-file cfn/update-pipeline.yaml \
-  --stack-name gfe-db-update-pipeline \
-  --capabilities CAPABILITY_NAMED_IAM
-```
-4. Follow the instructions in each ECR repo to push the images to that respective repo.
-5. In the Neo4j browser, run the `load/cypher/create_index.cyp` script.
-6. Trigger an update using StepFunctions by starting an execution with the following input:
+   ```bash
+   cd gfe-db
+   bash deploy.sh
+   ```
+1. The the AWS ECR console, follow the instructions in each ECR repo to push the images to that repo.
+2. In the Neo4j browser, run the `load/cypher/create_index.cyp` script.
+3. Trigger an update using StepFunctions by starting an execution with the following input:
    ```json
    {
      "params": {

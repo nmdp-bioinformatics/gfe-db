@@ -69,7 +69,7 @@ LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as row
 MERGE (imgt:IMGT_HLA { name: row.hla_name })
 ON CREATE SET imgt.releases = [replace(row.imgt_release, '.', '')]
 ON MATCH SET imgt.releases = imgt.releases + [replace(row.imgt_release, '.', '')];
-RETURN '(:G)' AS `Creating G nodes...`;
+// RETURN '(:G)' AS `Creating G nodes...`;
 USING PERIODIC COMMIT 50000 
 LOAD CSV WITH HEADERS FROM 'file:///all_groups.RELEASE.csv' as groups_row
 FOREACH(_ IN CASE 

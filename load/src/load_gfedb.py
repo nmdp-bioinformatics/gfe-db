@@ -2,11 +2,11 @@ import os
 import logging
 import time
 import base64
+import ast
 import json
 import requests
 import boto3
 
-# TODO: Clean up logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -16,6 +16,10 @@ cypher_dir = os.environ["CYPHER_DIR"]
 load_script = os.environ["LOAD_SCRIPT"]
 s3_bucket = os.environ["GFE_BUCKET"]
 release = os.environ["RELEASES"]
+alignments = ast.literal_eval(os.environ["ALIGN"])
+
+# TODO: add KIR
+kir = ast.literal_eval(os.environ["KIR"])
 
 host = os.environ["NEO4J_HOST"]
 username = os.environ["NEO4J_USERNAME"]
@@ -26,13 +30,17 @@ endpoint = "db/neo4j/tx/commit"
 url = f'{protocol}://{host}:{port}/{endpoint}'
 
 s3_urls = [
-    's3://gfe-db-4498/data/RELEASE/csv/all_groups.RELEASE.csv',
-    's3://gfe-db-4498/data/RELEASE/csv/all_cds.RELEASE.csv',
-    's3://gfe-db-4498/data/RELEASE/csv/all_features.RELEASE.csv',
-    's3://gfe-db-4498/data/RELEASE/csv/gfe_sequences.RELEASE.csv',
-    's3://gfe-db-4498/data/RELEASE/csv/all_alignments.RELEASE.csv'
+    f's3://{s3_bucket}/data/{release}/csv/all_groups.{release}.csv',
+    f's3://{s3_bucket}/data/{release}/csv/all_cds.{release}.csv',
+    f's3://{s3_bucket}/data/{release}/csv/all_features.{release}.csv',
+    f's3://{s3_bucket}/data/{release}/csv/gfe_sequences.{release}.csv'
 ]
 
+if alignments:
+    s3_urls.append(f's3://{s3_bucket}/data/{release}/csv/all_alignments.{release}.csv')
+
+if kir: 
+    s3_urls.append(f's3://{s3_bucket}/data/{release}/csv/all_kir.{release}.csv')
 
 def generate_presigned_urls(s3_urls, expire=3600):
     """Accepts a list of S3 URLs or paths and returns
@@ -81,6 +89,19 @@ def update_cypher(cypher_path):
     return cypher_script
 
 
+def clean_cypher(cypher_script):
+    """Cleans Cypher script to remove comments, new lines, add semi-colons etc."""
+
+    cypher = list(filter(lambda x: x != "\n", cypher_script.split(";")))
+    cypher = list(map(lambda x: "".join([x, ";"]), cypher))
+    cypher = list(map(lambda x: x.replace("\n", " ").strip(), cypher))
+    cypher = list(filter(lambda x: "// RETURN" not in x, cypher))
+
+    if not alignments:
+        cypher = list(filter(lambda x: "all_alignments" not in x, cypher))
+
+    return cypher
+
 def run_cypher(cypher):
     
     payload = {
@@ -101,6 +122,7 @@ def run_cypher(cypher):
     }
 
     # Send requests
+    logger.info(f'Running query:\n{cypher}')
     response = requests.post(
         url, 
         data=json.dumps(payload), 
@@ -110,7 +132,8 @@ def run_cypher(cypher):
         response_dict = json.loads(response.content)
       
         if len(response_dict['errors']) > 0:
-            logger.error(response_dict)
+            for error in response_dict['errors']:
+                logger.error(f'Error loading Neo4j: {error}')
         else:
             logger.info(response_dict)
         
@@ -118,21 +141,24 @@ def run_cypher(cypher):
 
     except Exception as err:
         logger.error(f"Failed to load response from Neo4j server: {response.status_code}")
-        #raise err
-        return
+        raise err
 
 
 if __name__ == "__main__":
 
-    s3_urls = list(map(lambda x: x.replace("RELEASE", release), s3_urls))
+    # s3_urls = list(map(lambda x: x.replace("RELEASE", release), s3_urls))
 
     s3 = boto3.client('s3')
+
+    # Not working in us-east-2, possibly because of endpoint_url formatting
+    # See: https://github.com/boto/boto3/issues/1982
     presigned_urls = generate_presigned_urls(s3_urls)
+    time.sleep(10)
 
     cypher_path = "/".join([f'{cypher_dir}/{load_script}'])
     cypher_script = update_cypher(cypher_path)
-    cypher = list(filter(lambda x: x != "\n", cypher_script.split(";")))
-    cypher = list(map(lambda x: "".join([x, ";"]), cypher))
+    cypher = clean_cypher(cypher_script)
+    logger.info(f'Cypher script: {cypher}')
 
     start = time.time()
     for idx, statement in enumerate(cypher):

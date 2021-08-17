@@ -1,15 +1,15 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: gfe-db Neo4j server
+Description: Deploys a VPC with public subnet and EC2 instance hosting a Neo4j server
 Parameters:
+  AppName:
+    Type: String
+    Description: Application name
   gfedbKeyName:
     Type: String
     Description: Key pair name for the GFE database
     NoEcho: true
   gfedbImageId:
     Type: AWS::EC2::Image::Id
-  # LatestAmiId:
-  #   Type:  'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-  #   Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
   gfeBucketArn:
     Type: String
 Resources:
@@ -81,10 +81,7 @@ Resources:
       InstanceType: m5d.xlarge
       IamInstanceProfile: !Ref gfedbProfile
       Monitoring: true
-      # SecurityGroupIds:
-      #   - !Ref gfedbSecurityGroup
       NetworkInterfaces:
-        # - NetworkInterfaceId: # !Ref NetworkInterface
         - AssociatePublicIpAddress: true
           DeviceIndex: "0"
           GroupSet: 
@@ -121,6 +118,9 @@ Resources:
             -v "$(pwd)"/neo4j/logs:/var/lib/neo4j/logs \
             -p 7474:7474 -p 7473:7473 \
             -p 7687:7687 gfe-db
+      Tags:
+        - Key: Name
+          Value: !Ref AppName
   gfedbRole:
     Type: AWS::IAM::Role
     Properties:
@@ -142,12 +142,10 @@ Resources:
               - Effect: "Allow"
                 Action:
                   - "s3:GetObject"
+                  - "s3:ListObjectsV2"
                 Resource: 
                   - !Ref gfeBucketArn
-                  - !Join
-                    - ""
-                    - - !Ref gfeBucketArn
-                      - "/data/*/csv/*"
+                  - !Sub ${gfeBucketArn}/*
               - Effect: "Allow"
                 Action:
                   - "ecr:GetAuthorizationToken"
@@ -169,14 +167,6 @@ Resources:
     Properties:
       Roles:
         - !Ref gfedbRole
-  # NetworkInterface:
-  #   Type: AWS::EC2::NetworkInterface
-  #   Properties:
-  #     Description: gfedbNetworkInterface
-  #     GroupSet: 
-  #       - !Ref gfedbSecurityGroup
-  #     SourceDestCheck: true
-  #     SubnetId: !Ref gfedbPublicSubnet
 Outputs:
   gfedbVPC:
     Description: VPC for gfe-db
@@ -186,5 +176,4 @@ Outputs:
     Value: !Ref gfedbPublicSubnet
   gfedbEndpoint:
     Description: Public DNS for SSH access into the database server
-    Value: !GetAtt gfedbDatabase.PublicDnsName
-    
+    Value: !GetAtt gfedbDatabase.PublicIp
