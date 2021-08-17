@@ -283,16 +283,15 @@ ENV NEO4J_dbms_memory_heap_max__size=2G
 ## Deployment
 `gfe-db` is deployed using Docker to an EC2 instance. Automated builds and loading of `gfe-db` on AWS is orchestrated using AWS Batch and StepFunctions. The infrastructure is defined using CloudFormation templates.
 
-1. Make sure to update your AWS credentials in `~/.aws/credentials`. Run `aws configure` to set the default region.
-2. Create an EC2 key pair and add it's name to the `gfedbKeyName` paramter in `master-stack.yaml`.
-3. Deploy the CloudFormation stacks.
+1. Make sure to update your AWS credentials in `~/.aws/credentials`.
+2. Deploy the CloudFormation stacks and set the default region to `us-east-1` (there are issues with S3 pre-signed URLs in the other regions).
    ```bash
    cd gfe-db
    bash deploy.sh
    ```
-1. The the AWS ECR console, follow the instructions in each ECR repo to push the images to that repo.
-2. In the Neo4j browser, run the `load/cypher/create_index.cyp` script.
-3. Trigger an update using StepFunctions by starting an execution with the following input:
+3. In the AWS ECR console, follow the instructions in each ECR repo to build, tag and push the images to that repo.
+4. In the Neo4j browser, run the `load/cypher/create_index.cyp` script.
+5. Trigger an update using StepFunctions by starting an execution with the following input:
    ```json
    {
      "params": {
@@ -307,10 +306,15 @@ ENV NEO4J_dbms_memory_heap_max__size=2G
    }
    ```
   Update the parameters to whatever is desired. Leaving `LIMIT` blank will build the entire GFE dataset (~30,000 alleles).
+6. Get the `gfedbEndpoint` parameter from the `database-stack.yml` and load it in the browser on port 7474:
+   ```bash
+   # Example
+   18.215.230.187:7474
+   ```
+   The graph should be loaded once the StepFunctions completes.
 
 
 ## Clean Up
-
 To delete a stack and it's resources, use the CloudFormation console or run the command. S3 buckets and ECR repositories must be empty before they can be deleted.
 ```bash
 aws cloudformation delete-stack --stack-name <stack name>
