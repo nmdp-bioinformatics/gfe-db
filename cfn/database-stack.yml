@@ -1,30 +1,34 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: GFE database
+Description: Deploys a VPC with public subnet and EC2 instance hosting a Neo4j server
 Parameters:
+  AppName:
+    Type: String
+    Description: Application name
   gfedbKeyName:
     Type: String
-    Default: gfe-db-3
     Description: Key pair name for the GFE database
     NoEcho: true
   gfedbImageId:
     Type: AWS::EC2::Image::Id
-    Default: ami-0d5eff06f840b45e9
-  gfeVPC:
-    Type: String
-    Default: vpc-8a3d74f0
-  # gfedbRepo:
-  #   Type: String
-  #   Default: https://github.com/abk7777/gfe-db.git
   gfeBucketArn:
     Type: String
-    Default: "arn:aws:s3:::gfe-db-4498"
 Resources:
-  gfedbSG:
+  gfedbVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+  gfedbPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/24
+      VpcId: !Ref gfedbVPC
+      MapPublicIpOnLaunch: true
+  gfedbSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: gfedb-sg
+      GroupName: gfe-db-sg
       GroupDescription: Security group for the GFE database
-      VpcId: !Ref gfeVPC
+      VpcId: !Ref gfedbVPC
       SecurityGroupIngress:
         - CidrIp: 0.0.0.0/0
           FromPort: 80
@@ -46,7 +50,29 @@ Resources:
           FromPort: 7687
           IpProtocol: tcp
           ToPort: 7687
-  gfedbServer:
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref gfedbVPC
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref gfedbVPC
+      InternetGatewayId: !Ref InternetGateway
+  Route:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref gfedbPublicSubnet
+  gfedbDatabase:
     Type: AWS::EC2::Instance
     Properties:
       KeyName: !Ref gfedbKeyName
@@ -55,8 +81,12 @@ Resources:
       InstanceType: m5d.xlarge
       IamInstanceProfile: !Ref gfedbProfile
       Monitoring: true
-      SecurityGroupIds:
-        - !Ref gfedbSG
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: "0"
+          GroupSet: 
+            - !Ref gfedbSecurityGroup
+          SubnetId: !Ref gfedbPublicSubnet
       UserData:
         Fn::Base64: |
           #!/bin/bash -x
@@ -90,7 +120,7 @@ Resources:
             -p 7687:7687 gfe-db
       Tags:
         - Key: Name
-          Value: gfedb
+          Value: !Ref AppName
   gfedbRole:
     Type: AWS::IAM::Role
     Properties:
@@ -112,12 +142,10 @@ Resources:
               - Effect: "Allow"
                 Action:
                   - "s3:GetObject"
+                  - "s3:ListObjectsV2"
                 Resource: 
                   - !Ref gfeBucketArn
-                  - !Join
-                    - ""
-                    - - !Ref gfeBucketArn
-                      - "/data/*/csv/*"
+                  - !Sub ${gfeBucketArn}/*
               - Effect: "Allow"
                 Action:
                   - "ecr:GetAuthorizationToken"
@@ -140,6 +168,12 @@ Resources:
       Roles:
         - !Ref gfedbRole
 Outputs:
-  gfedbServerPublicDNS:
+  gfedbVPC:
+    Description: VPC for gfe-db
+    Value: !Ref gfedbVPC
+  gfedbPublicSubnet:
+    Description: Public Subnet for Neo4j database server
+    Value: !Ref gfedbPublicSubnet
+  gfedbEndpoint:
     Description: Public DNS for SSH access into the database server
-    Value: !GetAtt gfedbServer.PublicDnsName
+    Value: !GetAtt gfedbDatabase.PublicIp

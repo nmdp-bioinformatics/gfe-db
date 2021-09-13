@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Setup stack for gfe-db, including S3 bucket for templates, data and logs
+Parameters:
+  AppName:
+    Type: String
+    Default: gfe-db
+  gfedbKeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: gfe-db-us-east-1
+    Description: Key pair name for the GFE database
+    NoEcho: true
+  Neo4jUsername:
+    Type: String
+    Default: neo4j
+    NoEcho: true
+  Neo4jPassword:
+    Type: String
+    Default: gfedb
+    NoEcho: true
+Resources:
+  gfedbNeo4jCredentials:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: gfedbNeo4jCredentials
+      Description: Must match the username/password specified in the Neo4j Dockerfile
+      SecretString: !Sub '{"username":"${Neo4jUsername}","password":"${Neo4jPassword}"}'
+      Tags:
+        - Key: AppName 
+          Value: !Ref AppName
+  gfedbBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Join 
+        - '-'
+        - - !Ref AppName
+          - !Ref AWS::AccountId
+          - !Ref AWS::Region
+Outputs:
+  AppName:
+    Description: Name of application
+    Value: !Ref AppName
+    Export:
+      Name: !Sub "${AWS::StackName}-AppName"
+  gfedbKeyName:
+    Description: "EC2 key pair for launching instances"
+    Value: !Ref gfedbKeyName
+    Export:
+      Name: !Sub "${AWS::StackName}-gfedbKeyName"
+  gfedbBucketName:
+    Description: "S3 Bucket for gfe-db templates, data and logs"
+    Value: !Ref gfedbBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-gfedbBucketName"
+  gfedbBucketArn:
+    Description: "S3 Bucket Arn for gfe-db templates, data and logs"
+    Value: !GetAtt gfedbBucket.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-gfedbBucketArn"

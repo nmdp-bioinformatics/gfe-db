@@ -1,0 +1,85 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Graph database representing IPD-IMGT/HLA sequence data as GFE
+Parameters:
+  SetupStackName:
+    Type: String
+    Default: gfe-db-setup
+    Description: Name of setup stack
+  AppName:
+    Type: String
+    Default: gfe-db
+    Description: Application name
+  # gfedbImageId:
+  #   Type: AWS::EC2::Image::Id
+  #   Default: ami-04b6c97b14c54de18 # us-east-1: ami-0d5eff06f840b45e9 # us-west-1: ami-04b6c97b14c54de18
+  # gfedbBuildImageId:
+  #   Type: AWS::EC2::Image::Id
+  #   Default: ami-0e5f238acb2af0d19 # us-east-1: ami-05c75efdc7843b54e # us-west-1: ami-0e5f238acb2af0d19
+  #   Description: ECS Optimized Amazon Linux 2 AMI for us-east-1
+  gfedbImageId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+  gfedbBuildImageId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id
+    Description: ECS Optimized Amazon Linux 2 AMI
+Resources:
+  DatabaseStack:
+      Type: "AWS::CloudFormation::Stack"
+      Properties:
+        TemplateURL: !Join
+          - "/"
+          - - !Sub "https://s3.${AWS::Region}.amazonaws.com"
+            - !Sub ${AppName}-${AWS::AccountId}-${AWS::Region}
+            - templates
+            - database-stack.yml
+        Parameters:
+          AppName: !Ref AppName
+          gfedbKeyName:
+            Fn::ImportValue:
+              !Sub "${SetupStackName}-gfedbKeyName"
+          gfedbImageId: !Ref gfedbImageId
+          gfeBucketArn: 
+            Fn::ImportValue:
+              !Sub "${SetupStackName}-gfedbBucketArn"
+        Tags:
+          - Key: AppName
+            Value: !Ref AppName
+  UpdatePipelineStack:
+      Type: "AWS::CloudFormation::Stack"
+      Properties:
+        TemplateURL: !Join
+          - "/"
+          - - !Sub "https://s3.${AWS::Region}.amazonaws.com"
+            - !Sub ${AppName}-${AWS::AccountId}-${AWS::Region}
+            - templates
+            - update-pipeline-stack.yml
+        Parameters:
+          gfedbVPC: !GetAtt DatabaseStack.Outputs.gfedbVPC
+          gfedbPublicSubnet: !GetAtt DatabaseStack.Outputs.gfedbPublicSubnet
+          gfedbBuildImageId: !Ref gfedbBuildImageId
+          gfeBucket: 
+            Fn::ImportValue:
+              !Sub "${SetupStackName}-gfedbBucketName"
+          gfeBucketArn: 
+            Fn::ImportValue:
+              !Sub "${SetupStackName}-gfedbBucketArn"
+          gfedbEndpoint: !GetAtt DatabaseStack.Outputs.gfedbEndpoint
+        Tags:
+          - Key: AppName
+            Value: !Ref AppName
+Outputs:
+  gfedbUpdatePipelineExecutionInput:
+    Description: Example input for gfe-db update pipeline. 
+    Value: |-
+      {
+          "params": {
+              "environment": {
+                  "RELEASES": "3450",
+                  "ALIGN": "False",
+                  "KIR": "False",
+                  "MEM_PROFILE": "False",
+                  "LIMIT": ""
+              }
+          }
+      }
