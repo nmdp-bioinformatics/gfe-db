@@ -306,7 +306,7 @@ ENV NEO4J_dbms_memory_heap_max__size=2G
    }
    ```
   Update the parameters to whatever is desired. Leaving `LIMIT` blank will build the entire GFE dataset (~30,000 alleles).
-6. Get the `gfedbEndpoint` parameter from the `database-stack.yml` and load it in the browser on port 7474:
+6. Get the `Neo4jDatabaseEndpoint` parameter from the `database-stack.yml` and load it in the browser on port 7474:
    ```bash
    # Example
    18.215.230.187:7474

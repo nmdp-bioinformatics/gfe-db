@@ -100,3 +100,7 @@ logs/
 *.bak
 img/
 cicd.yml
+notebooks/
+delete.sh
+build/Makefile
+load/Makefile

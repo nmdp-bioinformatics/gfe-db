@@ -1,43 +1,67 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: Deploys a VPC with public subnet and EC2 instance hosting a Neo4j server
 Parameters:
+  Stage:
+    Type: String
+    Description: Stage of production
   AppName:
     Type: String
     Description: Application name
-  gfedbKeyName:
-    Type: String
+  EC2KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
     Description: Key pair name for the GFE database
     NoEcho: true
-  gfedbImageId:
+  Neo4jDatabaseImageId:
     Type: AWS::EC2::Image::Id
-  gfeBucketArn:
+  DataBucketArn:
     Type: String
+  Neo4jAvailabilityZone:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: us-east-1a
+Mappings:
+  # Neo4jAvailabilityZoneMap defines availability zones where an m5d.xlarge instance is available.
+  Neo4jAvailabilityZoneMap:
+    us-east-1:
+      Neo4jAvailabilityZone: us-east-1a
+    us-east-2:
+      Neo4jAvailabilityZone: us-east-2a
+    us-west-1:
+      Neo4jAvailabilityZone: us-west-1a
+    eu-central-1:
+      Neo4jAvailabilityZone: eu-central-1a
+    eu-west-1:
+      Neo4jAvailabilityZone: eu-west-1a
+    eu-west-2:
+      Neo4jAvailabilityZone: eu-west-2a
+    eu-west-3:
+      Neo4jAvailabilityZone: eu-west-3a
 Resources:
-  gfedbVPC:
+  VPC:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: 10.0.0.0/16
-  gfedbPublicSubnet:
+  PublicSubnet:
     Type: AWS::EC2::Subnet
     Properties:
       CidrBlock: 10.0.0.0/24
-      VpcId: !Ref gfedbVPC
+      VpcId: !Ref VPC
+      AvailabilityZone: !FindInMap [Neo4jAvailabilityZoneMap, !Ref AWS::Region, Neo4jAvailabilityZone]
       MapPublicIpOnLaunch: true
-  gfedbSecurityGroup:
+  Neo4jDatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: gfe-db-sg
+      GroupName: !Sub '${Stage}-${AppName}-neo4j-sg'
       GroupDescription: Security group for the GFE database
-      VpcId: !Ref gfedbVPC
+      VpcId: !Ref VPC
       SecurityGroupIngress:
         - CidrIp: 0.0.0.0/0
           FromPort: 80
           IpProtocol: tcp
           ToPort: 80
-        - CidrIp: 0.0.0.0/0
-          FromPort: 22
-          IpProtocol: tcp
-          ToPort: 22
+        # - CidrIp: 0.0.0.0/0
+        #   FromPort: 22
+        #   IpProtocol: tcp
+        #   ToPort: 22
         - CidrIp: 0.0.0.0/0
           FromPort: 7474
           IpProtocol: tcp
@@ -50,16 +74,19 @@ Resources:
           FromPort: 7687
           IpProtocol: tcp
           ToPort: 7687
+      Tags:
+        - Key: Name
+          Value: !Sub '${Stage}-${AppName}-neo4j-sg'
   InternetGateway:
     Type: AWS::EC2::InternetGateway
   RouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref gfedbVPC
+      VpcId: !Ref VPC
   VPCGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
-      VpcId: !Ref gfedbVPC
+      VpcId: !Ref VPC
       InternetGatewayId: !Ref InternetGateway
   Route:
     Type: AWS::EC2::Route
@@ -71,22 +98,22 @@ Resources:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref RouteTable
-      SubnetId: !Ref gfedbPublicSubnet
-  gfedbDatabase:
+      SubnetId: !Ref PublicSubnet
+  Neo4jDatabaseInstance:
     Type: AWS::EC2::Instance
     Properties:
-      KeyName: !Ref gfedbKeyName
+      KeyName: !Ref EC2KeyPairName
       DisableApiTermination: false
-      ImageId: !Ref gfedbImageId
+      ImageId: !Ref Neo4jDatabaseImageId
       InstanceType: m5d.xlarge
-      IamInstanceProfile: !Ref gfedbProfile
+      IamInstanceProfile: !Ref Neo4jDatabaseInstanceProfile
       Monitoring: true
       NetworkInterfaces:
         - AssociatePublicIpAddress: true
           DeviceIndex: "0"
           GroupSet: 
-            - !Ref gfedbSecurityGroup
-          SubnetId: !Ref gfedbPublicSubnet
+            - !Ref Neo4jDatabaseSecurityGroup
+          SubnetId: !Ref PublicSubnet
       UserData:
         Fn::Base64: |
           #!/bin/bash -x
@@ -121,7 +148,9 @@ Resources:
       Tags:
         - Key: Name
           Value: !Ref AppName
-  gfedbRole:
+        - Key: Stage
+          Value: !Ref Stage
+  Neo4jDatabaseIAMRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -135,7 +164,7 @@ Resources:
               - "sts:AssumeRole"
       Path: /
       Policies:
-        - PolicyName: gfedbPolicy
+        - PolicyName: !Sub '${Stage}-${AppName}-Neo4jDatabasePolicy'
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -144,8 +173,8 @@ Resources:
                   - "s3:GetObject"
                   - "s3:ListObjectsV2"
                 Resource: 
-                  - !Ref gfeBucketArn
-                  - !Sub ${gfeBucketArn}/*
+                  - !Ref DataBucketArn
+                  - !Sub ${DataBucketArn}/*
               - Effect: "Allow"
                 Action:
                   - "ecr:GetAuthorizationToken"
@@ -162,18 +191,18 @@ Resources:
                   - "ecr:PutImage"
                   - "cloudtrail:LookupEvents"
                 Resource: "*"
-  gfedbProfile:
+  Neo4jDatabaseInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
-        - !Ref gfedbRole
+        - !Ref Neo4jDatabaseIAMRole
 Outputs:
-  gfedbVPC:
-    Description: VPC for gfe-db
-    Value: !Ref gfedbVPC
-  gfedbPublicSubnet:
-    Description: Public Subnet for Neo4j database server
-    Value: !Ref gfedbPublicSubnet
-  gfedbEndpoint:
-    Description: Public DNS for SSH access into the database server
-    Value: !GetAtt gfedbDatabase.PublicIp
+  VPC:
+    Description: Virtual Private Network for gfe-db
+    Value: !Ref VPC
+  PublicSubnet:
+    Description: Public Subnet for gfe-db Neo4j server
+    Value: !Ref PublicSubnet
+  Neo4jDatabaseEndpoint:
+    Description: Public DNS for SSH access into the gfe-db Neo4j server
+    Value: !GetAtt Neo4jDatabaseInstance.PublicIp

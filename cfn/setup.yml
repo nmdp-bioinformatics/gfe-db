@@ -1,58 +1,67 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Setup stack for gfe-db, including S3 bucket for templates, data and logs
+Description: Setup stack for application, including S3 bucket for templates, data and logs
 Parameters:
+  Stage:
+    Type: String
+    Description: Stage of production
   AppName:
     Type: String
-    Default: gfe-db
-  gfedbKeyName:
+  EC2KeyPairName:
     Type: AWS::EC2::KeyPair::KeyName
-    Default: gfe-db-us-east-1
-    Description: Key pair name for the GFE database
-    NoEcho: true
+    Description: Key pair name for the Neo4j database server
+  DataBucketName:
+    Type: String
+    Description: Name of bucket for application data and logs
   Neo4jUsername:
     Type: String
-    Default: neo4j
     NoEcho: true
   Neo4jPassword:
     Type: String
-    Default: gfedb
     NoEcho: true
 Resources:
-  gfedbNeo4jCredentials:
+  Neo4jCredentials:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: gfedbNeo4jCredentials
+      Name: !Sub "${Stage}-${AppName}-Neo4jCredentials"
       Description: Must match the username/password specified in the Neo4j Dockerfile
       SecretString: !Sub '{"username":"${Neo4jUsername}","password":"${Neo4jPassword}"}'
       Tags:
+        - Key: Stage
+          Value: !Ref Stage
         - Key: AppName 
           Value: !Ref AppName
-  gfedbBucket:
+  DataBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Join 
-        - '-'
-        - - !Ref AppName
-          - !Ref AWS::AccountId
-          - !Ref AWS::Region
+      BucketName: !Ref DataBucketName
 Outputs:
+  Stage:
+    Description: Stage of production
+    Value: !Ref Stage
+    Export:
+      Name: !Sub "${AWS::StackName}-Stage"
   AppName:
     Description: Name of application
     Value: !Ref AppName
     Export:
       Name: !Sub "${AWS::StackName}-AppName"
-  gfedbKeyName:
+  EC2KeyPairName:
     Description: "EC2 key pair for launching instances"
-    Value: !Ref gfedbKeyName
+    Value: !Ref EC2KeyPairName
     Export:
-      Name: !Sub "${AWS::StackName}-gfedbKeyName"
-  gfedbBucketName:
-    Description: "S3 Bucket for gfe-db templates, data and logs"
-    Value: !Ref gfedbBucket
+      Name: !Sub "${AWS::StackName}-EC2KeyPairName"
+  DataBucketName:
+    Description: "S3 Bucket for application bucket"
+    Value: !Ref DataBucketName
     Export:
-      Name: !Sub "${AWS::StackName}-gfedbBucketName"
-  gfedbBucketArn:
-    Description: "S3 Bucket Arn for gfe-db templates, data and logs"
-    Value: !GetAtt gfedbBucket.Arn
+      Name: !Sub "${AWS::StackName}-DataBucketName"
+  DataBucketArn:
+    Description: "S3 Bucket Arn for application bucket"
+    Value: !GetAtt DataBucket.Arn
     Export:
-      Name: !Sub "${AWS::StackName}-gfedbBucketArn"
+      Name: !Sub "${AWS::StackName}-DataBucketArn"
+  DataBucketRegionalDomainName:
+    Description: "S3 Bucket Regional Domain name for application bucket"
+    Value: !GetAtt DataBucket.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-DataBucketRegionalDomainName"
