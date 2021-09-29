@@ -6,14 +6,15 @@ aws configure
 # Set in root Makefile
 STAGE=${1:-dev}
 APP_NAME=${2:-gfe-db}
-NEO4J_USERNAME=${3:-neo4j}
-NEO4J_PASSWORD=${4:-gfedb}
+REGION=${3:-"us-east-1"}
+NEO4J_USERNAME=${4:-neo4j}
+NEO4J_PASSWORD=${5:-gfedb}
 
 CFN_DIR=cfn
 CFN_OUTPUT_DIR=$CFN_DIR/output
-REGION=$(aws ec2 describe-availability-zones \
-    --output text \
-    --query 'AvailabilityZones[0].[RegionName]')
+# REGION=$(aws ec2 describe-availability-zones \
+#     --output text \
+#     --query 'AvailabilityZones[0].[RegionName]')
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 EC2_KEY_PAIR=$STAGE-$APP_NAME-$REGION-ec2-key
 DATA_BUCKET=$STAGE-$APP_NAME-$ACCOUNT_ID-$REGION
@@ -47,7 +48,7 @@ aws cloudformation deploy \
         Neo4jUsername=$NEO4J_USERNAME \
         Neo4jPassword=$NEO4J_PASSWORD
 
-aws cloudformation list-stack-resources --stack-name $setup_stack_name > $CFN_OUTPUT_DIR/$setup_stack_name.json
+# aws cloudformation list-stack-resources --stack-name $setup_stack_name > $CFN_OUTPUT_DIR/$setup_stack_name.json
 
 # Sync templates to S3
 aws s3 cp --recursive $CFN_DIR/ s3://$DATA_BUCKET/templates/
@@ -63,7 +64,7 @@ aws cloudformation deploy \
         AppName=$APP_NAME > master_stack_name.json \
         DataBucketName=$DATA_BUCKET
 
-aws cloudformation list-stack-resources --stack-name $master_stack_name > $CFN_OUTPUT_DIR/$master_stack_name.json
+# aws cloudformation list-stack-resources --stack-name $master_stack_name > $CFN_OUTPUT_DIR/$master_stack_name.json
 
 # Describe all resources
 for stack in $(aws cloudformation list-stacks \

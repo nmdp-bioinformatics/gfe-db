@@ -3,11 +3,9 @@ Description: Graph database representing IPD-IMGT/HLA sequence data as GFE
 Parameters:
   Stage:
     Type: String
-    Default: dev
     Description: Stage of production
   AppName:
     Type: String
-    Default: gfe-db
     Description: Application name
   Neo4jDatabaseImageId:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
@@ -18,7 +16,6 @@ Parameters:
     Description: ECS Optimized Amazon Linux 2 AMI
   DataBucketName:
     Type: String
-    Default: "bucket name"
     Description: Name of bucket for data, templates, and logs
 Resources:
   DatabaseStack:

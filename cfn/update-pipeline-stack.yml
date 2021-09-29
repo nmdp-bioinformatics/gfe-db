@@ -167,7 +167,7 @@ Resources:
         InstanceRole: !Ref BatchWorkerInstanceProfile
         LaunchTemplate:
           LaunchTemplateId: !Ref BuildLaunchTemplate
-        Tags: { "Name": !Sub "${Stage}-${AppName}-build-worker" }
+        Tags: { "Name": "gfe-db-build-worker" }
       ServiceRole: !GetAtt BatchServiceRole.Arn
   BuildLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
@@ -208,7 +208,7 @@ Resources:
         - ResourceType: launch-template
           Tags: 
             - Key: Name
-              Value: !Sub '${Stage}-${AppName}-build-worker'
+              Value: 'gfe-db-build-worker'
   LoadJobDefinition:
     Type: AWS::Batch::JobDefinition
     Properties:
@@ -263,7 +263,7 @@ Resources:
         SecurityGroupIds:
           - !Ref LoadServerSG
         InstanceRole: !Ref BatchWorkerInstanceProfile
-        Tags: { "Name": !Sub "${Stage}-${AppName}-load-worker" }
+        Tags: { "Name": "gfe-db-load-worker" }
       ServiceRole: !GetAtt BatchServiceRole.Arn
   UpdatePipelineExecutionRole:
     Type: AWS::IAM::Role
@@ -366,9 +366,9 @@ Resources:
         LoadJobQueue: !Ref LoadJobQueue
       DefinitionString: |-
         {
-            "StartAt": "BUILD_${AppName}",
+            "StartAt": "BUILD_gfe-db",
             "States": {
-                "BUILD_${AppName}": {
+                "BUILD_gfe-db": {
                     "Type": "Task",
                     "Resource": "arn:aws:states:::batch:submitJob.sync",
                     "Parameters": {
@@ -400,9 +400,9 @@ Resources:
                             ]
                         }
                     },
-                    "Next": "LOAD_${AppName}"
+                    "Next": "LOAD_gfe-db"
                 },
-                "LOAD_${AppName}": {
+                "LOAD_gfe-db": {
                     "Type": "Task",
                     "Resource": "arn:aws:states:::batch:submitJob.sync",
                     "Parameters": {

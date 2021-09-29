@@ -2,11 +2,12 @@
 # Bootstrapping variables
 ##########################
 
-# TODO: move to config file and parse with jq
-export STAGE ?= "dev"
-export STACK_NAME ?= "gfe-db-3"
-export NEO4J_USERNAME ?= "neo4j"
-export NEO4J_PASSWORD ?= "gfedb"
+# TODO: move to config file and parse with jq, or use SSM parameter store
+export STAGE ?= dev
+export APP_NAME ?= gfe-db-3
+export NEO4J_USERNAME ?= neo4j
+export NEO4J_PASSWORD ?= gfedb
+export REGION ?= us-east-1
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -18,18 +19,19 @@ target:
 
 deploy: ##=> Deploy services
 	$(info [*] Deploying...)
-	bash scripts/deploy.sh ${STAGE} ${STACK_NAME} ${NEO4J_USERNAME} ${NEO4J_PASSWORD}
+	bash scripts/deploy.sh ${STAGE} ${APP_NAME} ${REGION} ${NEO4J_USERNAME} ${NEO4J_PASSWORD}
 
-load: ##=> Load an IMGT/HLA release version
+load: ##=> Load an IMGT/HLA release version; release=3450 align=False kir=False mem_profile=False limit=1000
 	$(info [*] Loading ${release})
 
-#	# Get state machine arn
-
-	aws stepfunctions start-execution \
-		--state-machine-arn
+	# TODO: Add validation for positional arguments: release, align, kir, mem_profile, limit
+	@aws stepfunctions start-execution \
+	 	--state-machine-arn $$(aws ssm get-parameter \
+	 		--name "/${APP_NAME}/${STAGE}/${REGION}/UpdatePipelineArn" | jq -r '.Parameter.Value') \
+	 	--input "{\"params\":{\"environment\":{\"RELEASES\":\"$(release)\",\"ALIGN\":\"False\",\"KIR\":\"False\",\"MEM_PROFILE\":\"False\",\"LIMIT\":\"$(limit)\"}}}"
 
 # delete: ##=> Delete services
-# 	aws cloudformation delete-stack --stack-name ${STACK_NAME}-${STAGE}
+# 	aws cloudformation delete-stack --stack-name ${APP_NAME}-${STAGE}
 
 # export.parameter:
 # 	$(info [+] Adding new parameter named "${NAME}")
@@ -54,13 +56,10 @@ define HELP_MESSAGE
 
 	Environment variables:
 
-	These variables are automatically filled at CI time except STRIPE_SECRET_KEY
-	If doing a dirty/individual/non-ci deployment locally you'd need them to be set
-
 	STAGE: "dev"
 		Description: Feature branch name used as part of stacks name
-	STACK_NAME: "gfe-db"
-		Description: Stack Name already deployed; used for dirty/individual deployment
+	APP_NAME: "gfe-db"
+		Description: Stack Name already deployed
 
 	Common usage:
 
