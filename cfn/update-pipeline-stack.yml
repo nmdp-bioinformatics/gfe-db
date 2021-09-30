@@ -331,6 +331,13 @@ Resources:
               - "ecr:InitiateLayerUpload"
               - "ecr:UploadLayerPart"
               - "ecr:CompleteLayerUpload"
+  BuildServiceRepositoryNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/BuildServiceRepositoryName'
+      Description: "Name of gfe-db build service repository"
+      Value: !Ref BuildServiceRepository
   LoadServiceRepository:
     Type: AWS::ECR::Repository
     Properties:
@@ -351,6 +358,13 @@ Resources:
               - "ecr:InitiateLayerUpload"
               - "ecr:UploadLayerPart"
               - "ecr:CompleteLayerUpload"
+  LoadServiceRepositoryNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/LoadServiceRepositoryName'
+      Description: "Name of gfe-db load service repository"
+      Value: !Ref LoadServiceRepository
   UpdatePipeline:
     Type: AWS::StepFunctions::StateMachine
     Properties:

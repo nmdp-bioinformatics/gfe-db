@@ -6,19 +6,19 @@ aws configure
 # Set in root Makefile
 STAGE=${1:-dev}
 APP_NAME=${2:-gfe-db}
-REGION=${3:-"us-east-1"}
+REGION=${3:-$(aws ec2 describe-availability-zones \
+    --output text \
+    --query 'AvailabilityZones[0].[RegionName]')}
 NEO4J_USERNAME=${4:-neo4j}
 NEO4J_PASSWORD=${5:-gfedb}
 
 CFN_DIR=cfn
-CFN_OUTPUT_DIR=$CFN_DIR/output
-# REGION=$(aws ec2 describe-availability-zones \
-#     --output text \
-#     --query 'AvailabilityZones[0].[RegionName]')
+# CFN_OUTPUT_DIR=$CFN_DIR/output
+CFN_LOG_FILENAME=$STAGE-$APP_NAME-$(date +%s)
+
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 EC2_KEY_PAIR=$STAGE-$APP_NAME-$REGION-ec2-key
 DATA_BUCKET=$STAGE-$APP_NAME-$ACCOUNT_ID-$REGION
-CFN_LOG_FILENAME=$STAGE-$APP_NAME-$(date +%s)
 
 # Check if EC2 key pair exists for region: gfe-db-<region>, if not create one
 CURRENT_EC2_KEY_PAIR=$(aws ec2 describe-key-pairs --key-name $EC2_KEY_PAIR | jq '.KeyPairs[0].KeyName')
@@ -33,7 +33,7 @@ fi
 
 echo "Deploying stacks..."
 
-mkdir -p $CFN_OUTPUT_DIR/
+# mkdir -p $CFN_OUTPUT_DIR/
 
 # Deploy setup stack
 setup_stack_name=$STAGE-$APP_NAME-setup
@@ -61,20 +61,20 @@ aws cloudformation deploy \
     --capabilities "CAPABILITY_NAMED_IAM" \
     --parameter-overrides \
         Stage=$STAGE \
-        AppName=$APP_NAME > master_stack_name.json \
+        AppName=$APP_NAME \
         DataBucketName=$DATA_BUCKET
 
 # aws cloudformation list-stack-resources --stack-name $master_stack_name > $CFN_OUTPUT_DIR/$master_stack_name.json
 
-# Describe all resources
-for stack in $(aws cloudformation list-stacks \
-    --output text \
-    --query "StackSummaries[?contains(StackName, $master_stack_name) && (StackStatus==`CREATE_COMPLETE`||StackStatus==`UPDATE_COMPLETE`)].[StackName]") ; do 
-    aws cloudformation describe-stack-resources \
-        --stack-name $stack \
-        --output json > $STAGE-$APP_NAME-$stack.json
-     ; 
-    done
+# # Describe all resources
+# for stack in $(aws cloudformation list-stacks \
+#     --output text \
+#     --query "StackSummaries[?contains(StackName, $master_stack_name) && (StackStatus==`CREATE_COMPLETE`||StackStatus==`UPDATE_COMPLETE`)].[StackName]") ; do 
+#     aws cloudformation describe-stack-resources \
+#         --stack-name $stack \
+#         --output json > $STAGE-$APP_NAME-$stack.json
+#      ; 
+#     done
 
 
 echo "Finished"

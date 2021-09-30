@@ -15,9 +15,6 @@ Parameters:
     Type: AWS::EC2::Image::Id
   DataBucketArn:
     Type: String
-  Neo4jAvailabilityZone:
-    Type: AWS::EC2::AvailabilityZone::Name
-    Default: us-east-1a
 Mappings:
   # Neo4jAvailabilityZoneMap defines availability zones where an m5d.xlarge instance is available.
   Neo4jAvailabilityZoneMap:

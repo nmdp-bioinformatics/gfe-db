@@ -34,6 +34,20 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref DataBucketName
+  DataBucketNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataBucketName'
+      Description: "Name of gfe-db data bucket"
+      Value: !Ref DataBucket
+  DataBucketArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataBucketArn'
+      Description: "ARN of gfe-db data bucket"
+      Value: !GetAtt DataBucket.Arn
 Outputs:
   Stage:
     Description: Stage of production

@@ -17,12 +17,12 @@ target:
 # 	$(info [*] Bootstrapping CI system...)
 # 	@$(MAKE) _install_os_packages
 
-deploy: ##=> Deploy services
+deploy: ##=> Deploy resources
 	$(info [*] Deploying...)
-	bash scripts/deploy.sh ${STAGE} ${APP_NAME} ${REGION} ${NEO4J_USERNAME} ${NEO4J_PASSWORD}
+	@bash scripts/deploy.sh ${STAGE} ${APP_NAME} ${REGION} ${NEO4J_USERNAME} ${NEO4J_PASSWORD}
 
 load: ##=> Load an IMGT/HLA release version; release=3450 align=False kir=False mem_profile=False limit=1000
-	$(info [*] Loading ${release})
+	$(info [*] Starting StepFunctions execution for release $(release))
 
 	# TODO: Add validation for positional arguments: release, align, kir, mem_profile, limit
 	@aws stepfunctions start-execution \
@@ -30,8 +30,9 @@ load: ##=> Load an IMGT/HLA release version; release=3450 align=False kir=False 
 	 		--name "/${APP_NAME}/${STAGE}/${REGION}/UpdatePipelineArn" | jq -r '.Parameter.Value') \
 	 	--input "{\"params\":{\"environment\":{\"RELEASES\":\"$(release)\",\"ALIGN\":\"False\",\"KIR\":\"False\",\"MEM_PROFILE\":\"False\",\"LIMIT\":\"$(limit)\"}}}"
 
-# delete: ##=> Delete services
-# 	aws cloudformation delete-stack --stack-name ${APP_NAME}-${STAGE}
+delete: ##=> Delete resources
+	$(info [*] Deleting resources...)
+	@bash scripts/delete.sh ${STAGE} ${APP_NAME} ${REGION}
 
 # export.parameter:
 # 	$(info [+] Adding new parameter named "${NAME}")
