@@ -3,19 +3,23 @@
 echo "Set AWS credentials and region:"
 aws configure
 
-# Set in root Makefile
+# Variables set in root Makefile
 STAGE=${1:-dev}
 APP_NAME=${2:-gfe-db}
 REGION=${3:-$(aws ec2 describe-availability-zones \
     --output text \
     --query 'AvailabilityZones[0].[RegionName]')}
+
+# Deployment variables
+export ROOT=$(dirname $(dirname "$0"))
+export BUILD_SERVICE_DIR=$ROOT/build
+export LOAD_SERVICE_DIR=$ROOT/load
+
 NEO4J_USERNAME=${4:-neo4j}
 NEO4J_PASSWORD=${5:-gfedb}
-
 CFN_DIR=cfn
 # CFN_OUTPUT_DIR=$CFN_DIR/output
 CFN_LOG_FILENAME=$STAGE-$APP_NAME-$(date +%s)
-
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 EC2_KEY_PAIR=$STAGE-$APP_NAME-$REGION-ec2-key
 DATA_BUCKET=$STAGE-$APP_NAME-$ACCOUNT_ID-$REGION
@@ -31,6 +35,7 @@ else
     echo "Key pair found: $CURRENT_EC2_KEY_PAIR"
 fi
 
+# Create CloudFormation stacks
 echo "Deploying stacks..."
 
 # mkdir -p $CFN_OUTPUT_DIR/
@@ -48,12 +53,10 @@ aws cloudformation deploy \
         Neo4jUsername=$NEO4J_USERNAME \
         Neo4jPassword=$NEO4J_PASSWORD
 
-# aws cloudformation list-stack-resources --stack-name $setup_stack_name > $CFN_OUTPUT_DIR/$setup_stack_name.json
-
 # Sync templates to S3
 aws s3 cp --recursive $CFN_DIR/ s3://$DATA_BUCKET/templates/
 
-# Deploy nested stacks
+# Deploy nested stacks (database, ECR repos, Batch environment and StepFunctions)
 master_stack_name=$STAGE-$APP_NAME
 aws cloudformation deploy \
     --template-file $CFN_DIR/master-stack.yml \
@@ -64,18 +67,20 @@ aws cloudformation deploy \
         AppName=$APP_NAME \
         DataBucketName=$DATA_BUCKET
 
-# aws cloudformation list-stack-resources --stack-name $master_stack_name > $CFN_OUTPUT_DIR/$master_stack_name.json
+# Login to docker/ECR
+aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
 
-# # Describe all resources
-# for stack in $(aws cloudformation list-stacks \
-#     --output text \
-#     --query "StackSummaries[?contains(StackName, $master_stack_name) && (StackStatus==`CREATE_COMPLETE`||StackStatus==`UPDATE_COMPLETE`)].[StackName]") ; do 
-#     aws cloudformation describe-stack-resources \
-#         --stack-name $stack \
-#         --output json > $STAGE-$APP_NAME-$stack.json
-#      ; 
-#     done
+# Deploy build service image to ECR
+echo "Deploying container image: build service"
+docker build -t $STAGE-$APP_NAME-build-service $BUILD_SERVICE_DIR/
+docker tag $STAGE-$APP_NAME-build-service:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$STAGE-$APP_NAME-build-service:latest
+docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$STAGE-$APP_NAME-build-service:latest
 
+# Deploy load service image to ECR
+echo "Deploying container image: build service"
+docker build -t $STAGE-$APP_NAME-load-service $LOAD_SERVICE_DIR
+docker tag $STAGE-$APP_NAME-load-service:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$STAGE-$APP_NAME-load-service:latest
+docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$STAGE-$APP_NAME-load-service:latest
 
 echo "Finished"
 exit 0

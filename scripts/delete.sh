@@ -7,6 +7,9 @@ REGION=${3:-$(aws ec2 describe-availability-zones \
     --output text \
     --query 'AvailabilityZones[0].[RegionName]')}
 
+CFN_DIR=./cfn
+CFN_OUTPUT_DIR=$CFN_DIR/output
+
 setup_stack_name=$STAGE-$APP_NAME-setup
 master_stack_name=$STAGE-$APP_NAME
 
@@ -35,6 +38,7 @@ echo "Deleted bucket contents: $DATA_BUCKET"
 echo
 echo -e "******* Deleting ECR images... *******"
 echo
+
 # Get and delete objects on cfn bucket
 # for service in build load database; do
 
@@ -70,11 +74,12 @@ echo
 
 # Delete CloudFormation nested stack
 aws cloudformation delete-stack \
-    --stack-name $master_stack_name 
+    --stack-name $master_stack_name > /dev/null
 echo "Deleted stack: $master_stack_name"
 
+aws cloudformation wait stack-delete-complete --stack-name $master_stack_name
 aws cloudformation delete-stack \
-    --stack-name $setup_stack_name
+    --stack-name $setup_stack_name > /dev/null
 echo "Deleted stack: $setup_stack_name"
 
 echo "Finished"

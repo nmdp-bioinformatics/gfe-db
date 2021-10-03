@@ -21,14 +21,14 @@ deploy: ##=> Deploy resources
 	$(info [*] Deploying...)
 	@bash scripts/deploy.sh ${STAGE} ${APP_NAME} ${REGION} ${NEO4J_USERNAME} ${NEO4J_PASSWORD}
 
-load: ##=> Load an IMGT/HLA release version; release=3450 align=False kir=False mem_profile=False limit=1000
+run: ##=> Load an IMGT/HLA release version; release=3450 align=False kir=False mem_profile=False limit=1000
 	$(info [*] Starting StepFunctions execution for release $(release))
 
 	# TODO: Add validation for positional arguments: release, align, kir, mem_profile, limit
 	@aws stepfunctions start-execution \
 	 	--state-machine-arn $$(aws ssm get-parameter \
 	 		--name "/${APP_NAME}/${STAGE}/${REGION}/UpdatePipelineArn" | jq -r '.Parameter.Value') \
-	 	--input "{\"params\":{\"environment\":{\"RELEASES\":\"$(release)\",\"ALIGN\":\"False\",\"KIR\":\"False\",\"MEM_PROFILE\":\"False\",\"LIMIT\":\"$(limit)\"}}}"
+	 	--input "{\"params\":{\"environment\":{\"RELEASES\":\"$(release)\",\"ALIGN\":\"False\",\"KIR\":\"False\",\"MEM_PROFILE\":\"False\",\"LIMIT\":\"$(limit)\"}}}" > dev/null
 
 delete: ##=> Delete resources
 	$(info [*] Deleting resources...)
