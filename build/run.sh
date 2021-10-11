@@ -129,7 +129,7 @@ for release in ${RELEASES}; do
 	mv $LOGS_DIR/mem_profile_agg.txt $LOGS_DIR/mem_profile_agg.$release.txt
 	mv $LOGS_DIR/mem_profile_diff.txt $LOGS_DIR/mem_profile_diff.$release.txt
 	echo -e "Uploading logs to s3://$GFE_BUCKET/logs/$release/:\n$(ls $LOGS_DIR/)"
-	aws s3 --recursive cp $LOGS_DIR/ s3://$GFE_BUCKET/logs/$release/ > $LOGS_DIR/s3CopyLog.txt
+	aws s3 --recursive cp $LOGS_DIR/ s3://$GFE_BUCKET/logs/$release/ > $LOGS_DIR/s3CopyLog.Local.txt
 
 done
 

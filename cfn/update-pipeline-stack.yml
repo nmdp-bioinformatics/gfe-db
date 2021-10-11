@@ -1,60 +1,61 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "gfe-db build service using AWS Batch"
+Description: Deploys AWS Batch Jobs and a State Machine for the gfe-db Update Pipeline
 Parameters:
-  gfedbBuildImageId:
-    Type: AWS::EC2::Image::Id
-    Default: ami-05c75efdc7843b54e
-    Description: ECS Optimized Amazon Linux 2 AMI for us-east-1
-  gfeVPC:
+  Stage:
     Type: String
-    Default: vpc-8a3d74f0
+    Description: Stage of production
+  AppName:
+    Type: String
+    Description: Application name
+  VPC:
+    Type: AWS::EC2::VPC::Id
     Description: Default VPC
-  gfeSubnet:
-    Type: String
-    Default: subnet-5c44793b
+  PublicSubnet:
+    Type: AWS::EC2::Subnet::Id
     Description: Public subnet with internet access
-  gfeBucket:
+  BuildImageId:
+    Type: AWS::EC2::Image::Id
+    Description: ECS Optimized Amazon Linux 2 AMI
+  DataBucketName:
     Type: String
-    Default: <bucket name>
-    Description: Bucket for data and logs gfedbEndpoint
-  gfedbEndpoint:
+    Description: Bucket for templates, data and logs
+  DataBucketArn:
     Type: String
-    Default: <Neo4j URL>
-    Description: Endpoint for Neo4j server 
-  # gfedbBuildServiceRepository:
-  #   Type: String
-  #   Default: gfe-db-build-service
-  #   Description: ECR repository for build service
-  # gfedbLoadServiceRepository:
-  #   Type: String
-  #   Default: gfe-db-load-service
-  #   Description: ECR repository for load service
+  Neo4jDatabaseEndpoint:
+    Type: String
+    Description: Endpoint for Neo4j server (ouput from database-stack.yml)
+    AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})
+    ConstraintDescription: must be a valid IP address of the form x.x.x.x.
 Resources:
-  gfedbBuildSG:
+  BuildServerSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: gfedb-build-server-sg
-      GroupDescription: Security group for the GFE DB build server
-      VpcId: !Ref gfeVPC
+      GroupName: !Sub '${Stage}-${AppName}-build-server-sg'
+      GroupDescription: !Sub 'Security group for the ${Stage}-${AppName} build server'
+      VpcId: !Ref VPC
       # SecurityGroupIngress: # Uncomment to allow SSH access to build instance
       #   - CidrIp: 66.214.236.87/32
       #     FromPort: 22
       #     IpProtocol: tcp
       #     ToPort: 22
-  gfedbLoadSG:
+      Tags:
+        - Key: Name
+          Value: !Sub '${Stage}-${AppName}-build-server-sg'
+  LoadServerSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: gfedb-load-server-sg
-      GroupDescription: Security group for the GFE DB build server
-      VpcId: !Ref gfeVPC
-      SecurityGroupIngress:
-        - CidrIp: 66.214.236.87/32
-          FromPort: 22
-          IpProtocol: tcp
-          ToPort: 22
-
-  ### Permissions ###
-  gfedbBatchServiceRole:
+      GroupName: !Sub '${Stage}-${AppName}-load-server-sg'
+      GroupDescription: !Sub 'Security group for the ${Stage}-${AppName} load server'
+      VpcId: !Ref VPC
+      # SecurityGroupIngress:
+      #   - CidrIp: 66.214.236.87/32
+      #     FromPort: 22
+      #     IpProtocol: tcp
+      #     ToPort: 22
+      Tags:
+        - Key: Name
+          Value: !Sub '${Stage}-${AppName}-load-server-sg'
+  BatchServiceRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -66,12 +67,12 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole
-  IamInstanceProfile:
+  BatchWorkerInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
-        - !Ref EcsInstanceRole
-  EcsInstanceRole:
+        - !Ref BatchWorkerInstanceRole
+  BatchWorkerInstanceRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -87,7 +88,7 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonS3FullAccess
         - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
       Policies:
-        - PolicyName: ECS-CloudWatchLogs
+        - PolicyName: !Sub '${Stage}-${AppName}-ECS-CloudWatchLogs'
           PolicyDocument: 
             Version: "2012-10-17"
             Statement:
@@ -98,7 +99,7 @@ Resources:
                   - logs:DescribeLogStreams
                 Effect: Allow
                 Resource: arn:aws:logs:*:*:*"
-        - PolicyName: gfeDBBuildServiceS3ReadWritePolicy
+        - PolicyName: !Sub '${Stage}-${AppName}-BuildServiceS3ReadWritePolicy'
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -114,15 +115,13 @@ Resources:
                   - s3:PutLifecycleConfiguration
                   - s3:DeleteObject
                 Resource:
-                  - arn:aws:s3:::gfe-db-4498
-                  - arn:aws:s3:::gfe-db-4498/*
-
-  ### Build gfe-db ###
-  gfedbBuildJobDefinition:
+                  - !Ref DataBucketArn
+                  - !Sub ${DataBucketArn}/*
+  BuildJobDefinition:
     Type: AWS::Batch::JobDefinition
     Properties:
       Type: container
-      JobDefinitionName: gfedbBuildJobDefinition
+      JobDefinitionName: !Sub '${Stage}-${AppName}-BuildJobDefinition'
       ContainerProperties:
         Image: !Join
             - ""
@@ -130,27 +129,28 @@ Resources:
               - .dkr.ecr.
               - !Ref AWS::Region
               - .amazonaws.com/
-              - !Ref gfedbBuildServiceRepository
+              - !Ref BuildServiceRepository
               - :latest
         Vcpus: 8
-        Memory: 8000 # Keep this around half the available RAM to avoid getting stuck in RUNNABLE status 
+        # TODO: Move Memory param to ResourceRequirements
+        Memory: 800 # Keep this around half the available RAM to avoid getting stuck in RUNNABLE status 
         Command:
           - bash
           - run.sh
         Environment:
           - Name: GFE_BUCKET
-            Value: !Ref gfeBucket
+            Value: !Ref DataBucketName
       RetryStrategy:
         Attempts: 1
-  gfedbBuildJobQueue:
+  BuildJobQueue:
     Type: AWS::Batch::JobQueue
     Properties:
-      JobQueueName: gfedbBuildJobQueue
+      JobQueueName: !Sub '${Stage}-${AppName}-BuildJobQueue'
       Priority: 1
       ComputeEnvironmentOrder:
         - Order: 1
-          ComputeEnvironment: !Ref gfedbBuildComputeEnvironment
-  gfedbBuildComputeEnvironment:
+          ComputeEnvironment: !Ref BuildComputeEnvironment
+  BuildComputeEnvironment:
     Type: AWS::Batch::ComputeEnvironment
     Properties:
       Type: MANAGED
@@ -162,32 +162,28 @@ Resources:
         InstanceTypes:
           - c5d.2xlarge
         Subnets:
-          - !Ref gfeSubnet
+          - !Ref PublicSubnet
         SecurityGroupIds:
-          - !Ref gfedbBuildSG
-        InstanceRole: !Ref IamInstanceProfile
+          - !Ref BuildServerSG
+        InstanceRole: !Ref BatchWorkerInstanceProfile
         LaunchTemplate:
-          LaunchTemplateId: !Ref gfedbBuildLaunchTemplate
-      ServiceRole: !GetAtt gfedbBatchServiceRole.Arn
-  gfedbBuildLaunchTemplate:
+          LaunchTemplateId: !Ref BuildLaunchTemplate
+        Tags: { "Name": "gfe-db-build-worker" }
+      ServiceRole: !GetAtt BatchServiceRole.Arn
+  BuildLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
       LaunchTemplateData:
         DisableApiTermination: false
         InstanceInitiatedShutdownBehavior: stop
-        ImageId: !Ref gfedbBuildImageId
+        ImageId: !Ref BuildImageId
         InstanceType: c5d.xlarge
         IamInstanceProfile:
-          Name: !Ref IamInstanceProfile
+          Name: !Ref BatchWorkerInstanceProfile
         Monitoring:
           Enabled: true
         SecurityGroupIds:
-          - !Ref gfedbBuildSG
-        TagSpecifications:
-          - ResourceType: instance
-            Tags: 
-              - Key: Name
-                Value: gfe-db-build-service
+          - !Ref BuildServerSG
         UserData:
           Fn::Base64: |
             MIME-Version: 1.0
@@ -209,13 +205,16 @@ Resources:
             sudo yum install amazon-cloudwatch-agent -y
 
             --==MYBOUNDARY==
-
-  ### Load gfe-db ###
-  gfedbLoadJobDefinition:
+      TagSpecifications:
+        - ResourceType: launch-template
+          Tags: 
+            - Key: Name
+              Value: 'gfe-db-build-worker'
+  LoadJobDefinition:
     Type: AWS::Batch::JobDefinition
     Properties:
       Type: container
-      JobDefinitionName: gfedbLoadJobDefinition
+      JobDefinitionName: !Sub '${Stage}-${AppName}-LoadJobDefinition'
       ContainerProperties:
         Image: !Join
             - ""
@@ -223,33 +222,34 @@ Resources:
               - .dkr.ecr.
               - !Ref AWS::Region
               - .amazonaws.com/
-              - !Ref gfedbLoadServiceRepository
+              - !Ref LoadServiceRepository
               - :latest
         Vcpus: 2
+        # TODO: Move Memory param to ResourceRequirements
         Memory: 4000
         Command:
           - bash
           - run.sh
         Environment:
           - Name: GFE_BUCKET
-            Value: !Ref gfeBucket
+            Value: !Ref DataBucketName
           - Name: NEO4J_HOST
-            Value: !Ref gfedbEndpoint
+            Value: !Ref Neo4jDatabaseEndpoint
           - Name: NEO4J_USERNAME
-            Value: neo4j
+            Value: !Sub '{{resolve:secretsmanager:${Stage}-${AppName}-Neo4jCredentials:SecretString:username:AWSCURRENT}}'
           - Name: NEO4J_PASSWORD
-            Value: gfedb
+            Value: !Sub '{{resolve:secretsmanager:${Stage}-${AppName}-Neo4jCredentials:SecretString:password:AWSCURRENT}}'
       RetryStrategy:
         Attempts: 1
-  gfedbLoadJobQueue:
+  LoadJobQueue:
     Type: AWS::Batch::JobQueue
     Properties:
-      JobQueueName: gfedbLoadJobQueue
+      JobQueueName: !Sub '${Stage}-${AppName}-LoadJobQueue'
       Priority: 1
       ComputeEnvironmentOrder:
         - Order: 1
-          ComputeEnvironment: !Ref gfedbLoadComputeEnvironment
-  gfedbLoadComputeEnvironment:
+          ComputeEnvironment: !Ref LoadComputeEnvironment
+  LoadComputeEnvironment:
     Type: AWS::Batch::ComputeEnvironment
     Properties:
       Type: MANAGED
@@ -261,16 +261,13 @@ Resources:
         InstanceTypes:
           - optimal
         Subnets:
-          - !Ref gfeSubnet
+          - !Ref PublicSubnet
         SecurityGroupIds:
-          - !Ref gfedbLoadSG
-        InstanceRole: !Ref IamInstanceProfile
-        # LaunchTemplate:
-        #   LaunchTemplateId: !Ref gfedbBuildLaunchTemplate
-      ServiceRole: !GetAtt gfedbBatchServiceRole.Arn
-
-### Orchestrate building and loading ###
-  gfeDBPipelineExecutionRole:
+          - !Ref LoadServerSG
+        InstanceRole: !Ref BatchWorkerInstanceProfile
+        Tags: { "Name": "gfe-db-load-worker" }
+      ServiceRole: !GetAtt BatchServiceRole.Arn
+  UpdatePipelineExecutionRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -284,7 +281,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
       Policies:
-        - PolicyName: gfeDBPipelineLogsPolicy
+        - PolicyName: !Sub '${Stage}-${AppName}-PipelineLogsPolicy'
           PolicyDocument: 
             Version: "2012-10-17"
             Statement:
@@ -299,7 +296,7 @@ Resources:
                   - logs:DescribeResourcePolicies
                   - logs:DescribeLogGroups
                 Resource: "*"
-        - PolicyName: gfeDBPipelineBatchExecutionPolicy
+        - PolicyName: !Sub '${Stage}-${AppName}-PipelineBatchExecutionPolicy'
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -316,10 +313,10 @@ Resources:
                   - events:DescribeRule
                 Resource: 
                   - !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule
-  gfedbBuildServiceRepository:
+  BuildServiceRepository:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: "gfe-db-build-service"
+      RepositoryName: !Sub '${Stage}-${AppName}-build-service'
       RepositoryPolicyText:
         Version: "2012-10-17"
         Statement:
@@ -327,7 +324,7 @@ Resources:
             Effect: Allow
             Principal:
               AWS:
-                - !Sub arn:aws:iam::${AWS::AccountId}:role/${EcsInstanceRole}
+                - !Sub arn:aws:iam::${AWS::AccountId}:role/${BatchWorkerInstanceRole}
             Action:
               - "ecr:GetDownloadUrlForLayer"
               - "ecr:BatchGetImage"
@@ -336,10 +333,17 @@ Resources:
               - "ecr:InitiateLayerUpload"
               - "ecr:UploadLayerPart"
               - "ecr:CompleteLayerUpload"
-  gfedbLoadServiceRepository:
+  BuildServiceRepositoryNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/BuildServiceRepositoryName'
+      Description: "Name of gfe-db build service repository"
+      Value: !Ref BuildServiceRepository
+  LoadServiceRepository:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: "gfedb-load-service"
+      RepositoryName: !Sub '${Stage}-${AppName}-load-service'
       RepositoryPolicyText:
         Version: "2012-10-17"
         Statement:
@@ -347,7 +351,7 @@ Resources:
             Effect: Allow
             Principal:
               AWS:
-                - !Sub arn:aws:iam::${AWS::AccountId}:role/${EcsInstanceRole}
+                - !Sub arn:aws:iam::${AWS::AccountId}:role/${BatchWorkerInstanceRole}
             Action:
               - "ecr:GetDownloadUrlForLayer"
               - "ecr:BatchGetImage"
@@ -356,22 +360,38 @@ Resources:
               - "ecr:InitiateLayerUpload"
               - "ecr:UploadLayerPart"
               - "ecr:CompleteLayerUpload"
-  StateMachine:
+  LoadServiceRepositoryNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/LoadServiceRepositoryName'
+      Description: "Name of gfe-db load service repository"
+      Value: !Ref LoadServiceRepository
+  # TODO: Update concurrency to maximum 3 executions
+  UpdatePipeline:
     Type: AWS::StepFunctions::StateMachine
     Properties:
-      StateMachineName: gfe-db-pipeline
-      RoleArn: !GetAtt gfeDBPipelineExecutionRole.Arn #
+      StateMachineName: !Sub '${Stage}-${AppName}-pipeline'
+      RoleArn: !GetAtt UpdatePipelineExecutionRole.Arn
+      DefinitionSubstitutions:
+        AppName: !Ref AppName
+        BuildJobDefinition: !Ref BuildJobDefinition
+        BuildJobName: !Sub '${Stage}-${AppName}-build-job'
+        BuildJobQueue: !Ref BuildJobQueue
+        LoadJobDefinition: !Ref LoadJobDefinition
+        LoadJobName: !Sub '${Stage}-${AppName}-load-job'
+        LoadJobQueue: !Ref LoadJobQueue
       DefinitionString: |-
         {
-            "StartAt": "BUILD_GFE-DB",
+            "StartAt": "BUILD_gfe-db",
             "States": {
-                "BUILD_GFE-DB": {
+                "BUILD_gfe-db": {
                     "Type": "Task",
                     "Resource": "arn:aws:states:::batch:submitJob.sync",
                     "Parameters": {
-                        "JobDefinition": "gfedbBuildJobDefinition",
-                        "JobName": "build-gfe-db",
-                        "JobQueue": "gfedbBuildJobQueue",
+                        "JobDefinition": "${BuildJobDefinition}",
+                        "JobName": "${BuildJobName}",
+                        "JobQueue": "${BuildJobQueue}",
                         "ContainerOverrides": {
                             "Environment": [
                                 {
@@ -397,20 +417,28 @@ Resources:
                             ]
                         }
                     },
-                    "Next": "LOAD_GFE-DB"
+                    "Next": "LOAD_gfe-db"
                 },
-                "LOAD_GFE-DB": {
+                "LOAD_gfe-db": {
                     "Type": "Task",
                     "Resource": "arn:aws:states:::batch:submitJob.sync",
                     "Parameters": {
-                        "JobDefinition": "gfedbLoadJobDefinition",
-                        "JobName": "load-gfe-db",
-                        "JobQueue": "gfedbLoadJobQueue",
+                        "JobDefinition": "${LoadJobDefinition}",
+                        "JobName": "${LoadJobName}",
+                        "JobQueue": "${LoadJobQueue}",
                         "ContainerOverrides": {
                             "Environment": [
                                 {
                                     "Name": "RELEASES",
                                     "Value.$": "$$.Execution.Input.params.environment.RELEASES"
+                                },
+                                {
+                                    "Name": "ALIGN",
+                                    "Value.$": "$$.Execution.Input.params.environment.ALIGN"
+                                },
+                                {
+                                    "Name": "KIR",
+                                    "Value.$": "$$.Execution.Input.params.environment.KIR"
                                 }
                             ]
                         }
@@ -422,41 +450,23 @@ Resources:
       LoggingConfiguration: 
         Destinations:
           - CloudWatchLogsLogGroup: 
-              LogGroupArn: !GetAtt gfeDBPipelineLogGroup.Arn
+              LogGroupArn: !GetAtt UpdatePipelineLogGroup.Arn
         IncludeExecutionData: true
         Level: ALL
-  gfeDBPipelineLogGroup:
+  UpdatePipelineLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: gfe-db-pipeline-execution-logs
+      LogGroupName: !Sub "${Stage}-${AppName}-pipeline-execution-logs"
+  UpdatePipelineArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineArn'
+      Description: "ARN of gfe-db update pipeline state machine"
+      Value: !GetAtt UpdatePipeline.Arn
 Outputs:
-  gfedbBuildComputeEnvironmentArn:
-    Value: !Ref gfedbBuildComputeEnvironment
-  gfedbBuildJobQueueArn:
-    Value: !Ref gfedbBuildJobQueue
-  gfedbBuildJobDefinitionArn:
-    Value: !Ref gfedbBuildJobDefinition
-  EcsInstanceRoleArn:
-    Value: !GetAtt EcsInstanceRole.Arn
+  UpdatePipelineArn:
+    Description: "ARN of gfe-db update pipeline state machine"
+    Value: !GetAtt UpdatePipeline.Arn
     Export:
-      Name: !Sub "${AWS::StackName}-EcsInstanceRoleArn"
-  WorkflowArn:
-    Description: Workflow statemachine ARN
-    Value: !Ref StateMachine
-  WorkflowName:
-    Description: Workflow statemachine Name
-    Value: !GetAtt StateMachine.Name
-  WorkflowInput:
-    Description: Example input for workflow statemachine
-    Value: |-
-      {
-          "params": {
-              "environment": {
-                  "RELEASES": "3410",
-                  "ALIGN": "True",
-                  "KIR": "False",
-                  "MEM_PROFILE": "False",
-                  "LIMIT": ""
-              }
-          }
-      }
+      Name: !Sub "${AWS::StackName}-UpdatePipelineArn"

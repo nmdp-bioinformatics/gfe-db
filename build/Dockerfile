@@ -1,8 +1,9 @@
-FROM python:3.8
+FROM python:3.8-slim-buster
 
 RUN apt update && \
     apt-get install -y \
         bc \
+        curl \
     && pip3 install --upgrade pip \
     && apt-get clean
 
