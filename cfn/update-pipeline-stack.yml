@@ -132,7 +132,8 @@ Resources:
               - !Ref BuildServiceRepository
               - :latest
         Vcpus: 8
-        Memory: 8000 # Keep this around half the available RAM to avoid getting stuck in RUNNABLE status 
+        # TODO: Move Memory param to ResourceRequirements
+        Memory: 800 # Keep this around half the available RAM to avoid getting stuck in RUNNABLE status 
         Command:
           - bash
           - run.sh
@@ -224,6 +225,7 @@ Resources:
               - !Ref LoadServiceRepository
               - :latest
         Vcpus: 2
+        # TODO: Move Memory param to ResourceRequirements
         Memory: 4000
         Command:
           - bash
@@ -365,6 +367,7 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/LoadServiceRepositoryName'
       Description: "Name of gfe-db load service repository"
       Value: !Ref LoadServiceRepository
+  # TODO: Update concurrency to maximum 3 executions
   UpdatePipeline:
     Type: AWS::StepFunctions::StateMachine
     Properties:

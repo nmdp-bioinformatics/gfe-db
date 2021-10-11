@@ -67,20 +67,21 @@ aws cloudformation deploy \
         AppName=$APP_NAME \
         DataBucketName=$DATA_BUCKET
 
-# Login to docker/ECR
-aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
+# # Login to docker/ECR
+# aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
 
-# Deploy build service image to ECR
-echo "Deploying container image: build service"
-docker build -t $STAGE-$APP_NAME-build-service $BUILD_SERVICE_DIR/
-docker tag $STAGE-$APP_NAME-build-service:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$STAGE-$APP_NAME-build-service:latest
-docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$STAGE-$APP_NAME-build-service:latest
+# # Deploy build service image to ECR
+# echo "Deploying container image: build service"
+# docker build -t $STAGE-$APP_NAME-build-service $BUILD_SERVICE_DIR/
+# docker tag $STAGE-$APP_NAME-build-service:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$STAGE-$APP_NAME-build-service:latest
+# docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$STAGE-$APP_NAME-build-service:latest
 
-# Deploy load service image to ECR
-echo "Deploying container image: build service"
-docker build -t $STAGE-$APP_NAME-load-service $LOAD_SERVICE_DIR
-docker tag $STAGE-$APP_NAME-load-service:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$STAGE-$APP_NAME-load-service:latest
-docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$STAGE-$APP_NAME-load-service:latest
+# # Deploy load service image to ECR
+# echo "Deploying container image: load service"
+# docker build -t $STAGE-$APP_NAME-load-service $LOAD_SERVICE_DIR
+# docker tag $STAGE-$APP_NAME-load-service:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$STAGE-$APP_NAME-load-service:latest
+# docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$STAGE-$APP_NAME-load-service:latest
 
-echo "Finished"
+echo "Neo4j can be accessed at this URL: $(aws ssm get-parameter --name "/$APP_NAME/$STAGE/$REGION/Neo4jDatabaseEndpoint" | jq -r '.Parameter.Value'):7474"
+
 exit 0

@@ -15,19 +15,17 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
     - [Load Service](#load-service)
     - [Database Service](#database-service)
     - [CloudFormation Templates](#cloudformation-templates)
-  - [To Do's](#to-dos)
   - [Installation](#installation)
     - [Prerequisites](#prerequisites)
+  - [Usage](#usage)
+  - [Local Development](#local-development)
     - [Creating a Python Virtual Environment](#creating-a-python-virtual-environment)
     - [Environment Variables](#environment-variables)
-  - [Configuring Neo4j in Dockerfile](#configuring-neo4j-in-dockerfile)
-    - [Username & Password](#username--password)
+- [Build and run Docker locally](#build-and-run-docker-locally)
     - [Memory Management](#memory-management)
-  - [Deployment](#deployment)
   - [Clean Up](#clean-up)
   - [Authors](#authors)
   - [References & Links](#references--links)
-
 
 ## Project Structure
 ```
@@ -50,7 +48,7 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
 │   ├── master-stack.yml          # Master CloudFormation template
 │   ├── setup.yml                 # Setup template 
 │   └── update-pipeline-stack.yml
-├── (data)
+├── (data)                        # Data directory used for local builds
 │   ├── (3430)
 │   │   ├── (csv)
 │   │   └── (hla.3430.dat)
@@ -63,13 +61,10 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
 │   ├── run.sh
 │   └── src
 │       └── load_gfedb.py
-├── neo4j                         # Database service
-│   ├── Dockerfile
-│   ├── (logs)
-│   └── plugins
-└── notebooks                     # Development notebooks
-    ├── 1.0-load-gfe-db.ipynb
-    └── 1.0-refactor-gfedb_utils.ipynb
+└── neo4j                         # Database service
+    ├── Dockerfile
+    ├── (logs)
+    └── plugins
 ```
 
 ## Description
@@ -77,6 +72,14 @@ The `gfe-db` represents IPD-IMGT/HLA sequence data as GFE nodes and relationship
 - Build Service
 - Load Service
 - Database Service
+
+This project is meant to be deployed and run on AWS. It deploys the following resources:
+- VPC with public subnets
+- EC2 with Neo4j database
+- StepFunctions State Machine to orchestrate AWS Batch Jobs
+- AWS Batch resources for building and loading new datasets
+- S3 bucket for templates, data, backups and logs
+- CloudWatch Log groups
 
 ### Build Service
 The build service is triggered when a new IMGT/HLA version is released. AWS Batch is used to deploy a container to an EC2 instance which will run the build script and generate a dataset of CSVs. These are uploaded to S3 where they can be accessed by the load service. This service is located inside the `build/` directory.
@@ -97,15 +100,15 @@ CloudFormation templates define the architecture that is deployed to AWS. The ba
 
 ```bash
 .
-├── cfn
-│   ├── database-stack.yml        # Provisions a VPC and database to EC2
-│   ├── master-stack.yml          # Deploys the database and update pipeline stacks
-│   ├── setup.yml                 # Provisions the S3 bucket used for template artifacts, secrets, data and logs
-│   └── update-pipeline-stack.yml # Provisions the StepFunctions workflow and AWS Batch resources
+└── cfn
+    ├── database-stack.yml        # Provisions a VPC and database to EC2
+    ├── master-stack.yml          # Deploys the database and update pipeline stacks
+    ├── setup.yml                 # Provisions the S3 bucket used for template artifacts, secrets, data and logs
+    └── update-pipeline-stack.yml # Provisions the StepFunctions workflow and AWS Batch resources
 ```
 
 
-## To Do's
+<!-- ## To Do's
 - [ ] Use Fargate with AWS Batch for the load service instead of EC2 to save cost
 - [x] Create nested cloudformation templates
 - [ ] Add CI/CD for Docker images
@@ -122,7 +125,7 @@ CloudFormation templates define the architecture that is deployed to AWS. The ba
 - [ ] Update the Neo4j configuration to set users and roles for security
 - [ ] Add architecture diagram to documentation
 - [ ] Add constraints to cfn parameters
-- [ ] Add logic to allow building and loading locally
+- [ ] Add logic to allow building and loading locally -->
 
 ## Installation
 Follow the steps to set up a local development environment.
@@ -131,11 +134,36 @@ Follow the steps to set up a local development environment.
 
 ### Prerequisites
 * Python 3.8
+* GNU Make 3.81
 * Docker
 * AWS CLI
+* jq
+
+## Usage
+Run the command to see an overview of make arguments and variables.
+```
+make
+```
+
+Run the command to deploy the architecture to AWS.
+```
+make deploy
+```
+
+Run the command to build and load 1000 alleles from IMGT/HLA release version 3450.
+```
+make run release=3450 limit=1000
+```
+
+Run the command to delete all data and tear down the architecture.
+```
+make delete
+```
+
+## Local Development
 
 ### Creating a Python Virtual Environment
-When working locally, you will need to create individual virtual environments inside the `build/` and `load/` directories, since they require different dependencies:
+When developing locally, you will need to create individual virtual environments inside the `build/` and `load/` directories, since they require different dependencies:
 ```bash
 # Build service
 cd build
@@ -244,7 +272,7 @@ bash bin/load_db.sh
 <!-- ### Running the GFE database in Neo4j 4.2 using Docker
 This README outlines the steps for building and running a development version of `gfe-db` in a local Docker container. Docker will deploy an instance of Neo4j 4.2 including the [APOC](https://neo4j.com/labs/apoc/4.1/) and [Graph Data Science](https://neo4j.com/docs/graph-data-science/current/) plugins. GFE data is stored in the `data/csv/` directory which is mounted as an external volume within the container when run. This keeps the data outside the container so that it can be updated easily. -->
 
-## Notebooks
+<!-- ## Notebooks
 To use the virtual environment inside Jupyter Notebook, first activate the virtual environment, then create a kernel for it.
 ```bash
 # Install ipykernal
@@ -252,13 +280,13 @@ pip install ipykernel
 
 # Add the kernel
 python3 -m ipykernel install --user --name=<environment name>
-```
+``` -->
 
-### `1.0-load-gfe-db`
+<!-- ### `1.0-load-gfe-db`
 Python notebook for developing the load service using the Neo4j HTTP API, Requests and Boto3 libraries.
 
 ### `1.0-refactor-gfedb_utils`
-Development notebook for refactoring `gfe-db` and the `build/src/build_gfedb.py` module used for building the CSV datasets.
+Development notebook for refactoring `gfe-db` and the `build/src/build_gfedb.py` module used for building the CSV datasets. -->
 
 <!-- ## Running Tests -->
 
@@ -280,7 +308,7 @@ ENV NEO4J_dbms_memory_heap_initial__size=2G
 ENV NEO4J_dbms_memory_heap_max__size=2G
 ```
 
-## Deployment
+<!-- ## Deployment
 `gfe-db` is deployed using Docker to an EC2 instance. Automated builds and loading of `gfe-db` on AWS is orchestrated using AWS Batch and StepFunctions. The infrastructure is defined using CloudFormation templates.
 
 1. Make sure to update your AWS credentials in `~/.aws/credentials`.
@@ -318,7 +346,7 @@ ENV NEO4J_dbms_memory_heap_max__size=2G
 To delete a stack and it's resources, use the CloudFormation console or run the command. S3 buckets and ECR repositories must be empty before they can be deleted.
 ```bash
 aws cloudformation delete-stack --stack-name <stack name>
-```
+``` -->
 
 <!-- ### Local Clean-up
 Delete the Docker container.

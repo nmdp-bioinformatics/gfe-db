@@ -53,8 +53,8 @@ build_repo=$(aws ssm get-parameter \
 
 # Delete all images
 for image_digest in $(aws ecr list-images --repository-name $build_repo | jq -r '.imageIds[].imageDigest'); do
-    echo "Deleting ECR image: $image_digest"
-    aws ecr batch-delete-image --repository-name $build_repo --image-ids imageDigest=$image_digest
+    echo "Deleting image: $image_digest"
+    aws ecr batch-delete-image --repository-name $build_repo --image-ids imageDigest=$image_digest > /dev/null
 done
 
 # Delete load service
@@ -63,8 +63,8 @@ load_repo=$(aws ssm get-parameter \
 
 # Delete all images
 for image_digest in $(aws ecr list-images --repository-name $load_repo | jq -r '.imageIds[].imageDigest'); do
-    echo "Deleting ECR image: $image_digest"
-    aws ecr batch-delete-image --repository-name $load_repo --image-ids imageDigest=$image_digest
+    echo "Deleting image: $image_digest"
+    aws ecr batch-delete-image --repository-name $load_repo --image-ids imageDigest=$image_digest > /dev/null
 done
 
 # Delete stacks
@@ -75,12 +75,14 @@ echo
 # Delete CloudFormation nested stack
 aws cloudformation delete-stack \
     --stack-name $master_stack_name > /dev/null
-echo "Deleted stack: $master_stack_name"
-
+echo "Delete stack: $master_stack_name"
+echo "Waiting for completion..."
 aws cloudformation wait stack-delete-complete --stack-name $master_stack_name
+
 aws cloudformation delete-stack \
     --stack-name $setup_stack_name > /dev/null
-echo "Deleted stack: $setup_stack_name"
-
+echo "Delete stack: $setup_stack_name"
+echo "Waiting for completion..."
+aws cloudformation wait stack-delete-complete --stack-name $setup_stack_name
 echo "Finished"
 exit 0

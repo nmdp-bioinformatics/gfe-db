@@ -103,3 +103,4 @@ cicd.yml
 notebooks/
 build/Makefile
 load/Makefile
+notebooks/

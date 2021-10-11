@@ -55,10 +55,10 @@ Resources:
           FromPort: 80
           IpProtocol: tcp
           ToPort: 80
-        # - CidrIp: 0.0.0.0/0
-        #   FromPort: 22
-        #   IpProtocol: tcp
-        #   ToPort: 22
+        - CidrIp: 0.0.0.0/0
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
         - CidrIp: 0.0.0.0/0
           FromPort: 7474
           IpProtocol: tcp
@@ -193,6 +193,13 @@ Resources:
     Properties:
       Roles:
         - !Ref Neo4jDatabaseIAMRole
+  Neo4jDatabaseEndpointParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint'
+      Description: "Endpoint for gfe-db build service repository"
+      Value: !GetAtt Neo4jDatabaseInstance.PublicIp
 Outputs:
   VPC:
     Description: Virtual Private Network for gfe-db
