@@ -18,10 +18,12 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
   - [Installation](#installation)
     - [Prerequisites](#prerequisites)
   - [Usage](#usage)
+    - [Deployment using Makefile](#deployment-using-makefile)
   - [Local Development](#local-development)
     - [Creating a Python Virtual Environment](#creating-a-python-virtual-environment)
     - [Environment Variables](#environment-variables)
-- [Build and run Docker locally](#build-and-run-docker-locally)
+    - [Run Neo4j Docker](#run-neo4j-docker)
+    - [Load the dataset into Neo4j](#load-the-dataset-into-neo4j)
     - [Memory Management](#memory-management)
   - [Clean Up](#clean-up)
   - [Authors](#authors)
@@ -73,13 +75,7 @@ The `gfe-db` represents IPD-IMGT/HLA sequence data as GFE nodes and relationship
 - Load Service
 - Database Service
 
-This project is meant to be deployed and run on AWS. It deploys the following resources:
-- VPC with public subnets
-- EC2 with Neo4j database
-- StepFunctions State Machine to orchestrate AWS Batch Jobs
-- AWS Batch resources for building and loading new datasets
-- S3 bucket for templates, data, backups and logs
-- CloudWatch Log groups
+This project is meant to be deployed and run on AWS.
 
 ### Build Service
 The build service is triggered when a new IMGT/HLA version is released. AWS Batch is used to deploy a container to an EC2 instance which will run the build script and generate a dataset of CSVs. These are uploaded to S3 where they can be accessed by the load service. This service is located inside the `build/` directory.
@@ -92,6 +88,8 @@ Neo4j is deployed within a Docker container to an EC2 instance. Indexes and cons
 
 ### CloudFormation Templates
 CloudFormation templates define the architecture that is deployed to AWS. The basic resources include:
+- VPC with public subnets
+- S3 bucket for templates, data, backups and logs
 - IAM permissions
 - AWS Batch job definitions, queues and compute environments for build and load services
 - StepFunctions state machine to orchestrate the build and load service
@@ -106,7 +104,6 @@ CloudFormation templates define the architecture that is deployed to AWS. The ba
     ├── setup.yml                 # Provisions the S3 bucket used for template artifacts, secrets, data and logs
     └── update-pipeline-stack.yml # Provisions the StepFunctions workflow and AWS Batch resources
 ```
-
 
 <!-- ## To Do's
 - [ ] Use Fargate with AWS Batch for the load service instead of EC2 to save cost
@@ -129,8 +126,6 @@ CloudFormation templates define the architecture that is deployed to AWS. The ba
 
 ## Installation
 Follow the steps to set up a local development environment.
-<!-- Follow these steps to work with the files locally.
-- Create separate virtual environments inside the `build/` and `load/` directories and (optional) create kernels to use each environment inside Jupyter Notebook. -->
 
 ### Prerequisites
 * Python 3.8
@@ -140,23 +135,22 @@ Follow the steps to set up a local development environment.
 * jq
 
 ## Usage
-Run the command to see an overview of make arguments and variables.
+
+### Deployment using Makefile
+Make sure to update your AWS credentials in `~/.aws/credentials`. 
+
 ```
+# Get an overview of make arguments and variables
 make
-```
 
-Run the command to deploy the architecture to AWS.
-```
+# Deploy gfe-db to AWS
 make deploy
-```
 
-Run the command to build and load 1000 alleles from IMGT/HLA release version 3450.
-```
+# Build and load 1000 alleles from IMGT/HLA release version 3450
+# Leave limit blank to load all alleles
 make run release=3450 limit=1000
-```
 
-Run the command to delete all data and tear down the architecture.
-```
+# Delete all data and tear down the architecture
 make delete
 ```
 
@@ -200,12 +194,12 @@ source .env
 set +a
 ```
 
-*Important:* *Always use a `.env` file or AWS SSM Parameter Store for sensitive variables like credentials and API keys. Never hard-code them, including when developing. AWS will quarantine an account if any credentials get accidentally exposed and this will cause problems. **MAKE SURE `.env` IS LISTED IN `.gitignore`.**
+*Important:* *Always use a `.env` file or AWS SSM Parameter Store or Secrets Manager for sensitive variables like credentials and API keys. Never hard-code them, including when developing. AWS will quarantine an account if any credentials get accidentally exposed and this will cause problems. **MAKE SURE `.env` IS LISTED IN `.gitignore`.**
 
 <!-- ## Usage
 Follow these steps in sequence to build and load `gfe-db` locally. Make sure that your environment variables are set correctly before proceeding. -->
 
-<!-- ### Run Neo4j Docker
+### Run Neo4j Docker
 Build the Docker image as defined in the Dockerfile. See [Configuring Neo4j in Dockerfile](#Configuring-Neo4j-in-Dockerfile) for important configuration settings.
 ```
 cd neo4j
@@ -232,7 +226,7 @@ docker stop gfe-db
 
 # Start container
 docker start gfe-db
-``` -->
+```
 
 <!-- ### Build GFE dataset
 Run the command to build the container for the build service.
@@ -241,13 +235,13 @@ Run the command to build the container for the build service.
 cd build
 docker build --tag gfe-db-build-service .
 ```
-Run the command to start the build.
+Run the command to start the build. (Requires an S3 bucket)
 ```
 docker run \
   --rm \
   -v "$(pwd)"/../data:/opt/data \
   -v "$(pwd)"/logs:/opt/app/logs \
-  -e GFE_BUCKET='gfe-db-4498' \
+  -e GFE_BUCKET='<S3 bucket name>' \
   -e RELEASES='3440' \
   -e ALIGN='False' \
   -e KIR='False' \
@@ -255,15 +249,15 @@ docker run \
   -e LIMIT='100' \
   --name gfe-db-build-service \
   gfe-db-build-service:latest
-``` -->
-<!-- ```
+``` 
+```
 # Load from Docker locally
 cd load
 docker build -t gfe-db-load-service .
 docker run gfe-db-load-service:latest
-``` -->
+```
 
-<!-- ### Load the dataset into Neo4j
+### Load the dataset into Neo4j
 Once the container is running, the Neo4j server is up, and the dataset has been created, run the command to load it into Neo4j.
 ```
 bash bin/load_db.sh
