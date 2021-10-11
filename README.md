@@ -139,11 +139,11 @@ Follow the steps to set up a local development environment.
 ### Deployment using Makefile
 Make sure to update your AWS credentials in `~/.aws/credentials`. 
 
-```
+```bash
 # Get an overview of make arguments and variables
 make
 
-# Deploy gfe-db to AWS
+# Deploy infrastructure to AWS
 make deploy
 
 # Build and load 1000 alleles from IMGT/HLA release version 3450
