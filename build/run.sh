@@ -10,24 +10,32 @@ export LOGS_DIR=$ROOT/logs
 
 # Check for environment variables
 if [[ -z "${GFE_BUCKET}" ]]; then
-	echo "GFE_BUCKET not set"
+	echo "GFE_BUCKET not set. Please specify an S3 bucket."
 	exit 1
-elif [[ -z "${RELEASES}" ]]; then
+fi
+
+if [[ -z "${RELEASES}" ]]; then
 	echo "RELEASES not set. Please specify the release versions to load."
 	exit 1
-elif [[ -z "${ALIGN}" ]]; then
-	echo "ALIGN not set"
-	exit 1
-elif [[ -z "${KIR}" ]]; then
-	echo "KIR not set"
-	exit 1
-elif [[ -z "${MEM_PROFILE}" ]]; then
-	echo "MEM_PROFILE not set"
-	exit 1
-else
-	echo "Found environment variables:"
-	echo -e "GFE_BUCKET: $GFE_BUCKET\nRELEASES: $RELEASES\nALIGN: $ALIGN\nKIR: $KIR\nMEM_PROFILE: $MEM_PROFILE"
 fi
+
+if [[ -z "${ALIGN}" ]]; then
+	echo "ALIGN not set"
+	ALIGN=False
+fi
+
+if [[ -z "${KIR}" ]]; then
+	echo "KIR not set"
+	KIR=False
+fi
+
+if [[ -z "${MEM_PROFILE}" ]]; then
+	echo "MEM_PROFILE not set"
+	MEM_PROFILE=False
+fi
+
+echo "Found environment variables:"
+echo -e "GFE_BUCKET: $GFE_BUCKET\nRELEASES: $RELEASES\nALIGN: $ALIGN\nKIR: $KIR\nMEM_PROFILE: $MEM_PROFILE\nLIMIT: $LIMIT"
 
 # Check limit
 if [[ -z "${LIMIT}" ]]; then
@@ -112,7 +120,7 @@ for release in ${RELEASES}; do
 	fi
 	
 	# Builds CSV files
-	python3 "$SRC_DIR"/build_gfedb.py \
+	python "$SRC_DIR"/build_gfedb.py \
 		-o "$DATA_DIR/$release/csv" \
 		-r "$release" \
 		$KIRFLAG \
@@ -126,8 +134,12 @@ for release in ${RELEASES}; do
 	aws s3 --recursive cp $DATA_DIR/$release/csv/ s3://$GFE_BUCKET/data/$release/csv/ > $LOGS_DIR/s3CopyLog.txt
 	mv $LOGS_DIR/gfeBuildLogs.txt $LOGS_DIR/gfeBuildLogs.$release.txt
 	mv $LOGS_DIR/s3CopyLog.txt $LOGS_DIR/s3CopyLog.$release.txt
-	mv $LOGS_DIR/mem_profile_agg.txt $LOGS_DIR/mem_profile_agg.$release.txt
-	mv $LOGS_DIR/mem_profile_diff.txt $LOGS_DIR/mem_profile_diff.$release.txt
+
+	if [ "$MEM_PROFILE" == "True" ]; then
+		mv $LOGS_DIR/mem_profile_agg.txt $LOGS_DIR/mem_profile_agg.$release.txt
+		mv $LOGS_DIR/mem_profile_diff.txt $LOGS_DIR/mem_profile_diff.$release.txt
+	fi
+
 	echo -e "Uploading logs to s3://$GFE_BUCKET/logs/$release/:\n$(ls $LOGS_DIR/)"
 	aws s3 --recursive cp $LOGS_DIR/ s3://$GFE_BUCKET/logs/$release/ > $LOGS_DIR/s3CopyLog.Local.txt
 
@@ -135,3 +147,6 @@ done
 
 END_EXECUTION=$(( SECONDS - $START_EXECUTION ))
 echo "Finished in $END_EXECUTION seconds"
+
+# For debugging to keep the build server running
+# sleep 1h

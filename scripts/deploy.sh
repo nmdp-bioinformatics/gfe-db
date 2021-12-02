@@ -27,6 +27,7 @@ DATA_BUCKET=$STAGE-$APP_NAME-$ACCOUNT_ID-$REGION
 # Check if EC2 key pair exists for region: gfe-db-<region>, if not create one
 CURRENT_EC2_KEY_PAIR=$(aws ec2 describe-key-pairs --key-name $EC2_KEY_PAIR | jq '.KeyPairs[0].KeyName')
 
+# TODO: make sure key pair is not overwritten on redeployments if it already exists
 if [ -z "$CURRENT_EC2_KEY_PAIR" ]; then
     echo "Creating EC2 key pair \"$EC2_KEY_PAIR\" ..."
     aws ec2 create-key-pair --key-name $EC2_KEY_PAIR | jq -r '.KeyMaterial' > $EC2_KEY_PAIR.pem

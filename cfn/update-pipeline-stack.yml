@@ -21,6 +21,9 @@ Parameters:
     Description: Bucket for templates, data and logs
   DataBucketArn:
     Type: String
+  # EC2KeyPairName:
+  #   Type: String
+  #   Default: dev-gfe-db-us-east-1-ec2-key
   Neo4jDatabaseEndpoint:
     Type: String
     Description: Endpoint for Neo4j server (ouput from database-stack.yml)
@@ -34,7 +37,7 @@ Resources:
       GroupDescription: !Sub 'Security group for the ${Stage}-${AppName} build server'
       VpcId: !Ref VPC
       # SecurityGroupIngress: # Uncomment to allow SSH access to build instance
-      #   - CidrIp: 66.214.236.87/32
+      #   - CidrIp: 0.0.0.0/0
       #     FromPort: 22
       #     IpProtocol: tcp
       #     ToPort: 22
@@ -48,7 +51,7 @@ Resources:
       GroupDescription: !Sub 'Security group for the ${Stage}-${AppName} load server'
       VpcId: !Ref VPC
       # SecurityGroupIngress:
-      #   - CidrIp: 66.214.236.87/32
+      #   - CidrIp: 0.0.0.0/0
       #     FromPort: 22
       #     IpProtocol: tcp
       #     ToPort: 22
@@ -133,7 +136,7 @@ Resources:
               - :latest
         Vcpus: 8
         # TODO: Move Memory param to ResourceRequirements
-        Memory: 800 # Keep this around half the available RAM to avoid getting stuck in RUNNABLE status 
+        Memory: 8000 # Keep this around half the available RAM to avoid getting stuck in RUNNABLE status 
         Command:
           - bash
           - run.sh
@@ -156,6 +159,9 @@ Resources:
       Type: MANAGED
       ComputeResources:
         Type: EC2
+        # # Testing only, comment before prouction deployment
+        # Ec2KeyPair: !Ref EC2KeyPairName
+        # #
         MinvCpus: 0
         DesiredvCpus: 0
         MaxvCpus: 32
@@ -255,6 +261,9 @@ Resources:
       Type: MANAGED
       ComputeResources:
         Type: EC2
+        # # Testing only, comment before prouction deployment
+        # Ec2KeyPair: !Ref EC2KeyPairName
+        # #
         MinvCpus: 0
         DesiredvCpus: 0
         MaxvCpus: 2
