@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  gfe-db-pipeline-trigger
+Globals:
+  Function:
+    Timeout: 60
+
+Parameters:
+  TriggerFunctionName:
+    Type: String
+    Default: gfe-db-pipeline-trigger
+  GitHubPersonalAccessToken:
+    Type: String
+    Default: 38006eeb8ca63d38c52bc543e40ab24c1ecf3fa2
+  GitHubRepositoryOwner: 
+    Type: String
+    Default: abk7777
+  GitHubRepositoryName:
+    Type: String
+    Default: gfe-db
+
+Resources:
+  TriggerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Ref TriggerFunctionName
+      CodeUri: trigger/app.py
+      Handler: app.lambda_handler
+      Runtime: python3.8
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          GITHUB_PERSONAL_ACCESS_TOKEN: 
+      Events:
+        Trigger:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 minute)
