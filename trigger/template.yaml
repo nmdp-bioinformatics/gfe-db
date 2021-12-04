@@ -12,7 +12,7 @@ Parameters:
     Default: gfe-db-pipeline-trigger
   GitHubPersonalAccessToken:
     Type: String
-    Default: 38006eeb8ca63d38c52bc543e40ab24c1ecf3fa2
+    Default: ""
   GitHubRepositoryOwner: 
     Type: String
     Default: abk7777
