@@ -237,10 +237,10 @@ Resources:
           - bash
           - run.sh
         Environment:
-          - Name: GFE_BUCKET
+          - Name: GFE_BUCKET # TODO: use SSM parameter
             Value: !Ref DataBucketName
-          - Name: NEO4J_HOST
-            Value: !Ref Neo4jDatabaseEndpoint
+          - Name: NEO4J_HOST # TODO: use SSM parameter
+            Value: !Ref Neo4jDatabaseEndpoint 
           - Name: NEO4J_USERNAME
             Value: !Sub '{{resolve:secretsmanager:${Stage}-${AppName}-Neo4jCredentials:SecretString:username:AWSCURRENT}}'
           - Name: NEO4J_PASSWORD
