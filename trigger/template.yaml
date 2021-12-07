@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  gfe-db-pipeline-trigger
+  Trigger for gfe-db update pipeline
 Globals:
   Function:
     Timeout: 60
@@ -9,30 +9,31 @@ Globals:
 Parameters:
   TriggerFunctionName:
     Type: String
-    Default: gfe-db-pipeline-trigger
   GitHubPersonalAccessToken:
     Type: String
-    Default: ""
   GitHubRepositoryOwner: 
     Type: String
-    Default: abk7777
   GitHubRepositoryName:
     Type: String
-    Default: gfe-db
+  DataBucketName:
+    Type: String
 
 Resources:
   TriggerFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Ref TriggerFunctionName
-      CodeUri: trigger/app.py
+      CodeUri: src
       Handler: app.lambda_handler
       Runtime: python3.8
       Architectures:
         - x86_64
       Environment:
         Variables:
-          GITHUB_PERSONAL_ACCESS_TOKEN: 
+          GITHUB_PERSONAL_ACCESS_TOKEN: !Ref GitHubPersonalAccessToken
+          GITHUB_REPOSITORY_OWNER: !Ref GitHubRepositoryOwner
+          GITHUB_REPOSITORY_NAME: !Ref GitHubRepositoryName
+          GFE_BUCKET: !Ref DataBucketName
       Events:
         Trigger:
           Type: Schedule
