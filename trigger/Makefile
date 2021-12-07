@@ -11,25 +11,28 @@ REGION := us-east-1
 # 		--profile ${PROFILE}
 
 # Deploy
-deploy: ##==> command line args: environment=dev,qa,prod etc; example: make deploy environment=qa
+deploy:
 	$(info [*] Packaging and deploying ${SERVICE} resources...)
-	@rm -rf .aws-sam
-	@sam build && \
+	@sam build \
+		--template-file template.yaml && \
+	sam package \
+		--resolve-s3 \
+		--output-template-file packaged.yaml && \
 	sam deploy \
 		--no-fail-on-empty-changeset \
-		--resolve-s3 \
 		--region "${REGION}" \
-		--template-file template.yaml \
-		--stack-name "${APP_NAME}-${SERVICE}" \
+		--template-file packaged.yaml \
+		--stack-name "${STAGE}-${APP_NAME}-${SERVICE}" \
 		--capabilities CAPABILITY_IAM \
 		--parameter-overrides \
 			Stage="${STAGE}" \
 			AppName="${APP_NAME}" \
 			TriggerFunctionName="${STAGE}"-"${APP_NAME}"-"${SERVICE}" \
+			TriggerFunctionMemorySize="$$(cat environment.json | jq -r '.FunctionConfiguration.MemorySize')" \
 			GitHubPersonalAccessToken="$$(cat environment.json | jq -r '.FunctionConfiguration.Environment.Variables.GITHUB_PERSONAL_ACCESS_TOKEN')" \
 			GitHubRepositoryOwner="$$(cat environment.json | jq -r '.FunctionConfiguration.Environment.Variables.GITHUB_REPOSITORY_OWNER')" \
 			GitHubRepositoryName="$$(cat environment.json | jq -r '.FunctionConfiguration.Environment.Variables.GITHUB_REPOSITORY_NAME')" \
 			DataBucketName="$$(cat environment.json | jq -r '.FunctionConfiguration.Environment.Variables.GFE_BUCKET')"
 
 delete: ##=> Delete service
-	sam delete --stack-name ${APP_NAME}-${SERVICE} >/dev/null
+	aws cloudformation delete-stack --stack-name "${STAGE}-${APP_NAME}-${SERVICE}"" >/dev/null

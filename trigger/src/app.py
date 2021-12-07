@@ -55,13 +55,13 @@ def lambda_handler(event, context):
             
             params_input = copy.deepcopy(params["params"]["environment"])
             params_input["RELEASES"] = release
-            logger.info(f'{params_input}')            
+            logger.info(f'{json.dumps(params_input)}')            
             state_machine_input.append(params_input)
 
     # Always update the config file
     write_config(branches_config_path)
 
-    return
+    return 0
 
 
 def get_branches(owner, repo):
@@ -165,7 +165,7 @@ def check_new_releases(previous_state, current_state):
 
     if branches_added:
 
-        logger.info(f"New branches: {current_state[-new_branches_count:]}")
+        logger.info(f"Found {new_branches_count} new branches: {json.dumps(current_state[-new_branches_count:])}")
 
         # Get the new branches
         new_releases = sorted([int(release) for release in list(set(current_state).difference(previous_state))])
@@ -184,5 +184,5 @@ def check_new_releases(previous_state, current_state):
         return
 
 
-if __name__ == "__main__":
-    lambda_handler("","")
+# if __name__ == "__main__":
+#     lambda_handler("","")

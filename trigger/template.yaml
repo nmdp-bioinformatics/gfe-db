@@ -7,8 +7,18 @@ Globals:
     Timeout: 60
 
 Parameters:
+  Stage:
+    Type: String
+    Description: Stage of production
+  AppName:
+    Type: String
+    Description: Application name
   TriggerFunctionName:
     Type: String
+  TriggerFunctionMemorySize:
+    Type: Number
+    MinValue: 128
+    MaxValue: 512
   GitHubPersonalAccessToken:
     Type: String
   GitHubRepositoryOwner: 
@@ -23,9 +33,10 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Ref TriggerFunctionName
-      CodeUri: src
+      CodeUri: src/
       Handler: app.lambda_handler
       Runtime: python3.8
+      MemorySize: !Ref TriggerFunctionMemorySize
       Architectures:
         - x86_64
       Environment:
@@ -39,3 +50,15 @@ Resources:
           Type: Schedule
           Properties:
             Schedule: rate(1 minute)
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: "AllowS3Access"
+              Effect: "Allow"
+              Action:
+                - "s3:GetObject"
+                - "s3:PutObject"
+              Resource:
+                - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
+                - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'

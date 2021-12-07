@@ -1,13 +1,14 @@
 {
     "FunctionConfiguration": {
         "Timeout": 3,
-        "MemorySize": 128,
+        "MemorySize": 256,
         "Environment": {
             "Variables": {
                 "GITHUB_PERSONAL_ACCESS_TOKEN": "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",
                 "GITHUB_REPOSITORY_OWNER": "ANHIG",
                 "GITHUB_REPOSITORY_NAME": "IMGTHLA",
-                "GFE_BUCKET": "dev-gfe-db-531868584498-us-east-1"
+                "GFE_BUCKET": "dev-gfe-db-531868584498-us-east-1",
+                "GFE_BUCKET_ARN": ""
             }
         }
     }

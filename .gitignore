@@ -105,3 +105,5 @@ cicd.yml
 build/Makefile
 load/Makefile
 .aws-sam
+packaged.yaml
+samconfig.toml
