@@ -1,8 +1,6 @@
 ##########################
 # Bootstrapping variables
 ##########################
-
-# TODO: move to config file and parse with jq, or use SSM parameter store
 export STAGE ?= dev
 export APP_NAME ?= gfe-db
 export REGION ?= us-east-1
@@ -11,15 +9,28 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-deploy: 
+deploy: ##=> Deploy services
 	$(info [*] Deploying all services...)
 	$(MAKE) deploy.infrastructure
+	$(MAKE) deploy.database
 
+# Deploy specific stacks
 deploy.infrastructure:
 	$(MAKE) -C gfe-db/infrastructure/ deploy
 
+deploy.database:
+	$(MAKE) -C gfe-db/database/ deploy
 
+delete: ##=> Delete services
+	$(MAKE) delete.database
+	$(MAKE) delete.infrastructure
 
+# Delete specific stacks
+delete.infrastructure:
+	$(MAKE) -C gfe-db/infrastructure/ delete
+
+delete.database:
+	$(MAKE) -C gfe-db/database/ delete
 
 
 
@@ -53,10 +64,6 @@ run: ##=> Load an IMGT/HLA release version; make run release=3450 align=False ki
 	@aws stepfunctions start-execution \
 	 	--state-machine-arn $$(aws ssm get-parameter --name "/${APP_NAME}/${STAGE}/${REGION}/UpdatePipelineArn" | jq -r '.Parameter.Value') \
 	 	--input "{\"params\":{\"environment\":{\"RELEASES\":\"$(release)\",\"ALIGN\":\"False\",\"KIR\":\"False\",\"MEM_PROFILE\":\"False\",\"LIMIT\":\"$(limit)\"}}}" | jq '.executionArn'
-
-delete: ##=> Delete resources
-	$(info [*] Deleting resources...)
-	@bash scripts/delete.sh ${STAGE} ${APP_NAME} ${REGION}
 
 define HELP_MESSAGE
 

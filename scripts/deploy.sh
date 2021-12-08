@@ -21,7 +21,7 @@ CFN_DIR=cfn
 # CFN_OUTPUT_DIR=$CFN_DIR/output
 CFN_LOG_FILENAME=$STAGE-$APP_NAME-$(date +%s)
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-EC2_KEY_PAIR=$STAGE-$APP_NAME-$REGION-ec2-key
+EC2_KEY_PAIR=$STAGE-$APP_NAME-$REGION-ec2-key-test
 DATA_BUCKET=$STAGE-$APP_NAME-$ACCOUNT_ID-$REGION
 
 # Check if EC2 key pair exists for region: gfe-db-<region>, if not create one
@@ -36,53 +36,53 @@ else
     echo "Key pair found: $CURRENT_EC2_KEY_PAIR"
 fi
 
-# Create CloudFormation stacks
-echo "Deploying stacks..."
+# # Create CloudFormation stacks
+# echo "Deploying stacks..."
 
-# mkdir -p $CFN_OUTPUT_DIR/
+# # mkdir -p $CFN_OUTPUT_DIR/
 
-# Deploy setup stack
-setup_stack_name=$STAGE-$APP_NAME-setup
-aws cloudformation deploy \
-    --template-file $CFN_DIR/setup.yml \
-    --stack-name $setup_stack_name	\
-    --parameter-overrides \
-        Stage=$STAGE \
-        AppName=$APP_NAME \
-        EC2KeyPairName=$EC2_KEY_PAIR \
-        DataBucketName=$DATA_BUCKET \
-        Neo4jUsername=$NEO4J_USERNAME \
-        Neo4jPassword=$NEO4J_PASSWORD
+# # Deploy setup stack
+# setup_stack_name=$STAGE-$APP_NAME-setup
+# aws cloudformation deploy \
+#     --template-file $CFN_DIR/setup.yml \
+#     --stack-name $setup_stack_name	\
+#     --parameter-overrides \
+#         Stage=$STAGE \
+#         AppName=$APP_NAME \
+#         EC2KeyPairName=$EC2_KEY_PAIR \
+#         DataBucketName=$DATA_BUCKET \
+#         Neo4jUsername=$NEO4J_USERNAME \
+#         Neo4jPassword=$NEO4J_PASSWORD
 
-# Sync templates to S3
-aws s3 cp --recursive $CFN_DIR/ s3://$DATA_BUCKET/templates/
+# # Sync templates to S3
+# aws s3 cp --recursive $CFN_DIR/ s3://$DATA_BUCKET/templates/
 
-# Deploy nested stacks (database, ECR repos, Batch environment and StepFunctions)
-master_stack_name=$STAGE-$APP_NAME
-aws cloudformation deploy \
-    --template-file $CFN_DIR/master-stack.yml \
-    --stack-name $master_stack_name \
-    --capabilities "CAPABILITY_NAMED_IAM" \
-    --parameter-overrides \
-        Stage=$STAGE \
-        AppName=$APP_NAME \
-        DataBucketName=$DATA_BUCKET
+# # Deploy nested stacks (database, ECR repos, Batch environment and StepFunctions)
+# master_stack_name=$STAGE-$APP_NAME
+# aws cloudformation deploy \
+#     --template-file $CFN_DIR/master-stack.yml \
+#     --stack-name $master_stack_name \
+#     --capabilities "CAPABILITY_NAMED_IAM" \
+#     --parameter-overrides \
+#         Stage=$STAGE \
+#         AppName=$APP_NAME \
+#         DataBucketName=$DATA_BUCKET
 
-# # Login to docker/ECR
-# aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
+# # # Login to docker/ECR
+# # aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
 
-# # Deploy build service image to ECR
-# echo "Deploying container image: build service"
-# docker build -t $STAGE-$APP_NAME-build-service $BUILD_SERVICE_DIR/
-# docker tag $STAGE-$APP_NAME-build-service:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$STAGE-$APP_NAME-build-service:latest
-# docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$STAGE-$APP_NAME-build-service:latest
+# # # Deploy build service image to ECR
+# # echo "Deploying container image: build service"
+# # docker build -t $STAGE-$APP_NAME-build-service $BUILD_SERVICE_DIR/
+# # docker tag $STAGE-$APP_NAME-build-service:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$STAGE-$APP_NAME-build-service:latest
+# # docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$STAGE-$APP_NAME-build-service:latest
 
-# # Deploy load service image to ECR
-# echo "Deploying container image: load service"
-# docker build -t $STAGE-$APP_NAME-load-service $LOAD_SERVICE_DIR
-# docker tag $STAGE-$APP_NAME-load-service:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$STAGE-$APP_NAME-load-service:latest
-# docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$STAGE-$APP_NAME-load-service:latest
+# # # Deploy load service image to ECR
+# # echo "Deploying container image: load service"
+# # docker build -t $STAGE-$APP_NAME-load-service $LOAD_SERVICE_DIR
+# # docker tag $STAGE-$APP_NAME-load-service:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$STAGE-$APP_NAME-load-service:latest
+# # docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$STAGE-$APP_NAME-load-service:latest
 
-echo "Neo4j can be accessed at this URL: $(aws ssm get-parameter --name "/$APP_NAME/$STAGE/$REGION/Neo4jDatabaseEndpoint" | jq -r '.Parameter.Value'):7474"
+# echo "Neo4j can be accessed at this URL: $(aws ssm get-parameter --name "/$APP_NAME/$STAGE/$REGION/Neo4jDatabaseEndpoint" | jq -r '.Parameter.Value'):7474"
 
-exit 0
+# exit 0

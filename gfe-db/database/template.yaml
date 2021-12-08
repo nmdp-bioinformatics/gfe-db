@@ -1,0 +1,146 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Deploys an EC2 instance hosting a Neo4j server
+
+Parameters:
+  Stage:
+    Type: String
+    Description: Stage of production
+  AppName:
+    Type: String
+    Description: Application name
+
+Resources:
+  Neo4jDatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${Stage}-${AppName}-neo4j-sg'
+      GroupDescription: Security group for the GFE database
+      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcID}}'
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+        - CidrIp: 0.0.0.0/0
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
+        - CidrIp: 0.0.0.0/0
+          FromPort: 7474
+          IpProtocol: tcp
+          ToPort: 7474
+        - CidrIp: 0.0.0.0/0
+          FromPort: 7473
+          IpProtocol: tcp
+          ToPort: 7473
+        - CidrIp: 0.0.0.0/0
+          FromPort: 7687
+          IpProtocol: tcp
+          ToPort: 7687
+      Tags:
+        - Key: Name
+          Value: !Sub '${Stage}-${AppName}-neo4j-sg'
+  Neo4jDatabaseInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}'
+      DisableApiTermination: false
+      ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}'
+      InstanceType: m5d.xlarge
+      IamInstanceProfile: !Ref Neo4jDatabaseInstanceProfile
+      Monitoring: true
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: "0"
+          GroupSet: 
+            - !Ref Neo4jDatabaseSecurityGroup
+          SubnetId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID}}'
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash -x
+          IDX=1
+          for DEV in /dev/disk/by-id/nvme-Amazon_EC2_NVMe_Instance_Storage_*-ns-1; do
+            mkfs.xfs ${DEV}
+            mkdir -p /local${IDX}
+            echo ${DEV} /local${IDX} xfs defaults,noatime 1 2 >> /etc/fstab
+            IDX=$((${IDX} + 1))
+          done
+          mount -a
+          sudo yum update -y
+          # curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          # unzip awscliv2.zip
+          sudo yum install git amazon-cloudwatch-agent -y
+          sudo amazon-linux-extras install docker
+          service docker start
+          usermod -a -G docker ec2-user
+          chkconfig docker on
+          cd /local1
+          chown -R ec2-user .
+          git clone https://github.com/abk7777/gfe-db.git
+          cd gfe-db
+          git checkout fix/optimize-build
+          docker build -t gfe-db .
+          docker run -d --name gfe \
+            -v "$(pwd)"/data/csv/:/var/lib/neo4j/import \
+            -v "$(pwd)"/neo4j/plugins:/var/lib/neo4j/plugins \
+            -v "$(pwd)"/neo4j/logs:/var/lib/neo4j/logs \
+            -p 7474:7474 -p 7473:7473 \
+            -p 7687:7687 gfe-db
+      Tags:
+        - Key: Name
+          Value: !Ref AppName
+        - Key: Stage
+          Value: !Ref Stage
+  Neo4jDatabaseIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      Path: /
+      Policies:
+        - PolicyName: !Sub '${Stage}-${AppName}-Neo4jDatabasePolicy'
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "s3:GetObject"
+                  - "s3:ListObjectsV2"
+                Resource: 
+                  - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
+                  - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
+              - Effect: "Allow"
+                Action:
+                  - "ecr:GetAuthorizationToken"
+                  - "ecr:BatchCheckLayerAvailability"
+                  - "ecr:GetDownloadUrlForLayer"
+                  - "ecr:GetRepositoryPolicy"
+                  - "ecr:DescribeRepositories"
+                  - "ecr:ListImages"
+                  - "ecr:DescribeImages"
+                  - "ecr:BatchGetImage"
+                  - "ecr:InitiateLayerUpload"
+                  - "ecr:UploadLayerPart"
+                  - "ecr:CompleteLayerUpload"
+                  - "ecr:PutImage"
+                  - "cloudtrail:LookupEvents"
+                Resource: "*"
+  Neo4jDatabaseInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref Neo4jDatabaseIAMRole
+  Neo4jDatabaseEndpointParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint'
+      Description: "Endpoint for gfe-db build service repository"
+      Value: !GetAtt Neo4jDatabaseInstance.PublicIp

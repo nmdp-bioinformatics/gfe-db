@@ -7,9 +7,6 @@ Parameters:
     Description: Stage of production
   AppName:
     Type: String
-  EC2KeyPairName:
-    Type: AWS::EC2::KeyPair::KeyName
-    Description: Key pair name for the Neo4j database server
   Neo4jUsername:
     Type: String
     NoEcho: true
@@ -47,7 +44,7 @@ Resources:
       EnableDnsSupport: true
       Tags:
         - Key: Name
-          Value: !Sub '${Stage}-${AppName}-vpc'
+          Value: !Sub '${Stage}-${AppName}-${AWS::Region}-vpc'
   PublicSubnet:
     Type: AWS::EC2::Subnet
     Properties:
@@ -95,13 +92,6 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID'
       Description: "Public Subnet for the gfe-db Neo4j server"
       Value: !Ref PublicSubnet
-  # EC2KeyPairNameParameter: # Convert to secret
-  #   Type: AWS::SSM::Parameter
-  #   Properties:
-  #     Type: String
-  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName'
-  #     Description: "EC2 key pair for launching instances"
-  #     Value: !Ref EC2KeyPairName
   DataBucketNameParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -140,17 +130,6 @@ Resources:
       Name: !Sub "${AppName}-${Stage}-GitHubPersonalAccessToken"
       Description: GitHub Personal Access Token for repository access
       SecretString: !Sub '{"personal_access_token":"${GitHubPersonalAccessToken}"}'
-      Tags:
-        - Key: Stage
-          Value: !Ref Stage
-        - Key: AppName 
-          Value: !Ref AppName
-  EC2KeyPairNameSecret:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      Name: !Sub "${AppName}-${Stage}-EC2KeyPairName"
-      Description: EC2 key pair for launching instances
-      SecretString: !Ref EC2KeyPairName
       Tags:
         - Key: Stage
           Value: !Ref Stage
