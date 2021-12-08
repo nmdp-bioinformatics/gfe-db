@@ -30,6 +30,7 @@ Resources:
           Value: !Ref Stage
         - Key: AppName 
           Value: !Ref AppName
+  # TODO: Add GItHub secrets
   DataBucket:
     Type: AWS::S3::Bucket
     Properties:

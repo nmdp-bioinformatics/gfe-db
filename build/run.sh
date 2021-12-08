@@ -109,6 +109,8 @@ for release in ${RELEASES}; do
 	else
 		echo "Downloading DAT file for release $release..."
 		if [ "$(echo "$release" | bc -l)" -le 3350  ]; then
+
+			# Should be environment variable
 			imgt_hla_raw_url='https://raw.githubusercontent.com/ANHIG/IMGTHLA'
 			echo "Downloading $imgt_hla_raw_url/$release/hla.dat to $DATA_DIR/$release/hla.$release.dat"
 			curl -SL $imgt_hla_raw_url/$release/hla.dat > $DATA_DIR/$release/hla.$release.dat

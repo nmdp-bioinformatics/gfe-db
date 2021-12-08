@@ -15,8 +15,10 @@ GITHUB_PERSONAL_ACCESS_TOKEN = os.environ["GITHUB_PERSONAL_ACCESS_TOKEN"]
 GITHUB_REPOSITORY_OWNER = os.environ["GITHUB_REPOSITORY_OWNER"]
 GITHUB_REPOSITORY_NAME = os.environ["GITHUB_REPOSITORY_NAME"]
 GFE_BUCKET = os.environ["GFE_BUCKET"]
+UPDATE_PIPELINE_STATE_MACHINE_ARN = os.environ["UPDATE_PIPELINE_STATE_MACHINE_ARN"]
 
 s3 = boto3.client('s3')
+sfn = boto3.client('stepfunctions')
 
 def lambda_handler(event, context):
     """Checks for new IMGT/HLA releases and triggers the update
@@ -41,7 +43,8 @@ def lambda_handler(event, context):
     
     if new_releases:
     
-        logger.info(f'Pipeline triggered:')
+        # TODO: Describe current executions and make sure the release is not already being built
+        # releases_processing = set(check_current_executions(UPDATE_PIPELINE_STATE_MACHINE_ARN))
 
         # Load the current pipeline params
         params_path = f"s3://{GFE_BUCKET}/config/pipeline/params.json"
@@ -58,10 +61,41 @@ def lambda_handler(event, context):
             logger.info(f'{json.dumps(params_input)}')            
             state_machine_input.append(params_input)
 
-    # Always update the config file
-    write_config(branches_config_path)
+        response = sfn.start_execution(
+            stateMachineArn=UPDATE_PIPELINE_STATE_MACHINE_ARN,
+            input=json.dumps(state_machine_input))
 
-    return 0
+        # Update the config file
+        write_config(branches_config_path)
+
+        return {
+            "status": response['ResponseMetadata']['HTTPStatusCode'],
+            "message": "Pipeline triggered",
+            "releases": new_releases
+        }
+
+    else:
+        return {
+            "status": 200,
+            "message": "No new releases found"
+        }
+
+
+
+# Needed to serialize datetime objects in JSON responses
+class DatetimeEncoder(json.JSONEncoder):
+    """
+    Helps convert datetime objects to pure strings in AWS service API responses. Does not
+    convert timezone information.
+
+    Extend `json.JSONEncoder`. 
+    """
+
+    def default(self, obj):
+        try:
+            return super().default(obj)
+        except TypeError:
+            return str(obj)
 
 
 def get_branches(owner, repo):
@@ -177,12 +211,32 @@ def check_new_releases(previous_state, current_state):
 
         if new_branches_are_valid_releases:
             
-            return new_releases
+            return [str(release) for release in new_releases]
     else:
         logger.info("No new branches detected")
         
         return
 
+def check_current_executions(state_machine_arn):
+    
+    response = sfn.list_executions(
+        stateMachineArn=state_machine_arn,
+        statusFilter='RUNNING')
 
-# if __name__ == "__main__":
-#     lambda_handler("","")
+    # Extract executions
+    executions_arns = [execution['executionArn'] for execution in response['executions']]
+    
+    releases_processing = []
+
+    for executions_arn in executions_arns:
+
+        response = sfn.describe_execution(
+            executionArn=executions_arn)
+
+        releases_processing = releases_processing + [params["RELEASES"] for params in json.loads(response['input'])]
+
+    return releases_processing
+    
+
+if __name__ == "__main__":
+    lambda_handler("","")

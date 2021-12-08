@@ -29,6 +29,7 @@ deploy:
 			AppName="${APP_NAME}" \
 			TriggerFunctionName="${STAGE}"-"${APP_NAME}"-"${SERVICE}" \
 			TriggerFunctionMemorySize="$$(cat environment.json | jq -r '.FunctionConfiguration.MemorySize')" \
+			TriggerFunctionSchedule="$$(cat environment.json | jq -r '.TriggerFunctionSchedule')" \
 			GitHubPersonalAccessToken="$$(cat environment.json | jq -r '.FunctionConfiguration.Environment.Variables.GITHUB_PERSONAL_ACCESS_TOKEN')" \
 			GitHubRepositoryOwner="$$(cat environment.json | jq -r '.FunctionConfiguration.Environment.Variables.GITHUB_REPOSITORY_OWNER')" \
 			GitHubRepositoryName="$$(cat environment.json | jq -r '.FunctionConfiguration.Environment.Variables.GITHUB_REPOSITORY_NAME')" \

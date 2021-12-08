@@ -19,13 +19,13 @@ Parameters:
     Type: Number
     MinValue: 128
     MaxValue: 512
+  TriggerFunctionSchedule:
+    Type: String
   GitHubPersonalAccessToken:
     Type: String
   GitHubRepositoryOwner: 
     Type: String
   GitHubRepositoryName:
-    Type: String
-  DataBucketName:
     Type: String
 
 Resources:
@@ -44,12 +44,13 @@ Resources:
           GITHUB_PERSONAL_ACCESS_TOKEN: !Ref GitHubPersonalAccessToken
           GITHUB_REPOSITORY_OWNER: !Ref GitHubRepositoryOwner
           GITHUB_REPOSITORY_NAME: !Ref GitHubRepositoryName
-          GFE_BUCKET: !Ref DataBucketName
+          GFE_BUCKET: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
+          UPDATE_PIPELINE_STATE_MACHINE_ARN: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineArn}}'
       Events:
         Trigger:
           Type: Schedule
           Properties:
-            Schedule: rate(1 minute)
+            Schedule: !Ref TriggerFunctionSchedule
       Policies:
         - AWSLambdaBasicExecutionRole
         - Version: "2012-10-17"
@@ -62,3 +63,8 @@ Resources:
               Resource:
                 - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
                 - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
+            - Sid: "AllowSFNStartExecution"
+              Effect: "Allow"
+              Action:
+                - "states:StartExecution"
+              Resource: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineArn}}'
