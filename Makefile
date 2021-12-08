@@ -5,16 +5,24 @@
 # TODO: move to config file and parse with jq, or use SSM parameter store
 export STAGE ?= dev
 export APP_NAME ?= gfe-db
-export NEO4J_USERNAME ?= neo4j
-export NEO4J_PASSWORD ?= gfedb
 export REGION ?= us-east-1
 
 target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
+deploy: 
+	$(info [*] Deploying all services...)
+	$(MAKE) deploy.infrastructure
 
-deploy: deploy.cfn deploy.ecr
+deploy.infrastructure:
+	$(MAKE) -C gfe-db/infrastructure/ deploy
+
+
+
+
+
+
 
 deploy.ecr:
 	$(info [*] Logging into ECR...)
@@ -35,7 +43,7 @@ deploy.ecr:
 
 deploy.cfn:
 	$(info [*] Deploying...)
-	@bash scripts/deploy.sh ${STAGE} ${APP_NAME} ${REGION} ${NEO4J_USERNAME} ${NEO4J_PASSWORD}
+	@bash scripts/deploy.sh ${STAGE} ${APP_NAME} ${REGION}
 
 run: ##=> Load an IMGT/HLA release version; make run release=3450 align=False kir=False mem_profile=False limit=1000
 	$(info [*] Starting StepFunctions execution for release $(release))
@@ -60,10 +68,6 @@ define HELP_MESSAGE
 		Description: Stack Name already deployed
 	REGION: "${REGION}":
 		Description: AWS region for deployment
-	NEO4J_USERNAME: "${NEO4J_USERNAME}"
-		Description: Neo4j username
-	NEO4J_PASSWORD: "${NEO4J_PASSWORD}"
-		Description: Neo4j password
 
 	Common usage:
 

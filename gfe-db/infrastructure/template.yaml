@@ -7,15 +7,9 @@ Parameters:
     Description: Stage of production
   AppName:
     Type: String
-  VpcName:
-    Type: String
-    Default: gfe-db
   EC2KeyPairName:
     Type: AWS::EC2::KeyPair::KeyName
     Description: Key pair name for the Neo4j database server
-  DataBucketName:
-    Type: String
-    Description: Name of bucket for application data and logs
   Neo4jUsername:
     Type: String
     NoEcho: true
@@ -53,7 +47,7 @@ Resources:
       EnableDnsSupport: true
       Tags:
         - Key: Name
-          Value: !Ref VpcName
+          Value: !Sub '${Stage}-${AppName}-vpc'
   PublicSubnet:
     Type: AWS::EC2::Subnet
     Properties:
@@ -86,7 +80,7 @@ Resources:
   DataBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Ref DataBucketName
+      BucketName: !Sub '${Stage}-${AppName}-${AWS::AccountId}-${AWS::Region}'
   VpcIDParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -145,7 +139,7 @@ Resources:
     Properties:
       Name: !Sub "${AppName}-${Stage}-GitHubPersonalAccessToken"
       Description: GitHub Personal Access Token for repository access
-      SecretString: !Ref GitHubPersonalAccessToken
+      SecretString: !Sub '{"personal_access_token":"${GitHubPersonalAccessToken}"}'
       Tags:
         - Key: Stage
           Value: !Ref Stage

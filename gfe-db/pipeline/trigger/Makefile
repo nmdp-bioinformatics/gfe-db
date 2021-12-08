@@ -1,7 +1,4 @@
 SERVICE := trigger
-STAGE := dev
-APP_NAME := gfe-db
-REGION := us-east-1
 
 # # Local invoke
 # invoke-post-job:
@@ -20,14 +17,14 @@ deploy:
 		--output-template-file packaged.yaml && \
 	sam deploy \
 		--no-fail-on-empty-changeset \
-		--region "${REGION}" \
+		--region "$${REGION}" \
 		--template-file packaged.yaml \
-		--stack-name "${STAGE}-${APP_NAME}-${SERVICE}" \
+		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" \
 		--capabilities CAPABILITY_IAM \
 		--parameter-overrides \
-			Stage="${STAGE}" \
-			AppName="${APP_NAME}" \
-			TriggerFunctionName="${STAGE}"-"${APP_NAME}"-"${SERVICE}" \
+			Stage="$${STAGE}" \
+			AppName="$${APP_NAME}" \
+			TriggerFunctionName="$${STAGE}"-"$${APP_NAME}"-"${SERVICE}" \
 			TriggerFunctionMemorySize="$$(cat environment.json | jq -r '.FunctionConfiguration.MemorySize')" \
 			TriggerFunctionSchedule="$$(cat environment.json | jq -r '.TriggerFunctionSchedule')" \
 			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN" \
@@ -35,4 +32,4 @@ deploy:
 			GitHubRepositoryName="$$(cat environment.json | jq -r '.FunctionConfiguration.Environment.Variables.GITHUB_REPOSITORY_NAME')"
 
 delete: ##=> Delete service
-	aws cloudformation delete-stack --stack-name "${STAGE}-${APP_NAME}-${SERVICE}" >/dev/null
+	aws cloudformation delete-stack --stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null
