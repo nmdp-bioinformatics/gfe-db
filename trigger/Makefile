@@ -30,10 +30,13 @@ deploy:
 			TriggerFunctionName="${STAGE}"-"${APP_NAME}"-"${SERVICE}" \
 			TriggerFunctionMemorySize="$$(cat environment.json | jq -r '.FunctionConfiguration.MemorySize')" \
 			TriggerFunctionSchedule="$$(cat environment.json | jq -r '.TriggerFunctionSchedule')" \
-			GitHubPersonalAccessToken="$$(cat environment.json | jq -r '.FunctionConfiguration.Environment.Variables.GITHUB_PERSONAL_ACCESS_TOKEN')" \
+			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN" \
 			GitHubRepositoryOwner="$$(cat environment.json | jq -r '.FunctionConfiguration.Environment.Variables.GITHUB_REPOSITORY_OWNER')" \
 			GitHubRepositoryName="$$(cat environment.json | jq -r '.FunctionConfiguration.Environment.Variables.GITHUB_REPOSITORY_NAME')" \
 			DataBucketName="$$(cat environment.json | jq -r '.FunctionConfiguration.Environment.Variables.GFE_BUCKET')"
+
+check:
+	@env
 
 delete: ##=> Delete service
 	aws cloudformation delete-stack --stack-name "${STAGE}-${APP_NAME}-${SERVICE}"" >/dev/null
