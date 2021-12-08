@@ -75,6 +75,9 @@ def lambda_handler(event, context):
         }
 
     else:
+        # Update the config file
+        write_config(branches_config_path)
+        
         return {
             "status": 200,
             "message": "No new releases found"
