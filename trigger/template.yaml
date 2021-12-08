@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Trigger for gfe-db update pipeline
+Globals:
+  Function:
+    Timeout: 60
+
+Parameters:
+  Stage:
+    Type: String
+    Description: Stage of production
+  AppName:
+    Type: String
+    Description: Application name
+  TriggerFunctionName:
+    Type: String
+  TriggerFunctionMemorySize:
+    Type: Number
+    MinValue: 128
+    MaxValue: 512
+  TriggerFunctionSchedule:
+    Type: String
+  GitHubPersonalAccessToken:
+    Type: String
+  GitHubRepositoryOwner: 
+    Type: String
+  GitHubRepositoryName:
+    Type: String
+
+Resources:
+  TriggerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Ref TriggerFunctionName
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Runtime: python3.8
+      MemorySize: !Ref TriggerFunctionMemorySize
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          GITHUB_PERSONAL_ACCESS_TOKEN: !Ref GitHubPersonalAccessToken
+          GITHUB_REPOSITORY_OWNER: !Ref GitHubRepositoryOwner
+          GITHUB_REPOSITORY_NAME: !Ref GitHubRepositoryName
+          GFE_BUCKET: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
+          UPDATE_PIPELINE_STATE_MACHINE_ARN: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineArn}}'
+      Events:
+        Trigger:
+          Type: Schedule
+          Properties:
+            Schedule: !Ref TriggerFunctionSchedule
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: "AllowS3Access"
+              Effect: "Allow"
+              Action:
+                - "s3:GetObject"
+                - "s3:PutObject"
+              Resource:
+                - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
+                - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
+            - Sid: "AllowSFNStartExecution"
+              Effect: "Allow"
+              Action:
+                - "states:StartExecution"
+              Resource: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineArn}}'

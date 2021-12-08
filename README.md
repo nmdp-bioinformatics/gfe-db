@@ -159,17 +159,9 @@ make delete
 ### Creating a Python Virtual Environment
 When developing locally, you will need to create individual virtual environments inside the `build/` and `load/` directories, since they require different dependencies:
 ```bash
-# Build service
-cd build
-python3 -m venv ./build/.venv-build
-source ./build/.venv-build/bin/activate
-pip install -U pip
-pip install -r requirements.txt
-
-# Load service
-cd load
-python3 -m venv ./load/.venv-load
-source ./load/.venv-load/bin/activate
+cd <build or load directory>
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -U pip
 pip install -r requirements.txt
 ```

@@ -13,7 +13,7 @@ Parameters:
     NoEcho: true
   Neo4jDatabaseImageId:
     Type: AWS::EC2::Image::Id
-  DataBucketArn:
+  DataBucketArn: # Use SSM parameter instead; !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/shared/VARIABLE}}' etc
     Type: String
 Mappings:
   # Neo4jAvailabilityZoneMap defines availability zones where an m5d.xlarge instance is available.

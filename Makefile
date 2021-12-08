@@ -14,29 +14,30 @@ target:
 	@exit 0
 
 
-deploy: deploy.ecr
-	$(info [*] Deploying resources...)
+deploy: deploy.cfn deploy.ecr
 
-deploy.ecr: deploy.cfn
-	$(info [*] Pushing Docker images to ECR...)
+deploy.ecr:
+	$(info [*] Logging into ECR...)
 	@aws ecr get-login-password \
 		--region ${REGION} | docker login \
 			--username AWS \
 			--password-stdin $$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${REGION}.amazonaws.com
 
-	@docker build -t ${STAGE}-${APP_NAME}-build-service build/
-	@docker tag ${STAGE}-${APP_NAME}-build-service:latest $$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${REGION}.amazonaws.com/${STAGE}-${APP_NAME}-build-service:latest
-	@docker push $$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${REGION}.amazonaws.com/${STAGE}-${APP_NAME}-build-service:latest
+#	# @$(info [*] Pushing build service image to ECR...)
+	@docker build -t ${STAGE}-${APP_NAME}-build-service build/ && \
+	docker tag ${STAGE}-${APP_NAME}-build-service:latest $$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${REGION}.amazonaws.com/${STAGE}-${APP_NAME}-build-service:latest && \
+	docker push $$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${REGION}.amazonaws.com/${STAGE}-${APP_NAME}-build-service:latest
 
-	@docker build -t ${STAGE}-${APP_NAME}-load-service load/
-	@docker tag ${STAGE}-${APP_NAME}-load-service:latest $$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${REGION}.amazonaws.com/${STAGE}-${APP_NAME}-load-service:latest
-	@docker push $$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${REGION}.amazonaws.com/${STAGE}-${APP_NAME}-load-service:latest
+#	# @$(info [*] Pushing load service image to ECR...)
+	@docker build -t ${STAGE}-${APP_NAME}-load-service load/ && \
+	docker tag ${STAGE}-${APP_NAME}-load-service:latest $$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${REGION}.amazonaws.com/${STAGE}-${APP_NAME}-load-service:latest && \
+	docker push $$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${REGION}.amazonaws.com/${STAGE}-${APP_NAME}-load-service:latest
 
 deploy.cfn:
 	$(info [*] Deploying...)
 	@bash scripts/deploy.sh ${STAGE} ${APP_NAME} ${REGION} ${NEO4J_USERNAME} ${NEO4J_PASSWORD}
 
-run: ##=> Load an IMGT/HLA release version; release=3450 align=False kir=False mem_profile=False limit=1000
+run: ##=> Load an IMGT/HLA release version; make run release=3450 align=False kir=False mem_profile=False limit=1000
 	$(info [*] Starting StepFunctions execution for release $(release))
 
 #	@# TODO: Add validation for positional arguments: release, align, kir, mem_profile, limit

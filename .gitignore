@@ -90,7 +90,9 @@ neo4j/load_*
 *.msf
 *.dat
 nodes-*.txt
-_*
+_M*
+_*.yaml
+_*.json
 logs.txt
 config/
 logs/
@@ -100,7 +102,8 @@ logs/
 *.bak
 img/
 cicd.yml
-notebooks/
 build/Makefile
 load/Makefile
-notebooks/
+.aws-sam
+packaged.yaml
+samconfig.toml

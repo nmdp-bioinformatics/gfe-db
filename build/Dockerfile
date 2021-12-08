@@ -7,8 +7,6 @@ RUN apt update && \
     && pip3 install --upgrade pip \
     && apt-get clean
 
-RUN pip3 --no-cache-dir install --upgrade awscli
-
 WORKDIR /opt/app
 RUN mkdir /opt/data
 
