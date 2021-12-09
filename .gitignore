@@ -107,3 +107,5 @@ load/Makefile
 .aws-sam
 packaged.yaml
 samconfig.toml
+scripts/
+cfn/
