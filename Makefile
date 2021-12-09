@@ -3,16 +3,23 @@
 ##########################
 export STAGE ?= dev
 export APP_NAME ?= gfe-db
+export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity --query Account --output text)
 export REGION ?= us-east-1
+
+export ECR_BASE_URI ?= ${AWS_ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com
+export BUILD_REPOSITORY ?= ${STAGE}-${APP_NAME}-build-service
+export LOAD_REPOSITORY ?= ${STAGE}-${APP_NAME}-load-service
 
 target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
 deploy: ##=> Deploy services
-	$(info [*] Deploying all services...)
+	$(info [*] Deploying all services to ${AWS_ACCOUNT}...)
 	$(MAKE) deploy.infrastructure
 	$(MAKE) deploy.database
+	$(MAKE) deploy.pipeline
+	@echo "Finished deploying ${APP_NAME}."
 
 # Deploy specific stacks
 deploy.infrastructure:
@@ -21,7 +28,11 @@ deploy.infrastructure:
 deploy.database:
 	$(MAKE) -C gfe-db/database/ deploy
 
+deploy.pipeline:
+	$(MAKE) -C gfe-db/pipeline/ deploy
+
 delete: ##=> Delete services
+	$(MAKE) delete.pipeline
 	$(MAKE) delete.database
 	$(MAKE) delete.infrastructure
 
@@ -31,6 +42,9 @@ delete.infrastructure:
 
 delete.database:
 	$(MAKE) -C gfe-db/database/ delete
+
+delete.pipeline:
+	$(MAKE) -C gfe-db/pipeline/ delete
 
 
 
@@ -73,8 +87,21 @@ define HELP_MESSAGE
 		Description: Feature branch name used as part of stacks name
 	APP_NAME: "${APP_NAME}"
 		Description: Stack Name already deployed
+
+	AWS_ACCOUNT: "${AWS_ACCOUNT}":
+		Description: AWS account ID for deployment
+
 	REGION: "${REGION}":
 		Description: AWS region for deployment
+
+	ECR_BASE_URI: "$${ECR_BASE_URI}"
+		Description: Base URI for AWS Elastic Container Registry
+
+	BUILD_REPOSITORY: "$${BUILD_REPOSITORY}"
+		Description: Name of the ECR repository for the build service
+
+	LOAD_REPOSITORY: "$${LOAD_REPOSITORY}"
+		Description: Name of the ECR repository for the load service
 
 	Common usage:
 

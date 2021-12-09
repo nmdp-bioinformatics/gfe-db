@@ -18,6 +18,7 @@ from csv import DictWriter
 from pathlib import Path
 from constants import *
 
+# TODO: Output logs as JSON
 logger = logging.getLogger() # .addHandler(logging.StreamHandler(sys.stdout))
 log_dir = os.path.dirname(__file__) + "/../logs"
 logging.basicConfig(

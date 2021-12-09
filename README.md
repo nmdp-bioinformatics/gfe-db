@@ -266,6 +266,9 @@ pip install ipykernel
 
 # Add the kernel
 python3 -m ipykernel install --user --name=<environment name>
+
+# Remove the kernel
+jupyter kernelspec uninstall <environment name>
 ``` -->
 
 <!-- ### `1.0-load-gfe-db`

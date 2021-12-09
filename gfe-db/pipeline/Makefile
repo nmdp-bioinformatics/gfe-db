@@ -1,11 +1,10 @@
-SERVICE := infrastructure
+SERVICE := pipeline
 
 target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-# TODO: Check for secrets in environment variables and cancel if not found
-deploy: deploy.cfn
+deploy: deploy.cfn deploy.jobs deploy.functions
 
 deploy.cfn:
 	$(info [*] Deploying ${SERVICE}...)
@@ -13,17 +12,32 @@ deploy.cfn:
 		--region $${REGION} \
 		--template-file template.yaml \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" \
+		--capabilities CAPABILITY_IAM \
 		--parameter-overrides \
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
-			Neo4jUsername="$$NEO4J_USERNAME" \
-			Neo4jPassword="$$NEO4J_PASSWORD" \
-			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN"
+			BuildServiceRepositoryName="${BUILD_REPOSITORY}" \
+			LoadServiceRepositoryName="${LOAD_REPOSITORY}"
 
-delete: ##=> Delete resources
+deploy.jobs:
+	$(MAKE) -C jobs/ deploy
+
+deploy.functions:
+	$(MAKE) -C functions/ deploy
+
+delete: delete.functions delete.jobs delete.cfn
+
+delete.cfn:
 	$(info [*] Deleting resources...)
 	@aws cloudformation delete-stack \
-		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}"
+		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1
+
+delete.jobs:
+	$(MAKE) -C jobs/ delete
+
+delete.functions:
+	$(MAKE) -C functions/ delete
+
 
 #############
 #  Helpers  #

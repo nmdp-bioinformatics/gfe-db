@@ -1,0 +1,473 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Deploys AWS Batch Jobs and a State Machine for the gfe-db Update Pipeline
+
+Parameters:
+  Stage:
+    Type: String
+    Description: Stage of production
+  AppName:
+    Type: String
+    Description: Application name
+  BuildServiceRepositoryName:
+    Type: String
+  LoadServiceRepositoryName:
+    Type: String
+
+Resources:
+  BuildServerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${Stage}-${AppName}-build-server-sg'
+      GroupDescription: !Sub 'Security group for the ${Stage}-${AppName} build server'
+      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcID}}'
+      # SecurityGroupIngress: # Uncomment to allow SSH access to build instance
+      #   - CidrIp: 0.0.0.0/0
+      #     FromPort: 22
+      #     IpProtocol: tcp
+      #     ToPort: 22
+      Tags:
+        - Key: Name
+          Value: !Sub '${Stage}-${AppName}-build-server-sg'
+  LoadServerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${Stage}-${AppName}-load-server-sg'
+      GroupDescription: !Sub 'Security group for the ${Stage}-${AppName} load server'
+      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcID}}'
+      # SecurityGroupIngress:
+      #   - CidrIp: 0.0.0.0/0
+      #     FromPort: 22
+      #     IpProtocol: tcp
+      #     ToPort: 22
+      Tags:
+        - Key: Name
+          Value: !Sub '${Stage}-${AppName}-load-server-sg'
+  BatchServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: batch.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole
+  BatchWorkerInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref BatchWorkerInstanceRole
+  BatchWorkerInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2008-10-17"
+        Statement:
+          - Sid: ""
+            Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+      Policies:
+        - PolicyName: !Sub '${Stage}-${AppName}-ECS-CloudWatchLogs'
+          PolicyDocument: 
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                Effect: Allow
+                Resource: arn:aws:logs:*:*:*"
+        - PolicyName: !Sub '${Stage}-${AppName}-BuildServiceS3ReadWritePolicy'
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3:GetBucketLocation
+                  - s3:GetObjectVersion
+                  - s3:GetLifecycleConfiguration
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                  - s3:PutLifecycleConfiguration
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
+                  - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
+  BuildJobDefinition:
+    Type: AWS::Batch::JobDefinition
+    Properties:
+      Type: container
+      JobDefinitionName: !Sub '${Stage}-${AppName}-BuildJobDefinition'
+      ContainerProperties:
+        Image: !Join
+            - ""
+            - - !Ref AWS::AccountId
+              - .dkr.ecr.
+              - !Ref AWS::Region
+              - .amazonaws.com/
+              - !Ref BuildServiceRepositoryName
+              - :latest
+        Vcpus: 8
+        # TODO: Move Memory param to ResourceRequirements
+        Memory: 8000 # Keep this around half the available RAM to avoid getting stuck in RUNNABLE status 
+        Command:
+          - bash
+          - run.sh
+        Environment:
+          - Name: GFE_BUCKET
+            Value: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
+      RetryStrategy:
+        Attempts: 1
+  BuildJobQueue:
+    Type: AWS::Batch::JobQueue
+    Properties:
+      JobQueueName: !Sub '${Stage}-${AppName}-BuildJobQueue'
+      Priority: 1
+      ComputeEnvironmentOrder:
+        - Order: 1
+          ComputeEnvironment: !Ref BuildComputeEnvironment
+  BuildComputeEnvironment:
+    Type: AWS::Batch::ComputeEnvironment
+    Properties:
+      Type: MANAGED
+      ComputeResources:
+        Type: EC2
+        # # Testing only, comment before prouction deployment
+        # Ec2KeyPair: !Ref EC2KeyPairName
+        # #
+        MinvCpus: 0
+        DesiredvCpus: 0
+        MaxvCpus: 32
+        InstanceTypes:
+          - c5d.2xlarge
+        Subnets:
+          - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID}}'
+        SecurityGroupIds:
+          - !Ref BuildServerSG
+        InstanceRole: !Ref BatchWorkerInstanceProfile
+        LaunchTemplate:
+          LaunchTemplateId: !Ref BuildLaunchTemplate
+        Tags: { "Name": "gfe-db-build-worker" }
+      ServiceRole: !GetAtt BatchServiceRole.Arn
+  BuildLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        DisableApiTermination: false
+        InstanceInitiatedShutdownBehavior: stop
+        ImageId: '{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id}}'
+        InstanceType: c5d.xlarge
+        IamInstanceProfile:
+          Name: !Ref BatchWorkerInstanceProfile
+        Monitoring:
+          Enabled: true
+        SecurityGroupIds:
+          - !Ref BuildServerSG
+        UserData:
+          Fn::Base64: |
+            MIME-Version: 1.0
+            Content-Type: multipart/mixed; boundary="==MYBOUNDARY=="
+
+            --==MYBOUNDARY==
+            Content-Type: text/x-shellscript; charset="us-ascii"
+
+            #!/bin/bash -x
+            IDX=1
+            for DEV in /dev/disk/by-id/nvme-Amazon_EC2_NVMe_Instance_Storage_*-ns-1; do
+              mkfs.xfs ${DEV}
+              mkdir -p /local${IDX}
+              echo ${DEV} /local${IDX} xfs defaults,noatime 1 2 >> /etc/fstab
+              IDX=$((${IDX} + 1))
+            done
+            mount -a
+            sudo yum update -y
+            sudo yum install amazon-cloudwatch-agent -y
+
+            --==MYBOUNDARY==
+      TagSpecifications:
+        - ResourceType: launch-template
+          Tags: 
+            - Key: Name
+              Value: 'gfe-db-build-worker'
+  LoadJobDefinition:
+    Type: AWS::Batch::JobDefinition
+    Properties:
+      Type: container
+      JobDefinitionName: !Sub '${Stage}-${AppName}-LoadJobDefinition'
+      ContainerProperties:
+        Image: !Join
+            - ""
+            - - !Ref AWS::AccountId
+              - .dkr.ecr.
+              - !Ref AWS::Region
+              - .amazonaws.com/
+              - !Ref LoadServiceRepositoryName
+              - :latest
+        Vcpus: 2
+        # TODO: Move Memory param to ResourceRequirements
+        Memory: 4000
+        Command:
+          - bash
+          - run.sh
+        Environment:
+          - Name: GFE_BUCKET
+            Value: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
+          - Name: NEO4J_HOST
+            Value: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint}}'
+          - Name: NEO4J_USERNAME
+            Value: !Sub '{{resolve:secretsmanager:${AppName}-${Stage}-Neo4jCredentials:SecretString:username:AWSCURRENT}}'
+          - Name: NEO4J_PASSWORD
+            Value: !Sub '{{resolve:secretsmanager:${AppName}-${Stage}-Neo4jCredentials:SecretString:password:AWSCURRENT}}'
+      RetryStrategy:
+        Attempts: 1
+  LoadJobQueue:
+    Type: AWS::Batch::JobQueue
+    Properties:
+      JobQueueName: !Sub '${Stage}-${AppName}-LoadJobQueue'
+      Priority: 1
+      ComputeEnvironmentOrder:
+        - Order: 1
+          ComputeEnvironment: !Ref LoadComputeEnvironment
+  LoadComputeEnvironment:
+    Type: AWS::Batch::ComputeEnvironment
+    Properties:
+      Type: MANAGED
+      ComputeResources:
+        Type: EC2
+        # # Testing only, comment before prouction deployment
+        # Ec2KeyPair: !Ref EC2KeyPairName
+        # #
+        MinvCpus: 0
+        DesiredvCpus: 0
+        MaxvCpus: 2
+        InstanceTypes:
+          - optimal
+        Subnets:
+          - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID}}'
+        SecurityGroupIds:
+          - !Ref LoadServerSG
+        InstanceRole: !Ref BatchWorkerInstanceProfile
+        Tags: { "Name": "gfe-db-load-worker" }
+      ServiceRole: !GetAtt BatchServiceRole.Arn
+  UpdatePipelineExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2008-10-17"
+        Statement:
+          - Sid: ""
+            Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
+      Policies:
+        - PolicyName: !Sub '${Stage}-${AppName}-PipelineLogsPolicy'
+          PolicyDocument: 
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogDelivery
+                  - logs:GetLogDelivery
+                  - logs:UpdateLogDelivery
+                  - logs:DeleteLogDelivery
+                  - logs:ListLogDeliveries
+                  - logs:PutResourcePolicy
+                  - logs:DescribeResourcePolicies
+                  - logs:DescribeLogGroups
+                Resource: "*"
+        - PolicyName: !Sub '${Stage}-${AppName}-PipelineBatchExecutionPolicy'
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - batch:SubmitJob
+                  - batch:DescribeJobs
+                  - batch:TerminateJob
+                Resource: "*"
+              - Effect: Allow
+                Action: 
+                  - events:PutTargets
+                  - events:PutRule
+                  - events:DescribeRule
+                Resource: 
+                  - !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule
+  BuildServiceRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref BuildServiceRepositoryName
+      RepositoryPolicyText:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowPushPull
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub arn:aws:iam::${AWS::AccountId}:role/${BatchWorkerInstanceRole}
+            Action:
+              - "ecr:GetDownloadUrlForLayer"
+              - "ecr:BatchGetImage"
+              - "ecr:BatchCheckLayerAvailability"
+              - "ecr:PutImage"
+              - "ecr:InitiateLayerUpload"
+              - "ecr:UploadLayerPart"
+              - "ecr:CompleteLayerUpload"
+  BuildServiceRepositoryNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/BuildServiceRepositoryName'
+      Description: "Name of gfe-db build service repository"
+      Value: !Ref BuildServiceRepositoryName
+  LoadServiceRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref LoadServiceRepositoryName
+      RepositoryPolicyText:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowPushPull
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub arn:aws:iam::${AWS::AccountId}:role/${BatchWorkerInstanceRole}
+            Action:
+              - "ecr:GetDownloadUrlForLayer"
+              - "ecr:BatchGetImage"
+              - "ecr:BatchCheckLayerAvailability"
+              - "ecr:PutImage"
+              - "ecr:InitiateLayerUpload"
+              - "ecr:UploadLayerPart"
+              - "ecr:CompleteLayerUpload"
+  LoadServiceRepositoryNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/LoadServiceRepositoryName'
+      Description: "Name of gfe-db load service repository"
+      Value: !Ref LoadServiceRepositoryName
+  # TODO: Update Build Map concurrency to 0 executions, Load Map concurrency to 1
+  UpdatePipeline:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub '${Stage}-${AppName}-pipeline'
+      RoleArn: !GetAtt UpdatePipelineExecutionRole.Arn
+      DefinitionSubstitutions:
+        AppName: !Ref AppName
+        BuildJobDefinition: !Ref BuildJobDefinition
+        BuildJobName: !Sub '${Stage}-${AppName}-build-job'
+        BuildJobQueue: !Ref BuildJobQueue
+        LoadJobDefinition: !Ref LoadJobDefinition
+        LoadJobName: !Sub '${Stage}-${AppName}-load-job'
+        LoadJobQueue: !Ref LoadJobQueue
+      DefinitionString: |-
+        {
+            "StartAt": "Update release",
+            "States": {
+                "Update release": {
+                    "Type": "Map",
+                    "Next": "Finish",
+                    "MaxConcurrency": 1,
+                    "Iterator": {
+                        "StartAt": "BUILD_gfe-db",
+                        "States": {
+                            "BUILD_gfe-db": {
+                                "Type": "Task",
+                                "Resource": "arn:aws:states:::batch:submitJob.sync",
+                                "Parameters": {
+                                    "JobDefinition": "${BuildJobDefinition}",
+                                    "JobName": "${BuildJobName}",
+                                    "JobQueue": "${BuildJobQueue}",
+                                    "ContainerOverrides": {
+                                        "Environment": [
+                                            {
+                                                "Name": "RELEASES",
+                                                "Value.$": "$.RELEASES"
+                                            },
+                                            {
+                                                "Name": "ALIGN",
+                                                "Value.$": "$.ALIGN"
+                                            },
+                                            {
+                                                "Name": "KIR",
+                                                "Value.$": "$.KIR"
+                                            },
+                                            {
+                                                "Name": "MEM_PROFILE",
+                                                "Value.$": "$.MEM_PROFILE"
+                                            },
+                                            {
+                                                "Name": "LIMIT",
+                                                "Value.$": "$.LIMIT"
+                                            }
+                                        ]
+                                    }
+                                },
+                                "ResultPath": null,
+                                "Next": "LOAD_gfe-db"
+                            },
+                            "LOAD_gfe-db": {
+                                "Type": "Task",
+                                "Resource": "arn:aws:states:::batch:submitJob.sync",
+                                "Parameters": {
+                                    "JobDefinition": "${LoadJobDefinition}",
+                                    "JobName": "${LoadJobName}",
+                                    "JobQueue": "${LoadJobQueue}",
+                                    "ContainerOverrides": {
+                                        "Environment": [
+                                            {
+                                                "Name": "RELEASES",
+                                                "Value.$": "$.RELEASES"
+                                            },
+                                            {
+                                                "Name": "ALIGN",
+                                                "Value.$": "$.ALIGN"
+                                            },
+                                            {
+                                                "Name": "KIR",
+                                                "Value.$": "$.KIR"
+                                            }
+                                        ]
+                                    }
+                                },
+                                "End": true
+                            }
+                        }
+                    }
+                },
+                "Finish": {
+                    "Type": "Succeed"
+                }
+            }
+        }
+      LoggingConfiguration: 
+        Destinations:
+          - CloudWatchLogsLogGroup: 
+              LogGroupArn: !GetAtt UpdatePipelineLogGroup.Arn
+        IncludeExecutionData: true
+        Level: ALL
+  UpdatePipelineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "${Stage}-${AppName}-pipeline-execution-logs"
+  UpdatePipelineArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineArn'
+      Description: "ARN of gfe-db update pipeline state machine"
+      Value: !GetAtt UpdatePipeline.Arn
