@@ -94,7 +94,6 @@ _M*
 _*.yaml
 _*.json
 logs.txt
-config/
 logs/
 0.1-gfe-sandbox.ipynb 
 0.1-dev-build-graph.ipynb

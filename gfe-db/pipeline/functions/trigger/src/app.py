@@ -47,16 +47,16 @@ def lambda_handler(event, context):
         # releases_processing = set(check_current_executions(UPDATE_PIPELINE_STATE_MACHINE_ARN))
 
         # Load the current pipeline params
-        params_path = f"s3://{GFE_BUCKET}/config/pipeline/params.json"
+        params_path = f"s3://{GFE_BUCKET}/config/pipeline/pipeline-input.json"
         params = read_config(params_path)
 
-        logger.info(f'Running gfe-db update pipeline with these params:\n{json.dumps(params)}')
+        logger.info(f'Running pipeline with these params:\n{json.dumps(params)}')
 
         state_machine_input = []
 
         for release in new_releases:
             
-            params_input = copy.deepcopy(params["params"]["environment"])
+            params_input = copy.deepcopy(params)
             params_input["RELEASES"] = release
             logger.info(f'{json.dumps(params_input)}')            
             state_machine_input.append(params_input)

@@ -6,6 +6,7 @@ export APP_NAME ?= gfe-db
 export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity --query Account --output text)
 export REGION ?= us-east-1
 
+export DATA_BUCKET_NAME ?= ${STAGE}-${APP_NAME}-${AWS_ACCOUNT}-${REGION}
 export ECR_BASE_URI ?= ${AWS_ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com
 export BUILD_REPOSITORY ?= ${STAGE}-${APP_NAME}-build-service
 export LOAD_REPOSITORY ?= ${STAGE}-${APP_NAME}-load-service
@@ -85,6 +86,7 @@ define HELP_MESSAGE
 
 	STAGE: "${STAGE}"
 		Description: Feature branch name used as part of stacks name
+
 	APP_NAME: "${APP_NAME}"
 		Description: Stack Name already deployed
 
@@ -93,6 +95,9 @@ define HELP_MESSAGE
 
 	REGION: "${REGION}":
 		Description: AWS region for deployment
+
+	DATA_BUCKET_NAME "$${DATA_BUCKET_NAME}"
+		Description: Name of the S3 bucket for data, config and logs
 
 	ECR_BASE_URI: "$${ECR_BASE_URI}"
 		Description: Base URI for AWS Elastic Container Registry

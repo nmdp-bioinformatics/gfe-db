@@ -31,7 +31,10 @@ delete.jobs.build:
 	[ "$$ecr_images" = "[]" ] && \
 	echo "No images to delete in $${ECR_BASE_URI}/$${BUILD_REPOSITORY}" && exit 0 || \
 	echo "Deleting images in $${ECR_BASE_URI}/$${BUILD_REPOSITORY}" && \
-	aws ecr batch-delete-image --region "$${REGION}" --repository-name "$${BUILD_REPOSITORY}" --image-ids "$$ecr_images" >/dev/null 2>&1
+	aws ecr batch-delete-image \
+		--region "$${REGION}" \
+		--repository-name "$${BUILD_REPOSITORY}" \
+		--image-ids "$$ecr_images" || true
 
 delete.jobs.load:
 	$(info [*] Deleting Load Service Docker images...)
@@ -39,7 +42,10 @@ delete.jobs.load:
 	[ "$$ecr_images" = "[]" ] && \
 	echo "No images to delete in $${ECR_BASE_URI}/$${LOAD_REPOSITORY}" && exit 0 || \
 	echo "Deleting images in $${ECR_BASE_URI}/$${LOAD_REPOSITORY}" && \
-	aws ecr batch-delete-image --region "$${REGION}" --repository-name "$${LOAD_REPOSITORY}" --image-ids "$$ecr_images" >/dev/null 2>&1
+	aws ecr batch-delete-image \
+		--region "$${REGION}" \
+		--repository-name "$${LOAD_REPOSITORY}" \
+		--image-ids "$$ecr_images" || true
 
 #############
 #  Helpers  #

@@ -8,6 +8,8 @@ Parameters:
   AppName:
     Type: String
     Description: Application name
+  ECRBaseUri:
+    Type: String
   BuildServiceRepositoryName:
     Type: String
   LoadServiceRepositoryName:
@@ -80,44 +82,51 @@ Resources:
             Version: "2012-10-17"
             Statement:
               - Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                  - logs:DescribeLogStreams
-                Effect: Allow
-                Resource: arn:aws:logs:*:*:*"
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                  - "logs:DescribeLogStreams"
+                Effect: "Allow"
+                Resource: "arn:aws:logs:*:*:*"
         - PolicyName: !Sub '${Stage}-${AppName}-BuildServiceS3ReadWritePolicy'
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
-              - Effect: Allow
+              - Effect: "Allow"
                 Action: 
-                  - s3:GetObject
-                  - s3:ListBucket
-                  - s3:GetBucketLocation
-                  - s3:GetObjectVersion
-                  - s3:GetLifecycleConfiguration
-                  - s3:PutObject
-                  - s3:PutObjectAcl
-                  - s3:PutLifecycleConfiguration
-                  - s3:DeleteObject
+                  - "s3:GetObject"
+                  - "s3:ListBucket"
+                  - "s3:GetBucketLocation"
+                  - "s3:GetObjectVersion"
+                  - "s3:GetLifecycleConfiguration"
+                  - "s3:PutObject"
+                  - "s3:PutObjectAcl"
+                  - "s3:PutLifecycleConfiguration"
+                  - "s3:DeleteObject"
                 Resource:
                   - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
                   - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
+        - PolicyName: !Sub '${Stage}-${AppName}-SecretsPolicy'
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action: 
+                  - "ssm:GetParameters"
+                  - "secretsmanager:GetResourcePolicy"
+                  - "secretsmanager:GetSecretValue"
+                  - "secretsmanager:DescribeSecret"
+                  - "secretsmanager:ListSecretVersionIds"
+                  - "secretsmanager:ListSecrets"
+                Resource: 
+                  - "*"
   BuildJobDefinition:
     Type: AWS::Batch::JobDefinition
     Properties:
       Type: container
       JobDefinitionName: !Sub '${Stage}-${AppName}-BuildJobDefinition'
       ContainerProperties:
-        Image: !Join
-            - ""
-            - - !Ref AWS::AccountId
-              - .dkr.ecr.
-              - !Ref AWS::Region
-              - .amazonaws.com/
-              - !Ref BuildServiceRepositoryName
-              - :latest
+        Image: !Sub '${ECRBaseUri}/${BuildServiceRepositoryName}:latest'
         Vcpus: 8
         # TODO: Move Memory param to ResourceRequirements
         Memory: 8000 # Keep this around half the available RAM to avoid getting stuck in RUNNABLE status 
@@ -200,20 +209,53 @@ Resources:
           Tags: 
             - Key: Name
               Value: 'gfe-db-build-worker'
+  BatchTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2008-10-17"
+        Statement:
+          - Sid: ""
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub '${Stage}-${AppName}-ecsTaskExecutionRolePolicy'
+          PolicyDocument: 
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "ecr:GetAuthorizationToken"
+                  - "ecr:BatchCheckLayerAvailability"
+                  - "ecr:GetDownloadUrlForLayer"
+                  - "ecr:BatchGetImage"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "*"
+        - PolicyName: !Sub '${Stage}-${AppName}-BatchTaskExecutionPolicy'
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action: 
+                  - "ssm:GetParameters"
+                  - "secretsmanager:GetResourcePolicy"
+                  - "secretsmanager:GetSecretValue"
+                  - "secretsmanager:DescribeSecret"
+                  - "secretsmanager:ListSecretVersionIds"
+                  - "secretsmanager:ListSecrets"
+                Resource: 
+                  - "*"
   LoadJobDefinition:
     Type: AWS::Batch::JobDefinition
     Properties:
       Type: container
       JobDefinitionName: !Sub '${Stage}-${AppName}-LoadJobDefinition'
       ContainerProperties:
-        Image: !Join
-            - ""
-            - - !Ref AWS::AccountId
-              - .dkr.ecr.
-              - !Ref AWS::Region
-              - .amazonaws.com/
-              - !Ref LoadServiceRepositoryName
-              - :latest
+        ExecutionRoleArn: !GetAtt BatchTaskExecutionRole.Arn
+        Image: !Sub '${ECRBaseUri}/${LoadServiceRepositoryName}:latest'
         Vcpus: 2
         # TODO: Move Memory param to ResourceRequirements
         Memory: 4000
@@ -225,10 +267,11 @@ Resources:
             Value: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
           - Name: NEO4J_HOST
             Value: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint}}'
-          - Name: NEO4J_USERNAME
-            Value: !Sub '{{resolve:secretsmanager:${AppName}-${Stage}-Neo4jCredentials:SecretString:username:AWSCURRENT}}'
-          - Name: NEO4J_PASSWORD
-            Value: !Sub '{{resolve:secretsmanager:${AppName}-${Stage}-Neo4jCredentials:SecretString:password:AWSCURRENT}}'
+        Secrets:
+          - Name: "NEO4J_USERNAME"
+            ValueFrom: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn}}:NEO4J_USERNAME:AWSCURRENT:'
+          - Name: "NEO4J_PASSWORD"
+            ValueFrom: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn}}:NEO4J_PASSWORD:AWSCURRENT:'
       RetryStrategy:
         Attempts: 1
   LoadJobQueue:
@@ -245,7 +288,7 @@ Resources:
       Type: MANAGED
       ComputeResources:
         Type: EC2
-        # # Testing only, comment before prouction deployment
+        # # Testing only, comment before production deployment
         # Ec2KeyPair: !Ref EC2KeyPairName
         # #
         MinvCpus: 0
@@ -280,32 +323,32 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - logs:CreateLogDelivery
-                  - logs:GetLogDelivery
-                  - logs:UpdateLogDelivery
-                  - logs:DeleteLogDelivery
-                  - logs:ListLogDeliveries
-                  - logs:PutResourcePolicy
-                  - logs:DescribeResourcePolicies
-                  - logs:DescribeLogGroups
+                  - "logs:CreateLogDelivery"
+                  - "logs:GetLogDelivery"
+                  - "logs:UpdateLogDelivery"
+                  - "logs:DeleteLogDelivery"
+                  - "logs:ListLogDeliveries"
+                  - "logs:PutResourcePolicy"
+                  - "logs:DescribeResourcePolicies"
+                  - "logs:DescribeLogGroups"
                 Resource: "*"
         - PolicyName: !Sub '${Stage}-${AppName}-PipelineBatchExecutionPolicy'
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
-              - Effect: Allow
+              - Effect: "Allow"
                 Action: 
-                  - batch:SubmitJob
-                  - batch:DescribeJobs
-                  - batch:TerminateJob
+                  - "batch:SubmitJob"
+                  - "batch:DescribeJobs"
+                  - "batch:TerminateJob"
                 Resource: "*"
-              - Effect: Allow
+              - Effect: "Allow"
                 Action: 
-                  - events:PutTargets
-                  - events:PutRule
-                  - events:DescribeRule
+                  - "events:PutTargets"
+                  - "events:PutRule"
+                  - "events:DescribeRule"
                 Resource: 
-                  - !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule
+                  - !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule'
   BuildServiceRepository:
     Type: AWS::ECR::Repository
     Properties:
@@ -313,11 +356,11 @@ Resources:
       RepositoryPolicyText:
         Version: "2012-10-17"
         Statement:
-          - Sid: AllowPushPull
-            Effect: Allow
+          - Sid: "AllowPushPull"
+            Effect: "Allow"
             Principal:
               AWS:
-                - !Sub arn:aws:iam::${AWS::AccountId}:role/${BatchWorkerInstanceRole}
+                - !Sub 'arn:aws:iam::${AWS::AccountId}:role/${BatchWorkerInstanceRole}'
             Action:
               - "ecr:GetDownloadUrlForLayer"
               - "ecr:BatchGetImage"
@@ -340,11 +383,11 @@ Resources:
       RepositoryPolicyText:
         Version: "2012-10-17"
         Statement:
-          - Sid: AllowPushPull
-            Effect: Allow
+          - Sid: "AllowPushPull"
+            Effect: "Allow"
             Principal:
               AWS:
-                - !Sub arn:aws:iam::${AWS::AccountId}:role/${BatchWorkerInstanceRole}
+                - !Sub 'arn:aws:iam::${AWS::AccountId}:role/${BatchWorkerInstanceRole}'
             Action:
               - "ecr:GetDownloadUrlForLayer"
               - "ecr:BatchGetImage"

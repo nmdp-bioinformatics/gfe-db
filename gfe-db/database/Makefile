@@ -30,7 +30,7 @@ deploy.cfn:
 			AppName="$${APP_NAME}"
 
 delete: ##=> Delete resources
-	$(info [*] Deleting resources...)
+	$(info [*] Deleting database...)
 	@aws cloudformation delete-stack \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1
 	@aws ec2 delete-key-pair --key-name "${EC2_KEY_PAIR_NAME}" >/dev/null 2>&1

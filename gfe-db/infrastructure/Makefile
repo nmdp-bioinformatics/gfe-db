@@ -16,14 +16,15 @@ deploy.cfn:
 		--parameter-overrides \
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
+			DataBucketName="$$DATA_BUCKET_NAME" \
 			Neo4jUsername="$$NEO4J_USERNAME" \
 			Neo4jPassword="$$NEO4J_PASSWORD" \
 			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN"
 
 delete: ##=> Delete resources
-	$(info [*] Deleting resources...)
+	$(info [*] Deleting infrastructure...)
 	@aws cloudformation delete-stack \
-		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}"
+		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1
 
 #############
 #  Helpers  #

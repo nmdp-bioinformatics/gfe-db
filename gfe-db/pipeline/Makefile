@@ -4,7 +4,7 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-deploy: deploy.cfn deploy.jobs deploy.functions
+deploy: deploy.cfn deploy.jobs deploy.functions deploy.config
 
 deploy.cfn:
 	$(info [*] Deploying ${SERVICE}...)
@@ -16,6 +16,7 @@ deploy.cfn:
 		--parameter-overrides \
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
+			ECRBaseUri="${ECR_BASE_URI}" \
 			BuildServiceRepositoryName="${BUILD_REPOSITORY}" \
 			LoadServiceRepositoryName="${LOAD_REPOSITORY}"
 
@@ -25,10 +26,14 @@ deploy.jobs:
 deploy.functions:
 	$(MAKE) -C functions/ deploy
 
+deploy.config:
+	$(info [*] Deploying config files to S3...)
+	@aws s3 cp --recursive config/ s3://$$DATA_BUCKET_NAME/config/
+
 delete: delete.functions delete.jobs delete.cfn
 
 delete.cfn:
-	$(info [*] Deleting resources...)
+	$(info [*] Deleting pipeline...)
 	@aws cloudformation delete-stack \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1
 
