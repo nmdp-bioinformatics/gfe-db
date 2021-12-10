@@ -19,6 +19,8 @@ Parameters:
     Type: Number
     MinValue: 128
     MaxValue: 512
+  TriggerFunctionTimeout:
+    Type: Number
   TriggerFunctionSchedule:
     Type: String
   GitHubRepositoryOwner: 
@@ -35,6 +37,7 @@ Resources:
       Handler: app.lambda_handler
       Runtime: python3.8
       MemorySize: !Ref TriggerFunctionMemorySize
+      Timeout: !Ref TriggerFunctionTimeout
       Architectures:
         - x86_64
       Environment:

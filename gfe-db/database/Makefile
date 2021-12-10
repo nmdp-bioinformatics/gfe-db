@@ -32,9 +32,11 @@ deploy.cfn:
 delete: ##=> Delete resources
 	$(info [*] Deleting database...)
 	@aws cloudformation delete-stack \
-		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1
-	@aws ec2 delete-key-pair --key-name "${EC2_KEY_PAIR_NAME}" >/dev/null 2>&1
-	@aws ssm delete-parameter --name "/$${APP_NAME}/$${STAGE}/$${REGION}/EC2KeyPairName" >/dev/null 2>&1
+		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1 || true && \
+	aws cloudformation wait stack-delete-complete \
+		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1 || true && \
+	aws ec2 delete-key-pair --key-name "${EC2_KEY_PAIR_NAME}" >/dev/null 2>&1 || true && \
+	aws ssm delete-parameter --name "/$${APP_NAME}/$${STAGE}/$${REGION}/EC2KeyPairName" >/dev/null 2>&1 || true
 
 #############
 #  Helpers  #

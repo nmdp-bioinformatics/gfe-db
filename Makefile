@@ -15,12 +15,27 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-deploy: ##=> Deploy services
-	$(info [*] Deploying all services to ${AWS_ACCOUNT}...)
+deploy: check-env ##=> Deploy services
+	$(info [*] Deploying ${APP_NAME} to ${AWS_ACCOUNT}...)
 	$(MAKE) deploy.infrastructure
 	$(MAKE) deploy.database
 	$(MAKE) deploy.pipeline
 	@echo "Finished deploying ${APP_NAME}."
+
+check-env:
+ifndef AWS_PROFILE
+$(error AWS_PROFILE is not set. Please select an AWS profile to use.)
+endif
+ifndef NEO4J_USERNAME
+$(error NEO4J_USERNAME is not set.)
+endif
+ifndef NEO4J_PASSWORD
+$(error NEO4J_PASSWORD is not set.)
+endif
+ifndef GITHUB_PERSONAL_ACCESS_TOKEN
+$(error GITHUB_PERSONAL_ACCESS_TOKEN is not set.)
+endif
+	@echo "Found environment variables"
 
 # Deploy specific stacks
 deploy.infrastructure:
@@ -33,9 +48,11 @@ deploy.pipeline:
 	$(MAKE) -C gfe-db/pipeline/ deploy
 
 delete: ##=> Delete services
+	$(info [*] Deleting ${APP_NAME} in ${AWS_ACCOUNT}...)
 	$(MAKE) delete.pipeline
 	$(MAKE) delete.database
 	$(MAKE) delete.infrastructure
+	@echo "Finished deleting ${APP_NAME}."
 
 # Delete specific stacks
 delete.infrastructure:
@@ -47,38 +64,14 @@ delete.database:
 delete.pipeline:
 	$(MAKE) -C gfe-db/pipeline/ delete
 
+# run: ##=> Load an IMGT/HLA release version; make run release=3450 align=False kir=False mem_profile=False limit=1000
+# 	$(info [*] Starting StepFunctions execution for release $(release))
 
-
-
-deploy.ecr:
-	$(info [*] Logging into ECR...)
-	@aws ecr get-login-password \
-		--region ${REGION} | docker login \
-			--username AWS \
-			--password-stdin $$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${REGION}.amazonaws.com
-
-#	# @$(info [*] Pushing build service image to ECR...)
-	@docker build -t ${STAGE}-${APP_NAME}-build-service build/ && \
-	docker tag ${STAGE}-${APP_NAME}-build-service:latest $$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${REGION}.amazonaws.com/${STAGE}-${APP_NAME}-build-service:latest && \
-	docker push $$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${REGION}.amazonaws.com/${STAGE}-${APP_NAME}-build-service:latest
-
-#	# @$(info [*] Pushing load service image to ECR...)
-	@docker build -t ${STAGE}-${APP_NAME}-load-service load/ && \
-	docker tag ${STAGE}-${APP_NAME}-load-service:latest $$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${REGION}.amazonaws.com/${STAGE}-${APP_NAME}-load-service:latest && \
-	docker push $$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${REGION}.amazonaws.com/${STAGE}-${APP_NAME}-load-service:latest
-
-deploy.cfn:
-	$(info [*] Deploying...)
-	@bash scripts/deploy.sh ${STAGE} ${APP_NAME} ${REGION}
-
-run: ##=> Load an IMGT/HLA release version; make run release=3450 align=False kir=False mem_profile=False limit=1000
-	$(info [*] Starting StepFunctions execution for release $(release))
-
-#	@# TODO: Add validation for positional arguments: release, align, kir, mem_profile, limit
-	@echo "Execution running:"
-	@aws stepfunctions start-execution \
-	 	--state-machine-arn $$(aws ssm get-parameter --name "/${APP_NAME}/${STAGE}/${REGION}/UpdatePipelineArn" | jq -r '.Parameter.Value') \
-	 	--input "{\"params\":{\"environment\":{\"RELEASES\":\"$(release)\",\"ALIGN\":\"False\",\"KIR\":\"False\",\"MEM_PROFILE\":\"False\",\"LIMIT\":\"$(limit)\"}}}" | jq '.executionArn'
+# #	@# TODO: Add validation for positional arguments: release, align, kir, mem_profile, limit
+# 	@echo "Execution running:"
+# 	@aws stepfunctions start-execution \
+# 	 	--state-machine-arn $$(aws ssm get-parameter --name "/${APP_NAME}/${STAGE}/${REGION}/UpdatePipelineArn" | jq -r '.Parameter.Value') \
+# 	 	--input "{\"params\":{\"environment\":{\"RELEASES\":\"$(release)\",\"ALIGN\":\"False\",\"KIR\":\"False\",\"MEM_PROFILE\":\"False\",\"LIMIT\":\"$(limit)\"}}}" | jq '.executionArn'
 
 define HELP_MESSAGE
 

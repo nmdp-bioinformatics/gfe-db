@@ -30,43 +30,30 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
   - [References & Links](#references--links)
 
 ## Project Structure
-```
+```bash
 .
 ├── LICENSE
 ├── Makefile
 ├── README.md
-├── build                         # Build service for AWS Batch
-│   ├── Dockerfile
-│   ├── (logs)
-│   ├── requirements.txt
-│   ├── run.sh
-│   ├── scripts
-│   │   └── get_alignments.sh
-│   └── src
-│       ├── build_gfedb.py
-│       └── constants.py
-├── cfn
-│   ├── database-stack.yml
-│   ├── master-stack.yml          # Master CloudFormation template
-│   ├── setup.yml                 # Setup template 
-│   └── update-pipeline-stack.yml
-├── (data)                        # Data directory used for local builds
-│   ├── (3430)
-│   │   ├── (csv)
-│   │   └── (hla.3430.dat)
-│   └── csv
-├── deploy.sh                     # Deploy script
-├── load                          # Load service for AWS Batch
-│   ├── Dockerfile
-│   ├── cypher
-│   ├── requirements.txt
-│   ├── run.sh
-│   └── src
-│       └── load_gfedb.py
-└── neo4j                         # Database service
-    ├── Dockerfile
-    ├── (logs)
-    └── plugins
+└── gfe-db
+    ├── database             # Database service
+    │   ├── Makefile
+    │   ├── neo4j
+    │   └── template.yaml
+    ├── infrastructure       # Network infrastructure including VPC, SSM Parameters and Secrets
+    │   ├── Makefile
+    │   └── template.yaml
+    └── pipeline             # Update pipeline including Batch jobs, StepFunctions, trigger
+        ├── Makefile
+        ├── config
+        ├── functions
+        │   ├── Makefile
+        │   └── trigger
+        ├── jobs
+        │   ├── Makefile
+        │   ├── build
+        │   └── load
+        └── template.yaml
 ```
 
 ## Description
@@ -334,7 +321,7 @@ ENV NEO4J_dbms_memory_heap_max__size=2G
 ## Clean Up
 To delete a stack and it's resources, use the CloudFormation console or run the command. S3 buckets and ECR repositories must be empty before they can be deleted.
 ```bash
-aws cloudformation delete-stack --stack-name <stack name>
+aws cloudformation wait stack-delete-complete --stack-name <stack name>
 ``` -->
 
 <!-- ### Local Clean-up

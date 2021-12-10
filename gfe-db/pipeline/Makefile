@@ -35,7 +35,9 @@ delete: delete.functions delete.jobs delete.cfn
 delete.cfn:
 	$(info [*] Deleting pipeline...)
 	@aws cloudformation delete-stack \
-		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1
+		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1 || true && \
+	aws cloudformation wait stack-delete-complete \
+		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1 || true
 
 delete.jobs:
 	$(MAKE) -C jobs/ delete
