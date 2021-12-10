@@ -29,4 +29,4 @@ fi
 # Load Neo4j through the HTTP API
 echo
 echo "Loading Neo4j database..."
-python3 $SRC_DIR/load_gfedb.py
+python3 $SRC_DIR/load.py

@@ -122,7 +122,7 @@ for release in ${RELEASES}; do
 	fi
 	
 	# Builds CSV files
-	python "$SRC_DIR"/build_gfedb.py \
+	python "$SRC_DIR"/build.py \
 		-o "$DATA_DIR/$release/csv" \
 		-r "$release" \
 		$KIRFLAG \
