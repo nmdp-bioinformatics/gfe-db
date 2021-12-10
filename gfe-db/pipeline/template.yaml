@@ -1,5 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Deploys AWS Batch Jobs and a State Machine for the gfe-db Update Pipeline
+
 Parameters:
   Stage:
     Type: String
@@ -7,35 +8,20 @@ Parameters:
   AppName:
     Type: String
     Description: Application name
-  VPC:
-    Type: AWS::EC2::VPC::Id
-    Description: Default VPC
-  PublicSubnet:
-    Type: AWS::EC2::Subnet::Id
-    Description: Public subnet with internet access
-  BuildImageId:
-    Type: AWS::EC2::Image::Id
-    Description: ECS Optimized Amazon Linux 2 AMI
-  DataBucketName:
+  ECRBaseUri:
     Type: String
-    Description: Bucket for templates, data and logs
-  DataBucketArn:
+  BuildServiceRepositoryName:
     Type: String
-  # EC2KeyPairName:
-  #   Type: String
-  #   Default: dev-gfe-db-us-east-1-ec2-key
-  Neo4jDatabaseEndpoint:
+  LoadServiceRepositoryName:
     Type: String
-    Description: Endpoint for Neo4j server (ouput from database-stack.yml)
-    AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})
-    ConstraintDescription: must be a valid IP address of the form x.x.x.x.
+
 Resources:
   BuildServerSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: !Sub '${Stage}-${AppName}-build-server-sg'
       GroupDescription: !Sub 'Security group for the ${Stage}-${AppName} build server'
-      VpcId: !Ref VPC
+      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcID}}'
       # SecurityGroupIngress: # Uncomment to allow SSH access to build instance
       #   - CidrIp: 0.0.0.0/0
       #     FromPort: 22
@@ -49,7 +35,7 @@ Resources:
     Properties:
       GroupName: !Sub '${Stage}-${AppName}-load-server-sg'
       GroupDescription: !Sub 'Security group for the ${Stage}-${AppName} load server'
-      VpcId: !Ref VPC
+      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcID}}'
       # SecurityGroupIngress:
       #   - CidrIp: 0.0.0.0/0
       #     FromPort: 22
@@ -96,44 +82,51 @@ Resources:
             Version: "2012-10-17"
             Statement:
               - Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                  - logs:DescribeLogStreams
-                Effect: Allow
-                Resource: arn:aws:logs:*:*:*"
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                  - "logs:DescribeLogStreams"
+                Effect: "Allow"
+                Resource: "arn:aws:logs:*:*:*"
         - PolicyName: !Sub '${Stage}-${AppName}-BuildServiceS3ReadWritePolicy'
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
-              - Effect: Allow
+              - Effect: "Allow"
                 Action: 
-                  - s3:GetObject
-                  - s3:ListBucket
-                  - s3:GetBucketLocation
-                  - s3:GetObjectVersion
-                  - s3:GetLifecycleConfiguration
-                  - s3:PutObject
-                  - s3:PutObjectAcl
-                  - s3:PutLifecycleConfiguration
-                  - s3:DeleteObject
+                  - "s3:GetObject"
+                  - "s3:ListBucket"
+                  - "s3:GetBucketLocation"
+                  - "s3:GetObjectVersion"
+                  - "s3:GetLifecycleConfiguration"
+                  - "s3:PutObject"
+                  - "s3:PutObjectAcl"
+                  - "s3:PutLifecycleConfiguration"
+                  - "s3:DeleteObject"
                 Resource:
-                  - !Ref DataBucketArn
-                  - !Sub ${DataBucketArn}/*
+                  - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
+                  - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
+        - PolicyName: !Sub '${Stage}-${AppName}-SecretsPolicy'
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action: 
+                  - "ssm:GetParameters"
+                  - "secretsmanager:GetResourcePolicy"
+                  - "secretsmanager:GetSecretValue"
+                  - "secretsmanager:DescribeSecret"
+                  - "secretsmanager:ListSecretVersionIds"
+                  - "secretsmanager:ListSecrets"
+                Resource: 
+                  - "*"
   BuildJobDefinition:
     Type: AWS::Batch::JobDefinition
     Properties:
       Type: container
       JobDefinitionName: !Sub '${Stage}-${AppName}-BuildJobDefinition'
       ContainerProperties:
-        Image: !Join
-            - ""
-            - - !Ref AWS::AccountId
-              - .dkr.ecr.
-              - !Ref AWS::Region
-              - .amazonaws.com/
-              - !Ref BuildServiceRepository
-              - :latest
+        Image: !Sub '${ECRBaseUri}/${BuildServiceRepositoryName}:latest'
         Vcpus: 8
         # TODO: Move Memory param to ResourceRequirements
         Memory: 8000 # Keep this around half the available RAM to avoid getting stuck in RUNNABLE status 
@@ -142,7 +135,7 @@ Resources:
           - run.sh
         Environment:
           - Name: GFE_BUCKET
-            Value: !Ref DataBucketName
+            Value: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
       RetryStrategy:
         Attempts: 1
   BuildJobQueue:
@@ -168,7 +161,7 @@ Resources:
         InstanceTypes:
           - c5d.2xlarge
         Subnets:
-          - !Ref PublicSubnet
+          - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID}}'
         SecurityGroupIds:
           - !Ref BuildServerSG
         InstanceRole: !Ref BatchWorkerInstanceProfile
@@ -182,7 +175,7 @@ Resources:
       LaunchTemplateData:
         DisableApiTermination: false
         InstanceInitiatedShutdownBehavior: stop
-        ImageId: !Ref BuildImageId
+        ImageId: '{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id}}'
         InstanceType: c5d.xlarge
         IamInstanceProfile:
           Name: !Ref BatchWorkerInstanceProfile
@@ -216,20 +209,53 @@ Resources:
           Tags: 
             - Key: Name
               Value: 'gfe-db-build-worker'
+  BatchTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2008-10-17"
+        Statement:
+          - Sid: ""
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub '${Stage}-${AppName}-ecsTaskExecutionRolePolicy'
+          PolicyDocument: 
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "ecr:GetAuthorizationToken"
+                  - "ecr:BatchCheckLayerAvailability"
+                  - "ecr:GetDownloadUrlForLayer"
+                  - "ecr:BatchGetImage"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "*"
+        - PolicyName: !Sub '${Stage}-${AppName}-BatchTaskExecutionPolicy'
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action: 
+                  - "ssm:GetParameters"
+                  - "secretsmanager:GetResourcePolicy"
+                  - "secretsmanager:GetSecretValue"
+                  - "secretsmanager:DescribeSecret"
+                  - "secretsmanager:ListSecretVersionIds"
+                  - "secretsmanager:ListSecrets"
+                Resource: 
+                  - "*"
   LoadJobDefinition:
     Type: AWS::Batch::JobDefinition
     Properties:
       Type: container
       JobDefinitionName: !Sub '${Stage}-${AppName}-LoadJobDefinition'
       ContainerProperties:
-        Image: !Join
-            - ""
-            - - !Ref AWS::AccountId
-              - .dkr.ecr.
-              - !Ref AWS::Region
-              - .amazonaws.com/
-              - !Ref LoadServiceRepository
-              - :latest
+        ExecutionRoleArn: !GetAtt BatchTaskExecutionRole.Arn
+        Image: !Sub '${ECRBaseUri}/${LoadServiceRepositoryName}:latest'
         Vcpus: 2
         # TODO: Move Memory param to ResourceRequirements
         Memory: 4000
@@ -237,14 +263,15 @@ Resources:
           - bash
           - run.sh
         Environment:
-          - Name: GFE_BUCKET # TODO: use SSM parameter
-            Value: !Ref DataBucketName
-          - Name: NEO4J_HOST # TODO: use SSM parameter
-            Value: !Ref Neo4jDatabaseEndpoint 
-          - Name: NEO4J_USERNAME
-            Value: !Sub '{{resolve:secretsmanager:${Stage}-${AppName}-Neo4jCredentials:SecretString:username:AWSCURRENT}}'
-          - Name: NEO4J_PASSWORD
-            Value: !Sub '{{resolve:secretsmanager:${Stage}-${AppName}-Neo4jCredentials:SecretString:password:AWSCURRENT}}'
+          - Name: GFE_BUCKET
+            Value: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
+          - Name: NEO4J_HOST
+            Value: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint}}'
+        Secrets:
+          - Name: "NEO4J_USERNAME"
+            ValueFrom: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn}}:NEO4J_USERNAME:AWSCURRENT:'
+          - Name: "NEO4J_PASSWORD"
+            ValueFrom: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn}}:NEO4J_PASSWORD:AWSCURRENT:'
       RetryStrategy:
         Attempts: 1
   LoadJobQueue:
@@ -261,7 +288,7 @@ Resources:
       Type: MANAGED
       ComputeResources:
         Type: EC2
-        # # Testing only, comment before prouction deployment
+        # # Testing only, comment before production deployment
         # Ec2KeyPair: !Ref EC2KeyPairName
         # #
         MinvCpus: 0
@@ -270,7 +297,7 @@ Resources:
         InstanceTypes:
           - optimal
         Subnets:
-          - !Ref PublicSubnet
+          - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID}}'
         SecurityGroupIds:
           - !Ref LoadServerSG
         InstanceRole: !Ref BatchWorkerInstanceProfile
@@ -296,44 +323,44 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - logs:CreateLogDelivery
-                  - logs:GetLogDelivery
-                  - logs:UpdateLogDelivery
-                  - logs:DeleteLogDelivery
-                  - logs:ListLogDeliveries
-                  - logs:PutResourcePolicy
-                  - logs:DescribeResourcePolicies
-                  - logs:DescribeLogGroups
+                  - "logs:CreateLogDelivery"
+                  - "logs:GetLogDelivery"
+                  - "logs:UpdateLogDelivery"
+                  - "logs:DeleteLogDelivery"
+                  - "logs:ListLogDeliveries"
+                  - "logs:PutResourcePolicy"
+                  - "logs:DescribeResourcePolicies"
+                  - "logs:DescribeLogGroups"
                 Resource: "*"
         - PolicyName: !Sub '${Stage}-${AppName}-PipelineBatchExecutionPolicy'
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
-              - Effect: Allow
+              - Effect: "Allow"
                 Action: 
-                  - batch:SubmitJob
-                  - batch:DescribeJobs
-                  - batch:TerminateJob
+                  - "batch:SubmitJob"
+                  - "batch:DescribeJobs"
+                  - "batch:TerminateJob"
                 Resource: "*"
-              - Effect: Allow
+              - Effect: "Allow"
                 Action: 
-                  - events:PutTargets
-                  - events:PutRule
-                  - events:DescribeRule
+                  - "events:PutTargets"
+                  - "events:PutRule"
+                  - "events:DescribeRule"
                 Resource: 
-                  - !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule
+                  - !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule'
   BuildServiceRepository:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: !Sub '${Stage}-${AppName}-build-service'
+      RepositoryName: !Ref BuildServiceRepositoryName
       RepositoryPolicyText:
         Version: "2012-10-17"
         Statement:
-          - Sid: AllowPushPull
-            Effect: Allow
+          - Sid: "AllowPushPull"
+            Effect: "Allow"
             Principal:
               AWS:
-                - !Sub arn:aws:iam::${AWS::AccountId}:role/${BatchWorkerInstanceRole}
+                - !Sub 'arn:aws:iam::${AWS::AccountId}:role/${BatchWorkerInstanceRole}'
             Action:
               - "ecr:GetDownloadUrlForLayer"
               - "ecr:BatchGetImage"
@@ -348,19 +375,19 @@ Resources:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/BuildServiceRepositoryName'
       Description: "Name of gfe-db build service repository"
-      Value: !Ref BuildServiceRepository
+      Value: !Ref BuildServiceRepositoryName
   LoadServiceRepository:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: !Sub '${Stage}-${AppName}-load-service'
+      RepositoryName: !Ref LoadServiceRepositoryName
       RepositoryPolicyText:
         Version: "2012-10-17"
         Statement:
-          - Sid: AllowPushPull
-            Effect: Allow
+          - Sid: "AllowPushPull"
+            Effect: "Allow"
             Principal:
               AWS:
-                - !Sub arn:aws:iam::${AWS::AccountId}:role/${BatchWorkerInstanceRole}
+                - !Sub 'arn:aws:iam::${AWS::AccountId}:role/${BatchWorkerInstanceRole}'
             Action:
               - "ecr:GetDownloadUrlForLayer"
               - "ecr:BatchGetImage"
@@ -375,8 +402,8 @@ Resources:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/LoadServiceRepositoryName'
       Description: "Name of gfe-db load service repository"
-      Value: !Ref LoadServiceRepository
-  # TODO: Update concurrency to maximum 3 executions
+      Value: !Ref LoadServiceRepositoryName
+  # TODO: Update Build Map concurrency to 0 executions, Load Map concurrency to 1
   UpdatePipeline:
     Type: AWS::StepFunctions::StateMachine
     Properties:
@@ -487,9 +514,3 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineArn'
       Description: "ARN of gfe-db update pipeline state machine"
       Value: !GetAtt UpdatePipeline.Arn
-Outputs:
-  UpdatePipelineArn:
-    Description: "ARN of gfe-db update pipeline state machine"
-    Value: !GetAtt UpdatePipeline.Arn
-    Export:
-      Name: !Sub "${AWS::StackName}-UpdatePipelineArn"

@@ -1,0 +1,146 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Deploys a VPC with public subnet, S3 bucket, parameters and secrets for the gfe-db stacks
+
+Parameters:
+  Stage:
+    Type: String
+    Description: Stage of production
+  AppName:
+    Type: String
+  DataBucketName:
+    Type: String
+  Neo4jUsername:
+    Type: String
+    NoEcho: true
+  Neo4jPassword:
+    Type: String
+    NoEcho: true
+  GitHubPersonalAccessToken:
+    Type: String
+    NoEcho: true
+    
+Mappings:
+  # AvailabilityZoneMap defines availability zones where an m5d.xlarge instance is available (used for Neo4j server).
+  AvailabilityZoneMap:
+    us-east-1:
+      AvailabilityZone: us-east-1a
+    us-east-2:
+      AvailabilityZone: us-east-2a
+    us-west-1:
+      AvailabilityZone: us-west-1a
+    eu-central-1:
+      AvailabilityZone: eu-central-1a
+    eu-west-1:
+      AvailabilityZone: eu-west-1a
+    eu-west-2:
+      AvailabilityZone: eu-west-2a
+    eu-west-3:
+      AvailabilityZone: eu-west-3a
+
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${Stage}-${AppName}-${AWS::Region}-vpc'
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/24
+      VpcId: !Ref Vpc
+      AvailabilityZone: !FindInMap [AvailabilityZoneMap, !Ref AWS::Region, AvailabilityZone]
+      MapPublicIpOnLaunch: true
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+  VpcGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+  Route:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref PublicSubnet
+  DataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref DataBucketName
+  VpcIDParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/VpcID'
+      Description: "Name of gfe-db VPC network"
+      Value: !Ref Vpc
+  PublicSubnetIDParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID'
+      Description: "Public Subnet for the gfe-db Neo4j server"
+      Value: !Ref PublicSubnet
+  DataBucketNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataBucketName'
+      Description: "Name of gfe-db data bucket"
+      Value: !Ref DataBucket
+  DataBucketArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataBucketArn'
+      Description: "ARN of gfe-db data bucket"
+      Value: !GetAtt DataBucket.Arn
+  DataBucketRegionalDomainNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataBucketRegionalDomainName'
+      Description: "S3 Bucket Regional Domain name for application bucket"
+      Value: !GetAtt DataBucket.RegionalDomainName
+  Neo4jCredentialsSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub "${AppName}-${Stage}-Neo4jCredentials"
+      Description: Must match the username/password specified in the Neo4j Dockerfile
+      SecretString: !Sub '{"NEO4J_USERNAME":"${Neo4jUsername}","NEO4J_PASSWORD":"${Neo4jPassword}"}'
+      Tags:
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: AppName 
+          Value: !Ref AppName
+  Neo4jCredentialsSecretArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn'
+      Description: "Secret ARN for Neo4j Credentials"
+      Value: !Ref Neo4jCredentialsSecret
+  GitHubPersonalAccessTokenSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub "${AppName}-${Stage}-GitHubPersonalAccessToken"
+      Description: GitHub Personal Access Token for repository access
+      SecretString: !Sub '{"personal_access_token":"${GitHubPersonalAccessToken}"}'
+      Tags:
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: AppName 
+          Value: !Ref AppName
