@@ -20,6 +20,9 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
     - [AWS Configuration](#aws-configuration)
     - [Environment Vairables](#environment-vairables)
   - [Deployment](#deployment)
+  - [Local Development](#local-development)
+    - [Creating a Python Virtual Environment](#creating-a-python-virtual-environment)
+    - [Docker](#docker)
   - [Troubleshooting](#troubleshooting)
   - [Authors](#authors)
   - [References & Links](#references--links)
@@ -58,10 +61,10 @@ The `gfe-db` represents IPD-IMGT/HLA sequence data as GFE nodes and relationship
 - Update pipeline and trigger
 
 ## Services
-The project organizes its resources by service. Deployments are decoupled (using Makefiles). Shared configurations leverage SSM Parameter Store and Secrets Manager.
+The project organizes its resources by service so that deployments are decoupled (acheived using Makefiles). Shared configurations leverage SSM Parameter Store and Secrets Manager.
 
 ### Infrastructure
-The infrastructure service deploys a VPC, public subnet, and initial SSM parameters and secrets for the other services to use.
+The infrastructure service deploys a VPC, public subnet, and common SSM parameters and secrets for the other services to use.
 
 ### Database
 The database service deploys an EC2 instance hosting a Neo4j Docker container into a public subnet so that it can be accessed through a browser.
@@ -120,28 +123,41 @@ make deploy.database
 # Deploy/update only the pipeline service
 make deploy.pipeline
 ```
+Note: It is recommended to only deploy from the project root. This is because common parameters are passed from the root Makefile to nested Makefiles. If a stack has not been changed, the deployment script will continue until it reaches a stack with changes and deploy that.
 
-<!-- ## Local Development
+## Local Development
 
 ### Creating a Python Virtual Environment
-When developing locally, you will need to create individual virtual environments inside the `build/` and `load/` directories, since they require different dependencies:
+When developing locally, you will need to create an individual virtual environment to run scripts in the `jobs` or `functions` directories, since they require different dependencies.
 ```bash
-cd <build or load directory>
+cd <specific job or function directory>
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -U pip
 pip install -r requirements.txt
 ```
 
-### Run Neo4j Docker
-Build the Docker image as defined in the Dockerfile. See [Configuring Neo4j in Dockerfile](#Configuring-Neo4j-in-Dockerfile) for important configuration settings.
+To use the virtual environment inside a Jupyter Notebook, first activate the virtual environment, then create a kernel for it.
+```bash
+# Install ipykernal
+pip install ipykernel
+
+# Add the kernel
+python3 -m ipykernel install --user --name=<environment name>
+
+# Remove the kernel
+jupyter kernelspec uninstall <environment name>
 ```
-cd neo4j
+
+### Docker
+Build the Docker image as defined in the Dockerfile.
+```bas
+cd <directory>
 docker build --tag gfe-db .
 ```
-Run the container to start Neo4j in Docker.
+Run the container to start Docker. Specify volumes, ports, or environment variables if necessary.
 ```
-# Run container to start Neo4j
+# Run Neo4j Docker
 docker run -d --name gfe-db \
   -v "$(pwd)"/../data/csv/:/var/lib/neo4j/import \
   -v "$(pwd)"/../neo4j/plugins:/var/lib/neo4j/plugins \
@@ -160,7 +176,10 @@ docker stop gfe-db
 
 # Start container
 docker start gfe-db
-``` -->
+
+# Access the container's shell
+docker exec -it <container> bash
+```
 
 <!-- ### Build GFE dataset
 Run the command to build the container for the build service.
@@ -200,18 +219,7 @@ bash bin/load_db.sh
 <!-- ### Running the GFE database in Neo4j 4.2 using Docker
 This README outlines the steps for building and running a development version of `gfe-db` in a local Docker container. Docker will deploy an instance of Neo4j 4.2 including the [APOC](https://neo4j.com/labs/apoc/4.1/) and [Graph Data Science](https://neo4j.com/docs/graph-data-science/current/) plugins. GFE data is stored in the `data/csv/` directory which is mounted as an external volume within the container when run. This keeps the data outside the container so that it can be updated easily. -->
 
-<!-- ## Notebooks
-To use the virtual environment inside Jupyter Notebook, first activate the virtual environment, then create a kernel for it.
-```bash
-# Install ipykernal
-pip install ipykernel
 
-# Add the kernel
-python3 -m ipykernel install --user --name=<environment name>
-
-# Remove the kernel
-jupyter kernelspec uninstall <environment name>
-``` -->
 
 <!-- ### `1.0-load-gfe-db`
 Python notebook for developing the load service using the Neo4j HTTP API, Requests and Boto3 libraries.

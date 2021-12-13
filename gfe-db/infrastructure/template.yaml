@@ -9,6 +9,8 @@ Parameters:
     Type: String
   DataBucketName:
     Type: String
+  # DataBucketExists:
+  #   Type: String
   Neo4jUsername:
     Type: String
     NoEcho: true
@@ -36,6 +38,11 @@ Mappings:
       AvailabilityZone: eu-west-2a
     eu-west-3:
       AvailabilityZone: eu-west-3a
+
+# Conditions:
+#   CreateDataBucket: !Equals
+#     - !Ref DataBucketExists
+#     - "true"
 
 Resources:
   Vpc:
@@ -78,6 +85,7 @@ Resources:
       SubnetId: !Ref PublicSubnet
   DataBucket:
     Type: AWS::S3::Bucket
+    # Condition: CreateDataBucket
     Properties:
       BucketName: !Ref DataBucketName
   VpcIDParameter:

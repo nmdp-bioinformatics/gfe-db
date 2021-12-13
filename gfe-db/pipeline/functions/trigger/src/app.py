@@ -71,7 +71,8 @@ def lambda_handler(event, context):
         return {
             "status": response['ResponseMetadata']['HTTPStatusCode'],
             "message": "Pipeline triggered",
-            "releases": new_releases
+            "parameters": params,
+            "releases": new_releases,
         }
 
     else:
