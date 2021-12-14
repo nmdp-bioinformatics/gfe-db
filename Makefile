@@ -8,6 +8,7 @@ export REGION ?= us-east-1
 
 export DATA_BUCKET_NAME ?= ${STAGE}-${APP_NAME}-${AWS_ACCOUNT}-${REGION}
 export ECR_BASE_URI ?= ${AWS_ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com
+export NEO4J_REPOSITORY ?= ${STAGE}-${APP_NAME}-neo4j-service
 export BUILD_REPOSITORY ?= ${STAGE}-${APP_NAME}-build-service
 export LOAD_REPOSITORY ?= ${STAGE}-${APP_NAME}-load-service
 

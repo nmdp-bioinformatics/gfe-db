@@ -109,3 +109,4 @@ samconfig.toml
 scripts/
 cfn/
 _pr.md
+_*.sh

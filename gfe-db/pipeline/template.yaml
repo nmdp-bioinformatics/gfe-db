@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Deploys AWS Batch Jobs and a State Machine for the gfe-db Update Pipeline
+Description: Deploys IAM, ECR repositories, AWS Batch Jobs and a State Machine for the gfe-db update pipeline
 
 Parameters:
   Stage:

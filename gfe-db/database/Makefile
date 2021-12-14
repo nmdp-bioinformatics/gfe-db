@@ -5,7 +5,7 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-deploy:  deploy.check-key-pair deploy.cfn
+deploy: deploy.check-key-pair deploy.cfn ecr.login deploy-ecr.neo4j
 
 deploy.check-key-pair: ##=> Checks if the key pair already exists and creates it if it does not
 	@key_pair="$$(aws ec2 describe-key-pairs --key-name ${EC2_KEY_PAIR_NAME} | jq '.KeyPairs[0].KeyName' || true)" && \
@@ -27,9 +27,34 @@ deploy.cfn:
 		--capabilities CAPABILITY_IAM \
 		--parameter-overrides \
 			Stage="$${STAGE}" \
-			AppName="$${APP_NAME}"
+			AppName="$${APP_NAME}" \
+			ECRBaseUri="${ECR_BASE_URI}" \
+			Neo4jRepositoryName="$${NEO4J_REPOSITORY}" \
+			Neo4jUsername="$$NEO4J_USERNAME" \
+			Neo4jPassword="$$NEO4J_PASSWORD"
 
-delete: ##=> Delete resources
+# ec2.check-state:
+# 	@instance_id="$$(aws ssm get-parameters \
+# 		--names "/$${APP_NAME}/$${STAGE}/$${REGION}/Neo4jDatabaseInstanceId" \
+# 			| jq -r '.Parameters | map(select(.Version == 1))[0].Value')" && \
+# 	echo $$instance_id && \
+# 	instance_status="$$(aws ec2 describe-instance-status --instance-ids $$instance_id)" | jq && \
+# 	echo $$instance_status
+
+ecr.login:
+	$(info [*] Logging into ECR...)
+	@aws ecr get-login-password \
+		--region "$${REGION}" | docker login \
+			--username AWS \
+			--password-stdin "$${ECR_BASE_URI}"
+
+deploy-ecr.neo4j:
+	$(info [*] Pushing Neo4j Docker image to ECR...)
+	@docker build -t "$${NEO4J_REPOSITORY}" neo4j/ && \
+	docker tag "$${NEO4J_REPOSITORY}:latest" "$${ECR_BASE_URI}/$${NEO4J_REPOSITORY}:latest" && \
+	docker push "$${ECR_BASE_URI}/$${NEO4J_REPOSITORY}:latest"
+
+delete: delete-ecr.neo4j ##=> Delete resources
 	$(info [*] Deleting database...)
 	@aws cloudformation delete-stack \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1 || true && \
@@ -37,6 +62,21 @@ delete: ##=> Delete resources
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1 || true && \
 	aws ec2 delete-key-pair --key-name "${EC2_KEY_PAIR_NAME}" >/dev/null 2>&1 || true && \
 	aws ssm delete-parameter --name "/$${APP_NAME}/$${STAGE}/$${REGION}/EC2KeyPairName" >/dev/null 2>&1 || true
+
+delete-ecr.neo4j:
+	$(info [*] Deleting Build Service Docker images...)
+	@ecr_images="$$(aws ecr list-images \
+		--region $${REGION} \
+		--repository-name $${NEO4J_REPOSITORY} \
+		--query 'imageIds[*]' \
+		--output json || true)" && \
+	[ "$$ecr_images" = "[]" ] && \
+	echo "No images to delete in $${ECR_BASE_URI}/$${NEO4J_REPOSITORY}" && exit 0 || \
+	echo "Deleting images in $${ECR_BASE_URI}/$${NEO4J_REPOSITORY}" && \
+	aws ecr batch-delete-image \
+		--region "$${REGION}" \
+		--repository-name "$${NEO4J_REPOSITORY}" \
+		--image-ids "$$ecr_images" >/dev/null 2>&1 || true
 
 #############
 #  Helpers  #

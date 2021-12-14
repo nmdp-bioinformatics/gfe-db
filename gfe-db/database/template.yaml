@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Deploys an EC2 instance hosting a Neo4j server
+Description: Deploys an EC2 instance hosting the gfe-db Neo4j server
 
 Parameters:
   Stage:
@@ -8,8 +8,38 @@ Parameters:
   AppName:
     Type: String
     Description: Application name
+  ECRBaseUri:
+    Type: String
+  Neo4jRepositoryName:
+    Type: String
+  Neo4jUsername:
+    Type: String
+    NoEcho: true
+  Neo4jPassword:
+    Type: String
+    NoEcho: true
 
 Resources:
+  Neo4jRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref Neo4jRepositoryName
+      RepositoryPolicyText:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: "AllowPushPull"
+            Effect: "Allow"
+            Principal:
+              AWS:
+                - !GetAtt Neo4jDatabaseInstanceRole.Arn
+            Action:
+              - "ecr:GetDownloadUrlForLayer"
+              - "ecr:BatchGetImage"
+              - "ecr:BatchCheckLayerAvailability"
+              - "ecr:PutImage"
+              - "ecr:InitiateLayerUpload"
+              - "ecr:UploadLayerPart"
+              - "ecr:CompleteLayerUpload"
   Neo4jDatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -56,42 +86,59 @@ Resources:
             - !Ref Neo4jDatabaseSecurityGroup
           SubnetId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID}}'
       UserData:
-        Fn::Base64: |
-          #!/bin/bash -x
-          IDX=1
-          for DEV in /dev/disk/by-id/nvme-Amazon_EC2_NVMe_Instance_Storage_*-ns-1; do
-            mkfs.xfs ${DEV}
-            mkdir -p /local${IDX}
-            echo ${DEV} /local${IDX} xfs defaults,noatime 1 2 >> /etc/fstab
-            IDX=$((${IDX} + 1))
-          done
-          mount -a
-          sudo yum update -y
-          # curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          # unzip awscliv2.zip
-          sudo yum install git amazon-cloudwatch-agent -y
-          sudo amazon-linux-extras install docker
-          service docker start
-          usermod -a -G docker ec2-user
-          chkconfig docker on
-          cd /local1
-          chown -R ec2-user .
-          git clone https://github.com/abk7777/gfe-db.git
-          cd gfe-db
-          git checkout fix/optimize-build
-          docker build -t gfe-db .
-          docker run -d --name gfe \
-            -v "$(pwd)"/data/csv/:/var/lib/neo4j/import \
-            -v "$(pwd)"/neo4j/plugins:/var/lib/neo4j/plugins \
-            -v "$(pwd)"/neo4j/logs:/var/lib/neo4j/logs \
-            -p 7474:7474 -p 7473:7473 \
-            -p 7687:7687 gfe-db
+        Fn::Base64: 
+          !Sub |
+            #!/bin/bash -x
+            IDX=1
+            for DEV in /dev/disk/by-id/nvme-Amazon_EC2_NVMe_Instance_Storage_*-ns-1; do
+              mkfs.xfs ${!DEV}
+              mkdir -p /local${!IDX}
+              echo ${!DEV} /local${!IDX} xfs defaults,noatime 1 2 >> /etc/fstab
+              IDX=$((${!IDX} + 1))
+            done
+            mount -a
+            sudo yum update -y
+            sudo yum install git amazon-cloudwatch-agent -y
+            sudo amazon-linux-extras install docker
+            sudo systemctl enable docker
+            sudo systemctl start docker
+            service docker start
+            usermod -a -G docker ec2-user
+            chkconfig docker on
+            cd /local1
+            chown -R ec2-user .
+            # TODO: Add wait condition for ECR repository
+            aws ecr get-login-password \
+              --region ${AWS::Region} | docker login \
+                --username AWS \
+                --password-stdin ${ECRBaseUri}
+            while true; do
+              ecr_images="$(aws ecr list-images \
+                --region us-east-1 \
+                --repository-name ${ECRBaseUri}/${Neo4jRepositoryName} \
+                --query 'imageIds[*]' \
+                --output json)"
+              if [[ "$ecr_images" != "[]" ]]; then \
+                echo "Found images in ${ECRBaseUri}/${Neo4jRepositoryName}" && \
+                break 
+              fi
+              sleep 1
+              echo -n '.'
+            done
+            docker run -d --name neo4j \
+              -e NEO4J_AUTH="${Neo4jUsername}/${Neo4jPassword}" \
+              -v "$(pwd)"/neo4j/plugins:/var/lib/neo4j/plugins \
+              -v "$(pwd)"/neo4j/logs:/var/lib/neo4j/logs \
+              -p 7474:7474 \
+              -p 7473:7473 \
+              -p 7687:7687 \
+              ${ECRBaseUri}/${Neo4jRepositoryName}:latest
       Tags:
         - Key: Name
           Value: !Ref AppName
         - Key: Stage
           Value: !Ref Stage
-  Neo4jDatabaseIAMRole:
+  Neo4jDatabaseInstanceRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -101,8 +148,9 @@ Resources:
             Principal:
               Service:
                 - ec2.amazonaws.com
-            Action:
-              - "sts:AssumeRole"
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
       Path: /
       Policies:
         - PolicyName: !Sub '${Stage}-${AppName}-Neo4jDatabasePolicy'
@@ -136,7 +184,14 @@ Resources:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
-        - !Ref Neo4jDatabaseIAMRole
+        - !Ref Neo4jDatabaseInstanceRole
+  Neo4jRepositoryNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jRepositoryName'
+      Description: "Name of gfe-db Neo4j database service repository"
+      Value: !Ref Neo4jRepositoryName
   Neo4jDatabaseEndpointParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -144,3 +199,10 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint'
       Description: "Endpoint for gfe-db build service repository"
       Value: !GetAtt Neo4jDatabaseInstance.PublicIp
+  Neo4jDatabaseInstanceIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId'
+      Description: "Instance ID for gfe-db Neo4j database instance"
+      Value: !Ref Neo4jDatabaseInstance

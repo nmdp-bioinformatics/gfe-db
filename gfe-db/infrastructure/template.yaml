@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Deploys a VPC with public subnet, S3 bucket, parameters and secrets for the gfe-db stacks
+Description: Deploys a VPC with public subnet, S3 bucket, parameters and secrets for the gfe-db application
 
 Parameters:
   Stage:
