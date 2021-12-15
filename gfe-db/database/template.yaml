@@ -98,7 +98,7 @@ Resources:
             done
             mount -a
             sudo yum update -y
-            sudo yum install git amazon-cloudwatch-agent -y
+            sudo yum install git amazon-cloudwatch-agent jq -y
             sudo amazon-linux-extras install docker
             sudo systemctl enable docker
             sudo systemctl start docker
@@ -107,11 +107,23 @@ Resources:
             chkconfig docker on
             cd /local1
             chown -R ec2-user .
-            # TODO: Add wait condition for ECR repository
+            # Wait until ECR repository becomes available
+            while true; do
+              ecr_repo="$(aws ecr describe-repositories \
+                --region us-east-1 \
+                --repository-names dev-gfe-db-neo4j-service 2>/dev/null | jq -r '.repositories[0].repositoryName')"
+              if [[ "$ecr_repo" != "" ]]; then \
+                echo "Found repository: $ecr_repo" && \
+                break 
+              fi
+              sleep 1
+              echo -n '.'
+            done
             aws ecr get-login-password \
               --region ${AWS::Region} | docker login \
                 --username AWS \
                 --password-stdin ${ECRBaseUri}
+            # Wait until Neo4j image becomes available
             while true; do
               ecr_images="$(aws ecr list-images \
                 --region us-east-1 \
