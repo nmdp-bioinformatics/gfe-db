@@ -1,6 +1,7 @@
 ##########################
 # Bootstrapping variables
 ##########################
+# TODO: Add TRIGGER_SCHEDULE variable
 export STAGE ?= dev
 export APP_NAME ?= gfe-db
 export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity --query Account --output text)

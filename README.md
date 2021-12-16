@@ -18,8 +18,12 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
   - [Installation](#installation)
     - [Prerequisites](#prerequisites)
     - [AWS Configuration](#aws-configuration)
-    - [Environment Vairables](#environment-vairables)
-  - [Deployment](#deployment)
+    - [Environment Variables](#environment-variables)
+  - [Deployment to AWS](#deployment-to-aws)
+    - [Triggering the Pipeline](#triggering-the-pipeline)
+    - [Application State](#application-state)
+      - [Pipeline Input Parameters](#pipeline-input-parameters)
+      - [IMGTHLA Releases](#imgthla-releases)
   - [Local Development](#local-development)
     - [Creating a Python Virtual Environment](#creating-a-python-virtual-environment)
     - [Docker](#docker)
@@ -31,23 +35,23 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
 ```bash
 .
 ├── LICENSE
-├── Makefile
+├── Makefile                  # Use the root Makefile to deploy and delete infrastructure
 ├── README.md
 └── gfe-db
-    ├── database             # Database service
+    ├── database              # Database service
     │   ├── Makefile
-    │   ├── neo4j
+    │   ├── neo4j             # Neo4j assets
     │   └── template.yaml
-    ├── infrastructure       # Network infrastructure including VPC, SSM Parameters and Secrets
+    ├── infrastructure        # Network infrastructure including VPC, SSM Parameters and Secrets
     │   ├── Makefile
     │   └── template.yaml
-    └── pipeline             # Update pipeline including Batch jobs, StepFunctions, trigger
+    └── pipeline              # Update pipeline including Batch jobs, StepFunctions, trigger
         ├── Makefile
-        ├── config
-        ├── functions
+        ├── config            # Contains JSON files to store app state 
+        ├── functions         # Lambda functions
         │   ├── Makefile
-        │   └── trigger
-        ├── jobs
+        │   └── trigger       # Pipeline trigger for new IMGT/HLA releases
+        ├── jobs              # AWS Batch jobs
         │   ├── Makefile
         │   ├── build
         │   └── load
@@ -55,16 +59,13 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
 ```
 
 ## Description
-The `gfe-db` represents IPD-IMGT/HLA sequence data as GFE nodes and relationships in a Neo4j graph database. Running this application will setup the following services in AWS:
-- VPC and subnet
-- Neo4j database server
-- Update pipeline and trigger
+The `gfe-db` represents IPD-IMGT/HLA sequence data as GFE nodes and relationships in a Neo4j graph database. This application sets up a VPC, S3 bucket, EC2 instance hosting a Neo4j server, Batch jobs orchestrated by a StepFunctions State Machine, a a Lambda function that will trigger the pipeline to build and load new release versions as they are published.
 
 ## Services
 The project organizes its resources by service so that deployments are decoupled (acheived using Makefiles). Shared configurations leverage SSM Parameter Store and Secrets Manager.
 
 ### Infrastructure
-The infrastructure service deploys a VPC, public subnet, and common SSM parameters and secrets for the other services to use.
+The infrastructure service deploys a VPC, public subnet, S3 bucket and common SSM parameters and secrets for the other services to use.
 
 ### Database
 The database service deploys an EC2 instance hosting a Neo4j Docker container into a public subnet so that it can be accessed through a browser.
@@ -89,17 +90,30 @@ Valid AWS credentials must be available to AWS CLI and SAM CLI. The easiest way 
 For more information visit the documentation page:
 [Configuration and credential file settings](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)
 
-### Environment Vairables
-Non-sensistive environment variables are handled by the root Makefile. Sensitive environment variables containing secrets like passwords and API keys must be exported to the environment first.
+### Environment Variables
+Non-sensistive environment variables are handled by the root Makefile. They are listed here for reference only, there is no need to set them.
+```bash
+STAGE=dev # dev or prod
+APP_NAME=gfe-db
+AWS_ACCOUNT=<AWS Account ID> # Retrieved using AWS CLI
+REGION=us-east-1
+DATA_BUCKET_NAME=${STAGE}-${APP_NAME}-${AWS_ACCOUNT}-${REGION}
+ECR_BASE_URI=${AWS_ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com
+NEO4J_REPOSITORY=${STAGE}-${APP_NAME}-neo4j-service
+BUILD_REPOSITORY=${STAGE}-${APP_NAME}-build-service
+LOAD_REPOSITORY=${STAGE}-${APP_NAME}-load-service
+```
 
-Create a `.env` file in the project root.
+Sensitive environment variables containing secrets like passwords and API keys must be exported to the environment first. Follow these steps to set these variables.
+
+1. Create a `.env` file in the project root.
 ```bash
 NEO4J_USERNAME=<value>
 NEO4J_PASSWORD=<value>
 GITHUB_PERSONAL_ACCESS_TOKEN=<value>
 ```
 
-Source the variables to the environment.
+2. Source the variables to the environment.
 ```bash
 set -a
 source .env
@@ -107,7 +121,7 @@ set +a
 ```
 *Important:* *Always use a `.env` file or AWS SSM Parameter Store or Secrets Manager for sensitive variables like credentials and API keys. Never hard-code them, including when developing. AWS will quarantine an account if any credentials get accidentally exposed and this will cause problems. **MAKE SURE `.env` IS LISTED IN `.gitignore`.**
 
-## Deployment
+## Deployment to AWS
 Once an AWS profile is configured and environment variables are exported, the application can be deployed using `make`.
 ```bash
 make deploy
@@ -124,6 +138,50 @@ make deploy.database
 make deploy.pipeline
 ```
 Note: It is recommended to only deploy from the project root. This is because common parameters are passed from the root Makefile to nested Makefiles. If a stack has not been changed, the deployment script will continue until it reaches a stack with changes and deploy that.
+
+### Triggering the Pipeline
+The update pipeline downloads raw data from [ANHIG/IMGTHLA](https://github.com/ANHIG/IMGTHLA) GitHub repository, builds a set of intermediate CSV files and loads these into Neo4j. 
+
+To trigger the pipeline, navigate to the `gfe-db-trigger` function in the AWS Lambda console, select the **Test** tab, then click "Test". Because the function is run on a schedule it is not necessary to specify an event. The function will return an object like the following, depending on how many releases were passed to the input:
+```json
+// Trigger Lambda function return object
+{
+  "status": 200,
+  "message": "Pipeline triggered",
+  "input": [
+    {
+      "ALIGN": "False",
+      "KIR": "False",
+      "MEM_PROFILE": "False",
+      "LIMIT": "100",
+      "RELEASES": "3460"
+    },
+    ...
+  ]
+}
+```
+
+### Application State
+State for `gfe-db` is maintained using JSON files stored in the S3 (`DATA_BUCKET_NAME`) under the `config/` prefix.
+
+#### Pipeline Input Parameters
+This file contains the base input parameters (excluding the `RELEASE` value) that is passed to the StepFunctions State Machine. The `RELEASE` value is appended at runtime.\
+**S3 file path**: `s3://dev-gfe-db-531868584498-us-east-1/config/pipeline-input.json`
+| Variable       | Example Value                    | Type             | Description                                                                                                               |
+|----------------|----------------------------------|------------------|---------------------------------------------------------------------------------------------------------------------------|
+| LIMIT          | 100                              | string           | Number of alleles to build. Leave blank ("") to build all alleles.                                                        |
+| ALIGN          | False                            | string           | Include or exclude alignments in the build                                                                                |
+| KIR            | True                             | string           | Include or exclude KIR dataalignments in the build                                                                        |
+| MEM_PROFILE    | False                            | string           | Enable memory profiling (for catching memory leaks during build)                                                          |
+
+#### IMGTHLA Releases
+This file tracks variables needed for the pipeline trigger.\
+**S3 file path**: `s3://dev-gfe-db-531868584498-us-east-1/config/IMGTHLA-repository-state.json`
+| Variable       | Example Value                    | Type             | Description                                                                                                               |
+|----------------|----------------------------------|------------------|---------------------------------------------------------------------------------------------------------------------------|
+| repository_url | https://github.com/ANHIG/IMGTHLA | string           | The repository the trigger is watching                                                                                    |
+| releases       | ["3100", ..., "3450"]            | array of strings | List of available releases. Any release added to the repository that is not in this list will trigger the pipeline build. |
+
 
 ## Local Development
 
@@ -151,7 +209,7 @@ jupyter kernelspec uninstall <environment name>
 
 ### Docker
 Build the Docker image as defined in the Dockerfile.
-```bas
+```bash
 cd <directory>
 docker build --tag gfe-db .
 ```
