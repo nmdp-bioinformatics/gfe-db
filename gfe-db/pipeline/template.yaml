@@ -113,6 +113,7 @@ Resources:
               - Effect: "Allow"
                 Action: 
                   - "ssm:GetParameters"
+                  - "ssm:GetParameter"
                   - "secretsmanager:GetResourcePolicy"
                   - "secretsmanager:GetSecretValue"
                   - "secretsmanager:DescribeSecret"
@@ -248,6 +249,7 @@ Resources:
                   - "secretsmanager:ListSecrets"
                 Resource: 
                   - "*"
+  # TODO: Add logging configuration
   LoadJobDefinition:
     Type: AWS::Batch::JobDefinition
     Properties:
@@ -265,8 +267,12 @@ Resources:
         Environment:
           - Name: GFE_BUCKET
             Value: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
-          - Name: NEO4J_HOST
-            Value: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint}}'
+          - Name: REGION
+            Value: !Ref AWS::Region
+          - Name: NEO4J_HOST_SSM_PARAM
+            Value: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint' # Passes in the name of the parameter only, not the value
+          # - Name: NEO4J_HOST
+          #   Value: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint}}'
         Secrets:
           - Name: "NEO4J_USERNAME"
             ValueFrom: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn}}:NEO4J_USERNAME:AWSCURRENT:'
