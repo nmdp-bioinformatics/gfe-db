@@ -134,7 +134,7 @@ Resources:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint'
       Description: "Endpoint for gfe-db build service repository"
-      Value: !GetAtt Neo4jDatabaseInstance.PublicIp
+      Value: !Ref Neo4jDatabaseElasticIp
   Neo4jDatabaseInstanceIdParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -142,13 +142,6 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId'
       Description: "Instance ID for gfe-db Neo4j database instance"
       Value: !Ref Neo4jDatabaseInstance
-  Neo4jDatabaseElasticIpParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseElasticIp'
-      Description: "Elastic IP for gfe-db Neo4j database instance"
-      Value: !Ref Neo4jDatabaseElasticIp
 Outputs:
   Neo4jDatabaseElasticIp:
     Description: "Elastic IP for gfe-db Neo4j database instance"
