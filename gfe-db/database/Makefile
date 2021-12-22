@@ -5,7 +5,7 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-deploy: deploy.check-key-pair deploy.cfn ecr.login deploy-ecr.neo4j
+deploy: deploy.check-key-pair deploy.cfn # ecr.login deploy-ecr.neo4j
 
 deploy.check-key-pair: ##=> Checks if the key pair already exists and creates it if it does not
 	@key_pair="$$(aws ec2 describe-key-pairs --key-name ${EC2_KEY_PAIR_NAME} | jq '.KeyPairs[0].KeyName' || true)" && \
@@ -28,10 +28,7 @@ deploy.cfn:
 		--parameter-overrides \
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
-			ECRBaseUri="${ECR_BASE_URI}" \
-			Neo4jRepositoryName="$${NEO4J_REPOSITORY}" \
-			Neo4jUsername="$$NEO4J_USERNAME" \
-			Neo4jPassword="$$NEO4J_PASSWORD"
+			Neo4jAmiId="${NEO4J_AMI_ID}"
 
 # ec2.check-state:
 # 	@instance_id="$$(aws ssm get-parameters \

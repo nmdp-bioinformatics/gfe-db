@@ -8,38 +8,41 @@ Parameters:
   AppName:
     Type: String
     Description: Application name
-  ECRBaseUri:
-    Type: String
-  Neo4jRepositoryName:
-    Type: String
-  Neo4jUsername:
-    Type: String
-    NoEcho: true
-  Neo4jPassword:
-    Type: String
-    NoEcho: true
+  Neo4jAmiId:
+    Type: AWS::EC2::Image::Id
+    Description: AMI ID for Neo4j Community edition from AWS Marketplace
+  # ECRBaseUri:
+  #   Type: String
+  # Neo4jRepositoryName:
+  #   Type: String
+  # Neo4jUsername:
+  #   Type: String
+  #   NoEcho: true
+  # Neo4jPassword:
+  #   Type: String
+  #   NoEcho: true
 
 Resources:
-  Neo4jRepository:
-    Type: AWS::ECR::Repository
-    Properties:
-      RepositoryName: !Ref Neo4jRepositoryName
-      RepositoryPolicyText:
-        Version: "2012-10-17"
-        Statement:
-          - Sid: "AllowPushPull"
-            Effect: "Allow"
-            Principal:
-              AWS:
-                - !GetAtt Neo4jDatabaseInstanceRole.Arn
-            Action:
-              - "ecr:GetDownloadUrlForLayer"
-              - "ecr:BatchGetImage"
-              - "ecr:BatchCheckLayerAvailability"
-              - "ecr:PutImage"
-              - "ecr:InitiateLayerUpload"
-              - "ecr:UploadLayerPart"
-              - "ecr:CompleteLayerUpload"
+  # Neo4jRepository:
+  #   Type: AWS::ECR::Repository
+  #   Properties:
+  #     RepositoryName: !Ref Neo4jRepositoryName
+  #     RepositoryPolicyText:
+  #       Version: "2012-10-17"
+  #       Statement:
+  #         - Sid: "AllowPushPull"
+  #           Effect: "Allow"
+  #           Principal:
+  #             AWS:
+  #               - !GetAtt Neo4jDatabaseInstanceRole.Arn
+  #           Action:
+  #             - "ecr:GetDownloadUrlForLayer"
+  #             - "ecr:BatchGetImage"
+  #             - "ecr:BatchCheckLayerAvailability"
+  #             - "ecr:PutImage"
+  #             - "ecr:InitiateLayerUpload"
+  #             - "ecr:UploadLayerPart"
+  #             - "ecr:CompleteLayerUpload"
   Neo4jDatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -75,8 +78,8 @@ Resources:
     Properties:
       KeyName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}'
       DisableApiTermination: false
-      ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}'
-      InstanceType: m5d.xlarge
+      ImageId: !Ref Neo4jAmiId
+      InstanceType: m4.xlarge # m5d.xlarge
       IamInstanceProfile: !Ref Neo4jDatabaseInstanceProfile
       Monitoring: true
       NetworkInterfaces:
@@ -88,66 +91,16 @@ Resources:
       UserData:
         Fn::Base64: 
           !Sub |
-            #!/bin/bash -x
-            IDX=1
-            for DEV in /dev/disk/by-id/nvme-Amazon_EC2_NVMe_Instance_Storage_*-ns-1; do
-              mkfs.xfs ${!DEV}
-              mkdir -p /local${!IDX}
-              echo ${!DEV} /local${!IDX} xfs defaults,noatime 1 2 >> /etc/fstab
-              IDX=$((${!IDX} + 1))
-            done
-            mount -a
-            sudo yum update -y
-            sudo yum install git amazon-cloudwatch-agent jq -y
-            sudo amazon-linux-extras install docker
-            sudo systemctl enable docker
-            sudo systemctl start docker
-            # service docker start
-            usermod -a -G docker ec2-user
-            chkconfig docker on
-            cd /local1
-            chown -R ec2-user .
-            # Wait until ECR repository becomes available
-            while true; do
-              ecr_repo="$(aws ecr describe-repositories \
-                --region us-east-1 \
-                --repository-names dev-gfe-db-neo4j-service 2>/dev/null | jq -r '.repositories[0].repositoryName')"
-              if [[ "$ecr_repo" != "" ]]; then \
-                echo "Found repository: $ecr_repo" && \
-                break 
-              fi
-              sleep 1
-              echo -n '.'
-            done
-            aws ecr get-login-password \
-              --region ${AWS::Region} | docker login \
-                --username AWS \
-                --password-stdin ${ECRBaseUri}
-            # Wait until Neo4j image becomes available
-            while true; do
-              ecr_images="$(aws ecr list-images \
-                --region us-east-1 \
-                --repository-name ${ECRBaseUri}/${Neo4jRepositoryName} \
-                --query 'imageIds[*]' \
-                --output json)"
-              if [[ "$ecr_images" != "[]" ]]; then \
-                echo "Found images in ${ECRBaseUri}/${Neo4jRepositoryName}" && \
-                break 
-              fi
-              sleep 1
-              echo -n '.'
-            done
-            docker run -d --name neo4j \
-              --restart unless-stopped \
-              -e NEO4J_AUTH="${Neo4jUsername}/${Neo4jPassword}" \
-              -v "$(pwd)"/neo4j/data:/var/lib/neo4j/data \
-              -v "$(pwd)"/neo4j/conf:/var/lib/neo4j/conf \
-              -v "$(pwd)"/neo4j/plugins:/var/lib/neo4j/plugins \
-              -v "$(pwd)"/neo4j/logs:/var/lib/neo4j/logs \
-              -p 7474:7474 \
-              -p 7473:7473 \
-              -p 7687:7687 \
-              ${ECRBaseUri}/${Neo4jRepositoryName}:latest
+          #!/bin/bash -x
+          apt-get update -y
+          apt-get upgrade -y
+          curl https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py -O
+          curl https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/AgentDependencies.tar.gz -O
+          tar xvf AgentDependencies.tar.gz -C /tmp/
+          python3 ./awslogs-agent-setup.py --region ${AWS::Region} --dependency-path /tmp/AgentDependencies
+          service awslogs start
+          systemctl enable neo4j
+          systemctl start neo4j
       Tags:
         - Key: Name
           Value: !Ref AppName
@@ -200,13 +153,17 @@ Resources:
     Properties:
       Roles:
         - !Ref Neo4jDatabaseInstanceRole
-  Neo4jRepositoryNameParameter:
-    Type: AWS::SSM::Parameter
+  # Neo4jRepositoryNameParameter:
+  #   Type: AWS::SSM::Parameter
+  #   Properties:
+  #     Type: String
+  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jRepositoryName'
+  #     Description: "Name of gfe-db Neo4j database service repository"
+  #     Value: !Ref Neo4jRepositoryName
+  Neo4jDatabaseElasticIp:
+    Type: AWS::EC2::EIP
     Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jRepositoryName'
-      Description: "Name of gfe-db Neo4j database service repository"
-      Value: !Ref Neo4jRepositoryName
+      InstanceId: !Ref Neo4jDatabaseInstance
   Neo4jDatabaseEndpointParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -221,3 +178,10 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId'
       Description: "Instance ID for gfe-db Neo4j database instance"
       Value: !Ref Neo4jDatabaseInstance
+  Neo4jDatabaseElasticIpParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseElasticIp'
+      Description: "Elastic IP for gfe-db Neo4j database instance"
+      Value: !Ref Neo4jDatabaseElasticIp
