@@ -9,8 +9,8 @@ deploy: deploy.check-key-pair deploy.cfn ecr.login deploy-ecr.neo4j
 
 deploy.check-key-pair: ##=> Checks if the key pair already exists and creates it if it does not
 	@key_pair="$$(aws ec2 describe-key-pairs --key-name ${EC2_KEY_PAIR_NAME} | jq '.KeyPairs[0].KeyName' || true)" && \
-	[ "$$key_pair" ] && echo "Key pair found: $$key_pair" && exit 0 || echo "No key pair found" && \
-	echo "Creating EC2 key pair \"${EC2_KEY_PAIR_NAME}\"..." && \
+	[ "$$key_pair" ] && echo "Key pair found: $$key_pair" && exit 0 || echo "No key pair found..." && \
+	echo "Creating EC2 key pair \"${EC2_KEY_PAIR_NAME}\"" && \
 	aws ec2 create-key-pair --key-name ${EC2_KEY_PAIR_NAME} | jq -r '.KeyMaterial' > ${EC2_KEY_PAIR_NAME}.pem && \
 	aws ssm put-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${REGION}/EC2KeyPairName" \

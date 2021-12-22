@@ -102,7 +102,7 @@ Resources:
             sudo amazon-linux-extras install docker
             sudo systemctl enable docker
             sudo systemctl start docker
-            service docker start
+            # service docker start
             usermod -a -G docker ec2-user
             chkconfig docker on
             cd /local1
@@ -138,7 +138,10 @@ Resources:
               echo -n '.'
             done
             docker run -d --name neo4j \
+              --restart unless-stopped \
               -e NEO4J_AUTH="${Neo4jUsername}/${Neo4jPassword}" \
+              -v "$(pwd)"/neo4j/data:/var/lib/neo4j/data \
+              -v "$(pwd)"/neo4j/conf:/var/lib/neo4j/conf \
               -v "$(pwd)"/neo4j/plugins:/var/lib/neo4j/plugins \
               -v "$(pwd)"/neo4j/logs:/var/lib/neo4j/logs \
               -p 7474:7474 \

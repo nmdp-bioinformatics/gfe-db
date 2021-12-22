@@ -24,7 +24,6 @@ deploy.cfn:
 delete: ##=> Delete resources
 	$(info [*] Deleting infrastructure...)
 	@aws cloudformation delete-stack \
-		--retain-resources DataBucket \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1 || true && \
 	aws cloudformation wait stack-delete-complete \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1 || true

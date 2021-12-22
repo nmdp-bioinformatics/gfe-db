@@ -2,6 +2,6 @@
   "ALIGN": "False",
   "KIR": "False",
   "MEM_PROFILE": "False",
-  "LIMIT": "100",
+  "LIMIT": "1000",
   "RELEASES": 3460
 }

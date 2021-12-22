@@ -5,15 +5,17 @@ RUN apt-get update
 
 ENV NEO4J_AUTH=neo4j/gfedb
 ENV NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
-ENV NEO4J_dbms_memory_heap_initial__size=4G
-ENV NEO4J_dbms_memory_heap_max__size=4G
-ENV NEO4J_dbms_memory_pagecache_size=1G
+ENV NEO4J_dbms_memory_heap_initial__size=8G
+ENV NEO4J_dbms_memory_heap_max__size=8G
+ENV NEO4J_dbms_memory_pagecache_size=4G
+# ENV NEO4J_dbms_memory_transaction_global__max__size=1G
 ENV NEO4J_dbms_security_auth__enabled=true
 ENV NEO4J_dbms_security_procedures_unrestricted=apoc.*,gds.*
 ENV NEO4J_dbms_security_allow__csv__import__from__file__urls=true
 ENV NEO4J_apoc_import_file_enabled=true
 ENV NEO4J_apoc_import_file_use__neo4j__config=true
 ENV NEO4J_apoc_export_file_enabled=true 
+ENV NEO4J_dbms_default__listen__address=0.0.0.0
 # ENV NEO4J_dbms_connector_https_enabled=true
 # ENV NEO4J_dbms_logs_user_stdout__enabled=true
 # ENV NEO4JLABS_PLUGINS='["apoc","graph-data-science"]'
@@ -46,6 +48,8 @@ RUN mkdir -p /var/lib/neo4j/backups
 
 # Mount the directories directly into Neo4j import directory
 # VOLUME ../data/csv/ /var/lib/neo4j/import/
+VOLUME /neo4j/data/ /var/lib/neo4j/data/
+VOLUME /neo4j/conf/ /var/lib/neo4j/conf/
 VOLUME /neo4j/plugins/ /var/lib/neo4j/plugins/
 VOLUME /neo4j/logs/ /var/lib/neo4j/logs/
 VOLUME /neo4j/backups/ /var/lib/neo4j/backups/

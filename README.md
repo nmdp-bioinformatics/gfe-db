@@ -20,10 +20,9 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
     - [AWS Configuration](#aws-configuration)
     - [Environment Variables](#environment-variables)
   - [Deployment to AWS](#deployment-to-aws)
-    - [Triggering the Pipeline](#triggering-the-pipeline)
+    - [Pipeline Configuration](#pipeline-configuration)
     - [Application State](#application-state)
-      - [Pipeline Input Parameters](#pipeline-input-parameters)
-      - [IMGTHLA Releases](#imgthla-releases)
+    - [Triggering the Pipeline](#triggering-the-pipeline)
   - [Local Development](#local-development)
     - [Creating a Python Virtual Environment](#creating-a-python-virtual-environment)
     - [Docker](#docker)
@@ -139,6 +138,58 @@ make deploy.pipeline
 ```
 Note: It is recommended to only deploy from the project root. This is because common parameters are passed from the root Makefile to nested Makefiles. If a stack has not been changed, the deployment script will continue until it reaches a stack with changes and deploy that.
 
+### Pipeline Configuration
+This file contains the base input parameters (excluding the `RELEASE` value) that is passed to the StepFunctions State Machine. The `RELEASE` value is appended at runtime. 
+
+```json
+// pipeline-input.json
+{
+  "ALIGN": "False",
+  "KIR": "False",
+  "MEM_PROFILE": "False",
+  "LIMIT": "",
+  "RELEASES": 3460
+}
+
+```
+| Variable       | Example Value                    | Type             | Description                                                                                                               |
+|----------------|----------------------------------|------------------|---------------------------------------------------------------------------------------------------------------------------|
+| LIMIT          | 100                              | string           | Number of alleles to build. Leave blank ("") to build all alleles.                                                        |
+| ALIGN          | False                            | string           | Include or exclude alignments in the build                                                                                |
+| KIR            | True                             | string           | Include or exclude KIR dataalignments in the build                                                                        |
+| MEM_PROFILE    | False                            | string           | Enable memory profiling (for catching memory leaks during build)                                                          |
+
+To deploy updates to state, edit these files and run the command.
+```bash
+make deploy.config
+```
+### Application State
+State for `gfe-db` is maintained using JSON files stored in the S3 (`DATA_BUCKET_NAME`) under the `config/` prefix. It is updated each time the pipeline is run. 
+
+This file tracks the releases which have already been release. If the trigger Lambda detects a new release it will trigger the State Machine.
+```json
+// IMGTHLA-repository-state.json
+{
+  "timestamp": "2021-12-09 02:36:59",
+  "repository_url": "https://github.com/ANHIG/IMGTHLA",
+  "releases": [
+    "3100",
+    ...,
+    "3450"
+  ]
+}
+```
+
+| Variable       | Example Value                    | Type             | Description                                                                                                               |
+|----------------|----------------------------------|------------------|---------------------------------------------------------------------------------------------------------------------------|
+| repository_url | https://github.com/ANHIG/IMGTHLA | string           | The repository the trigger is watching                                                                                    |
+| releases       | ["3100", ..., "3450"]            | array of strings | List of available releases. Any release added to the repository that is not in this list will trigger the pipeline build. |
+
+To deploy updates to state, edit these files and run the command.
+```bash
+make deploy.config
+```
+
 ### Triggering the Pipeline
 The update pipeline downloads raw data from [ANHIG/IMGTHLA](https://github.com/ANHIG/IMGTHLA) GitHub repository, builds a set of intermediate CSV files and loads these into Neo4j. 
 
@@ -161,27 +212,6 @@ To trigger the pipeline, navigate to the `gfe-db-trigger` function in the AWS La
 }
 ```
 
-### Application State
-State for `gfe-db` is maintained using JSON files stored in the S3 (`DATA_BUCKET_NAME`) under the `config/` prefix.
-
-#### Pipeline Input Parameters
-This file contains the base input parameters (excluding the `RELEASE` value) that is passed to the StepFunctions State Machine. The `RELEASE` value is appended at runtime.\
-**S3 file path**: `s3://dev-gfe-db-531868584498-us-east-1/config/pipeline-input.json`
-| Variable       | Example Value                    | Type             | Description                                                                                                               |
-|----------------|----------------------------------|------------------|---------------------------------------------------------------------------------------------------------------------------|
-| LIMIT          | 100                              | string           | Number of alleles to build. Leave blank ("") to build all alleles.                                                        |
-| ALIGN          | False                            | string           | Include or exclude alignments in the build                                                                                |
-| KIR            | True                             | string           | Include or exclude KIR dataalignments in the build                                                                        |
-| MEM_PROFILE    | False                            | string           | Enable memory profiling (for catching memory leaks during build)                                                          |
-
-#### IMGTHLA Releases
-This file tracks variables needed for the pipeline trigger.\
-**S3 file path**: `s3://dev-gfe-db-531868584498-us-east-1/config/IMGTHLA-repository-state.json`
-| Variable       | Example Value                    | Type             | Description                                                                                                               |
-|----------------|----------------------------------|------------------|---------------------------------------------------------------------------------------------------------------------------|
-| repository_url | https://github.com/ANHIG/IMGTHLA | string           | The repository the trigger is watching                                                                                    |
-| releases       | ["3100", ..., "3450"]            | array of strings | List of available releases. Any release added to the repository that is not in this list will trigger the pipeline build. |
-
 
 ## Local Development
 
@@ -198,7 +228,7 @@ pip install -r requirements.txt
 To use the virtual environment inside a Jupyter Notebook, first activate the virtual environment, then create a kernel for it.
 ```bash
 # Install ipykernal
-pip install ipykernel
+pip install ipykernel python-dotenv
 
 # Add the kernel
 python3 -m ipykernel install --user --name=<environment name>
