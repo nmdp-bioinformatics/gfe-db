@@ -49,7 +49,7 @@ Resources:
       KeyName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}'
       DisableApiTermination: false
       ImageId: !Ref Neo4jAmiId
-      InstanceType: m4.xlarge # m5d.xlarge
+      InstanceType: m5.xlarge # m5d.xlarge
       IamInstanceProfile: !Ref Neo4jDatabaseInstanceProfile
       Monitoring: true
       NetworkInterfaces:
