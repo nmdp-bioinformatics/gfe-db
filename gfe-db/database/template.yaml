@@ -64,12 +64,13 @@ Resources:
           #!/bin/bash -x
           apt-get update -y
           apt-get upgrade -y
+          apt-get install apt-transport-https ca-certificates curl software-properties-common
           curl https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py -O
           curl https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/AgentDependencies.tar.gz -O
           tar xvf AgentDependencies.tar.gz -C /tmp/
           python3 ./awslogs-agent-setup.py --region ${AWS::Region} --dependency-path /tmp/AgentDependencies
           service awslogs start
-          systemctl enable neo4j
+          systemctl enable neo4j.service
           systemctl start neo4j
       Tags:
         - Key: Name
@@ -148,3 +149,9 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseElasticIp'
       Description: "Elastic IP for gfe-db Neo4j database instance"
       Value: !Ref Neo4jDatabaseElasticIp
+Outputs:
+  Neo4jDatabaseElasticIp:
+    Description: "Elastic IP for gfe-db Neo4j database instance"
+    Value: !Ref Neo4jDatabaseElasticIp
+    Export:
+      Name: Neo4jDatabaseElasticIp
