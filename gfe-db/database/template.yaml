@@ -11,38 +11,8 @@ Parameters:
   Neo4jAmiId:
     Type: AWS::EC2::Image::Id
     Description: AMI ID for Neo4j Community edition from AWS Marketplace
-  # ECRBaseUri:
-  #   Type: String
-  # Neo4jRepositoryName:
-  #   Type: String
-  # Neo4jUsername:
-  #   Type: String
-  #   NoEcho: true
-  # Neo4jPassword:
-  #   Type: String
-  #   NoEcho: true
 
 Resources:
-  # Neo4jRepository:
-  #   Type: AWS::ECR::Repository
-  #   Properties:
-  #     RepositoryName: !Ref Neo4jRepositoryName
-  #     RepositoryPolicyText:
-  #       Version: "2012-10-17"
-  #       Statement:
-  #         - Sid: "AllowPushPull"
-  #           Effect: "Allow"
-  #           Principal:
-  #             AWS:
-  #               - !GetAtt Neo4jDatabaseInstanceRole.Arn
-  #           Action:
-  #             - "ecr:GetDownloadUrlForLayer"
-  #             - "ecr:BatchGetImage"
-  #             - "ecr:BatchCheckLayerAvailability"
-  #             - "ecr:PutImage"
-  #             - "ecr:InitiateLayerUpload"
-  #             - "ecr:UploadLayerPart"
-  #             - "ecr:CompleteLayerUpload"
   Neo4jDatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -153,13 +123,6 @@ Resources:
     Properties:
       Roles:
         - !Ref Neo4jDatabaseInstanceRole
-  # Neo4jRepositoryNameParameter:
-  #   Type: AWS::SSM::Parameter
-  #   Properties:
-  #     Type: String
-  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jRepositoryName'
-  #     Description: "Name of gfe-db Neo4j database service repository"
-  #     Value: !Ref Neo4jRepositoryName
   Neo4jDatabaseElasticIp:
     Type: AWS::EC2::EIP
     Properties:
