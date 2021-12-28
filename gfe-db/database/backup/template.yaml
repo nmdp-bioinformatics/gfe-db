@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Systems Manager Document for remote backup
+
+Parameters:
+
+  Stage:
+    Type: String
+    Description: Stage of production
+  AppName:
+    Type: String
+    Description: Application name
+
+Resources:
+  Neo4jS3BackupDocument: 
+    Type: AWS::SSM::Document
+    Properties:
+      Name: !Sub '${Stage}_${AppName}_neo4j_s3_backup_cmd'
+      DocumentType: "Command"
+      DocumentFormat: "YAML"
+      Content:
+        schemaVersion: "2.2"
+        description: "Neo4j to S3 backup"
+        parameters:
+          sourceType:
+            type: "String"
+            description: "S3 or GitHub"
+            default: "S3"
+          sourceInfo:
+            type: "String"
+            description: "S3 path to script"
+            default: '{"path": "s3://dev-gfe-db-531868584498-us-east-1/config/scripts/backup.sh"}'
+          commandLine:
+            type: "String"
+            description: "Run command"
+            default: "backup.sh"
+          workingDirectory:
+            type: "String"
+            description: "Working directory"
+            default: ""
+          executionTimeout:
+            type: "String"
+            description: "Timeout"
+            default: "600"
+          mainSteps:
+            - action: "aws:runRemoteScript"
+              name: "runS3Backup"
+              inputs:
+                timeoutSeconds: "{{ executionTimeout }}"
+                runCommand:
+                  - "{{ commandLine }}"
+  Neo4jS3BackupDocumentNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jS3BackupDocumentName'
+      Description: "Name of document used for S3 backups"
+      Value: !Ref Neo4jS3BackupDocument
