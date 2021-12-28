@@ -5,7 +5,7 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-deploy: deploy.check-key-pair deploy.cfn
+deploy: deploy.check-key-pair deploy.database deploy.backup
 
 deploy.check-key-pair: ##=> Checks if the key pair already exists and creates it if it does not
 	@key_pair="$$(aws ec2 describe-key-pairs --key-name ${EC2_KEY_PAIR_NAME} | jq '.KeyPairs[0].KeyName' || true)" && \
@@ -18,7 +18,7 @@ deploy.check-key-pair: ##=> Checks if the key pair already exists and creates it
 		--value "${EC2_KEY_PAIR_NAME}" \
 		--overwrite >/dev/null 2>&1
 
-deploy.cfn:
+deploy.database:
 	$(info [*] Deploying ${SERVICE}...)
 	@aws cloudformation deploy \
 		--region $${REGION} \
@@ -30,6 +30,9 @@ deploy.cfn:
 			AppName="$${APP_NAME}" \
 			Neo4jAmiId="${NEO4J_AMI_ID}"
 
+deploy.backup:
+	$(MAKE) -C backup/ deploy
+
 # ec2.check-state:
 # 	@instance_id="$$(aws ssm get-parameters \
 # 		--names "/$${APP_NAME}/$${STAGE}/$${REGION}/Neo4jDatabaseInstanceId" \
@@ -38,7 +41,9 @@ deploy.cfn:
 # 	instance_status="$$(aws ec2 describe-instance-status --instance-ids $$instance_id)" | jq && \
 # 	echo $$instance_status
 
-delete: ##=> Delete resources
+delete: delete.backup delete.database ##=> Delete resources
+
+delete.database:
 	$(info [*] Deleting database...)
 	@aws cloudformation delete-stack \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1 || true && \
@@ -46,6 +51,9 @@ delete: ##=> Delete resources
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1 || true && \
 	aws ec2 delete-key-pair --key-name "${EC2_KEY_PAIR_NAME}" >/dev/null 2>&1 || true && \
 	aws ssm delete-parameter --name "/$${APP_NAME}/$${STAGE}/$${REGION}/EC2KeyPairName" >/dev/null 2>&1 || true
+
+delete.backup:
+	$(MAKE) -C backup/ delete
 
 #############
 #  Helpers  #

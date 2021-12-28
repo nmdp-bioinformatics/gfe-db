@@ -7,6 +7,8 @@ import json
 import requests
 import boto3
 
+# TODO: update headers to include "X-Stream": "true"
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
