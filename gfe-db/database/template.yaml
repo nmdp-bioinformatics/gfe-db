@@ -49,7 +49,7 @@ Resources:
       KeyName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}'
       DisableApiTermination: false
       ImageId: !Ref Neo4jAmiId
-      InstanceType: m5.xlarge # m5d.xlarge
+      InstanceType: r5.large # m5.xlarge # m5d.xlarge
       IamInstanceProfile: !Ref Neo4jDatabaseInstanceProfile
       Monitoring: true
       NetworkInterfaces:
@@ -72,6 +72,20 @@ Resources:
           service awslogs start
           systemctl enable neo4j.service
           systemctl start neo4j
+          echo "Starting Neo4j..."
+          until $(curl --output /dev/null --silent --head --fail http://localhost:7474) ; do \
+            printf '.' ; \
+            sleep 1 ; \
+          done
+          printf "%s\n" " "
+          echo "Neo4j is ready :-)"
+          mkdir -p /var/lib/neo4j/backups
+          echo "Copying boot logs to S3..."
+          journalctl -b > /tmp/logs/instance-boot.log
+          echo "Copying Neo4j logs to S3..."
+          journalctl -e -u neo4j > /tmp/logs/neo4j.log
+          aws s3 cp --recursive /tmp/logs/ s3://$gfe_bucket/logs/bootstrap/$(date +'%Y/%m/%d/%H')/
+          echo "Ready"
       Tags:
         - Key: Name
           Value: !Ref AppName
@@ -100,25 +114,22 @@ Resources:
                 Action:
                   - "s3:GetObject"
                   - "s3:ListObjectsV2"
+                  - "s3:PutObject"
+                  - "s3:PutObjectAcl"
                 Resource: 
                   - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
                   - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
               - Effect: "Allow"
-                Action:
-                  - "ecr:GetAuthorizationToken"
-                  - "ecr:BatchCheckLayerAvailability"
-                  - "ecr:GetDownloadUrlForLayer"
-                  - "ecr:GetRepositoryPolicy"
-                  - "ecr:DescribeRepositories"
-                  - "ecr:ListImages"
-                  - "ecr:DescribeImages"
-                  - "ecr:BatchGetImage"
-                  - "ecr:InitiateLayerUpload"
-                  - "ecr:UploadLayerPart"
-                  - "ecr:CompleteLayerUpload"
-                  - "ecr:PutImage"
-                  - "cloudtrail:LookupEvents"
-                Resource: "*"
+                Action: 
+                  - "ssm:GetParameters"
+                  - "ssm:GetParameter"
+                  - "secretsmanager:GetResourcePolicy"
+                  - "secretsmanager:GetSecretValue"
+                  - "secretsmanager:DescribeSecret"
+                  - "secretsmanager:ListSecretVersionIds"
+                  - "secretsmanager:ListSecrets"
+                Resource: 
+                  - "*"
   Neo4jDatabaseInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
