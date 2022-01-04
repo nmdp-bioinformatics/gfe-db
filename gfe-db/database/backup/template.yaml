@@ -14,44 +14,56 @@ Resources:
   Neo4jS3BackupDocument: 
     Type: AWS::SSM::Document
     Properties:
-      Name: !Sub '${Stage}_${AppName}_neo4j_s3_backup_cmd'
       DocumentType: "Command"
       DocumentFormat: "YAML"
+      TargetType: "/AWS::EC2::Instance"
       Content:
         schemaVersion: "2.2"
         description: "Neo4j to S3 backup"
         parameters:
           sourceType:
             type: "String"
-            description: "S3 or GitHub"
+            description: "(Required) Specify the source type."
             default: "S3"
           sourceInfo:
-            type: "String"
-            description: "S3 path to script"
-            default: '{"path": "s3://dev-gfe-db-531868584498-us-east-1/config/scripts/backup.sh"}'
+            type: "StringMap"
+            description: "(Required) Specify the information required to access the resource from the source. If source type is GitHub, then you can specify any of the following: 'owner', 'repository', 'path', 'getOptions', 'tokenInfo'. If source type is S3, then you can specify 'path'."
+            default:
+              path: "https://dev-gfe-db-531868584498-us-east-1.s3.amazonaws.com/config/scripts/backup.sh"
           commandLine:
             type: "String"
-            description: "Run command"
+            description: "(Required) Specify the command line to be executed. The following formats of commands can be run: 'pythonMainFile.py argument1 argument2', 'ansible-playbook -i \"localhost,\" -c local example.yml'"
             default: "backup.sh"
           workingDirectory:
             type: "String"
             description: "Working directory"
-            default: ""
+            default: "/home/ubuntu"
           executionTimeout:
             type: "String"
-            description: "Timeout"
+            description: "(Optional) The time in seconds for a command to complete before it is considered to have failed. Default is 3600 (1 hour). Maximum is 28800 (8 hours)."
             default: "600"
-          mainSteps:
-            - action: "aws:runRemoteScript"
-              name: "runS3Backup"
-              inputs:
-                timeoutSeconds: "{{ executionTimeout }}"
-                runCommand:
-                  - "{{ commandLine }}"
+        mainSteps:
+          - action: "aws:downloadContent"
+            name: "downloadContent"
+            inputs:
+              sourceType: "{{ sourceType }}"
+              sourceInfo: "{{ sourceInfo }}"
+              destinationPath: "{{ workingDirectory }}"
+          - action: "aws:runShellScript"
+            name: "runShellScript"
+            inputs: 
+              runCommand:
+                - ""
+                - "directory=$(pwd)"
+                - "export PATH=$PATH:$directory"
+                - " {{ commandLine }} " 
+                - ""
+              workingDirectory: "{{ workingDirectory }}"
+              timeoutSeconds: "{{ executionTimeout }}"
   Neo4jS3BackupDocumentNameParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jS3BackupDocumentName'
-      Description: "Name of document used for S3 backups"
+      Description: "Name of Systems Manager Document used for S3 backups"
       Value: !Ref Neo4jS3BackupDocument
