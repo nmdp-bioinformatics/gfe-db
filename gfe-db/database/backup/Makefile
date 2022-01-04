@@ -17,7 +17,7 @@ deploy.backup:
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}"
 	@echo "Deploying backup script to S3..." && \
-	aws s3 cp backup.sh s3://$$DATA_BUCKET_NAME/config/scripts/backup.sh
+	aws s3 cp scripts/backup.sh s3://$$DATA_BUCKET_NAME/config/scripts/backup.sh
 
 delete: delete.backup ##=> Delete resources
 

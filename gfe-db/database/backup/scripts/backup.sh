@@ -41,3 +41,14 @@ aws s3 cp /tmp/logs/neo4j-s3-backup.log s3://$gfe_bucket/backups/database/$(date
 echo "Copying data to S3..."
 aws s3 cp /var/lib/neo4j/backups/gfedb.dump s3://$gfe_bucket/backups/database/$(date +'%Y/%m/%d/%H')/gfedb.dump
 echo "Done"
+
+# aws ssm send-command \
+#     --document-name "dev-gfe-db-s3-backup-Neo4jS3BackupDocument-WsD2Mu1crOYp" \
+#     --document-version "1" \
+#     --targets '[{"Key":"InstanceIds","Values":["i-0c09fe82d6a643b2d"]}]' \
+#     --parameters '{"executionTimeout":["600"],"sourceInfo":["{\"path\":\"https://dev-gfe-db-531868584498-us-east-1.s3.amazonaws.com/config/scripts/backup.sh\"}"],"sourceType":["S3"],"workingDirectory":["/home/ubuntu"],"commandLine":["backup.sh"]}' \
+#     --timeout-seconds 600 \
+#     --max-concurrency "50" \
+#     --max-errors "0" \
+#     --cloud-watch-output-config '{"CloudWatchOutputEnabled":true}' \
+#     --region us-east-1

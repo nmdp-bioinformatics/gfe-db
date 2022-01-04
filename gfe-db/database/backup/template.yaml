@@ -11,7 +11,8 @@ Parameters:
     Description: Application name
 
 Resources:
-  Neo4jS3BackupDocument: 
+
+  Neo4jBackupDocument: 
     Type: AWS::SSM::Document
     Properties:
       DocumentType: "Command"
@@ -60,10 +61,40 @@ Resources:
                 - ""
               workingDirectory: "{{ workingDirectory }}"
               timeoutSeconds: "{{ executionTimeout }}"
-  Neo4jS3BackupDocumentNameParameter:
-    Type: AWS::SSM::Parameter
+
+  Neo4jBackupMaintenanceWindow:
+    Type: AWS::SSM::MaintenanceWindow
     Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jS3BackupDocumentName'
-      Description: "Name of Systems Manager Document used for S3 backups"
-      Value: !Ref Neo4jS3BackupDocument
+      AllowUnassociatedTargets: false
+      Cutoff: 1
+      Description: !Sub "${AppName} Neo4j backup maintenance window"
+      Duration: 2
+      Name: BackupNeo4jMaintenanceWindow
+      Schedule: cron(0 * ? * * *)
+      ScheduleTimezone: US/Eastern
+
+  Neo4jBackupMaintenanceWindowTask:
+    Type: AWS::SSM::MaintenanceWindowTask
+    Properties:
+      Description: Backup a Neo4j instance
+      CutoffBehavior: CONTINUE_TASK
+      MaxConcurrency: 1
+      MaxErrors: 1
+      Priority: 0
+      TaskType: RUN_COMMAND
+      WindowId: !Ref Neo4jBackupMaintenanceWindow
+      TaskArn: !Ref Neo4jBackupDocument
+      Targets:
+        - Key: WindowTargetIds
+          Values:
+            - !Ref Neo4jBackupMaintenanceWindowTarget
+
+  Neo4jBackupMaintenanceWindowTarget:
+    Type: AWS::SSM::MaintenanceWindowTarget
+    Properties:
+      ResourceType: INSTANCE
+      Targets:
+        - Key: InstanceIds
+          Values:
+            - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId}}'
+      WindowId: !Ref Neo4jBackupMaintenanceWindow
