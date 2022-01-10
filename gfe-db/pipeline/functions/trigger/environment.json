@@ -1,0 +1,13 @@
+{
+    "TriggerFunctionSchedule": "cron(0\\ 12\\ *\\ *\\ ?\\ *)",
+    "FunctionConfiguration": {
+        "Timeout": 60,
+        "MemorySize": 256,
+        "Environment": {
+            "Variables": {
+                "GITHUB_REPOSITORY_OWNER": "ANHIG",
+                "GITHUB_REPOSITORY_NAME": "IMGTHLA"
+            }
+        }
+    }
+}
