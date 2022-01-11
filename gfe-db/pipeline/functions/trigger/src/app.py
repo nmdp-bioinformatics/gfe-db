@@ -27,7 +27,7 @@ def lambda_handler(event, context):
     logger.info(json.dumps(event))
 
     # Load the previous repository state
-    branches_config_path = f"s3://{GFE_BUCKET}/config/trigger/IMGTHLA-repository-state.json"
+    branches_config_path = f"s3://{GFE_BUCKET}/config/IMGTHLA-repository-state.json"
     branches_config = read_config(branches_config_path)
     previous_state = branches_config['releases']
 
@@ -47,7 +47,7 @@ def lambda_handler(event, context):
         # releases_processing = set(check_current_executions(UPDATE_PIPELINE_STATE_MACHINE_ARN))
 
         # Load the current pipeline params
-        params_path = f"s3://{GFE_BUCKET}/config/pipeline/pipeline-input.json"
+        params_path = f"s3://{GFE_BUCKET}/config/pipeline-input.json"
         params = read_config(params_path)
 
         logger.info(f'Running pipeline with these params:\n{json.dumps(params)}')
@@ -71,7 +71,7 @@ def lambda_handler(event, context):
         return {
             "status": response['ResponseMetadata']['HTTPStatusCode'],
             "message": "Pipeline triggered",
-            "releases": new_releases
+            "input": state_machine_input
         }
 
     else:

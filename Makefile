@@ -1,12 +1,17 @@
 ##########################
 # Bootstrapping variables
 ##########################
+# TODO: Add TRIGGER_SCHEDULE variable
 export STAGE ?= dev
 export APP_NAME ?= gfe-db
 export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity --query Account --output text)
 export REGION ?= us-east-1
 
 export DATA_BUCKET_NAME ?= ${STAGE}-${APP_NAME}-${AWS_ACCOUNT}-${REGION}
+
+# Requires subscription through AWS Marketplace
+export NEO4J_AMI_ID ?= ami-0a041a294ad6458af
+
 export ECR_BASE_URI ?= ${AWS_ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com
 export BUILD_REPOSITORY ?= ${STAGE}-${APP_NAME}-build-service
 export LOAD_REPOSITORY ?= ${STAGE}-${APP_NAME}-load-service
@@ -46,6 +51,9 @@ deploy.database:
 
 deploy.pipeline:
 	$(MAKE) -C gfe-db/pipeline/ deploy
+
+deploy.config:
+	$(MAKE) -C gfe-db/pipeline/ deploy.config
 
 delete: ##=> Delete services
 	$(info [*] Deleting ${APP_NAME} in ${AWS_ACCOUNT}...)

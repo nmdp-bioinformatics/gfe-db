@@ -5,12 +5,12 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-deploy:  deploy.check-key-pair deploy.cfn
+deploy: deploy.check-key-pair deploy.backup deploy.database
 
 deploy.check-key-pair: ##=> Checks if the key pair already exists and creates it if it does not
 	@key_pair="$$(aws ec2 describe-key-pairs --key-name ${EC2_KEY_PAIR_NAME} | jq '.KeyPairs[0].KeyName' || true)" && \
-	[ "$$key_pair" ] && echo "Key pair found: $$key_pair" && exit 0 || echo "No key pair found" && \
-	echo "Creating EC2 key pair \"${EC2_KEY_PAIR_NAME}\"..." && \
+	[ "$$key_pair" ] && echo "Key pair found: $$key_pair" && exit 0 || echo "No key pair found..." && \
+	echo "Creating EC2 key pair \"${EC2_KEY_PAIR_NAME}\"" && \
 	aws ec2 create-key-pair --key-name ${EC2_KEY_PAIR_NAME} | jq -r '.KeyMaterial' > ${EC2_KEY_PAIR_NAME}.pem && \
 	aws ssm put-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${REGION}/EC2KeyPairName" \
@@ -18,7 +18,11 @@ deploy.check-key-pair: ##=> Checks if the key pair already exists and creates it
 		--value "${EC2_KEY_PAIR_NAME}" \
 		--overwrite >/dev/null 2>&1
 
-deploy.cfn:
+deploy.backup:
+	$(info [*] Deploying backup service...)
+	@aws s3 cp scripts/backup.sh s3://$$DATA_BUCKET_NAME/config/scripts/backup.sh
+
+deploy.database:
 	$(info [*] Deploying ${SERVICE}...)
 	@aws cloudformation deploy \
 		--region $${REGION} \
@@ -27,9 +31,20 @@ deploy.cfn:
 		--capabilities CAPABILITY_IAM \
 		--parameter-overrides \
 			Stage="$${STAGE}" \
-			AppName="$${APP_NAME}"
+			AppName="$${APP_NAME}" \
+			Neo4jAmiId="${NEO4J_AMI_ID}"
 
-delete: ##=> Delete resources
+# ec2.check-state:
+# 	@instance_id="$$(aws ssm get-parameters \
+# 		--names "/$${APP_NAME}/$${STAGE}/$${REGION}/Neo4jDatabaseInstanceId" \
+# 			| jq -r '.Parameters | map(select(.Version == 1))[0].Value')" && \
+# 	echo $$instance_id && \
+# 	instance_status="$$(aws ec2 describe-instance-status --instance-ids $$instance_id)" | jq && \
+# 	echo $$instance_status
+
+delete: delete.backup delete.database ##=> Delete resources
+
+delete.database:
 	$(info [*] Deleting database...)
 	@aws cloudformation delete-stack \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1 || true && \

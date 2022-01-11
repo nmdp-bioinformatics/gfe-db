@@ -106,6 +106,8 @@ load/Makefile
 .aws-sam
 packaged.yaml
 samconfig.toml
-scripts/
 cfn/
 _pr.md
+_*.sh
+_*
+_reference/
