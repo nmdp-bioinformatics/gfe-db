@@ -12,6 +12,9 @@ Parameters:
   Neo4jAmiId:
     Type: AWS::EC2::Image::Id
     Description: AMI ID for Neo4j Community edition from AWS Marketplace
+  Neo4jPassword:
+    Type: String
+    NoEcho: true
   # TODO: add map of accepted instances for Neo4j CE AMI
 
 Resources:
@@ -73,6 +76,7 @@ Resources:
           tar xvf AgentDependencies.tar.gz -C /tmp/
           python3 ./awslogs-agent-setup.py --region ${AWS::Region} --dependency-path /tmp/AgentDependencies
           service awslogs start
+          neo4j-admin set-initial-password ${Neo4jPassword}
           systemctl enable neo4j.service
           systemctl start neo4j
           echo "Starting Neo4j..."
@@ -248,7 +252,7 @@ Resources:
       Targets:
         - Key: InstanceIds
           Values:
-            - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId}}'
+            - !Ref Neo4jDatabaseInstance
       WindowId: !Ref Neo4jBackupMaintenanceWindow
 
 Outputs:

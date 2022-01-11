@@ -32,7 +32,8 @@ deploy.database:
 		--parameter-overrides \
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
-			Neo4jAmiId="${NEO4J_AMI_ID}"
+			Neo4jAmiId="${NEO4J_AMI_ID}" \
+			Neo4jPassword="$$NEO4J_PASSWORD"
 
 # ec2.check-state:
 # 	@instance_id="$$(aws ssm get-parameters \
@@ -42,10 +43,10 @@ deploy.database:
 # 	instance_status="$$(aws ec2 describe-instance-status --instance-ids $$instance_id)" | jq && \
 # 	echo $$instance_status
 
-delete: delete.backup delete.database ##=> Delete resources
+delete: delete.database ##=> Delete resources
 
 delete.database:
-	$(info [*] Deleting database...)
+	$(info [*] Deleting ${SERVICE}...)
 	@aws cloudformation delete-stack \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1 || true && \
 	aws cloudformation wait stack-delete-complete \
