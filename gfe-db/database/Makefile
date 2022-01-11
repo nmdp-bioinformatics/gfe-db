@@ -5,7 +5,7 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-deploy: deploy.check-key-pair deploy.database deploy.backup
+deploy: deploy.check-key-pair deploy.backup deploy.database
 
 deploy.check-key-pair: ##=> Checks if the key pair already exists and creates it if it does not
 	@key_pair="$$(aws ec2 describe-key-pairs --key-name ${EC2_KEY_PAIR_NAME} | jq '.KeyPairs[0].KeyName' || true)" && \
@@ -18,6 +18,10 @@ deploy.check-key-pair: ##=> Checks if the key pair already exists and creates it
 		--value "${EC2_KEY_PAIR_NAME}" \
 		--overwrite >/dev/null 2>&1
 
+deploy.backup:
+	$(info [*] Deploying backup service...)
+	@aws s3 cp scripts/backup.sh s3://$$DATA_BUCKET_NAME/config/scripts/backup.sh
+
 deploy.database:
 	$(info [*] Deploying ${SERVICE}...)
 	@aws cloudformation deploy \
@@ -29,9 +33,6 @@ deploy.database:
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
 			Neo4jAmiId="${NEO4J_AMI_ID}"
-
-deploy.backup:
-	$(MAKE) -C backup/ deploy
 
 # ec2.check-state:
 # 	@instance_id="$$(aws ssm get-parameters \
@@ -51,9 +52,6 @@ delete.database:
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1 || true && \
 	aws ec2 delete-key-pair --key-name "${EC2_KEY_PAIR_NAME}" >/dev/null 2>&1 || true && \
 	aws ssm delete-parameter --name "/$${APP_NAME}/$${STAGE}/$${REGION}/EC2KeyPairName" >/dev/null 2>&1 || true
-
-delete.backup:
-	$(MAKE) -C backup/ delete
 
 #############
 #  Helpers  #

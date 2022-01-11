@@ -34,13 +34,15 @@ echo "Neo4j is ready :-)"
 # Copy Neo4j startup logs
 echo "Writing logs..."
 journalctl -e -u neo4j > /tmp/logs/neo4j-s3-backup.log
-echo "Coying logs to S3..."
+echo "Copying logs to S3..."
 aws s3 cp /tmp/logs/neo4j-s3-backup.log s3://$gfe_bucket/backups/database/$(date +'%Y/%m/%d/%H')/neo4j-s3-backup.log
 
 # Copy to S3
 echo "Copying data to S3..."
 aws s3 cp /var/lib/neo4j/backups/gfedb.dump s3://$gfe_bucket/backups/database/$(date +'%Y/%m/%d/%H')/gfedb.dump
 echo "Done"
+
+exit 0
 
 # aws ssm send-command \
 #     --document-name "dev-gfe-db-s3-backup-Neo4jS3BackupDocument-WsD2Mu1crOYp" \

@@ -2,6 +2,7 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Deploys an EC2 instance hosting the gfe-db Neo4j server
 
 Parameters:
+
   Stage:
     Type: String
     Description: Stage of production
@@ -12,6 +13,7 @@ Parameters:
     Type: AWS::EC2::Image::Id
     Description: AMI ID for Neo4j Community edition from AWS Marketplace
   # TODO: add map of accepted instances for Neo4j CE AMI
+
 Resources:
   Neo4jDatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -43,6 +45,7 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub '${Stage}-${AppName}-neo4j-sg'
+  
   Neo4jDatabaseInstance:
     Type: AWS::EC2::Instance
     Properties:
@@ -91,6 +94,7 @@ Resources:
           Value: !Ref AppName
         - Key: Stage
           Value: !Ref Stage
+  
   Neo4jDatabaseInstanceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -132,15 +136,18 @@ Resources:
                   - "secretsmanager:ListSecrets"
                 Resource: 
                   - "*"
+  
   Neo4jDatabaseInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
         - !Ref Neo4jDatabaseInstanceRole
+  
   Neo4jDatabaseElasticIp:
     Type: AWS::EC2::EIP
     Properties:
       InstanceId: !Ref Neo4jDatabaseInstance
+  
   Neo4jDatabaseEndpointParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -148,6 +155,7 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint'
       Description: "Endpoint for gfe-db build service repository"
       Value: !Ref Neo4jDatabaseElasticIp
+  
   Neo4jDatabaseInstanceIdParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -155,6 +163,94 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId'
       Description: "Instance ID for gfe-db Neo4j database instance"
       Value: !Ref Neo4jDatabaseInstance
+  
+  Neo4jBackupDocument: 
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: "Command"
+      DocumentFormat: "YAML"
+      TargetType: "/AWS::EC2::Instance"
+      Content:
+        schemaVersion: "2.2"
+        description: "Neo4j to S3 backup"
+        parameters:
+          sourceType:
+            type: "String"
+            description: "(Required) Specify the source type."
+            default: "S3"
+          sourceInfo:
+            type: "StringMap"
+            description: "(Required) Specify the information required to access the resource from the source. If source type is GitHub, then you can specify any of the following: 'owner', 'repository', 'path', 'getOptions', 'tokenInfo'. If source type is S3, then you can specify 'path'."
+            default:
+              path: !Sub 'https://{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}.s3.amazonaws.com/config/scripts/backup.sh'
+          commandLine:
+            type: "String"
+            description: "(Required) Specify the command line to be executed. The following formats of commands can be run: 'pythonMainFile.py argument1 argument2', 'ansible-playbook -i \"localhost,\" -c local example.yml'"
+            default: "backup.sh"
+          workingDirectory:
+            type: "String"
+            description: "Working directory"
+            default: "/home/ubuntu"
+          executionTimeout:
+            type: "String"
+            description: "(Optional) The time in seconds for a command to complete before it is considered to have failed. Default is 3600 (1 hour). Maximum is 28800 (8 hours)."
+            default: "3600"
+        mainSteps:
+          - action: "aws:downloadContent"
+            name: "downloadContent"
+            inputs:
+              sourceType: "{{ sourceType }}"
+              sourceInfo: "{{ sourceInfo }}"
+              destinationPath: "{{ workingDirectory }}"
+          - action: "aws:runShellScript"
+            name: "runShellScript"
+            inputs: 
+              runCommand:
+                - ""
+                - "directory=$(pwd)"
+                - "export PATH=$PATH:$directory"
+                - " {{ commandLine }} " 
+                - ""
+              workingDirectory: "{{ workingDirectory }}"
+              timeoutSeconds: "{{ executionTimeout }}"
+
+  Neo4jBackupMaintenanceWindow:
+    Type: AWS::SSM::MaintenanceWindow
+    Properties:
+      AllowUnassociatedTargets: false
+      Cutoff: 1
+      Description: !Sub "${AppName} Neo4j backup maintenance window"
+      Duration: 2
+      Name: BackupNeo4jMaintenanceWindow
+      Schedule: cron(0 * ? * * *)
+      ScheduleTimezone: US/Eastern
+
+  Neo4jBackupMaintenanceWindowTask:
+    Type: AWS::SSM::MaintenanceWindowTask
+    Properties:
+      Description: Backup a Neo4j instance
+      CutoffBehavior: CONTINUE_TASK
+      MaxConcurrency: 1
+      MaxErrors: 1
+      Priority: 0
+      TaskType: RUN_COMMAND
+      WindowId: !Ref Neo4jBackupMaintenanceWindow
+      TaskArn: !Ref Neo4jBackupDocument
+      Targets:
+        - Key: WindowTargetIds
+          Values:
+            - !Ref Neo4jBackupMaintenanceWindowTarget
+
+  Neo4jBackupMaintenanceWindowTarget:
+    Type: AWS::SSM::MaintenanceWindowTarget
+    Properties:
+      ResourceType: INSTANCE
+      Targets:
+        - Key: InstanceIds
+          Values:
+            - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId}}'
+      WindowId: !Ref Neo4jBackupMaintenanceWindow
+
 Outputs:
   Neo4jDatabaseElasticIp:
     Description: "Elastic IP for gfe-db Neo4j database instance"
