@@ -17,7 +17,10 @@ Parameters:
   Neo4jPassword:
     Type: String
     NoEcho: true
-  # TODO: add map of accepted instances for Neo4j CE AMI
+  DatabaseVolumeSize:
+    Type: String
+
+# TODO: add map of accepted instances for Neo4j CE AMI
 
 Resources:
   Neo4jDatabaseSecurityGroup:
@@ -57,9 +60,14 @@ Resources:
       KeyName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}'
       DisableApiTermination: false
       ImageId: !Ref Neo4jAmiId
-      InstanceType: m5.xlarge # m5d.xlarge
+      InstanceType: m5.xlarge
       IamInstanceProfile: !Ref Neo4jDatabaseInstanceProfile
       Monitoring: true
+      BlockDeviceMappings: 
+        - DeviceName: "/dev/sda1"
+          Ebs:
+            VolumeSize: !Ref DatabaseVolumeSize
+            VolumeType: "gp3"
       NetworkInterfaces:
         - AssociatePublicIpAddress: true
           DeviceIndex: "0"

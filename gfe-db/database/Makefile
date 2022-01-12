@@ -38,7 +38,8 @@ deploy.database:
 			AppName="$${APP_NAME}" \
 			DataBucketName="$$DATA_BUCKET_NAME" \
 			Neo4jAmiId="${NEO4J_AMI_ID}" \
-			Neo4jPassword="$$NEO4J_PASSWORD"
+			Neo4jPassword="$$NEO4J_PASSWORD" \
+			DatabaseVolumeSize="$$DATABASE_VOLUME_SIZE"
 
 # ec2.check-state:
 # 	@instance_id="$$(aws ssm get-parameters \
