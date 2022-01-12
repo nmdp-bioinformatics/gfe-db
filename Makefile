@@ -1,17 +1,21 @@
 ##########################
 # Bootstrapping variables
 ##########################
-# TODO: Add TRIGGER_SCHEDULE variable
+
+# Base settings, these should almost never change
 export STAGE ?= dev
 export APP_NAME ?= gfe-db
 export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity --query Account --output text)
 export REGION ?= us-east-1
 
+# Application Configuration, can move to JSON
+export NEO4J_AMI_ID ?= ami-0a041a294ad6458af # Requires subscription through AWS Marketplace
+export DATABASE_VOLUME_SIZE ?= 50
+# TODO: Add TRIGGER_SCHEDULE variable
+# TODO: Add BACKUP_SCHEDULE variable
+
+# Resource identifiers
 export DATA_BUCKET_NAME ?= ${STAGE}-${APP_NAME}-${AWS_ACCOUNT}-${REGION}
-
-# Requires subscription through AWS Marketplace
-export NEO4J_AMI_ID ?= ami-0a041a294ad6458af
-
 export ECR_BASE_URI ?= ${AWS_ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com
 export BUILD_REPOSITORY ?= ${STAGE}-${APP_NAME}-build-service
 export LOAD_REPOSITORY ?= ${STAGE}-${APP_NAME}-load-service

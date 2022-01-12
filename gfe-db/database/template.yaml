@@ -17,7 +17,10 @@ Parameters:
   Neo4jPassword:
     Type: String
     NoEcho: true
-  # TODO: add map of accepted instances for Neo4j CE AMI
+  DatabaseVolumeSize:
+    Type: String
+
+# TODO: add map of accepted instances for Neo4j CE AMI
 
 Resources:
   Neo4jDatabaseSecurityGroup:
@@ -63,7 +66,7 @@ Resources:
       BlockDeviceMappings: 
         - DeviceName: "/dev/sda1"
           Ebs:
-            VolumeSize: "50"
+            VolumeSize: !Ref DatabaseVolumeSize
             VolumeType: "gp3"
       NetworkInterfaces:
         - AssociatePublicIpAddress: true
