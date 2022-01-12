@@ -54,6 +54,7 @@ deploy.pipeline:
 
 deploy.config:
 	$(MAKE) -C gfe-db/pipeline/ deploy.config
+	$(MAKE) -C gfe-db/database/ deploy.config
 
 delete: ##=> Delete services
 	$(info [*] Deleting ${APP_NAME} in ${AWS_ACCOUNT}...)

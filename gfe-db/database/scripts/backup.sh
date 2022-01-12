@@ -16,7 +16,7 @@ fi
 echo "Stopping Neo4j..."
 sudo systemctl stop neo4j
 echo "Backing up graph data..."
-# mkdir -p /var/lib/neo4j/backups
+# mkdir -p /var/lib/neo4j/backups # This directory is created by the user data script on initial boot to avoid permissions issues
 sudo neo4j-admin dump \
     --database=neo4j \
     --to=/var/lib/neo4j/backups/gfedb.dump
@@ -43,14 +43,3 @@ aws s3 cp /var/lib/neo4j/backups/gfedb.dump s3://$gfe_bucket/backups/database/$(
 echo "Done"
 
 exit 0
-
-# aws ssm send-command \
-#     --document-name "dev-gfe-db-s3-backup-Neo4jS3BackupDocument-WsD2Mu1crOYp" \
-#     --document-version "1" \
-#     --targets '[{"Key":"InstanceIds","Values":["i-0c09fe82d6a643b2d"]}]' \
-#     --parameters '{"executionTimeout":["600"],"sourceInfo":["{\"path\":\"https://dev-gfe-db-531868584498-us-east-1.s3.amazonaws.com/config/scripts/backup.sh\"}"],"sourceType":["S3"],"workingDirectory":["/home/ubuntu"],"commandLine":["backup.sh"]}' \
-#     --timeout-seconds 600 \
-#     --max-concurrency "50" \
-#     --max-errors "0" \
-#     --cloud-watch-output-config '{"CloudWatchOutputEnabled":true}' \
-#     --region us-east-1

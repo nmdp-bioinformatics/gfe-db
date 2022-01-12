@@ -5,7 +5,7 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-deploy: deploy.check-key-pair deploy.backup deploy.database
+deploy: deploy.check-key-pair deploy.config deploy.backup deploy.database
 
 deploy.check-key-pair: ##=> Checks if the key pair already exists and creates it if it does not
 	@key_pair="$$(aws ec2 describe-key-pairs --key-name ${EC2_KEY_PAIR_NAME} | jq '.KeyPairs[0].KeyName' || true)" && \
@@ -17,6 +17,10 @@ deploy.check-key-pair: ##=> Checks if the key pair already exists and creates it
 		--type "String" \
 		--value "${EC2_KEY_PAIR_NAME}" \
 		--overwrite >/dev/null 2>&1
+
+deploy.config:
+	$(info [*] Deploying Neo4j config...)
+	@aws s3 cp neo4j/neo4j.template s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.template
 
 deploy.backup:
 	$(info [*] Deploying backup service...)
@@ -32,7 +36,9 @@ deploy.database:
 		--parameter-overrides \
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
-			Neo4jAmiId="${NEO4J_AMI_ID}"
+			DataBucketName="$$DATA_BUCKET_NAME" \
+			Neo4jAmiId="${NEO4J_AMI_ID}" \
+			Neo4jPassword="$$NEO4J_PASSWORD"
 
 # ec2.check-state:
 # 	@instance_id="$$(aws ssm get-parameters \
@@ -42,10 +48,10 @@ deploy.database:
 # 	instance_status="$$(aws ec2 describe-instance-status --instance-ids $$instance_id)" | jq && \
 # 	echo $$instance_status
 
-delete: delete.backup delete.database ##=> Delete resources
+delete: delete.database ##=> Delete resources
 
 delete.database:
-	$(info [*] Deleting database...)
+	$(info [*] Deleting ${SERVICE}...)
 	@aws cloudformation delete-stack \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1 || true && \
 	aws cloudformation wait stack-delete-complete \
