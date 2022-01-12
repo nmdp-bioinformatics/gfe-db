@@ -9,6 +9,8 @@ Parameters:
   AppName:
     Type: String
     Description: Application name
+  DataBucketName:
+    Type: String
   Neo4jAmiId:
     Type: AWS::EC2::Image::Id
     Description: AMI ID for Neo4j Community edition from AWS Marketplace
@@ -74,12 +76,15 @@ Resources:
           curl https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py -O
           curl https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/AgentDependencies.tar.gz -O
           tar xvf AgentDependencies.tar.gz -C /tmp/
-          python3 ./awslogs-agent-setup.py --region ${AWS::Region} --dependency-path /tmp/AgentDependencies
+          python ./awslogs-agent-setup.py --region ${AWS::Region} --dependency-path /tmp/AgentDependencies
           service awslogs start
+          echo "Downloading Neo4j configuration from ${DataBucketName} to /etc/neo4j/neo4j.template..."
+          aws s3 cp s3://${DataBucketName}/config/neo4j/neo4j.template /etc/neo4j/neo4j.template
+          echo "Resetting default password..."
           neo4j-admin set-initial-password ${Neo4jPassword}
+          echo "Starting Neo4j server..."
           systemctl enable neo4j.service
           systemctl start neo4j
-          echo "Starting Neo4j..."
           until $(curl --output /dev/null --silent --head --fail http://localhost:7474) ; do \
             printf '.' ; \
             sleep 1 ; \
@@ -88,10 +93,11 @@ Resources:
           echo "Neo4j is ready :-)"
           mkdir -p /var/lib/neo4j/backups
           echo "Copying boot logs to S3..."
+          mkdir -p /tmp/logs
           journalctl -b > /tmp/logs/instance-boot.log
           echo "Copying Neo4j logs to S3..."
           journalctl -e -u neo4j > /tmp/logs/neo4j.log
-          aws s3 cp --recursive /tmp/logs/ s3://$gfe_bucket/logs/bootstrap/$(date +'%Y/%m/%d/%H')/
+          aws s3 cp --recursive /tmp/logs/ s3://${DataBucketName}/logs/bootstrap/$(date +'%Y/%m/%d/%H')/
           echo "Ready"
       Tags:
         - Key: Name
@@ -147,6 +153,7 @@ Resources:
       Roles:
         - !Ref Neo4jDatabaseInstanceRole
   
+  # TODO: add name
   Neo4jDatabaseElasticIp:
     Type: AWS::EC2::EIP
     Properties:
@@ -186,7 +193,7 @@ Resources:
             type: "StringMap"
             description: "(Required) Specify the information required to access the resource from the source. If source type is GitHub, then you can specify any of the following: 'owner', 'repository', 'path', 'getOptions', 'tokenInfo'. If source type is S3, then you can specify 'path'."
             default:
-              path: !Sub 'https://{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}.s3.amazonaws.com/config/scripts/backup.sh'
+              path: !Sub 'https://${DataBucketName}.s3.amazonaws.com/config/scripts/backup.sh'
           commandLine:
             type: "String"
             description: "(Required) Specify the command line to be executed. The following formats of commands can be run: 'pythonMainFile.py argument1 argument2', 'ansible-playbook -i \"localhost,\" -c local example.yml'"
