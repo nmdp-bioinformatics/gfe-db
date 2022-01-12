@@ -57,9 +57,14 @@ Resources:
       KeyName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}'
       DisableApiTermination: false
       ImageId: !Ref Neo4jAmiId
-      InstanceType: m5.xlarge # m5d.xlarge
+      InstanceType: m5.xlarge
       IamInstanceProfile: !Ref Neo4jDatabaseInstanceProfile
       Monitoring: true
+      BlockDeviceMappings: 
+        - DeviceName: "/dev/sda1"
+          Ebs:
+            VolumeSize: "50"
+            VolumeType: "gp3"
       NetworkInterfaces:
         - AssociatePublicIpAddress: true
           DeviceIndex: "0"
