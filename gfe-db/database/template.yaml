@@ -146,6 +146,14 @@ Resources:
                   - "secretsmanager:ListSecrets"
                 Resource: 
                   - "*"
+              - Effect: "Allow"
+                Action: 
+                  - "logs:CreateLogStream"
+                  - "logs:DescribeLogStreams"
+                  - "logs:PutLogEvents"
+                  - "cloudwatch:PutMetricData"
+                Resource: 
+                  - "*"
   
   Neo4jDatabaseInstanceProfile:
     Type: AWS::IAM::InstanceProfile
