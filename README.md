@@ -11,6 +11,7 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
   - [Table of Contents](#table-of-contents)
   - [Project Structure](#project-structure)
   - [Description](#description)
+  - [Architecture](#architecture)
   - [Services](#services)
     - [Infrastructure](#infrastructure)
     - [Database](#database)
@@ -66,6 +67,12 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
 ## Description
 The `gfe-db` represents IPD-IMGT/HLA sequence data as GFE nodes and relationships in a Neo4j graph database. This application deploys and configures AWS resources for the GFE database and an automated data pipeline for updates.
 
+## Architecture
+<br>
+<p align="center">
+  <img src="docs/img/gfe-db-arch-v220112.png" alt="gfe-db architecture diagram">
+</p>
+
 ## Services
 Resources are organized by service so that deployments can be decoupled using Makefiles. There are three main services within gfe-db: infrastructure, database and pipeline. Common configuration parameters are shared between resources using AWS SSM Paramter Store and Secrets Manager.
 
@@ -76,7 +83,9 @@ The infrastructure service deploys a VPC, public subnet, S3 bucket and common SS
 The database service deploys an EC2 instance running the Neo4j Community Edition AMI (Ubuntu 18.04) into a public subnet. Neo4j is ready to be accessed through a browser once the instance has booted sucessfully.
 
 ### Pipeline
-The pipeline service automates integration of newly released data into the database using a scheduled Lambda. The trigger Lambda watches the source data repository and triggers the pipeline when it detects a new IMGT/HLA version is released. The pipeline uses a Step Functions state machine to orchestrate a build step which produces an intermediate set of CSV files, and the load step which deploys a long-running server that sends Cypher queries to the database over HTTP. Both processes use AWS Batch. State for the pipeline is maintained using a JSON file stored in S3. Pipeline input parameters are also stored as a JSON in S3.
+The pipeline service automates integration of newly released data into the database using a scheduled Lambda. The trigger Lambda watches the source data repository and triggers the pipeline when it detects a new IMGT/HLA version is released. The pipeline uses a Step Functions state machine to orchestrate a Batch jobs including a build step which produces an intermediate set of CSV files, and a load step which deploys a long-running server that generates pre-signed S3 URLs for the CSVs and performs the loading using Cypher queries sent over HTTP. State for the pipeline is maintained using a JSON file stored in S3. Pipeline input parameters are also stored as a JSON in S3.
+
+When loading the full dataset of 35,000+ alleles, the build step will generally take around 15 minutes, however the load step can take several hours.
 
 ## Installation
 Follow the steps to set the deployment environment.
@@ -91,7 +100,7 @@ Follow the steps to set the deployment environment.
 
 ### Quick Start
 1. Install prerequisites
-2. Set environment variables
+2. [Set environment variables](#environment-variables)
 3. Check the config JSONs (parameters and state) and edit the values as desired
 4. Run `make deploy`
 5. Invoke the trigger Lambda to start the pipeline using the current state
@@ -435,5 +444,5 @@ jupyter kernelspec uninstall gfe-db
 -----------------
 <br>
 <p align="center">
-  <img src="https://bethematch.org/content/site/images/btm_logo.png">
+  <img src="https://bethematch.org/content/site/images/btm_logo.png" alt="Be The Match>
 </p>
