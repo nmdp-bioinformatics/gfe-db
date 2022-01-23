@@ -33,7 +33,7 @@ var/
 *.spec
 
 # Installer logs
-pip-log.txt
+pip-$$LOG_FILE
 pip-delete-this-directory.txt
 
 # Unit test / coverage reports

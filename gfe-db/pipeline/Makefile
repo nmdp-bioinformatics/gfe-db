@@ -4,10 +4,15 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-deploy: deploy.cfn deploy.jobs deploy.functions deploy.config
+deploy:
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
+	$(MAKE) deploy.cfn 
+	$(MAKE) deploy.jobs
+	$(MAKE) deploy.functions 
+	$(MAKE) deploy.config
 
 deploy.cfn:
-	$(info [*] Deploying ${SERVICE}...)
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying CloudFormation" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws cloudformation deploy \
 		--region $${REGION} \
 		--template-file template.yaml \
@@ -18,7 +23,7 @@ deploy.cfn:
 			AppName="$${APP_NAME}" \
 			ECRBaseUri="${ECR_BASE_URI}" \
 			BuildServiceRepositoryName="${BUILD_REPOSITORY}" \
-			LoadServiceRepositoryName="${LOAD_REPOSITORY}"
+			LoadServiceRepositoryName="${LOAD_REPOSITORY}" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 deploy.jobs:
 	$(MAKE) -C jobs/ deploy
@@ -27,24 +32,28 @@ deploy.functions:
 	$(MAKE) -C functions/ deploy
 
 deploy.config:
-	$(info [*] Deploying config files to S3...)
-	@aws s3 cp --recursive config/ s3://$$DATA_BUCKET_NAME/config/
+	@config_s3_path=s3://$$DATA_BUCKET_NAME/config/ && \
+	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying config to $$config_s3_path" 2>&1 | tee -a $$CFN_LOG_PATH && \
+	aws s3 cp --recursive config/ $$config_s3_path 2>&1 | tee -a $$CFN_LOG_PATH
 
-delete: delete.functions delete.jobs delete.cfn
+delete:
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
+	$(MAKE) delete.functions 
+	$(MAKE) delete.jobs 
+	$(MAKE) delete.cfn
 
 delete.cfn:
-	$(info [*] Deleting pipeline...)
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting CloudFormation" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws cloudformation delete-stack \
-		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1 || true && \
+		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
 	aws cloudformation wait stack-delete-complete \
-		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1 || true
+		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 delete.jobs:
 	$(MAKE) -C jobs/ delete
 
 delete.functions:
 	$(MAKE) -C functions/ delete
-
 
 #############
 #  Helpers  #

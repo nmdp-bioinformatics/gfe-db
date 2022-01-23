@@ -133,9 +133,9 @@ for release in ${RELEASES}; do
 
 	# TODO: Use this S3 hierarchy: root/release/csv | logs
 	echo -e "Uploading CSVs to s3://$GFE_BUCKET/data/$release/csv/:\n$(ls $DATA_DIR/$release/csv/)"
-	aws s3 --recursive cp $DATA_DIR/$release/csv/ s3://$GFE_BUCKET/data/$release/csv/ > $LOGS_DIR/s3CopyLog.txt
+	aws s3 --recursive cp $DATA_DIR/$release/csv/ s3://$GFE_BUCKET/data/$release/csv/ > $LOGS_DIR/s3Copy$$LOG_FILE
 	mv $LOGS_DIR/gfeBuildLogs.txt $LOGS_DIR/gfeBuildLogs.$release.txt
-	mv $LOGS_DIR/s3CopyLog.txt $LOGS_DIR/s3CopyLog.$release.txt
+	mv $LOGS_DIR/s3Copy$$LOG_FILE $LOGS_DIR/s3CopyLog.$release.txt
 
 	if [ "$MEM_PROFILE" == "True" ]; then
 		mv $LOGS_DIR/mem_profile_agg.txt $LOGS_DIR/mem_profile_agg.$release.txt

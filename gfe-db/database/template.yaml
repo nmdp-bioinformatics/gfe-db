@@ -12,7 +12,8 @@ Parameters:
   DataBucketName:
     Type: String
   Neo4jAmiId:
-    Type: AWS::EC2::Image::Id
+    Type: String #AWS::EC2::Image::Id
+    # Default: ami-0e1324ddfc4d086bb
     Description: AMI ID for Neo4j Community edition from AWS Marketplace
   Neo4jPassword:
     Type: String
@@ -102,7 +103,8 @@ Resources:
           mkdir -p /var/lib/neo4j/backups
           echo "Copying boot logs to S3..."
           mkdir -p /tmp/logs
-          journalctl -b > /tmp/logs/instance-boot.log
+          export INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/instance-id)
+          journalctl -b > /tmp/logs/$INSTANCE_ID-boot.log
           echo "Copying Neo4j logs to S3..."
           journalctl -e -u neo4j > /tmp/logs/neo4j.log
           aws s3 cp --recursive /tmp/logs/ s3://${DataBucketName}/logs/bootstrap/$(date +'%Y/%m/%d/%H')/

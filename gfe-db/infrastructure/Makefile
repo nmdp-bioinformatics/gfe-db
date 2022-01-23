@@ -4,11 +4,12 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-# TODO: Check for secrets in environment variables and cancel if not found
-deploy: deploy.cfn
+deploy: 
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
+	$(MAKE) deploy.cfn
 
 deploy.cfn:
-	$(info [*] Deploying ${SERVICE}...)
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying CloudFormation" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws cloudformation deploy \
 		--region $${REGION} \
 		--template-file template.yaml \
@@ -19,14 +20,22 @@ deploy.cfn:
 			DataBucketName="$$DATA_BUCKET_NAME" \
 			Neo4jUsername="$$NEO4J_USERNAME" \
 			Neo4jPassword="$$NEO4J_PASSWORD" \
-			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN"
+			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 delete: ##=> Delete resources
-	$(info [*] Deleting infrastructure...)
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
+ifeq ($(data),true)
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting data in $$DATA_BUCKET_NAME" 2>&1 | tee -a $$CFN_LOG_PATH
+	@aws s3 rm --recursive s3://$$DATA_BUCKET_NAME/
+endif
+	$(MAKE) delete.cfn
+
+delete.cfn:
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting CloudFormation" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws cloudformation delete-stack \
-		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1 || true && \
+		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
 	aws cloudformation wait stack-delete-complete \
-		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1 || true
+		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 #############
 #  Helpers  #
