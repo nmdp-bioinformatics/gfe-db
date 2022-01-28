@@ -29,7 +29,7 @@ until $(curl --output /dev/null --silent --head --fail http://localhost:7474); d
     sleep 1 ; \
     done
 printf "%s\n" " "
-echo "Neo4j is ready :-)"
+echo "Neo4j is ready"
 
 # Copy Neo4j startup logs
 echo "Writing logs..."

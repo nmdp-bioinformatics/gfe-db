@@ -8,8 +8,12 @@ export APP_NAME ?= gfe-db
 export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity --query Account --output text)
 export REGION ?= us-east-1
 
-# Application Configuration, can move to JSON
-export NEO4J_AMI_ID ?= ami-0a041a294ad6458af # Requires subscription through AWS Marketplace
+# TODO: Application Configuration, can move to JSON
+export ROOT_DIR ?= $(shell pwd)
+export LOGS_DIR ?= $(shell echo "${ROOT_DIR}/logs")
+export CFN_LOG_PATH ?= $(shell echo "${LOGS_DIR}/cfn/logs.txt")
+export PURGE_LOGS ?= false
+export NEO4J_AMI_ID ?= ami-0e1324ddfc4d086bb # Requires subscription through AWS Marketplace
 export DATABASE_VOLUME_SIZE ?= 50
 # TODO: Add TRIGGER_SCHEDULE variable
 # TODO: Add BACKUP_SCHEDULE variable
@@ -24,12 +28,21 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-deploy: check-env ##=> Deploy services
-	$(info [*] Deploying ${APP_NAME} to ${AWS_ACCOUNT}...)
+deploy: logs.purge check-env ##=> Deploy services
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) deploy.infrastructure
 	$(MAKE) deploy.database
 	$(MAKE) deploy.pipeline
-	@echo "Finished deploying ${APP_NAME}."
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished deploying ${APP_NAME}" 2>&1 | tee -a ${CFN_LOG_PATH}
+
+logs.purge: logs.dirs
+ifeq ($(PURGE_LOGS),true)
+	@rm ${LOGS_DIR}/cfn/*.txt
+endif
+
+logs.dirs:
+	@mkdir -p "${LOGS_DIR}/cfn" || true
+
 
 check-env:
 ifndef AWS_PROFILE
@@ -44,7 +57,7 @@ endif
 ifndef GITHUB_PERSONAL_ACCESS_TOKEN
 $(error GITHUB_PERSONAL_ACCESS_TOKEN is not set.)
 endif
-	@echo "Found environment variables"
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 # Deploy specific stacks
 deploy.infrastructure:
@@ -60,12 +73,12 @@ deploy.config:
 	$(MAKE) -C gfe-db/pipeline/ deploy.config
 	$(MAKE) -C gfe-db/database/ deploy.config
 
-delete: ##=> Delete services
-	$(info [*] Deleting ${APP_NAME} in ${AWS_ACCOUNT}...)
+delete: # data=true/false ##=> Delete services
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${APP_NAME} in ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) delete.pipeline
 	$(MAKE) delete.database
 	$(MAKE) delete.infrastructure
-	@echo "Finished deleting ${APP_NAME}."
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished deleting ${APP_NAME} in ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 # Delete specific stacks
 delete.infrastructure:
@@ -76,6 +89,18 @@ delete.database:
 
 delete.pipeline:
 	$(MAKE) -C gfe-db/pipeline/ delete
+
+# Administrative functions
+get.data:
+	@mkdir -p ${ROOT_DIR}/data
+	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/data/ ${ROOT_DIR}/data/
+
+# TODO: bookmark
+# get.config:
+# ifndef dir=""
+# 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/data/ ${ROOT_DIR}/data/ 
+# endif
+# 	# @aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/data/ $(dir)
 
 # run: ##=> Load an IMGT/HLA release version; make run release=3450 align=False kir=False mem_profile=False limit=1000
 # 	$(info [*] Starting StepFunctions execution for release $(release))

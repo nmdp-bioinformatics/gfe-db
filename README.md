@@ -97,6 +97,7 @@ Follow the steps to set the deployment environment.
 * SAM CLI
 * Docker
 * jq
+* coreutils
 
 ### Quick Start
 1. Install prerequisites
