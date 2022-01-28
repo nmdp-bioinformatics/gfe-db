@@ -122,7 +122,7 @@ for release in ${RELEASES}; do
 	fi
 	
 	# Builds CSV files
-	python "$SRC_DIR"/build.py \
+	python "$SRC_DIR"/app.py \
 		-o "$DATA_DIR/$release/csv" \
 		-r "$release" \
 		$KIRFLAG \
@@ -130,6 +130,7 @@ for release in ${RELEASES}; do
 		$MEM_PROFILE_FLAG \
 		-v \
 		-l $LIMIT
+	[ $? -ne 0 ] && exit 1;
 
 	# TODO: Use this S3 hierarchy: root/release/csv | logs
 	echo -e "Uploading CSVs to s3://$GFE_BUCKET/data/$release/csv/:\n$(ls $DATA_DIR/$release/csv/)"
@@ -143,7 +144,7 @@ for release in ${RELEASES}; do
 	fi
 
 	echo -e "Uploading logs to s3://$GFE_BUCKET/logs/$release/:\n$(ls $LOGS_DIR/)"
-	aws s3 --recursive cp $LOGS_DIR/ s3://$GFE_BUCKET/logs/$release/ > $LOGS_DIR/s3CopyLog.Local.txt
+	aws s3 --recursive cp $LOGS_DIR/ s3://$GFE_BUCKET/logs/pipeline/build/$release/ > $LOGS_DIR/s3CopyLog.Local.txt
 
 done
 

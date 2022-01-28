@@ -134,8 +134,8 @@ def run_cypher(cypher):
         response_dict = json.loads(response.content)
       
         if len(response_dict['errors']) > 0:
-            for error in response_dict['errors']:
-                logger.error(f'Error loading Neo4j: {error}')
+            for err in response_dict['errors']:
+                raise err
         else:
             logger.info(response_dict)
         
