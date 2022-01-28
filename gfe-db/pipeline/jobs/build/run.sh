@@ -144,7 +144,7 @@ for release in ${RELEASES}; do
 	fi
 
 	echo -e "Uploading logs to s3://$GFE_BUCKET/logs/$release/:\n$(ls $LOGS_DIR/)"
-	aws s3 --recursive cp $LOGS_DIR/ s3://$GFE_BUCKET/logs/$release/ > $LOGS_DIR/s3CopyLog.Local.txt
+	aws s3 --recursive cp $LOGS_DIR/ s3://$GFE_BUCKET/logs/pipeline/build/$release/ > $LOGS_DIR/s3CopyLog.Local.txt
 
 done
 

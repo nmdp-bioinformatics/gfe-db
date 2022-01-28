@@ -41,7 +41,10 @@ ifeq ($(PURGE_LOGS),true)
 endif
 
 logs.dirs:
-	@mkdir -p "${LOGS_DIR}/cfn" || true
+	@mkdir -p "${LOGS_DIR}/cfn" \
+		"${LOGS_DIR}/pipeline/build" \
+		"${LOGS_DIR}/pipeline/load" \
+		"${LOGS_DIR}/database/bootstrap" || true
 
 
 check-env:

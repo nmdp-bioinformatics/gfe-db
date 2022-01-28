@@ -107,7 +107,7 @@ Resources:
           journalctl -b > /tmp/logs/$INSTANCE_ID-boot.log
           echo "Copying Neo4j logs to S3..."
           journalctl -e -u neo4j > /tmp/logs/neo4j.log
-          aws s3 cp --recursive /tmp/logs/ s3://${DataBucketName}/logs/bootstrap/$(date +'%Y/%m/%d/%H')/
+          aws s3 cp --recursive /tmp/logs/ s3://${DataBucketName}/logs/database/bootstrap/$(date +'%Y/%m/%d/%H')/
           echo "Ready"
       Tags:
         - Key: Name
