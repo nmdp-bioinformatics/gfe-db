@@ -90,6 +90,18 @@ delete.database:
 delete.pipeline:
 	$(MAKE) -C gfe-db/pipeline/ delete
 
+# Administrative functions
+get.data:
+	@mkdir -p ${ROOT_DIR}/data
+	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/data/ ${ROOT_DIR}/data/
+
+# TODO: bookmark
+# get.config:
+# ifndef dir=""
+# 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/data/ ${ROOT_DIR}/data/ 
+# endif
+# 	# @aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/data/ $(dir)
+
 # run: ##=> Load an IMGT/HLA release version; make run release=3450 align=False kir=False mem_profile=False limit=1000
 # 	$(info [*] Starting StepFunctions execution for release $(release))
 

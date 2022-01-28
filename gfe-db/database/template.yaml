@@ -99,7 +99,7 @@ Resources:
             sleep 1 ; \
           done
           printf "%s\n" " "
-          echo "Neo4j is ready :-)"
+          echo "Neo4j is ready"
           mkdir -p /var/lib/neo4j/backups
           echo "Copying boot logs to S3..."
           mkdir -p /tmp/logs

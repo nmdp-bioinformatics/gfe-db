@@ -11,6 +11,7 @@ deploy:
 	$(MAKE) deploy.config
 	$(MAKE) deploy.backup
 	$(MAKE) deploy.database
+	$(MAKE) deploy.copy-s3-logs
 
 
 deploy.check-key-pair: ##=> Checks if the key pair already exists and creates it if it does not
