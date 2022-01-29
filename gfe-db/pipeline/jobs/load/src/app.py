@@ -31,6 +31,7 @@ port = "7474"
 endpoint = "db/neo4j/tx/commit"
 url = f'{protocol}://{host}:{port}/{endpoint}'
 
+# TODO: Update S3 URL array using pipeline inputs parameters, for example exclude all_alignments if alignments were not included
 s3_urls = [
     f's3://{s3_bucket}/data/{release}/csv/all_groups.{release}.csv',
     f's3://{s3_bucket}/data/{release}/csv/all_cds.{release}.csv',
