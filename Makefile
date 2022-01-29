@@ -28,6 +28,7 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
+# TODO: Update email and name for Submitter node
 deploy: logs.purge check-env ##=> Deploy services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) deploy.infrastructure

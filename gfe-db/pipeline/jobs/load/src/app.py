@@ -9,6 +9,7 @@ import boto3
 
 # TODO: update headers to include "X-Stream": "true"
 
+# TODO: Use similar logging configuration to build script so that logs appear in CloudWatch
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
