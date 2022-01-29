@@ -150,6 +150,7 @@ done
 
 END_EXECUTION=$(( SECONDS - $START_EXECUTION ))
 echo "Finished in $END_EXECUTION seconds"
+exit 0
 
 # For debugging to keep the build server running
 # sleep 1h

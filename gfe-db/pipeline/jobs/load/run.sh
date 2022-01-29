@@ -46,3 +46,6 @@ NEO4J_PASSWORD: $NEO4J_PASSWORD"
 echo
 echo "Loading Neo4j database..."
 python3 $SRC_DIR/app.py
+
+[ $? -ne 0 ] && exit 1;
+exit 0
