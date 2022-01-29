@@ -3,6 +3,12 @@ USING PERIODIC COMMIT 50000
 LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as row
 MERGE (gfe:GFE { gfe_name: row.gfe_name })
 ON CREATE SET gfe.locus = row.locus;
+// RETURN '(:Submitter)' AS `Creating Submitter nodes...`;
+CREATE (sub:Submitter { 
+    institution: 'EMBL-EBI',
+    name: '<name>',
+    email: '<email>'
+    });
 // RETURN '(:Sequence)' AS `Creating Sequence nodes...`;
 USING PERIODIC COMMIT 50000
 LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as row
@@ -53,22 +59,12 @@ FOREACH(_ IN CASE
             prot.seq_id = align_row.seq_id,
             prot.rank = align_row.rank
 );
-// RETURN '(:CDS)' AS `Creating CDS nodes...`;
-USING PERIODIC COMMIT 50000 
-LOAD CSV WITH HEADERS FROM 'file:///all_cds.RELEASE.csv' as cds_row
-MERGE (cds:CDS { gfe_name: cds_row.gfe_name })
-ON CREATE SET cds.bp_seq_id = cds_row.bp_seq_id,
-    cds.bp_sequence = cds_row.bp_sequence,
-    cds.bp_length = size(cds_row.bp_sequence),
-    cds.aa_seq_id = cds_row.aa_seq_id,
-    cds.aa_sequence = cds_row.aa_sequence,
-    cds.aa_length = size(cds_row.aa_sequence);
-// RETURN '(:IMGT_HLA)' AS `Creating IMGT_HLA nodes...`;
+// RETURN '(:WHO_Designation)' AS `Creating WHO_Designation nodes...`;
 USING PERIODIC COMMIT 50000
 LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as row
-MERGE (imgt:IMGT_HLA { name: row.hla_name })
-ON CREATE SET imgt.releases = [replace(row.imgt_release, '.', '')]
-ON MATCH SET imgt.releases = imgt.releases + [replace(row.imgt_release, '.', '')];
+MERGE (who:WHO_Designation { name: row.hla_name })
+ON CREATE SET who.releases = [replace(row.imgt_release, '.', '')]
+ON MATCH SET who.releases = who.releases + [replace(row.imgt_release, '.', '')];
 // RETURN '(:G)' AS `Creating G nodes...`;
 USING PERIODIC COMMIT 50000 
 LOAD CSV WITH HEADERS FROM 'file:///all_groups.RELEASE.csv' as groups_row
@@ -76,34 +72,30 @@ FOREACH(_ IN CASE
     WHEN groups_row.ard_name = 'G' THEN [1] 
     ELSE [] END | 
         MERGE (_g:G { ard_id: groups_row.ard_id })
-        ON CREATE SET _g.label = 'G'
 );
-// RETURN '(:lg)' AS `Creating lg nodes...`;
+// RETURN '(:ARD)' AS `Creating lg nodes...`;
 USING PERIODIC COMMIT 50000 
 LOAD CSV WITH HEADERS FROM 'file:///all_groups.RELEASE.csv' as groups_row
 FOREACH(_ IN CASE 
-    WHEN groups_row.ard_name = 'lg' THEN [1] 
+    WHEN groups_row.ard_name IN ['lg', 'lgx'] THEN [1] 
     ELSE [] END |
-        MERGE (_lg:lg { ard_id: groups_row.ard_id })
-        ON CREATE SET _lg.label = 'lg'
+        MERGE (_lg:ARD { ard_id: groups_row.ard_id })
 );
-// RETURN '(:lgx)' AS `Creating lgx nodes...`;
-USING PERIODIC COMMIT 50000 
-LOAD CSV WITH HEADERS FROM 'file:///all_groups.RELEASE.csv' as groups_row
-FOREACH(_ IN CASE 
-    WHEN groups_row.ard_name = 'lgx' THEN [1] 
-    ELSE [] END |
-        MERGE (_lgx:lgx { ard_id: groups_row.ard_id })
-        ON CREATE SET _lgx.label = 'lgx'
-);
-// RETURN '(:IMGT_HLA)-[:HAS_GFE]->(:GFE)' AS `Creating relationships...`;
+// RETURN '(:WHO_Designation)-[:HAS_WHO]->(:GFE)' AS `Creating relationships...`;
 USING PERIODIC COMMIT 50000
 LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as row
 MATCH (gfe:GFE { gfe_name: row.gfe_name })
-MATCH (imgt:IMGT_HLA { name: row.hla_name })
-MERGE (imgt)-[rel:HAS_GFE]->(gfe)
+MATCH (who:WHO_Designation { name: row.hla_name })
+MERGE (who)-[rel:HAS_WHO]->(gfe)
 ON CREATE SET rel.releases = [replace(row.imgt_release, '.', '')]
 ON MATCH SET rel.releases = rel.releases + [replace(row.imgt_release, '.', '')];
+// RETURN '(:Submitter)-[:SUBMITTED]->(:GFE)' AS `Creating relationships...`;
+USING PERIODIC COMMIT 50000
+LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as row
+MATCH (sub:Submitter)
+MATCH (gfe:GFE { gfe_name: row.gfe_name })
+MERGE (sub)-[s:SUBMITTED]->(gfe)
+ON CREATE SET s.submit_date = date();
 // RETURN '(:GFE)-[:HAS_SEQUENCE]->(:Sequence)' AS `Creating relationships...`;
 USING PERIODIC COMMIT 50000
 LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as row
@@ -141,30 +133,16 @@ MATCH (gfe:GFE { gfe_name: align_row.gfe_name })
 MATCH (prot:ProteinAlignment { aa_sequence: align_row.aa_sequence })
 MERGE (gfe)-[:HAS_ALIGNMENT]->(prot);
 // apoc.periodic.iterate()
-// RETURN '(:IMGT_HLA)-[:G]->(:G)' AS `Creating relationships...`;
+// RETURN '(:WHO_Designation)-[:HAS_G]->(:G)' AS `Creating relationships...`;
 USING PERIODIC COMMIT 50000 
 LOAD CSV WITH HEADERS FROM 'file:///all_groups.RELEASE.csv' as groups_row
-MATCH (hla:IMGT_HLA { name: groups_row.hla_name })
+MATCH (who:WHO_Designation { name: groups_row.hla_name })
 MATCH (_g:G { ard_id: groups_row.ard_id }) 
-MERGE (hla)-[:G]->(_g);
+MERGE (who)-[:HAS_G]->(_g);
 // apoc.periodic.iterate()
-// RETURN '(:IMGT_HLA)-[:lg]->(:lg)' AS `Creating relationships...`;
+// RETURN '(:WHO_Designation)-[:ARD]->(:ARD)' AS `Creating relationships...`;
 USING PERIODIC COMMIT 50000 
 LOAD CSV WITH HEADERS FROM 'file:///all_groups.RELEASE.csv' as groups_row
-MATCH (hla:IMGT_HLA { name: groups_row.hla_name })
-MATCH (_lg:lg { ard_id: groups_row.ard_id }) 
-MERGE (hla)-[:lg]->(_lg);
-// apoc.periodic.iterate()
-// RETURN '(:IMGT_HLA)-[:lgx]->(:lgx)' AS `Creating relationships...`;
-USING PERIODIC COMMIT 50000 
-LOAD CSV WITH HEADERS FROM 'file:///all_groups.RELEASE.csv' as groups_row
-MATCH (hla:IMGT_HLA { name: groups_row.hla_name })
-MATCH (_lgx:lgx { ard_id: groups_row.ard_id })
-MERGE (hla)-[:lgx]->(_lgx);
-// RETURN '(:Sequence)-[:HAS_CDS]->(:CDS)' AS `Creating relationships...`;
-USING PERIODIC COMMIT 50000 
-LOAD CSV WITH HEADERS FROM 'file:///all_cds.RELEASE.csv' as cds_row
-MATCH (gfe:GFE)-[:HAS_SEQUENCE]->(seq:Sequence)
-MATCH (cds:CDS { bp_sequence: cds_row.bp_sequence })
-WHERE cds_row.gfe_name = gfe.gfe_name
-MERGE (seq)-[:HAS_CDS]->(cds);
+MATCH (who:WHO_Designation { name: groups_row.hla_name })
+MATCH (_ard:ARD { ard_id: groups_row.ard_id }) 
+MERGE (who)-[:HAS_ARD]->(_ard);

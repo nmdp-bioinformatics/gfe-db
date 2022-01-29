@@ -67,6 +67,11 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
 ## Description
 The `gfe-db` represents IPD-IMGT/HLA sequence data as GFE nodes and relationships in a Neo4j graph database. This application deploys and configures AWS resources for the GFE database and an automated data pipeline for updates.
 
+<br>
+<p align="center">
+  <img src="docs/img/schema-light-v220128.png" alt="gfe-db schema">
+</p>
+
 ## Architecture
 <br>
 <p align="center">
