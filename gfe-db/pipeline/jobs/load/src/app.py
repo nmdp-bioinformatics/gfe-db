@@ -34,7 +34,7 @@ url = f'{protocol}://{host}:{port}/{endpoint}'
 # TODO: Update S3 URL array using pipeline inputs parameters, for example exclude all_alignments if alignments were not included
 s3_urls = [
     f's3://{s3_bucket}/data/{release}/csv/all_groups.{release}.csv',
-    f's3://{s3_bucket}/data/{release}/csv/all_cds.{release}.csv',
+    # f's3://{s3_bucket}/data/{release}/csv/all_cds.{release}.csv', # Removed from Neo4j schema
     f's3://{s3_bucket}/data/{release}/csv/all_features.{release}.csv',
     f's3://{s3_bucket}/data/{release}/csv/gfe_sequences.{release}.csv'
 ]
@@ -44,6 +44,7 @@ if alignments:
 
 if kir: 
     s3_urls.append(f's3://{s3_bucket}/data/{release}/csv/all_kir.{release}.csv')
+
 
 def generate_presigned_urls(s3_urls, expire=3600):
     """Accepts a list of S3 URLs or paths and returns
@@ -115,7 +116,7 @@ def run_cypher(cypher):
         ]
     }
     
-    logger.debug(payload)
+    logger.debug(json.dumps(payload))
     
     # Headers
     headers = { 
@@ -136,9 +137,9 @@ def run_cypher(cypher):
       
         if len(response_dict['errors']) > 0:
             for err in response_dict['errors']:
-                raise err
+                logger.error(err)
         else:
-            logger.info(response_dict)
+            logger.info(json.dumps(response_dict))
         
         return response_dict
 
@@ -148,8 +149,6 @@ def run_cypher(cypher):
 
 
 if __name__ == "__main__":
-
-    # s3_urls = list(map(lambda x: x.replace("RELEASE", release), s3_urls))
 
     s3 = boto3.client('s3')
 
@@ -161,16 +160,18 @@ if __name__ == "__main__":
     cypher_path = "/".join([f'{cypher_dir}/{load_script}'])
     cypher_script = update_cypher(cypher_path)
     cypher = clean_cypher(cypher_script)
-    logger.info(f'Cypher script: {cypher}')
+    logger.info(f'Cypher script: {json.dumps(cypher)}')
 
     start = time.time()
     for idx, statement in enumerate(cypher):
         logger.info(f'Executing statement: {statement}')
         statement_start = time.time()
+        # TODO: Update to resolve warning: 
+        # The usage of the PERIODIC COMMIT hint has been deprecated. Please use a transactional subquery (e.g. `CALL { ... } IN TRANSACTIONS`) instead.
         response = run_cypher(statement)
         statement_end = time.time()
         statement_elapsed_time = round(statement_end - statement_start, 2)
-        logger.info(f'Loaded in {statement_elapsed_time} s\nResponse: {response}\n')
+        logger.info(f'Loaded in {statement_elapsed_time} s\nResponse: {json.dumps(response)}\n')
             
     end = time.time()
     time_elapsed = round(end - start, 2)
