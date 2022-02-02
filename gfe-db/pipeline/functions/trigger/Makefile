@@ -30,6 +30,8 @@ deploy:
 			TriggerFunctionSchedule="$$(cat environment.json | jq -r '.TriggerFunctionSchedule')" \
 			GitHubRepositoryOwner="$$(cat environment.json | jq -r '.FunctionConfiguration.Environment.Variables.GITHUB_REPOSITORY_OWNER')" \
 			GitHubRepositoryName="$$(cat environment.json | jq -r '.FunctionConfiguration.Environment.Variables.GITHUB_REPOSITORY_NAME')" \
+			PipelineStatePath="$$(cat environment.json | jq -r '.FunctionConfiguration.Environment.Variables.PIPELINE_STATE_PATH')" \
+			PipelineParamsPath="$$(cat environment.json | jq -r '.FunctionConfiguration.Environment.Variables.PIPELINE_PARAMS_PATH')"  \
 			2>&1 | tee -a $$CFN_LOG_PATH || true
 
 delete: ##=> Delete service

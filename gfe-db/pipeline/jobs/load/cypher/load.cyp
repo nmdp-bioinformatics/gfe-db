@@ -4,7 +4,7 @@ LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as row
 MERGE (gfe:GFE { gfe_name: row.gfe_name })
 ON CREATE SET gfe.locus = row.locus;
 // RETURN '(:Submitter)' AS `Creating Submitter nodes...`;
-CREATE (sub:Submitter { 
+MERGE (sub:Submitter { 
     institution: 'EMBL-EBI',
     name: '<name>',
     email: '<email>'

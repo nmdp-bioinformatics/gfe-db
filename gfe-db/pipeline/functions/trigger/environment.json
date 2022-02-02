@@ -6,7 +6,9 @@
         "Environment": {
             "Variables": {
                 "GITHUB_REPOSITORY_OWNER": "ANHIG",
-                "GITHUB_REPOSITORY_NAME": "IMGTHLA"
+                "GITHUB_REPOSITORY_NAME": "IMGTHLA",
+                "PIPELINE_STATE_PATH": "config/IMGTHLA-repository-state.json",
+                "PIPELINE_PARAMS_PATH": "config/pipeline-input.json"
             }
         }
     }
