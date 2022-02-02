@@ -15,7 +15,13 @@ GITHUB_PERSONAL_ACCESS_TOKEN = os.environ["GITHUB_PERSONAL_ACCESS_TOKEN"]
 GITHUB_REPOSITORY_OWNER = os.environ["GITHUB_REPOSITORY_OWNER"]
 GITHUB_REPOSITORY_NAME = os.environ["GITHUB_REPOSITORY_NAME"]
 GFE_BUCKET = os.environ["GFE_BUCKET"]
+# TODO: add to Makefile
+PIPELINE_STATE_PATH = os.environ["PIPELINE_STATE_PATH"]
+PIPELINE_PARAMS_PATH = os.environ["PIPELINE_PARAMS_PATH"]
 UPDATE_PIPELINE_STATE_MACHINE_ARN = os.environ["UPDATE_PIPELINE_STATE_MACHINE_ARN"]
+
+branches_state_path = f"s3://{GFE_BUCKET}/{PIPELINE_STATE_PATH}"
+pipeline_params_path = f"s3://{GFE_BUCKET}/{PIPELINE_PARAMS_PATH}"
 
 s3 = boto3.client('s3')
 sfn = boto3.client('stepfunctions')
@@ -26,39 +32,22 @@ def lambda_handler(event, context):
 
     logger.info(json.dumps(event))
 
-    # Load the previous repository state
-    branches_config_path = f"s3://{GFE_BUCKET}/config/IMGTHLA-repository-state.json"
-    branches_config = read_config(branches_config_path)
-    previous_state = branches_config['releases']
-
-    # Get the current repository state
-    current_state = get_releases(GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY_NAME)
-
-    # Log repository states
-    logger.info(f'Previous repository state:\n{json.dumps(previous_state)}')
-    logger.info(f'Current repository state:\n{json.dumps(current_state)}')
-
-    # Compare the previous state with the current state
-    new_releases = check_new_releases(previous_state, current_state)
+    if "releases" in event:
+        logging.info(f'Reading parameters from event')
+        new_releases, params = parse_event(event)
+    else:
+        # Load the previous repository state
+        logging.info(f'Reading parameters from file')
+        new_releases, params = parse_state(branches_state_path, pipeline_params_path)
     
     if new_releases:
-    
-        # TODO: Describe current executions and make sure the release is not already being built
-        # releases_processing = set(check_current_executions(UPDATE_PIPELINE_STATE_MACHINE_ARN))
-
-        # Load the current pipeline params
-        params_path = f"s3://{GFE_BUCKET}/config/pipeline-input.json"
-        params = read_config(params_path)
-
-        logger.info(f'Running pipeline with these params:\n{json.dumps(params)}')
-
         state_machine_input = []
 
         for release in new_releases:
-            
             params_input = copy.deepcopy(params)
-            params_input["RELEASES"] = release
-            logger.info(f'{json.dumps(params_input)}')            
+            params_input["releases"] = release
+            params_input = {k.upper():v for k,v in params_input.items()}
+            logger.info(f'Running pipeline with these parameters:\n{json.dumps(params_input)}')            
             state_machine_input.append(params_input)
 
         response = sfn.start_execution(
@@ -66,7 +55,7 @@ def lambda_handler(event, context):
             input=json.dumps(state_machine_input))
 
         # Update the config file
-        write_config(branches_config_path)
+        write_config(branches_state_path)
 
         return {
             "status": response['ResponseMetadata']['HTTPStatusCode'],
@@ -76,13 +65,12 @@ def lambda_handler(event, context):
 
     else:
         # Update the config file
-        write_config(branches_config_path)
+        write_config(branches_state_path)
         
         return {
             "status": 200,
             "message": "No new releases found"
         }
-
 
 
 # Needed to serialize datetime objects in JSON responses
@@ -236,10 +224,49 @@ def check_current_executions(state_machine_arn):
         response = sfn.describe_execution(
             executionArn=executions_arn)
 
-        releases_processing = releases_processing + [params["RELEASES"] for params in json.loads(response['input'])]
+        releases_processing = releases_processing + [params["releases"] for params in json.loads(response['input'])]
 
     return releases_processing
     
 
+def parse_event(event):
+    """Restructures the event and returns pipeline execution parameters"""
+
+    new_releases = str(event["releases"]).replace(" ", "").split(",")
+    params = {k:v for k,v in event.items() if k != "releases"}
+
+    return new_releases, params
+
+
+def parse_state(state_path, params_path):
+    """"""
+    previous_state = read_config(state_path)['releases']
+
+    # Get the current repository state
+    current_state = get_releases(GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY_NAME)
+
+    # Log repository states
+    logger.info(f'Previous repository state:\n{json.dumps(previous_state)}')
+    logger.info(f'Current repository state:\n{json.dumps(current_state)}')
+
+    # Compare the previous state with the current state
+    new_releases = check_new_releases(previous_state, current_state)
+
+    # TODO: Describe current executions and make sure the release is not already being built
+    # releases_processing = set(check_current_executions(UPDATE_PIPELINE_STATE_MACHINE_ARN))
+
+    # Load the current pipeline params
+    params = read_config(params_path)
+
+    return new_releases, params
+
+
 if __name__ == "__main__":
-    lambda_handler("","")
+
+    path = '/Users/ammon/Documents/00-Projects/nmdp-bioinformatics/02-Repositories/gfe-db/gfe-db/pipeline/functions/trigger/src/event.json'
+    # path = '/Users/ammon/Documents/00-Projects/nmdp-bioinformatics/02-Repositories/gfe-db/gfe-db/pipeline/functions/trigger/src/schedule-event.json'
+
+    with open(path, "r") as file:
+        event = json.load(file)
+
+    lambda_handler(event,"")

@@ -23,6 +23,9 @@ export DATA_BUCKET_NAME ?= ${STAGE}-${APP_NAME}-${AWS_ACCOUNT}-${REGION}
 export ECR_BASE_URI ?= ${AWS_ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com
 export BUILD_REPOSITORY ?= ${STAGE}-${APP_NAME}-build-service
 export LOAD_REPOSITORY ?= ${STAGE}-${APP_NAME}-load-service
+export PIPELINE_STATE_PATH ?= config/IMGTHLA-repository-state.json
+export PIPELINE_PARAMS_PATH ?= config/pipeline-input.json
+
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -95,16 +98,25 @@ delete.pipeline:
 	$(MAKE) -C gfe-db/pipeline/ delete
 
 # Administrative functions
-get.data:
+get.data: #=> Download the build data locally
 	@mkdir -p ${ROOT_DIR}/data
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/data/ ${ROOT_DIR}/data/
 
-# TODO: bookmark
+get.logs: #=> Download all logs locally
+	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/logs/ ${LOGS_DIR}/
+
+
+# TODO: finished administrative targets
 # get.config:
 # ifndef dir=""
 # 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/data/ ${ROOT_DIR}/data/ 
 # endif
 # 	# @aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/data/ $(dir)
+
+# show.config:
+# get.state:
+# show.state:
+# show.endpoint:
 
 # run: ##=> Load an IMGT/HLA release version; make run release=3450 align=False kir=False mem_profile=False limit=1000
 # 	$(info [*] Starting StepFunctions execution for release $(release))
