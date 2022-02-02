@@ -38,6 +38,7 @@ deploy.backup:
 		| tee -a $$CFN_LOG_PATH && \
 	aws s3 cp scripts/backup.sh $$script_s3_path
 
+# TODO: get endpoint and store as SSM parameter to replace resource in CloudFormation template
 deploy.database:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Neo4j to EC2 with ${NEO4J_AMI_ID}" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws cloudformation deploy \
@@ -52,6 +53,7 @@ deploy.database:
 			Neo4jAmiId="${NEO4J_AMI_ID}" \
 			Neo4jPassword="$$NEO4J_PASSWORD" \
 			DatabaseVolumeSize="$$DATABASE_VOLUME_SIZE" 2>&1 | tee -a $$CFN_LOG_PATH || true
+
 
 deploy.copy-s3-logs:
 	@aws s3 cp --recursive s3://$$DATA_BUCKET_NAME/logs/ $$LOGS_DIR/
