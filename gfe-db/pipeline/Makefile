@@ -23,7 +23,7 @@ deploy.cfn:
 			AppName="$${APP_NAME}" \
 			ECRBaseUri="${ECR_BASE_URI}" \
 			BuildServiceRepositoryName="${BUILD_REPOSITORY}" \
-			LoadServiceRepositoryName="${LOAD_REPOSITORY}" 2>&1 | tee -a $$CFN_LOG_PATH || true
+			LoadServiceRepositoryName="${LOAD_REPOSITORY}" 2>&1 | tee -a $$CFN_LOG_PATH
 
 deploy.jobs:
 	$(MAKE) -C jobs/ deploy

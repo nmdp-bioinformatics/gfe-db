@@ -58,6 +58,7 @@ def lambda_handler(event, context):
         write_config(branches_state_path)
 
         return {
+            # TODO: add timestamp
             "status": response['ResponseMetadata']['HTTPStatusCode'],
             "message": "Pipeline triggered",
             "input": state_machine_input
