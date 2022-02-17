@@ -1,3 +1,6 @@
+"""This load script parses a cypher script .cyp file and loads each statement to a remote Neo4j
+database over HTTP (not HTTPS yet). When developing this script, ensure that the logic is agnostic
+to the schemas used by Cypher/Neo4j."""
 import os
 import logging
 import time
@@ -7,8 +10,8 @@ import json
 import requests
 import boto3
 
+# TODO: load.cyp, try updating commented lines with a key value pair and extract these values for logging
 # TODO: update headers to include "X-Stream": "true"
-
 # TODO: Use similar logging configuration to build script so that logs appear in CloudWatch
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -24,13 +27,17 @@ alignments = ast.literal_eval(os.environ["ALIGN"])
 # TODO: add KIR
 kir = ast.literal_eval(os.environ["KIR"])
 
-host = os.environ["NEO4J_HOST"]
+host = os.environ["NEO4J_HOST"] # Retrieved and exported by run.sh using NEO4J_HOST_SSM_PARAM variable
 username = os.environ["NEO4J_USERNAME"]
 password = os.environ["NEO4J_PASSWORD"]
 protocol = 'http'
 port = "7474"
 endpoint = "db/neo4j/tx/commit"
 url = f'{protocol}://{host}:{port}/{endpoint}'
+
+expire_seconds = 86400 # S3 pre-signed URLs are valid for 1 day or 86400 seconds
+logger.info(f'S3 pre-signed URLs are valid for {expire_seconds} seconds')
+
 
 # TODO: Update S3 URL array using pipeline inputs parameters, for example exclude all_alignments if alignments were not included
 s3_urls = [
@@ -47,7 +54,7 @@ if kir:
     s3_urls.append(f's3://{s3_bucket}/data/{release}/csv/all_kir.{release}.csv')
 
 
-def generate_presigned_urls(s3_urls, expire=3600):
+def generate_presigned_urls(s3_urls, expire_seconds=3600):
     """Accepts a list of S3 URLs or paths and returns
     a dictionary of pre-signed URLs for each"""
     
@@ -71,7 +78,7 @@ def generate_presigned_urls(s3_urls, expire=3600):
                 'Bucket': bucket,
                 'Key': key
             },
-            ExpiresIn=expire
+            ExpiresIn=expire_seconds
         )
         
         presigned_urls[s3_url] = url
@@ -155,7 +162,7 @@ if __name__ == "__main__":
 
     # Not working in us-east-2, possibly because of endpoint_url formatting
     # See: https://github.com/boto/boto3/issues/1982
-    presigned_urls = generate_presigned_urls(s3_urls)
+    presigned_urls = generate_presigned_urls(s3_urls, expire_seconds=expire_seconds)
     time.sleep(10)
 
     cypher_path = "/".join([f'{cypher_dir}/{load_script}'])

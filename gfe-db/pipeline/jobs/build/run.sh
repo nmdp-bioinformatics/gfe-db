@@ -49,14 +49,17 @@ if [ ! -d "$DATA_DIR" ]; then
 	echo "Creating new directory in root: $DATA_DIR"
 	mkdir -p $DATA_DIR
 else
+	# TODO: get full path
 	echo "Data directory: $DATA_DIR"
 fi
 
 # Check if logs directory exists
 if [ ! -d "$LOGS_DIR" ]; then
+	# TODO: get full path
 	echo "Creating logs directory: $LOGS_DIR"
 	mkdir -p $LOGS_DIR
 else
+	# TODO: get full path
 	echo "Logs directory: $LOGS_DIR"
 fi
 
@@ -97,9 +100,11 @@ for release in ${RELEASES}; do
 
 	# Check if data directory exists
 	if [ ! -d "$DATA_DIR/$release/csv" ]; then
+		# TODO: get full path
 		echo "Creating new directory in root: $DATA_DIR/$release/csv..."
 		mkdir -p $DATA_DIR/$release/csv
 	else
+		# TODO: get full path
 		echo "CSV directory: $DATA_DIR/$release/csv"
 	fi
 

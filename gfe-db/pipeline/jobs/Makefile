@@ -6,27 +6,36 @@ target:
 
 deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH
-	$(MAKE) ecr.login
+	# $(MAKE) ecr.login
 	$(MAKE) deploy-ecr.jobs.build
 	$(MAKE) deploy-ecr.jobs.load
 
-ecr.login:
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Logging into ECR" 2>&1 | tee -a $$CFN_LOG_PATH
-	@aws ecr get-login-password \
-		--region "$${REGION}" | docker login \
-			--username AWS \
-			--password-stdin "$${ECR_BASE_URI}" 2>&1 | tee -a $$CFN_LOG_PATH || true
+# Skipped, causes timeout issues on some internet connections; added to individual build targets
+# ecr.login:
+# 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Logging into ECR" 2>&1 | tee -a $$CFN_LOG_PATH
+# 	@aws ecr get-login-password \
+# 		--region "$${REGION}" | docker login \
+# 			--username AWS \
+# 			--password-stdin "$${ECR_BASE_URI}" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 # TODO: use a for loop for build/load targets
 deploy-ecr.jobs.build:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Pushing Build Service Docker image to ECR" 2>&1 | tee -a $$CFN_LOG_PATH
-	@docker build -t "$${BUILD_REPOSITORY}" build/ && \
+	@aws ecr get-login-password \
+		--region "$${REGION}" | docker login \
+			--username AWS \
+			--password-stdin "$${ECR_BASE_URI}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
+	docker build -t "$${BUILD_REPOSITORY}" build/ && \
 	docker tag "$${BUILD_REPOSITORY}:latest" "$${ECR_BASE_URI}/$${BUILD_REPOSITORY}:latest" && \
 	docker push "$${ECR_BASE_URI}/$${BUILD_REPOSITORY}:latest" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 deploy-ecr.jobs.load:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Pushing Load Service Docker image to ECR" 2>&1 | tee -a $$CFN_LOG_PATH
-	@docker build -t "$${LOAD_REPOSITORY}" load/ && \
+	@aws ecr get-login-password \
+		--region "$${REGION}" | docker login \
+			--username AWS \
+			--password-stdin "$${ECR_BASE_URI}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
+	docker build -t "$${LOAD_REPOSITORY}" load/ && \
 	docker tag "$${LOAD_REPOSITORY}:latest" "$${ECR_BASE_URI}/$${LOAD_REPOSITORY}:latest" && \
 	docker push "$${ECR_BASE_URI}/$${LOAD_REPOSITORY}:latest" 2>&1 | tee -a $$CFN_LOG_PATH || true
 

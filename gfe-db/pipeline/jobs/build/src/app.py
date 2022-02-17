@@ -1,12 +1,16 @@
 #!/usr/bin/env python
 import os
+from pathlib import Path
 import sys
 import logging
 import argparse
 import ast
 import time
+import json
 import hashlib
-import pandas as pd
+from csv import DictWriter
+import boto3
+# import pandas as pd
 from Bio import AlignIO
 from Bio.SeqFeature import SeqFeature
 from Bio.SeqRecord import SeqRecord
@@ -14,12 +18,11 @@ from seqann.models.annotation import Annotation
 from Bio import SeqIO
 from pyard import ARD
 from seqann.gfe import GFE
-from csv import DictWriter
-from pathlib import Path
 from constants import *
 
 # TODO: Output logs as JSON
 # TODO: Add log_dir as environmental variable
+# TODO: Log numbering for each allele
 logger = logging.getLogger() # .addHandler(logging.StreamHandler(sys.stdout))
 log_dir = os.path.dirname(__file__) + "/../logs"
 logging.basicConfig(
@@ -30,6 +33,13 @@ logging.basicConfig(
         logging.FileHandler(f'{log_dir}/gfeBuildLogs.txt'),    
         logging.StreamHandler()
         ])
+
+region = os.environ["REGION"]
+failed_alleles_queue = os.environ["FAILED_ALLELES_QUEUE"]
+failed_alleles_queue_name = failed_alleles_queue.split("/")[-1]
+
+# TODO: BOOKMARK 2/8/22 - add region, debug script
+sqs = boto3.client('sqs', region_name=region)
 
 # Outputs memory of objects during execution to check for memory leaks
 if '-p' in sys.argv:
@@ -69,7 +79,7 @@ def parse_dat(data_dir, dbversion):
         return SeqIO.parse(dat_file, "imgt")
     
     except Exception as err:
-        logging.error(f'Could not parse file: {dat_file}')
+        logging.error(f'Could not parse file: {dat_file}: {err}')
         # raise err
 
 
@@ -192,7 +202,7 @@ def append_dict_as_row(dict_row, file_path):
 
         return
     except Exception as err:
-        logging.error(f'Could not add row')
+        logging.error(f'Could not add row: {err}')
         # raise err
 
 
@@ -232,7 +242,7 @@ def build_GFE(allele):
         return row
                
     except Exception as err:
-        logging.error(f'Failed to write GFE data for allele ID {allele.id}')
+        logging.error(f'Failed to create GFE record for allele ID {allele.id}: {err}')
         # raise err 
 
 
@@ -252,7 +262,7 @@ def build_feature(allele, feature):
         return feature
 
     except Exception as err:
-        logging.error(f'Failed to write feature for allele {allele.id}')
+        logging.error(f'Failed to create feature record for allele {allele.id}: {err}')
         logging.error(err)
 
 
@@ -303,7 +313,7 @@ def build_alignment(allele, alignments, align_type="genomic"):
             return row
     
         except Exception as err:
-            logging.error(f'Failed to write {align_type} alignment for allele {allele.id}')
+            logging.error(f'Failed to create {align_type} alignment record for allele {allele.id}: {err}')
             # raise err
     
     else:
@@ -328,7 +338,7 @@ def build_group(group, allele):
         return row
 
     except Exception as err:
-        logging.error(f'Failed to write groups for allele {allele.id}')
+        logging.error(f'Failed to create groups for allele {allele.id}: {err}')
         # # raise err
 
 
@@ -353,7 +363,7 @@ def build_cds(allele):
         return row
 
     except Exception as err:
-        logging.error(f'Failed to write CDS data for allele {allele.id}')
+        logging.error(f'Failed to create CDS data for allele {allele.id}: {err}')
         # raise err
 
 
@@ -522,11 +532,14 @@ if __name__ == '__main__':
 
     logging.debug(f'Input args: {vars(args)}')
 
-    dbversion = args.release if args.release else pd.read_html(imgt_hla)[0]['Release'][0].replace(".", "")
+    dbversion = args.release #if args.release else pd.read_html(imgt_hla)[0]['Release'][0].replace(".", "")
     out_dir = args.out_dir
+
+    # Pipeline parameters
     imgt_release = f'{dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}'
     kir = True if '-k' in sys.argv else False
     align = True if '-a' in sys.argv else False
+
     _mem_profile = True if '-p' in sys.argv else False
     verbose = True if '-v' in sys.argv else False
     verbosity = 1 #args.verbosity if args.verbosity else None
@@ -534,7 +547,7 @@ if __name__ == '__main__':
 
     #data_dir = f'{data_dir}/{dbversion}'
     # data_dir = os.path.dirname(__file__) + f"/../data/{dbversion}"
-    data_dir = os.environ["DATA_DIR"] + f"/../data/{dbversion}"
+    data_dir = os.environ["DATA_DIR"] + f"/{dbversion}"
 
     # Load alignments data
     if align:
@@ -561,11 +574,10 @@ if __name__ == '__main__':
         loci=load_loci)
 
     for idx, allele in enumerate(alleles):
-        
         if idx == limit:
             break
-            
-        else:
+        
+        try:
 
             locus = allele.description.split(",")[0].split("*")[0]
             hla_name = allele.description.split(",")[0]
@@ -593,6 +605,31 @@ if __name__ == '__main__':
                 
             else:
                 logger.warn(f'Skipping allele {hla_name} for locus {locus}')
+        except:
+            try:
+                # TODO: send failed allele to queue for reprocessing
+                logger.info(f'Sending message to {failed_alleles_queue_name}')
+                response = sqs.send_message(
+                    QueueUrl=failed_alleles_queue,
+                    MessageBody=json.dumps({
+                        "allele_id": allele.id,
+                        "release": dbversion,
+                        "params": {
+                            "align": align,
+                            "kir": kir
+                        }
+                    }))
+                    
+                if response['ResponseMetadata']['HTTPStatusCode'] != 200:
+                    logger.error(json.dumps(response))
+                    raise Exception("Failed to process message")
+                else:
+                    logger.info(json.dumps(
+                        response['ResponseMetadata']))
+
+            except Exception as err:
+                logger.error("Failed to send message")
+                raise err
 
     logging.info(f'Finished build for version {dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}')
     end = time.time()
