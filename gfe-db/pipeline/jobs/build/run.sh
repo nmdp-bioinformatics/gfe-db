@@ -49,14 +49,17 @@ if [ ! -d "$DATA_DIR" ]; then
 	echo "Creating new directory in root: $DATA_DIR"
 	mkdir -p $DATA_DIR
 else
+	# TODO: get full path
 	echo "Data directory: $DATA_DIR"
 fi
 
 # Check if logs directory exists
 if [ ! -d "$LOGS_DIR" ]; then
+	# TODO: get full path
 	echo "Creating logs directory: $LOGS_DIR"
 	mkdir -p $LOGS_DIR
 else
+	# TODO: get full path
 	echo "Logs directory: $LOGS_DIR"
 fi
 
@@ -97,9 +100,11 @@ for release in ${RELEASES}; do
 
 	# Check if data directory exists
 	if [ ! -d "$DATA_DIR/$release/csv" ]; then
+		# TODO: get full path
 		echo "Creating new directory in root: $DATA_DIR/$release/csv..."
 		mkdir -p $DATA_DIR/$release/csv
 	else
+		# TODO: get full path
 		echo "CSV directory: $DATA_DIR/$release/csv"
 	fi
 
@@ -122,7 +127,7 @@ for release in ${RELEASES}; do
 	fi
 	
 	# Builds CSV files
-	python "$SRC_DIR"/build.py \
+	python "$SRC_DIR"/app.py \
 		-o "$DATA_DIR/$release/csv" \
 		-r "$release" \
 		$KIRFLAG \
@@ -130,12 +135,13 @@ for release in ${RELEASES}; do
 		$MEM_PROFILE_FLAG \
 		-v \
 		-l $LIMIT
+	[ $? -ne 0 ] && exit 1;
 
 	# TODO: Use this S3 hierarchy: root/release/csv | logs
 	echo -e "Uploading CSVs to s3://$GFE_BUCKET/data/$release/csv/:\n$(ls $DATA_DIR/$release/csv/)"
-	aws s3 --recursive cp $DATA_DIR/$release/csv/ s3://$GFE_BUCKET/data/$release/csv/ > $LOGS_DIR/s3CopyLog.txt
+	aws s3 --recursive cp $DATA_DIR/$release/csv/ s3://$GFE_BUCKET/data/$release/csv/ > $LOGS_DIR/s3Copy$$LOG_FILE
 	mv $LOGS_DIR/gfeBuildLogs.txt $LOGS_DIR/gfeBuildLogs.$release.txt
-	mv $LOGS_DIR/s3CopyLog.txt $LOGS_DIR/s3CopyLog.$release.txt
+	mv $LOGS_DIR/s3Copy$$LOG_FILE $LOGS_DIR/s3CopyLog.$release.txt
 
 	if [ "$MEM_PROFILE" == "True" ]; then
 		mv $LOGS_DIR/mem_profile_agg.txt $LOGS_DIR/mem_profile_agg.$release.txt
@@ -143,12 +149,13 @@ for release in ${RELEASES}; do
 	fi
 
 	echo -e "Uploading logs to s3://$GFE_BUCKET/logs/$release/:\n$(ls $LOGS_DIR/)"
-	aws s3 --recursive cp $LOGS_DIR/ s3://$GFE_BUCKET/logs/$release/ > $LOGS_DIR/s3CopyLog.Local.txt
+	aws s3 --recursive cp $LOGS_DIR/ s3://$GFE_BUCKET/logs/pipeline/build/$release/ > $LOGS_DIR/s3CopyLog.Local.txt
 
 done
 
 END_EXECUTION=$(( SECONDS - $START_EXECUTION ))
 echo "Finished in $END_EXECUTION seconds"
+exit 0
 
 # For debugging to keep the build server running
 # sleep 1h

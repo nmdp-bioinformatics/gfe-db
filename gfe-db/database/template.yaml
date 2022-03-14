@@ -1,13 +1,27 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Deploys an EC2 instance hosting a Neo4j server
+Description: Deploys an EC2 instance hosting the gfe-db Neo4j server
 
 Parameters:
+
   Stage:
     Type: String
     Description: Stage of production
   AppName:
     Type: String
     Description: Application name
+  DataBucketName:
+    Type: String
+  Neo4jAmiId:
+    Type: String #AWS::EC2::Image::Id
+    # Default: ami-0e1324ddfc4d086bb
+    Description: AMI ID for Neo4j Community edition from AWS Marketplace
+  Neo4jPassword:
+    Type: String
+    NoEcho: true
+  DatabaseVolumeSize:
+    Type: String
+
+# TODO: add map of accepted instances for Neo4j CE AMI
 
 Resources:
   Neo4jDatabaseSecurityGroup:
@@ -40,15 +54,21 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub '${Stage}-${AppName}-neo4j-sg'
+  
   Neo4jDatabaseInstance:
     Type: AWS::EC2::Instance
     Properties:
       KeyName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}'
       DisableApiTermination: false
-      ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}'
-      InstanceType: m5d.xlarge
+      ImageId: !Ref Neo4jAmiId
+      InstanceType: m5.xlarge
       IamInstanceProfile: !Ref Neo4jDatabaseInstanceProfile
       Monitoring: true
+      BlockDeviceMappings: 
+        - DeviceName: "/dev/sda1"
+          Ebs:
+            VolumeSize: !Ref DatabaseVolumeSize
+            VolumeType: "gp3"
       NetworkInterfaces:
         - AssociatePublicIpAddress: true
           DeviceIndex: "0"
@@ -56,42 +76,46 @@ Resources:
             - !Ref Neo4jDatabaseSecurityGroup
           SubnetId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID}}'
       UserData:
-        Fn::Base64: |
+        Fn::Base64: 
+          !Sub |
           #!/bin/bash -x
-          IDX=1
-          for DEV in /dev/disk/by-id/nvme-Amazon_EC2_NVMe_Instance_Storage_*-ns-1; do
-            mkfs.xfs ${DEV}
-            mkdir -p /local${IDX}
-            echo ${DEV} /local${IDX} xfs defaults,noatime 1 2 >> /etc/fstab
-            IDX=$((${IDX} + 1))
+          apt-get update -y
+          apt-get upgrade -y
+          apt-get install apt-transport-https ca-certificates curl software-properties-common
+          curl https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py -O
+          curl https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/AgentDependencies.tar.gz -O
+          tar xvf AgentDependencies.tar.gz -C /tmp/
+          python ./awslogs-agent-setup.py --region ${AWS::Region} --dependency-path /tmp/AgentDependencies
+          service awslogs start
+          echo "Downloading Neo4j configuration from ${DataBucketName} to /etc/neo4j/neo4j.template..."
+          aws s3 cp s3://${DataBucketName}/config/neo4j/neo4j.template /etc/neo4j/neo4j.template
+          echo "Resetting default password..."
+          neo4j-admin set-initial-password ${Neo4jPassword}
+          echo "Starting Neo4j server..."
+          systemctl enable neo4j.service
+          systemctl start neo4j
+          until $(curl --output /dev/null --silent --head --fail http://localhost:7474) ; do \
+            printf '.' ; \
+            sleep 1 ; \
           done
-          mount -a
-          sudo yum update -y
-          # curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          # unzip awscliv2.zip
-          sudo yum install git amazon-cloudwatch-agent -y
-          sudo amazon-linux-extras install docker
-          service docker start
-          usermod -a -G docker ec2-user
-          chkconfig docker on
-          cd /local1
-          chown -R ec2-user .
-          git clone https://github.com/abk7777/gfe-db.git
-          cd gfe-db
-          git checkout fix/optimize-build
-          docker build -t gfe-db .
-          docker run -d --name gfe \
-            -v "$(pwd)"/data/csv/:/var/lib/neo4j/import \
-            -v "$(pwd)"/neo4j/plugins:/var/lib/neo4j/plugins \
-            -v "$(pwd)"/neo4j/logs:/var/lib/neo4j/logs \
-            -p 7474:7474 -p 7473:7473 \
-            -p 7687:7687 gfe-db
+          printf "%s\n" " "
+          echo "Neo4j is ready"
+          mkdir -p /var/lib/neo4j/backups
+          echo "Copying boot logs to S3..."
+          mkdir -p /tmp/logs
+          export INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/instance-id)
+          journalctl -b > /tmp/logs/$INSTANCE_ID-boot.log
+          echo "Copying Neo4j logs to S3..."
+          journalctl -e -u neo4j > /tmp/logs/neo4j.log
+          aws s3 cp --recursive /tmp/logs/ s3://${DataBucketName}/logs/database/bootstrap/$(date +'%Y/%m/%d/%H')/
+          echo "Ready"
       Tags:
         - Key: Name
           Value: !Ref AppName
         - Key: Stage
           Value: !Ref Stage
-  Neo4jDatabaseIAMRole:
+  
+  Neo4jDatabaseInstanceRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -101,8 +125,10 @@ Resources:
             Principal:
               Service:
                 - ec2.amazonaws.com
-            Action:
-              - "sts:AssumeRole"
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
       Path: /
       Policies:
         - PolicyName: !Sub '${Stage}-${AppName}-Neo4jDatabasePolicy'
@@ -113,34 +139,150 @@ Resources:
                 Action:
                   - "s3:GetObject"
                   - "s3:ListObjectsV2"
+                  - "s3:PutObject"
+                  - "s3:PutObjectAcl"
+                  - "s3:GetEncryptionConfiguration"
                 Resource: 
                   - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
                   - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
               - Effect: "Allow"
-                Action:
-                  - "ecr:GetAuthorizationToken"
-                  - "ecr:BatchCheckLayerAvailability"
-                  - "ecr:GetDownloadUrlForLayer"
-                  - "ecr:GetRepositoryPolicy"
-                  - "ecr:DescribeRepositories"
-                  - "ecr:ListImages"
-                  - "ecr:DescribeImages"
-                  - "ecr:BatchGetImage"
-                  - "ecr:InitiateLayerUpload"
-                  - "ecr:UploadLayerPart"
-                  - "ecr:CompleteLayerUpload"
-                  - "ecr:PutImage"
-                  - "cloudtrail:LookupEvents"
-                Resource: "*"
+                Action: 
+                  - "ssm:GetParameters"
+                  - "ssm:GetParameter"
+                  - "secretsmanager:GetResourcePolicy"
+                  - "secretsmanager:GetSecretValue"
+                  - "secretsmanager:DescribeSecret"
+                  - "secretsmanager:ListSecretVersionIds"
+                  - "secretsmanager:ListSecrets"
+                Resource: 
+                  - "*"
+              - Effect: "Allow"
+                Action: 
+                  - "logs:CreateLogStream"
+                  - "logs:DescribeLogStreams"
+                  - "logs:PutLogEvents"
+                  - "cloudwatch:PutMetricData"
+                Resource: 
+                  - "*"
+  
   Neo4jDatabaseInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
-        - !Ref Neo4jDatabaseIAMRole
+        - !Ref Neo4jDatabaseInstanceRole
+  
+  # TODO: add name
+  Neo4jDatabaseElasticIp:
+    Type: AWS::EC2::EIP
+    Properties:
+      InstanceId: !Ref Neo4jDatabaseInstance
+  
   Neo4jDatabaseEndpointParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint'
       Description: "Endpoint for gfe-db build service repository"
-      Value: !GetAtt Neo4jDatabaseInstance.PublicIp
+      Value: !Ref Neo4jDatabaseElasticIp
+  
+  Neo4jDatabaseInstanceIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId'
+      Description: "Instance ID for gfe-db Neo4j database instance"
+      Value: !Ref Neo4jDatabaseInstance
+  
+  Neo4jBackupDocument: 
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: "Command"
+      DocumentFormat: "YAML"
+      TargetType: "/AWS::EC2::Instance"
+      Content:
+        schemaVersion: "2.2"
+        description: "Neo4j to S3 backup"
+        parameters:
+          sourceType:
+            type: "String"
+            description: "(Required) Specify the source type."
+            default: "S3"
+          sourceInfo:
+            type: "StringMap"
+            description: "(Required) Specify the information required to access the resource from the source. If source type is GitHub, then you can specify any of the following: 'owner', 'repository', 'path', 'getOptions', 'tokenInfo'. If source type is S3, then you can specify 'path'."
+            default:
+              path: !Sub 'https://${DataBucketName}.s3.amazonaws.com/config/scripts/backup.sh'
+          commandLine:
+            type: "String"
+            description: "(Required) Specify the command line to be executed. The following formats of commands can be run: 'pythonMainFile.py argument1 argument2', 'ansible-playbook -i \"localhost,\" -c local example.yml'"
+            default: "backup.sh"
+          workingDirectory:
+            type: "String"
+            description: "Working directory"
+            default: "/home/ubuntu"
+          executionTimeout:
+            type: "String"
+            description: "(Optional) The time in seconds for a command to complete before it is considered to have failed. Default is 3600 (1 hour). Maximum is 28800 (8 hours)."
+            default: "3600"
+        mainSteps:
+          - action: "aws:downloadContent"
+            name: "downloadContent"
+            inputs:
+              sourceType: "{{ sourceType }}"
+              sourceInfo: "{{ sourceInfo }}"
+              destinationPath: "{{ workingDirectory }}"
+          - action: "aws:runShellScript"
+            name: "runShellScript"
+            inputs: 
+              runCommand:
+                - ""
+                - "directory=$(pwd)"
+                - "export PATH=$PATH:$directory"
+                - " {{ commandLine }} " 
+                - ""
+              workingDirectory: "{{ workingDirectory }}"
+              timeoutSeconds: "{{ executionTimeout }}"
+
+  Neo4jBackupMaintenanceWindow:
+    Type: AWS::SSM::MaintenanceWindow
+    Properties:
+      AllowUnassociatedTargets: false
+      Cutoff: 1
+      Description: !Sub "${AppName} Neo4j backup maintenance window"
+      Duration: 2
+      Name: BackupNeo4jMaintenanceWindow
+      Schedule: cron(0 * ? * * *)
+      ScheduleTimezone: US/Eastern
+
+  Neo4jBackupMaintenanceWindowTask:
+    Type: AWS::SSM::MaintenanceWindowTask
+    Properties:
+      Description: Backup a Neo4j instance
+      CutoffBehavior: CONTINUE_TASK
+      MaxConcurrency: 1
+      MaxErrors: 1
+      Priority: 0
+      TaskType: RUN_COMMAND
+      WindowId: !Ref Neo4jBackupMaintenanceWindow
+      TaskArn: !Ref Neo4jBackupDocument
+      Targets:
+        - Key: WindowTargetIds
+          Values:
+            - !Ref Neo4jBackupMaintenanceWindowTarget
+
+  Neo4jBackupMaintenanceWindowTarget:
+    Type: AWS::SSM::MaintenanceWindowTarget
+    Properties:
+      ResourceType: INSTANCE
+      Targets:
+        - Key: InstanceIds
+          Values:
+            - !Ref Neo4jDatabaseInstance
+      WindowId: !Ref Neo4jBackupMaintenanceWindow
+
+Outputs:
+  Neo4jDatabaseElasticIp:
+    Description: "Elastic IP for gfe-db Neo4j database instance"
+    Value: !Ref Neo4jDatabaseElasticIp
+    Export:
+      Name: Neo4jDatabaseElasticIp

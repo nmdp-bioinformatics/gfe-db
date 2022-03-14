@@ -1,6 +1,7 @@
 pandas>=1.2.3
-py-ard==0.6.9
-py-gfe==1.1.2
+py-ard==0.6.11
+py-gfe==1.1.5
 lxml==4.6.3
 Pympler==0.9
 awscli==1.18.159
+boto3==1.15.3

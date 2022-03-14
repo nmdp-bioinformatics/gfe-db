@@ -27,6 +27,10 @@ Parameters:
     Type: String
   GitHubRepositoryName:
     Type: String
+  PipelineStatePath:
+    Type: String
+  PipelineParamsPath:
+    Type: String
 
 Resources:
   TriggerFunction:
@@ -47,6 +51,8 @@ Resources:
           GITHUB_REPOSITORY_NAME: !Ref GitHubRepositoryName
           GFE_BUCKET: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
           UPDATE_PIPELINE_STATE_MACHINE_ARN: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineArn}}'
+          PIPELINE_STATE_PATH: !Ref PipelineStatePath
+          PIPELINE_PARAMS_PATH: !Ref PipelineParamsPath
       Events:
         Trigger:
           Type: Schedule

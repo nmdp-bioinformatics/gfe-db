@@ -33,7 +33,7 @@ var/
 *.spec
 
 # Installer logs
-pip-log.txt
+pip-$$LOG_FILE
 pip-delete-this-directory.txt
 
 # Unit test / coverage reports
@@ -85,27 +85,18 @@ data/
 output/
 numeric.v3.zip
 *.pem
-resize_ebs.sh
-neo4j/load_*
 *.msf
 *.dat
 nodes-*.txt
-_M*
-_*.yaml
-_*.json
 logs.txt
 logs/
 0.1-gfe-sandbox.ipynb 
 0.1-dev-build-graph.ipynb
 0.1-gfe-eda.ipynb
 *.bak
-img/
 cicd.yml
-build/Makefile
-load/Makefile
 .aws-sam
 packaged.yaml
 samconfig.toml
-scripts/
-cfn/
-_pr.md
+_*
+_reference/

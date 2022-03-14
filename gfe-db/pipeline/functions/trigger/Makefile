@@ -1,4 +1,4 @@
-SERVICE := trigger
+SERVICE := pipeline-trigger
 
 # # Local invoke
 # invoke-post-job:
@@ -9,12 +9,12 @@ SERVICE := trigger
 
 # Deploy
 deploy:
-	$(info [*] Packaging and deploying ${SERVICE} resources...)
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH
 	@sam build \
-		--template-file template.yaml && \
+		--template-file template.yaml  2>&1 | tee -a $$CFN_LOG_PATH || true && \
 	sam package \
 		--resolve-s3 \
-		--output-template-file packaged.yaml && \
+		--output-template-file packaged.yaml  2>&1 | tee -a $$CFN_LOG_PATH || true && \
 	sam deploy \
 		--no-fail-on-empty-changeset \
 		--region "$${REGION}" \
@@ -29,10 +29,14 @@ deploy:
 			TriggerFunctionTimeout="$$(cat environment.json | jq -r '.FunctionConfiguration.Timeout')" \
 			TriggerFunctionSchedule="$$(cat environment.json | jq -r '.TriggerFunctionSchedule')" \
 			GitHubRepositoryOwner="$$(cat environment.json | jq -r '.FunctionConfiguration.Environment.Variables.GITHUB_REPOSITORY_OWNER')" \
-			GitHubRepositoryName="$$(cat environment.json | jq -r '.FunctionConfiguration.Environment.Variables.GITHUB_REPOSITORY_NAME')"
+			GitHubRepositoryName="$$(cat environment.json | jq -r '.FunctionConfiguration.Environment.Variables.GITHUB_REPOSITORY_NAME')" \
+			PipelineStatePath="$$(cat environment.json | jq -r '.FunctionConfiguration.Environment.Variables.PIPELINE_STATE_PATH')" \
+			PipelineParamsPath="$$(cat environment.json | jq -r '.FunctionConfiguration.Environment.Variables.PIPELINE_PARAMS_PATH')"  \
+			2>&1 | tee -a $$CFN_LOG_PATH || true
 
 delete: ##=> Delete service
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws cloudformation delete-stack \
-		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null 2>&1
+		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH || true
 	@aws cloudformation wait stack-delete-complete \
-		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" >/dev/null
+		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH || true
