@@ -69,7 +69,7 @@ The `gfe-db` represents IPD-IMGT/HLA sequence data as GFE nodes and relationship
 
 <br>
 <p align="center">
-  <img src="docs/img/schema-light-v220128.png" alt="gfe-db schema">
+  <img src="docs/img/schema-light-v220218.png" alt="gfe-db schema" height="75%" width="75%">
 </p>
 
 ## Architecture
@@ -167,15 +167,14 @@ Initial parameters and state for `gfe-db` are maintained using JSON files stored
 Custom configuration settings for Neo4j are contained in `neo4j.template`. This file is copied into `/etc/neo4j` during boot or manually. When Neo4j is restarted it will use the settings in `neo4j.template` to overwrite `neo4j.conf`. More information can be found in the documentation here: [Neo4j Cloud Virtual Machines] (https://neo4j.com/developer/neo4j-cloud-vms/)
 
 ### Pipeline Input Parameters
-This file contains the base input parameters (excluding the `RELEASE` value) that are passed to the Step Functions State Machine and determine it's output. The `RELEASE` value is appended at runtime by the trigger Lambda. 
+This file contains the base input parameters (excluding the `releases` value) that are passed to the Step Functions State Machine and determine it's output. The `releases` value is appended at runtime by the trigger Lambda when it finds a new release in the source repository. The pipeline can also be triggered manually by sending an event containing `pipeline-input.json` with `releases` specified.
 ```json
 // pipeline-input.json
 {
-  "ALIGN": "False",
-  "KIR": "False",
-  "MEM_PROFILE": "False",
-  "LIMIT": "",
-  "RELEASES": 3460
+  "align": "False",
+  "kir": "False",
+  "mem_profile": "False",
+  "limit": ""
 }
 
 ```
@@ -183,7 +182,7 @@ This file contains the base input parameters (excluding the `RELEASE` value) tha
 |----------------|----------------------------------|------------------|---------------------------------------------------------------------------------------------------------------------------|
 | LIMIT          | 100                              | string           | Number of alleles to build. Leave blank ("") to build all alleles.                                                        |
 | ALIGN          | False                            | string           | Include or exclude alignments in the build                                                                                |
-| KIR            | False                            | string           | Include or exclude KIR dataalignments in the build                                                                        |
+| KIR            | False                            | string           | Include or exclude KIR data alignments in the build                                                                        |
 | MEM_PROFILE    | False                            | string           | Enable memory profiling (for catching memory leaks during build)                                                          |
 
 ### Application State
@@ -213,7 +212,8 @@ make deploy.config
 ```
 
 ### Running the Pipeline
-The update pipeline downloads raw data from [ANHIG/IMGTHLA](https://github.com/ANHIG/IMGTHLA) GitHub repository, builds a set of intermediate CSV files and loads these into Neo4j. To run the pipeline, navigate to the `gfe-db-trigger` function in the AWS Lambda console, select the **Test** tab, then click "Test". Because the function is run on a schedule it is not necessary to specify an event. The function will return an object like the following, depending on how many releases were passed to the input:
+The update pipeline downloads raw data from [ANHIG/IMGTHLA](https://github.com/ANHIG/IMGTHLA) GitHub repository, builds a set of intermediate CSV files and loads these into Neo4j. To run the pipeline, navigate to the `gfe-db-trigger` function in the AWS Lambda console, use one of these methods.
+1. Select the **Test** tab, then click "Test". Because the function is run on a schedule it is not necessary to specify an event. The function will return an object like the following, depending on how many releases were passed to the input:
 ```json
 // Trigger Lambda function return object
 {
@@ -231,6 +231,18 @@ The update pipeline downloads raw data from [ANHIG/IMGTHLA](https://github.com/A
   ]
 }
 ```
+2. Add a test event payload containing the desired parameters and release you wish to load into Neo4j.
+```json
+// Test payload example
+{
+  "align": "False",
+  "kir": "False",
+  "mem_profile": "False",
+  "limit": "",
+  "releases": 3470
+}
+```
+
 ### Clean Up
 To tear down resources run the command.
 ```bash
