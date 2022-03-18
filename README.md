@@ -238,7 +238,7 @@ The update pipeline downloads raw data from [ANHIG/IMGTHLA](https://github.com/A
   "align": "False",
   "kir": "False",
   "mem_profile": "False",
-  "limit": "",
+  "limit": "100",
   "releases": 3470
 }
 ```
