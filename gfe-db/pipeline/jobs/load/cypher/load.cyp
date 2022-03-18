@@ -89,7 +89,7 @@ USING PERIODIC COMMIT 20000
 LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as row
 MATCH (gfe:GFE { gfe_name: row.gfe_name })
 MATCH (who:WHO { name: row.hla_name })
-MERGE (who)-[rel:HAS_WHO]->(gfe)
+MERGE (gfe)-[rel:HAS_WHO]->(who)
 ON CREATE SET rel.releases = [replace(row.imgt_release, '.', '')]
 ON MATCH SET rel.releases = rel.releases + [replace(row.imgt_release, '.', '')];
 // RETURN '(:Submitter)-[:SUBMITTED]->(:GFE)' AS `Creating relationships...`;

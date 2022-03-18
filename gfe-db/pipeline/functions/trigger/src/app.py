@@ -11,6 +11,9 @@ import boto3
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# TODO: Add database state to JSON that contains all loaded releases
+# TODO: make sure that state is being properly updated after each run
+
 GITHUB_PERSONAL_ACCESS_TOKEN = os.environ["GITHUB_PERSONAL_ACCESS_TOKEN"]
 GITHUB_REPOSITORY_OWNER = os.environ["GITHUB_REPOSITORY_OWNER"]
 GITHUB_REPOSITORY_NAME = os.environ["GITHUB_REPOSITORY_NAME"]
