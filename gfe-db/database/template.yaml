@@ -251,7 +251,7 @@ Resources:
       Description: !Sub "${AppName} Neo4j backup maintenance window"
       Duration: 2
       Name: BackupNeo4jMaintenanceWindow
-      Schedule: cron(0 * ? * * *)
+      Schedule: cron(0 0 ? * * *)
       ScheduleTimezone: US/Eastern
 
   Neo4jBackupMaintenanceWindowTask:
