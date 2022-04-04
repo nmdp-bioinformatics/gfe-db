@@ -11,7 +11,6 @@ import requests
 import boto3
 
 # TODO: load.cyp, try updating commented lines with a key value pair and extract these values for logging
-# TODO: update headers to include "X-Stream": "true"
 # TODO: Use similar logging configuration to build script so that logs appear in CloudWatch
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -42,7 +41,6 @@ logger.info(f'S3 pre-signed URLs are valid for {expire_seconds} seconds')
 # TODO: Update S3 URL array using pipeline inputs parameters, for example exclude all_alignments if alignments were not included
 s3_urls = [
     f's3://{s3_bucket}/data/{release}/csv/all_groups.{release}.csv',
-    # f's3://{s3_bucket}/data/{release}/csv/all_cds.{release}.csv', # Removed from Neo4j schema
     f's3://{s3_bucket}/data/{release}/csv/all_features.{release}.csv',
     f's3://{s3_bucket}/data/{release}/csv/gfe_sequences.{release}.csv'
 ]
@@ -130,6 +128,7 @@ def run_cypher(cypher):
     headers = { 
         "Accept": "application/json;charset=UTF-8",
         "Content-Type": "application/json",
+        "X-Stream": "true",
         "Authorization": f"Basic {base64.b64encode(':'.join([username, password]).encode()).decode()}"
     }
 
