@@ -53,6 +53,7 @@ def lambda_handler(event, context):
             logger.info(f'Running pipeline with these parameters:\n{json.dumps(params_input)}')            
             state_machine_input.append(params_input)
 
+        # TODO: include release number in execution identifier
         response = sfn.start_execution(
             stateMachineArn=UPDATE_PIPELINE_STATE_MACHINE_ARN,
             input=json.dumps(state_machine_input))
