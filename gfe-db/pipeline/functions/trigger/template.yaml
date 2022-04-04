@@ -37,6 +37,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Ref TriggerFunctionName
+      Description: "gfe-db update pipeline trigger: checks for new IMGT/HLA releases and starts the loading process"
       CodeUri: src/
       Handler: app.lambda_handler
       Runtime: python3.8
