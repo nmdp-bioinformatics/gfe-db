@@ -26,11 +26,17 @@ deploy.check-key-pair: ##=> Checks if the key pair already exists and creates it
 		--value "${EC2_KEY_PAIR_NAME}" \
 		--overwrite 2>&1 | tee -a $$CFN_LOG_PATH || true
 
-deploy.config:
+deploy.config: config.neo4j
+
+config.neo4j:
 	@neo4j_conf_s3_path=s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.template && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Neo4j config to $$neo4j_conf_s3_path" 2>&1 \
 		| tee -a $$CFN_LOG_PATH && \
 	aws s3 cp neo4j/neo4j.template $$neo4j_conf_s3_path 2>&1 | tee -a $$CFN_LOG_PATH
+	@neo4j_cypher_s3_path=s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ && \
+	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Neo4j config to $$neo4j_cypher_s3_path" 2>&1 \
+		| tee -a $$CFN_LOG_PATH && \
+	aws s3 cp --recursive neo4j/cypher/ $$neo4j_cypher_s3_path 2>&1 | tee -a $$CFN_LOG_PATH
 
 deploy.backup:
 	@script_s3_path=s3://$$DATA_BUCKET_NAME/config/scripts/backup.sh && \
