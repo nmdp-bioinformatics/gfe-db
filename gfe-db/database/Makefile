@@ -9,7 +9,6 @@ deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
 	$(MAKE) deploy.check-key-pair
 	$(MAKE) deploy.config
-	$(MAKE) deploy.backup
 	$(MAKE) deploy.database
 	$(MAKE) deploy.copy-s3-logs
 
@@ -26,7 +25,7 @@ deploy.check-key-pair: ##=> Checks if the key pair already exists and creates it
 		--value "${EC2_KEY_PAIR_NAME}" \
 		--overwrite 2>&1 | tee -a $$CFN_LOG_PATH || true
 
-deploy.config: config.neo4j
+deploy.config: config.neo4j config.scripts
 
 config.neo4j:
 	@neo4j_conf_s3_path=s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.template && \
@@ -38,11 +37,11 @@ config.neo4j:
 		| tee -a $$CFN_LOG_PATH && \
 	aws s3 cp --recursive neo4j/cypher/ $$neo4j_cypher_s3_path 2>&1 | tee -a $$CFN_LOG_PATH
 
-deploy.backup:
-	@script_s3_path=s3://$$DATA_BUCKET_NAME/config/scripts/backup.sh && \
+config.scripts:
+	@script_s3_path=s3://$$DATA_BUCKET_NAME/config/scripts/ && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying backup script to $$script_s3_path" 2>&1 \
 		| tee -a $$CFN_LOG_PATH && \
-	aws s3 cp scripts/backup.sh $$script_s3_path
+	aws s3 cp --recursive scripts/ $$script_s3_path
 
 # TODO: get endpoint and store as SSM parameter to replace resource in CloudFormation template
 deploy.database:
