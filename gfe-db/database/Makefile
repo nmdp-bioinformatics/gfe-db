@@ -1,6 +1,8 @@
 SERVICE := database
 EC2_KEY_PAIR_NAME := $${STAGE}-$${APP_NAME}-$${REGION}-neo4j-key
 
+# TODO: add brackets to environment variables passed from root Makefile
+
 target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
@@ -10,7 +12,8 @@ deploy:
 	$(MAKE) deploy.check-key-pair
 	$(MAKE) deploy.config
 	$(MAKE) deploy.database
-	$(MAKE) deploy.copy-s3-logs
+	# Won't copy most recent logs if database is still initializing
+	# $(MAKE) deploy.copy-s3-logs
 
 
 deploy.check-key-pair: ##=> Checks if the key pair already exists and creates it if it does not
@@ -44,6 +47,7 @@ config.scripts:
 	aws s3 cp --recursive scripts/ $$script_s3_path
 
 # TODO: get endpoint and store as SSM parameter to replace resource in CloudFormation template
+# TODO: on deploy/redeploy, retrieve Neo4jPassword from Secrets and pass as CloudFormation parameter
 deploy.database:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Neo4j to EC2 with ${NEO4J_AMI_ID}" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws cloudformation deploy \
@@ -54,10 +58,10 @@ deploy.database:
 		--parameter-overrides \
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
-			DataBucketName="$$DATA_BUCKET_NAME" \
-			Neo4jAmiId="${NEO4J_AMI_ID}" \
-			Neo4jPassword="$$NEO4J_PASSWORD" \
-			DatabaseVolumeSize="$$DATABASE_VOLUME_SIZE" 2>&1 | tee -a $$CFN_LOG_PATH || true
+			DataBucketName="$${DATA_BUCKET_NAME}" \
+			Neo4jAmiId="$${NEO4J_AMI_ID}" \
+			Neo4jPassword="$${NEO4J_PASSWORD}" \
+			DatabaseVolumeSize="$${DATABASE_VOLUME_SIZE}" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 
 deploy.copy-s3-logs:
