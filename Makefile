@@ -26,7 +26,6 @@ export LOAD_REPOSITORY ?= ${STAGE}-${APP_NAME}-load-service
 export PIPELINE_STATE_PATH ?= config/IMGTHLA-repository-state.json
 export PIPELINE_PARAMS_PATH ?= config/pipeline-input.json
 
-
 target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
