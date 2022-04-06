@@ -75,6 +75,7 @@ dbms.default_advertised_address=$dbms_default_advertised_address
 dbms.connector.bolt.enabled=$dbms_connector_bolt_enabled
 dbms.connector.bolt.tls_level=$dbms_connector_bolt_tls_level
 dbms.connector.bolt.advertised_address=$dbms_connector_bolt_advertised_address
+dbms.connector.bolt.listen_address=0.0.0.0:7687
 dbms.ssl.policy.bolt.base_directory=$dbms_ssl_policy_bolt_base_directory
 dbms.ssl.policy.bolt.client_auth=$dbms_ssl_policy_bolt_client_auth
 dbms.ssl.policy.bolt.trust_all=$dbms_ssl_policy_bolt_trust_all
@@ -462,11 +463,11 @@ dbms.security.allow_csv_import_from_file_urls=$dbms_security_allow_csv_import_fr
 # dbms.checkpoint.iops.limit=300
 
 # Enable a remote shell server which Neo4j Shell clients can log in to.
-#dbms.shell.enabled=true
+dbms.shell.enabled=true
 # The network interface IP the shell will listen on (use 0.0.0.0 for all interfaces).
-#dbms.shell.host=127.0.0.1
+dbms.shell.host=127.0.0.1
 # The port the shell will listen on, default is 1337.
-#dbms.shell.port=1337
+dbms.shell.port=1337
 
 # Only allow read operations from this Neo4j instance. This mode still requires
 # write access to the directory for lock purposes.
