@@ -11,7 +11,8 @@ deploy:
 deploy.trigger:
 	$(MAKE) -C trigger/ deploy
 
-delete: delete.trigger
+delete:
+	$(MAKE) delete.trigger
 
 delete.trigger:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH
