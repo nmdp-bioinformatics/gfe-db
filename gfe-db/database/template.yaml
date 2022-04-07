@@ -219,70 +219,55 @@ Resources:
       Description: "Instance ID for gfe-db Neo4j database instance"
       Value: !Ref Neo4jDatabaseInstance
 
-  # Neo4jInitDocument: 
-  #   Type: AWS::SSM::Document
-  #   Properties:
-  #     DocumentType: "Command"
-  #     DocumentFormat: "YAML"
-  #     TargetType: "/AWS::EC2::Instance"
-  #     Content:
-  #       schemaVersion: "2.2"
-  #       description: !Sub "Initialize Neo4j for ${AppName}"
-  #       parameters:
-  #         sourceType:
-  #           type: "String"
-  #           description: "(Required) Specify the source type."
-  #           default: "S3"
-  #         scriptPath:
-  #           type: "StringMap"
-  #           description: "(Required) Specify the information required to access the resource from the source. If source type is GitHub, then you can specify any of the following: 'owner', 'repository', 'path', 'getOptions', 'tokenInfo'. If source type is S3, then you can specify 'path'."
-  #           default:
-  #             path: !Sub 'https://${DataBucketName}.s3.amazonaws.com/config/scripts/neo4j_create_constraints.sh'
-  #         cypherPath:
-  #           type: "StringMap"
-  #           description: "(Required) Specify the information required to access the resource from the source. If source type is GitHub, then you can specify any of the following: 'owner', 'repository', 'path', 'getOptions', 'tokenInfo'. If source type is S3, then you can specify 'path'."
-  #           default:
-  #             path: !Sub 'https://${DataBucketName}.s3.amazonaws.com/config/neo4j/cypher/create_constraints.cyp'
-  #         commandLine:
-  #           type: "String"
-  #           description: "(Required) Specify the command line to be executed. The following formats of commands can be run: 'pythonMainFile.py argument1 argument2', 'ansible-playbook -i \"localhost,\" -c local example.yml'"
-  #           default: "neo4j_create_constraints.sh /var/lib/neo4j/cypher/create_constraints.cyp"
-  #         workingDirectory:
-  #           type: "String"
-  #           description: "Working directory"
-  #           default: "/home/ubuntu"
-  #         cypherDirectory:
-  #           type: "String"
-  #           description: "Working directory"
-  #           default: "/var/lib/neo4j/cypher"
-  #         executionTimeout:
-  #           type: "String"
-  #           description: "(Optional) The time in seconds for a command to complete before it is considered to have failed. Default is 3600 (1 hour). Maximum is 28800 (8 hours)."
-  #           default: "3600"
-  #       mainSteps:
-  #         - action: "aws:downloadContent"
-  #           name: "downloadContent"
-  #           inputs:
-  #             sourceType: "{{ sourceType }}"
-  #             sourceInfo: "{{ cypherPath }}"
-  #             destinationPath: "{{ cypherDirectory }}"
-  #         - action: "aws:downloadContent"
-  #           name: "downloadContent"
-  #           inputs:
-  #             sourceType: "{{ sourceType }}"
-  #             sourceInfo: "{{ scriptPath }}"
-  #             destinationPath: "{{ workingDirectory }}"
-  #         - action: "aws:runShellScript"
-  #           name: "runShellScript"
-  #           inputs: 
-  #             runCommand:
-  #               - ""
-  #               - "directory=$(pwd)"
-  #               - "export PATH=$PATH:$directory"
-  #               - " {{ commandLine }} " 
-  #               - ""
-  #             workingDirectory: "{{ workingDirectory }}"
-  #             timeoutSeconds: "{{ executionTimeout }}"
+  Neo4jLoadQueryDocument: 
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: "Command"
+      DocumentFormat: "YAML"
+      TargetType: "/AWS::EC2::Instance"
+      Content:
+        schemaVersion: "2.2"
+        description: !Sub "Load Neo4j for ${AppName}"
+        parameters:
+          sourceType:
+            type: "String"
+            description: "(Required) Specify the source type."
+            default: "S3"
+          sourceInfo:
+            type: "StringMap"
+            description: "(Required) Specify the information required to access the resource from the source. If source type is GitHub, then you can specify any of the following: 'owner', 'repository', 'path', 'getOptions', 'tokenInfo'. If source type is S3, then you can specify 'path'."
+            default:
+              path: !Sub 'https://${DataBucketName}.s3.amazonaws.com/config/scripts/load_db.sh'
+          commandLine:
+            type: "String"
+            description: "(Required) Specify the command line to be executed. The following formats of commands can be run: 'pythonMainFile.py argument1 argument2', 'ansible-playbook -i \"localhost,\" -c local example.yml'"
+            default: "bash load_db.sh"
+          workingDirectory:
+            type: "String"
+            description: "Working directory"
+            default: "/home/ubuntu"
+          executionTimeout:
+            type: "String"
+            description: "(Optional) The time in seconds for a command to complete before it is considered to have failed. Default is 3600 (1 hour). Maximum is 28800 (8 hours)."
+            default: "3600"
+        mainSteps:
+          - action: "aws:downloadContent"
+            name: "downloadContent"
+            inputs:
+              sourceType: "{{ sourceType }}"
+              sourceInfo: "{{ sourceInfo }}"
+              destinationPath: "{{ workingDirectory }}"
+          - action: "aws:runShellScript"
+            name: "runShellScript"
+            inputs: 
+              runCommand:
+                - ""
+                - "directory=$(pwd)"
+                - "export PATH=$PATH:$directory"
+                - " {{ commandLine }} " 
+                - ""
+              workingDirectory: "{{ workingDirectory }}"
+              timeoutSeconds: "{{ executionTimeout }}"
 
   Neo4jBackupDocument: 
     Type: AWS::SSM::Document

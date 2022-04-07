@@ -39,5 +39,9 @@ cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp | \
         --password $NEO4J_PASSWORD \
         --format verbose
 
+# Conditional queries
+# if $ALIGN; then \
+    # load alignments
+
 echo "Done"
 exit 0
