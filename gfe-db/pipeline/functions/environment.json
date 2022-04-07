@@ -1,0 +1,27 @@
+{
+    "Functions": {
+        "InvokePipeline": {
+            "TriggerFunctionSchedule": "cron(0\\ 12\\ *\\ *\\ ?\\ *)",
+            "FunctionConfiguration": {
+                "FunctionName": "invoke-pipeline",
+                "Timeout": 60,
+                "MemorySize": 256,
+                "Environment": {
+                    "Variables": {
+                        "GITHUB_REPOSITORY_OWNER": "ANHIG",
+                        "GITHUB_REPOSITORY_NAME": "IMGTHLA",
+                        "PIPELINE_STATE_PATH": "config/IMGTHLA-repository-state.json",
+                        "PIPELINE_PARAMS_PATH": "config/pipeline-input.json"
+                    }
+                }
+            }
+        },
+        "InvokeLoadScript": {
+            "FunctionConfiguration": {
+                "FunctionName": "invoke-load-script",
+                "Timeout": 60,
+                "MemorySize": 256
+            }
+        }
+    }
+}
