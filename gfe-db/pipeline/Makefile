@@ -4,9 +4,10 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
+# TODO: Don't deploy jobs if pipeline stack fails to create (exit Make)
 deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
-	$(MAKE) deploy.pipeline 
+	$(MAKE) deploy.pipeline
 	$(MAKE) deploy.jobs
 	$(MAKE) deploy.config
 
@@ -26,35 +27,21 @@ deploy.pipeline:
 		--parameter-overrides \
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
-			TriggerFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.FunctionName')" \
-			TriggerFunctionMemorySize="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.MemorySize')" \
-			TriggerFunctionTimeout="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Timeout')" \
-			TriggerFunctionSchedule="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.TriggerFunctionSchedule')" \
+			InvokePipelineFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.FunctionName')" \
+			InvokePipelineFunctionMemorySize="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.MemorySize')" \
+			InvokePipelineFunctionTimeout="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Timeout')" \
+			InvokePipelineFunctionSchedule="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.InvokePipelineFunctionSchedule')" \
 			GitHubRepositoryOwner="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Environment.Variables.GITHUB_REPOSITORY_OWNER')" \
 			GitHubRepositoryName="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Environment.Variables.GITHUB_REPOSITORY_NAME')" \
 			PipelineStatePath="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Environment.Variables.PIPELINE_STATE_PATH')" \
 			PipelineParamsPath="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Environment.Variables.PIPELINE_PARAMS_PATH')"  \
-			LoadFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokeLoadScript.FunctionConfiguration.FunctionName')" \
+			InvokeLoadScriptFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokeLoadScript.FunctionConfiguration.FunctionName')" \
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
 			ECRBaseUri="${ECR_BASE_URI}" \
 			BuildServiceRepositoryName="${BUILD_REPOSITORY}" \
 			LoadServiceRepositoryName="${LOAD_REPOSITORY}" \
 			2>&1 | tee -a $$CFN_LOG_PATH || true
-
-# deploy.cfn:
-# 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying CloudFormation" 2>&1 | tee -a $$CFN_LOG_PATH
-# 	@aws cloudformation deploy \
-# 		--region $${REGION} \
-# 		--template-file template.yaml \
-# 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" \
-# 		--capabilities CAPABILITY_IAM \
-# 		--parameter-overrides \
-# 			Stage="$${STAGE}" \
-# 			AppName="$${APP_NAME}" \
-# 			ECRBaseUri="${ECR_BASE_URI}" \
-# 			BuildServiceRepositoryName="${BUILD_REPOSITORY}" \
-# 			LoadServiceRepositoryName="${LOAD_REPOSITORY}" 2>&1 | tee -a $$CFN_LOG_PATH
 
 deploy.jobs:
 	$(MAKE) -C jobs/ deploy

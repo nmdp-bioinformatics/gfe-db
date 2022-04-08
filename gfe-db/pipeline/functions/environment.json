@@ -1,7 +1,7 @@
 {
     "Functions": {
         "InvokePipeline": {
-            "TriggerFunctionSchedule": "cron(0\\ 12\\ *\\ *\\ ?\\ *)",
+            "InvokePipelineFunctionSchedule": "cron(0\\ 12\\ *\\ *\\ ?\\ *)",
             "FunctionConfiguration": {
                 "FunctionName": "invoke-pipeline",
                 "Timeout": 60,

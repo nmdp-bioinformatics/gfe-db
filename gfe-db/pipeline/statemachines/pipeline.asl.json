@@ -46,7 +46,7 @@
                     },
                     "LOAD-gfe-db": {
                         "Type": "Task",
-                        "Resource": "${LoadFunctionArn}",
+                        "Resource": "${InvokeLoadScriptFunctionArn}",
                         "End": true
                     }
                 }
