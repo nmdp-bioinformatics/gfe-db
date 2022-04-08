@@ -269,6 +269,14 @@ Resources:
               workingDirectory: "{{ workingDirectory }}"
               timeoutSeconds: "{{ executionTimeout }}"
 
+  Neo4jLoadQueryDocumentNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName'
+      Description: !Sub "Neo4j load query document name for ${AppName}"
+      Value: !Ref Neo4jLoadQueryDocument
+
   Neo4jBackupDocument: 
     Type: AWS::SSM::Document
     Properties:
