@@ -507,11 +507,19 @@ Resources:
         - x86_64
       Environment:
         Variables:
-          DATA_BUCKET_NAME: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
           NEO4J_LOAD_QUERY_DOCUMENT_NAME: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName}}'
           NEO4J_DATABASE_INSTANCE_ID: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId}}'
       Policies:
         - AWSLambdaBasicExecutionRole
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action: 
+                - "ssm:SendCommand"
+                - "ssm:GetDocument"
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName}}'
+                - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId}}'
 
   # TODO: Update Build Map concurrency to 0 executions, Load Map concurrency to 1
   UpdatePipeline:

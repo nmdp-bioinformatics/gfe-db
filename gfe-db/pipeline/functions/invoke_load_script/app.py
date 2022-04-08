@@ -7,11 +7,10 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # TODO: Environment variables
-data_bucket_name = os.environ["DATA_BUCKET_NAME"]
 neo4j_load_query_document_name = os.environ["NEO4J_LOAD_QUERY_DOCUMENT_NAME"]
 neo4j_database_instance_id = os.environ["NEO4J_DATABASE_INSTANCE_ID"]
 
-# SSM Document parameters - ssm:GetDocument
+# Get SSM Document Neo4jLoadQuery
 ssm = boto3.client('ssm')
 response = ssm.get_document(
     Name=neo4j_load_query_document_name)
@@ -62,12 +61,14 @@ def lambda_handler(event, context):
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             logger.error(json.dumps(response, cls=DatetimeEncoder))
             raise Exception("Failed to send command")
+        else:
+            logger.info("Command `{cmd}` invoked on instance {neo4j_database_instance_id}")
     
     except Exception as err:
         logger.error(err)
         raise err
 
-    return response
+    return
 
 
 # Needed to serialize datetime objects in JSON responses
