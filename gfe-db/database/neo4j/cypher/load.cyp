@@ -32,39 +32,39 @@ MERGE (f:Feature {
     term: row.term,
     accession: row.accession
     });
-// RETURN '(:GenomicAlignment)' AS `Creating GenomicAlignment nodes...`;
-USING PERIODIC COMMIT 20000 
-LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
-FOREACH(_ IN CASE 
-    WHEN align_row.label = 'GEN_ALIGN' THEN [1] 
-    ELSE [] END |
-        MERGE (gen:GenomicAlignment { bp_sequence: align_row.bp_sequence })
-        ON CREATE SET gen.label = 'GEN',
-            gen.seq_id = align_row.seq_id,
-            gen.rank = align_row.rank
-);
-// RETURN '(:NucleotideAlignment)' AS `Creating NucleotideAlignment nodes...`;
-USING PERIODIC COMMIT 20000 
-LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
-FOREACH(_ IN CASE 
-    WHEN align_row.label = 'NUC_ALIGN' THEN [1] 
-    ELSE [] END |
-        MERGE (nuc:NucleotideAlignment { bp_sequence: align_row.bp_sequence })
-        ON CREATE SET nuc.label = 'NUC', 
-            nuc.seq_id = align_row.seq_id,
-            nuc.rank = align_row.rank
-);
-// RETURN '(:ProteinAlignment)' AS `Creating ProteinAlignment nodes...`;
-USING PERIODIC COMMIT 20000 
-LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
-FOREACH(_ IN CASE 
-    WHEN align_row.label = 'PROT_ALIGN' THEN [1] 
-    ELSE [] END |
-        MERGE (prot:ProteinAlignment { aa_sequence: align_row.aa_sequence })
-        ON CREATE SET prot.label = 'PROT', 
-            prot.seq_id = align_row.seq_id,
-            prot.rank = align_row.rank
-);
+// // RETURN '(:GenomicAlignment)' AS `Creating GenomicAlignment nodes...`;
+// USING PERIODIC COMMIT 20000 
+// LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
+// FOREACH(_ IN CASE 
+//     WHEN align_row.label = 'GEN_ALIGN' THEN [1] 
+//     ELSE [] END |
+//         MERGE (gen:GenomicAlignment { bp_sequence: align_row.bp_sequence })
+//         ON CREATE SET gen.label = 'GEN',
+//             gen.seq_id = align_row.seq_id,
+//             gen.rank = align_row.rank
+// );
+// // RETURN '(:NucleotideAlignment)' AS `Creating NucleotideAlignment nodes...`;
+// USING PERIODIC COMMIT 20000 
+// LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
+// FOREACH(_ IN CASE 
+//     WHEN align_row.label = 'NUC_ALIGN' THEN [1] 
+//     ELSE [] END |
+//         MERGE (nuc:NucleotideAlignment { bp_sequence: align_row.bp_sequence })
+//         ON CREATE SET nuc.label = 'NUC', 
+//             nuc.seq_id = align_row.seq_id,
+//             nuc.rank = align_row.rank
+// );
+// // RETURN '(:ProteinAlignment)' AS `Creating ProteinAlignment nodes...`;
+// USING PERIODIC COMMIT 20000 
+// LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
+// FOREACH(_ IN CASE 
+//     WHEN align_row.label = 'PROT_ALIGN' THEN [1] 
+//     ELSE [] END |
+//         MERGE (prot:ProteinAlignment { aa_sequence: align_row.aa_sequence })
+//         ON CREATE SET prot.label = 'PROT', 
+//             prot.seq_id = align_row.seq_id,
+//             prot.rank = align_row.rank
+// );
 // RETURN '(:WHO)' AS `Creating WHO nodes...`;
 USING PERIODIC COMMIT 20000
 LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as row
@@ -89,7 +89,7 @@ USING PERIODIC COMMIT 20000
 LOAD CSV WITH HEADERS FROM 'file:///gfe_sequences.RELEASE.csv' as row
 MATCH (gfe:GFE { gfe_name: row.gfe_name })
 MATCH (who:WHO { name: row.hla_name })
-MERGE (who)-[rel:HAS_WHO]->(gfe)
+MERGE (gfe)-[rel:HAS_WHO]->(who)
 ON CREATE SET rel.releases = [replace(row.imgt_release, '.', '')]
 ON MATCH SET rel.releases = rel.releases + [replace(row.imgt_release, '.', '')];
 // RETURN '(:Submitter)-[:SUBMITTED]->(:GFE)' AS `Creating relationships...`;
@@ -117,21 +117,21 @@ MATCH (f:Feature {
     accession: row.accession
     })
 MERGE (gfe)-[:HAS_FEATURE]->(f);
-// RETURN '(:GFE)-[:HAS_ALIGNMENT]->(:GenomicAlignment)' AS `Creating relationships...`;
-USING PERIODIC COMMIT 20000 
-LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
-MATCH (gfe:GFE { gfe_name: align_row.gfe_name })
-MATCH (gen:GenomicAlignment { bp_sequence: align_row.bp_sequence })
-MERGE (gfe)-[:HAS_ALIGNMENT]->(gen);
-// RETURN '(:GFE)-[:HAS_ALIGNMENT]->(:NucleotideAlignment)' AS `Creating relationships...`;
-USING PERIODIC COMMIT 20000 
-LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
-MATCH (gfe:GFE { gfe_name: align_row.gfe_name })
-MATCH (nuc:NucleotideAlignment { bp_sequence: align_row.bp_sequence })
-MERGE (gfe)-[:HAS_ALIGNMENT]->(nuc);
-// RETURN '(:GFE)-[:HAS_ALIGNMENT]->(:ProteinAlignment)' AS `Creating relationships...`;
-USING PERIODIC COMMIT 20000 
-LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
-MATCH (gfe:GFE { gfe_name: align_row.gfe_name })
-MATCH (prot:ProteinAlignment { aa_sequence: align_row.aa_sequence })
-MERGE (gfe)-[:HAS_ALIGNMENT]->(prot);
+// // RETURN '(:GFE)-[:HAS_ALIGNMENT]->(:GenomicAlignment)' AS `Creating relationships...`;
+// USING PERIODIC COMMIT 20000 
+// LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
+// MATCH (gfe:GFE { gfe_name: align_row.gfe_name })
+// MATCH (gen:GenomicAlignment { bp_sequence: align_row.bp_sequence })
+// MERGE (gfe)-[:HAS_ALIGNMENT]->(gen);
+// // RETURN '(:GFE)-[:HAS_ALIGNMENT]->(:NucleotideAlignment)' AS `Creating relationships...`;
+// USING PERIODIC COMMIT 20000 
+// LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
+// MATCH (gfe:GFE { gfe_name: align_row.gfe_name })
+// MATCH (nuc:NucleotideAlignment { bp_sequence: align_row.bp_sequence })
+// MERGE (gfe)-[:HAS_ALIGNMENT]->(nuc);
+// // RETURN '(:GFE)-[:HAS_ALIGNMENT]->(:ProteinAlignment)' AS `Creating relationships...`;
+// USING PERIODIC COMMIT 20000 
+// LOAD CSV WITH HEADERS FROM 'file:///all_alignments.RELEASE.csv' as align_row
+// MATCH (gfe:GFE { gfe_name: align_row.gfe_name })
+// MATCH (prot:ProteinAlignment { aa_sequence: align_row.aa_sequence })
+// MERGE (gfe)-[:HAS_ALIGNMENT]->(prot);

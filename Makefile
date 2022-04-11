@@ -26,13 +26,12 @@ export LOAD_REPOSITORY ?= ${STAGE}-${APP_NAME}-load-service
 export PIPELINE_STATE_PATH ?= config/IMGTHLA-repository-state.json
 export PIPELINE_PARAMS_PATH ?= config/pipeline-input.json
 
-
 target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
 # TODO: Update email and name for Submitter node
-deploy: logs.purge check-env ##=> Deploy services
+deploy: logs.purge check.env ##=> Deploy services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) deploy.infrastructure
 	$(MAKE) deploy.database
@@ -51,7 +50,7 @@ logs.dirs:
 		"${LOGS_DIR}/database/bootstrap" || true
 
 
-check-env:
+check.env: check.dependencies
 ifndef AWS_PROFILE
 $(error AWS_PROFILE is not set. Please select an AWS profile to use.)
 endif
@@ -65,6 +64,40 @@ ifndef GITHUB_PERSONAL_ACCESS_TOKEN
 $(error GITHUB_PERSONAL_ACCESS_TOKEN is not set.)
 endif
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
+
+check.dependencies:
+	$(MAKE) check.dependencies.docker
+	$(MAKE) check.dependencies.awscli
+	$(MAKE) check.dependencies.samcli
+	$(MAKE) check.dependencies.jq
+
+check.dependencies.docker:
+	@if ! docker info >/dev/null 2>&1; then \
+		echo "**** Docker is not running. Please start Docker before deploying. ****" && \
+		echo "**** Please refer to the documentation for a list of prerequisistes. ****" && \
+		exit 1; \
+	fi
+
+check.dependencies.awscli:
+	@if ! aws --version >/dev/null 2>&1; then \
+		echo "**** AWS CLI not found. Please install AWS CLI before deploying. ****" && \
+		echo "**** Please refer to the documentation for a list of prerequisistes. ****" && \
+		exit 1; \
+	fi
+
+check.dependencies.samcli:
+	@if ! sam --version >/dev/null 2>&1; then \
+		echo "**** SAM CLI not found. Please install SAM CLI before deploying. ****" && \
+		echo "**** Please refer to the documentation for a list of prerequisistes. ****" && \
+		exit 1; \
+	fi
+
+check.dependencies.jq:
+	@if ! jq --version >/dev/null 2>&1; then \
+		echo "**** jq not found. Please install jq before deploying. ****" && \
+		echo "**** Please refer to the documentation for a list of prerequisistes. ****" && \
+		exit 1; \
+	fi
 
 # Deploy specific stacks
 deploy.infrastructure:

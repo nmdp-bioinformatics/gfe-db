@@ -18,6 +18,9 @@ Parameters:
   Neo4jPassword:
     Type: String
     NoEcho: true
+  Neo4jInitScript:
+    Type: String
+    Default: init_db.cyp
   DatabaseVolumeSize:
     Type: String
 
@@ -81,7 +84,15 @@ Resources:
           #!/bin/bash -x
           apt-get update -y
           apt-get upgrade -y
-          apt-get install apt-transport-https ca-certificates curl software-properties-common
+          apt-get install -y \
+            -o Dpkg::Options::='--force-confdef' \
+            -o Dpkg::Options::='--force-confold' \
+            apt-transport-https \
+            ca-certificates \
+            curl \
+            software-properties-common \
+            zip \
+            unzip
           curl https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py -O
           curl https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/AgentDependencies.tar.gz -O
           tar xvf AgentDependencies.tar.gz -C /tmp/
@@ -89,6 +100,13 @@ Resources:
           service awslogs start
           echo "Downloading Neo4j configuration from ${DataBucketName} to /etc/neo4j/neo4j.template..."
           aws s3 cp s3://${DataBucketName}/config/neo4j/neo4j.template /etc/neo4j/neo4j.template
+          echo "Downloading APOC Full plugin..."
+          curl -L https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/4.4.0.3/apoc-4.4.0.3-all.jar -O
+          mv apoc-4.4.0.3-all.jar /var/lib/neo4j/plugins/apoc-4.4.0.3-all.jar
+          echo "Downloading Neo4j Graph Data Science plugin..."
+          curl -L https://graphdatascience.ninja/neo4j-graph-data-science-2.0.1.zip -O
+          unzip neo4j-graph-data-science-2.0.1.zip
+          mv neo4j-graph-data-science-2.0.1.jar /var/lib/neo4j/plugins/neo4j-graph-data-science-2.0.1.jar
           echo "Resetting default password..."
           neo4j-admin set-initial-password ${Neo4jPassword}
           echo "Starting Neo4j server..."
@@ -100,8 +118,14 @@ Resources:
           done
           printf "%s\n" " "
           echo "Neo4j is ready"
-          mkdir -p /var/lib/neo4j/backups
-          echo "Copying boot logs to S3..."
+          mkdir -p /var/lib/neo4j/backups /var/lib/neo4j/cypher
+          echo "Fetching cypher scripts from S3..."
+          aws s3 cp --recursive s3://${DataBucketName}/config/neo4j/cypher/ /var/lib/neo4j/cypher/
+          cat /var/lib/neo4j/cypher/${Neo4jInitScript} | \
+            /usr/bin/cypher-shell \
+              -u neo4j \
+              -p ${Neo4jPassword}
+          echo "Copying logs to S3..."
           mkdir -p /tmp/logs
           export INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/instance-id)
           journalctl -b > /tmp/logs/$INSTANCE_ID-boot.log
@@ -138,7 +162,8 @@ Resources:
               - Effect: "Allow"
                 Action:
                   - "s3:GetObject"
-                  - "s3:ListObjectsV2"
+                  - "s3:GetObjectAcl"
+                  - "s3:ListBucket"
                   - "s3:PutObject"
                   - "s3:PutObjectAcl"
                   - "s3:GetEncryptionConfiguration"
@@ -172,6 +197,7 @@ Resources:
         - !Ref Neo4jDatabaseInstanceRole
   
   # TODO: add name
+  # TODO: move to infrastructure template so that the EIP does not change on redeploy
   Neo4jDatabaseElasticIp:
     Type: AWS::EC2::EIP
     Properties:
@@ -192,7 +218,65 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId'
       Description: "Instance ID for gfe-db Neo4j database instance"
       Value: !Ref Neo4jDatabaseInstance
-  
+
+  Neo4jLoadQueryDocument: 
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: "Command"
+      DocumentFormat: "YAML"
+      TargetType: "/AWS::EC2::Instance"
+      Content:
+        schemaVersion: "2.2"
+        description: !Sub "Load Neo4j for ${AppName}"
+        parameters:
+          sourceType:
+            type: "String"
+            description: "(Required) Specify the source type."
+            default: "S3"
+          sourceInfo:
+            type: "StringMap"
+            description: "(Required) Specify the information required to access the resource from the source. If source type is GitHub, then you can specify any of the following: 'owner', 'repository', 'path', 'getOptions', 'tokenInfo'. If source type is S3, then you can specify 'path'."
+            default:
+              path: !Sub 'https://${DataBucketName}.s3.amazonaws.com/config/scripts/load_db.sh'
+          commandLine:
+            type: "String"
+            description: "(Required) Specify the command line to be executed. The following formats of commands can be run: 'pythonMainFile.py argument1 argument2', 'ansible-playbook -i \"localhost,\" -c local example.yml'"
+            default: "bash load_db.sh"
+          workingDirectory:
+            type: "String"
+            description: "Working directory"
+            default: "/home/ubuntu"
+          executionTimeout:
+            type: "String"
+            description: "(Optional) The time in seconds for a command to complete before it is considered to have failed. Default is 3600 (1 hour). Maximum is 28800 (8 hours)."
+            default: "3600"
+        mainSteps:
+          - action: "aws:downloadContent"
+            name: "downloadContent"
+            inputs:
+              sourceType: "{{ sourceType }}"
+              sourceInfo: "{{ sourceInfo }}"
+              destinationPath: "{{ workingDirectory }}"
+          - action: "aws:runShellScript"
+            name: "runShellScript"
+            inputs: 
+              runCommand:
+                - ""
+                - "directory=$(pwd)"
+                - "export PATH=$PATH:$directory"
+                - " {{ commandLine }} " 
+                - ""
+              workingDirectory: "{{ workingDirectory }}"
+              timeoutSeconds: "{{ executionTimeout }}"
+
+  Neo4jLoadQueryDocumentNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName'
+      Description: !Sub "Neo4j load query document name for ${AppName}"
+      Value: !Ref Neo4jLoadQueryDocument
+
   Neo4jBackupDocument: 
     Type: AWS::SSM::Document
     Properties:
@@ -251,7 +335,7 @@ Resources:
       Description: !Sub "${AppName} Neo4j backup maintenance window"
       Duration: 2
       Name: BackupNeo4jMaintenanceWindow
-      Schedule: cron(0 * ? * * *)
+      Schedule: cron(0 0 ? * * *)
       ScheduleTimezone: US/Eastern
 
   Neo4jBackupMaintenanceWindowTask:

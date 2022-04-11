@@ -1,6 +1,8 @@
 SERVICE := database
 EC2_KEY_PAIR_NAME := $${STAGE}-$${APP_NAME}-$${REGION}-neo4j-key
 
+# TODO: add brackets to environment variables passed from root Makefile
+
 target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
@@ -9,9 +11,9 @@ deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
 	$(MAKE) deploy.check-key-pair
 	$(MAKE) deploy.config
-	$(MAKE) deploy.backup
 	$(MAKE) deploy.database
-	$(MAKE) deploy.copy-s3-logs
+	# Won't copy most recent logs if database is still initializing
+	# $(MAKE) deploy.copy-s3-logs
 
 
 deploy.check-key-pair: ##=> Checks if the key pair already exists and creates it if it does not
@@ -26,19 +28,26 @@ deploy.check-key-pair: ##=> Checks if the key pair already exists and creates it
 		--value "${EC2_KEY_PAIR_NAME}" \
 		--overwrite 2>&1 | tee -a $$CFN_LOG_PATH || true
 
-deploy.config:
+deploy.config: config.neo4j config.scripts
+
+config.neo4j:
 	@neo4j_conf_s3_path=s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.template && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Neo4j config to $$neo4j_conf_s3_path" 2>&1 \
 		| tee -a $$CFN_LOG_PATH && \
 	aws s3 cp neo4j/neo4j.template $$neo4j_conf_s3_path 2>&1 | tee -a $$CFN_LOG_PATH
+	@neo4j_cypher_s3_path=s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ && \
+	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Neo4j config to $$neo4j_cypher_s3_path" 2>&1 \
+		| tee -a $$CFN_LOG_PATH && \
+	aws s3 cp --recursive neo4j/cypher/ $$neo4j_cypher_s3_path 2>&1 | tee -a $$CFN_LOG_PATH
 
-deploy.backup:
-	@script_s3_path=s3://$$DATA_BUCKET_NAME/config/scripts/backup.sh && \
+config.scripts:
+	@script_s3_path=s3://$$DATA_BUCKET_NAME/config/scripts/ && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying backup script to $$script_s3_path" 2>&1 \
 		| tee -a $$CFN_LOG_PATH && \
-	aws s3 cp scripts/backup.sh $$script_s3_path
+	aws s3 cp --recursive scripts/ $$script_s3_path
 
 # TODO: get endpoint and store as SSM parameter to replace resource in CloudFormation template
+# TODO: on deploy/redeploy, retrieve Neo4jPassword from Secrets and pass as CloudFormation parameter
 deploy.database:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Neo4j to EC2 with ${NEO4J_AMI_ID}" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws cloudformation deploy \
@@ -49,10 +58,10 @@ deploy.database:
 		--parameter-overrides \
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
-			DataBucketName="$$DATA_BUCKET_NAME" \
-			Neo4jAmiId="${NEO4J_AMI_ID}" \
-			Neo4jPassword="$$NEO4J_PASSWORD" \
-			DatabaseVolumeSize="$$DATABASE_VOLUME_SIZE" 2>&1 | tee -a $$CFN_LOG_PATH || true
+			DataBucketName="$${DATA_BUCKET_NAME}" \
+			Neo4jAmiId="$${NEO4J_AMI_ID}" \
+			Neo4jPassword="$${NEO4J_PASSWORD}" \
+			DatabaseVolumeSize="$${DATABASE_VOLUME_SIZE}" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 
 deploy.copy-s3-logs:

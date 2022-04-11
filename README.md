@@ -16,17 +16,18 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
     - [Infrastructure](#infrastructure)
     - [Database](#database)
     - [Pipeline](#pipeline)
-  - [Installation](#installation)
-    - [Prerequisites](#prerequisites)
+  - [AWS Deployment](#aws-deployment)
     - [Quick Start](#quick-start)
-    - [AWS Configuration](#aws-configuration)
-    - [Environment Variables](#environment-variables)
-  - [Deployment to AWS](#deployment-to-aws)
-  - [Configuration](#configuration)
+    - [Prerequisites](#prerequisites)
+    - [Environment](#environment)
+      - [AWS/SAM CLI](#awssam-cli)
+      - [gfe-db](#gfe-db-1)
+    - [Deployment using Make](#deployment-using-make)
+  - [Application Configurations](#application-configurations)
     - [Neo4j Configuration](#neo4j-configuration)
     - [Pipeline Input Parameters](#pipeline-input-parameters)
-    - [Application State](#application-state)
-    - [Deploy Configuration](#deploy-configuration)
+    - [Storing and Retrieving State](#storing-and-retrieving-state)
+    - [Deploying Configuration Files](#deploying-configuration-files)
     - [Running the Pipeline](#running-the-pipeline)
     - [Clean Up](#clean-up)
   - [Local Development](#local-development)
@@ -69,7 +70,7 @@ The `gfe-db` represents IPD-IMGT/HLA sequence data as GFE nodes and relationship
 
 <br>
 <p align="center">
-  <img src="docs/img/schema-light-v220128.png" alt="gfe-db schema">
+  <img src="docs/img/schema-light-v220218.png" alt="gfe-db schema" height="75%" width="75%">
 </p>
 
 ## Architecture
@@ -92,17 +93,8 @@ The pipeline service automates integration of newly released data into the datab
 
 When loading the full dataset of 35,000+ alleles, the build step will generally take around 15 minutes, however the load step can take several hours.
 
-## Installation
-Follow the steps to set the deployment environment.
-
-### Prerequisites
-* Python 3.8
-* GNU Make 3.81
-* AWS CLI
-* SAM CLI
-* Docker
-* jq
-* coreutils
+## AWS Deployment
+Follow the steps to build and deploy the application to AWS.
 
 ### Quick Start
 1. Install prerequisites
@@ -112,15 +104,29 @@ Follow the steps to set the deployment environment.
 5. Invoke the trigger Lambda to start the pipeline using the current state
 6. Query Neo4j
 
-### AWS Configuration
-Valid AWS credentials must be available to AWS CLI and SAM CLI. The easiest way to do this is running `aws configure`, or by adding them to `~/.aws/credentials` and exporting the `AWS_PROFILE` variable to the environment.
+### Prerequisites
+* GNU Make 3.81
+* coreutils
+* AWS CLI
+* SAM CLI
+* Docker
+* jq
+
+### Environment
+
+####  AWS/SAM CLI
+Valid AWS credentials must be available to AWS CLI and SAM CLI. The easiest way to do this is with the following steps.
+1. Run `aws configure` and follow the prompts, or copy/paste them into `~/.aws/credentials` 
+2. Export the `AWS_PROFILE` variable for the chosen profile to the shell environment.
+```bash
+export AWS_PROFILE=default
+```
 
 For more information visit the documentation page:
 [Configuration and credential file settings](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)
 
-### Environment Variables
-These variables must be present in the shell environment before running Make. The best way to set these variables with with a `.env` file following these steps.
-
+#### gfe-db
+These variables must be present in the shell environment before running Make. The best way to set these variables is with a `.env` file following these steps.
 1. Create a `.env` file in the project root and add the values.
 ```bash
 STAGE=<dev or prod>
@@ -133,16 +139,15 @@ GITHUB_PERSONAL_ACCESS_TOKEN=<secret>
 
 2. Source the variables to the environment.
 ```bash
-set -a
-source .env
-set +a
+# Export .env file variables
+set -a && source .env && set +a
 
 # Check that the variables were set
 env
 ```
-*Important:* *Always use a `.env` file or AWS SSM Parameter Store or Secrets Manager for sensitive variables like credentials and API keys. Never hard-code them, including when developing. AWS will quarantine an account if any credentials get accidentally exposed and this will cause problems. Make sure to update `.gitignore`.
+*Important:* *Always use a `.env` file or AWS SSM Parameter Store or Secrets Manager for sensitive variables like credentials and API keys. Never hard-code them, including when developing. AWS will quarantine an account if any credentials get accidentally exposed and this will cause problems. Make sure to update `.gitignore` to avoid pushing sensitive data to public repositories.
 
-## Deployment to AWS
+### Deployment using Make
 Once an AWS profile is configured and environment variables are exported, the application can be deployed using `make`.
 ```bash
 make deploy
@@ -158,24 +163,39 @@ make deploy.database
 # Deploy/update only the pipeline service
 make deploy.pipeline
 ```
-Note: It is recommended to only deploy from the project root. This is because common parameters are passed from the root Makefile to nested Makefiles. If a stack has not been changed, the deployment script will continue until it reaches a stack with changes and deploy that.
+*Note:* It is recommended to only deploy from the project root. This is because common parameters are passed from the root Makefile to nested Makefiles. If a stack has not been changed, the deployment script will continue until it reaches a stack with changes and deploy that.
 
-## Configuration
+<!-- ## Local Development
+
+### Prerequisites
+These dependencies are needed to run any of the scripts locally.
+* Python 3.8
+* Docker -->
+
+<!-- 
+### Lambda Trigger
+1. Create a `.env` file in the `./gfe-db/pipeline/functions//trigger` directory and add the GitHub Personal Access Token so that Lambda can access the GitHub API.
+```bash
+GITHUB_PERSONAL_ACCESS_TOKEN=<personal access token>
+```
+For instructions on how to create a token, please see [Creating a personal access token
+](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token). -->
+
+## Application Configurations
 Initial parameters and state for `gfe-db` are maintained using JSON files stored in the S3 (`DATA_BUCKET_NAME`) under the `config/` prefix.
 
 ### Neo4j Configuration
 Custom configuration settings for Neo4j are contained in `neo4j.template`. This file is copied into `/etc/neo4j` during boot or manually. When Neo4j is restarted it will use the settings in `neo4j.template` to overwrite `neo4j.conf`. More information can be found in the documentation here: [Neo4j Cloud Virtual Machines] (https://neo4j.com/developer/neo4j-cloud-vms/)
 
 ### Pipeline Input Parameters
-This file contains the base input parameters (excluding the `RELEASE` value) that are passed to the Step Functions State Machine and determine it's output. The `RELEASE` value is appended at runtime by the trigger Lambda. 
+This file contains the base input parameters (excluding the `releases` value) that are passed to the Step Functions State Machine and determine it's output. The `releases` value is appended at runtime by the trigger Lambda when it finds a new release in the source repository. The pipeline can also be triggered manually by sending an event containing `pipeline-input.json` with `releases` specified.
 ```json
 // pipeline-input.json
 {
-  "ALIGN": "False",
-  "KIR": "False",
-  "MEM_PROFILE": "False",
-  "LIMIT": "",
-  "RELEASES": 3460
+  "align": "False",
+  "kir": "False",
+  "mem_profile": "False",
+  "limit": ""
 }
 
 ```
@@ -183,11 +203,11 @@ This file contains the base input parameters (excluding the `RELEASE` value) tha
 |----------------|----------------------------------|------------------|---------------------------------------------------------------------------------------------------------------------------|
 | LIMIT          | 100                              | string           | Number of alleles to build. Leave blank ("") to build all alleles.                                                        |
 | ALIGN          | False                            | string           | Include or exclude alignments in the build                                                                                |
-| KIR            | False                            | string           | Include or exclude KIR dataalignments in the build                                                                        |
+| KIR            | False                            | string           | Include or exclude KIR data alignments in the build                                                                        |
 | MEM_PROFILE    | False                            | string           | Enable memory profiling (for catching memory leaks during build)                                                          |
 
-### Application State
-Application state tracks which releases have been processed and added to the database. This file tracks the releases which have already been processed. If the trigger detects a valid release branch in the source data repository that is not in the `releases` array, it will start the pipeline for this release. Once the update is finished, the processed release is appended to the array.
+### Storing and Retrieving State
+The application's state tracks which releases have been processed and added to the database. This file tracks the releases which have already been processed. If the trigger detects a valid release branch in the source data repository that is not in the `releases` array, it will start the pipeline for this release. Once the update is finished, the processed release is appended to the array.
 ```json
 // IMGTHLA-repository-state.json
 {
@@ -206,14 +226,15 @@ Application state tracks which releases have been processed and added to the dat
 | repository_url | https://github.com/ANHIG/IMGTHLA | string           | The repository the trigger is watching                                                                                    |
 | releases       | ["3100", ..., "3450"]            | array of strings | List of available releases. Any release added to the repository that is not in this list will trigger the pipeline build. |
 
-### Deploy Configuration
+### Deploying Configuration Files
 To deploy updates to state and/or pipeline input parameters, run the command.
 ```bash
 make deploy.config
 ```
 
 ### Running the Pipeline
-The update pipeline downloads raw data from [ANHIG/IMGTHLA](https://github.com/ANHIG/IMGTHLA) GitHub repository, builds a set of intermediate CSV files and loads these into Neo4j. To run the pipeline, navigate to the `gfe-db-trigger` function in the AWS Lambda console, select the **Test** tab, then click "Test". Because the function is run on a schedule it is not necessary to specify an event. The function will return an object like the following, depending on how many releases were passed to the input:
+The update pipeline downloads raw data from [ANHIG/IMGTHLA](https://github.com/ANHIG/IMGTHLA) GitHub repository, builds a set of intermediate CSV files and loads these into Neo4j. To run the pipeline, navigate to the `gfe-db-trigger` function in the AWS Lambda console, use one of these methods.
+1. Select the **Test** tab, then click "Test". Because the function is run on a schedule it is not necessary to specify an event. The function will return an object like the following, depending on how many releases were passed to the input:
 ```json
 // Trigger Lambda function return object
 {
@@ -231,6 +252,18 @@ The update pipeline downloads raw data from [ANHIG/IMGTHLA](https://github.com/A
   ]
 }
 ```
+2. Add a test event payload containing the desired parameters and release you wish to load into Neo4j.
+```json
+// Test payload example
+{
+  "align": "False",
+  "kir": "False",
+  "mem_profile": "False",
+  "limit": "100",
+  "releases": 3470
+}
+```
+
 ### Clean Up
 To tear down resources run the command.
 ```bash
