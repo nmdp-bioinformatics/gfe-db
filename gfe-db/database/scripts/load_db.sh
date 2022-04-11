@@ -1,6 +1,6 @@
 #!/bin/bash
 
-REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)
+export REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)
 
 # Set absolute paths
 NEO4J_CYPHER_PATH_S3=config/neo4j/cypher
@@ -18,14 +18,28 @@ else
 fi
 
 # TODO: read GetActivity response JSON and store variables
-# TASK_TOKEN=$(echo $ACTIVITY | jq -r '.taskToken')
-# TASK_INPUT=$(echo $ACTIVITY | jq -r '.input')
+echo "Polling for new activities..."
+export ACTIVITY=$(aws stepfunctions get-activity-task \
+    --activity-arn arn:aws:states:us-east-1:531868584498:activity:load-neo4j \
+    --worker-name gfe-db \
+    --region us-east-1)
+
+echo "Activity found (load_db):"
+echo $ACTIVITY | jq -r
+
+export TASK_TOKEN=$(echo $ACTIVITY | jq -r '.taskToken')
+export TASK_INPUT=$(echo $ACTIVITY | jq -r '.input')
+
+# echo "Task token: $TASK_TOKEN"
+# echo "Task input: $TASK_INPUT"
 
 # TODO: spawn child process to send hearbeat token to sfn
-# load_waiter.sh &
+export heartbeat_interval=10
+bash send_heartbeat.sh &
+
 
 # TODO: kill child processes;
-trap 'kill 0' EXIT
+# trap 'kill 0' EXIT
 
 # Get Neo4j Credentials
 NEO4J_CREDENTIALS=$(aws secretsmanager get-secret-value \
@@ -69,16 +83,23 @@ cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp | \
         --password $NEO4J_PASSWORD \
         --format verbose
 
-# TODO: if $? == 0, send TaskSuccess to StepFunctions API
-
 # TODO: Conditional queries for alignments, KIR (requires running separate Cypher scripts)
 # if $ALIGN; then \
     # load alignments
+
+# TODO: if $? == 0 for all queries, send TaskSuccess to StepFunctions API
+
+# Send TaskSuccess token to StepFunctions
+message="complete"
+aws stepfunctions send-task-success \
+    --task-token "$TASK_TOKEN" \
+    --task-output "{\"message\":\"$message\"}" \
+    --region $REGION
 
 # TODO: remove CSV files
 rm -r $NEO4J_IMPORT_PATH/*
 
 # TODO: kill all spawned processes
-# kill 0
+kill 0
 echo "Done"
 exit 0
