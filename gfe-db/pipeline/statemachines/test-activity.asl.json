@@ -1,0 +1,21 @@
+{
+    "StartAt": "Build & Load IPD-IMGT/HLA Release",
+    "States": {
+        "Build & Load IPD-IMGT/HLA Release": {
+            "Type": "Map",
+            "End": true,
+            "MaxConcurrency": 1,
+            "Iterator": {
+                "StartAt": "Load Neo4j",
+                "States": {
+                    "Load Neo4j": {
+                        "Type": "Task",
+                        "Resource": "${LoadNeo4jActivityArn}",
+                        "HeartbeatSeconds": 10,
+                        "End": true
+                    }
+                }
+            }
+        }
+    }
+}

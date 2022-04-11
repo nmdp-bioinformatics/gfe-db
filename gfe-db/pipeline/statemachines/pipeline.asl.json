@@ -1,18 +1,18 @@
 {
-    "StartAt": "Update release",
+    "StartAt": "Build & Load IPD-IMGT/HLA Release",
     "States": {
-        "Update release": {
+        "Build & Load IPD-IMGT/HLA Release": {
             "Type": "Map",
             "Next": "Finish",
             "MaxConcurrency": 1,
             "Iterator": {
-                "StartAt": "BUILD_gfe-db",
+                "StartAt": "Generate CSV files",
                 "States": {
-                    "BUILD_gfe-db": {
+                    "Generate CSV files": {
                         "Type": "Task",
                         "Resource": "arn:aws:states:::batch:submitJob.sync",
                         "ResultPath": null,
-                        "Next": "LOAD-gfe-db",
+                        "Next": "Invoke Cypher Load Query",
                         "Parameters": {
                             "JobDefinition": "${BuildJobDefinition}",
                             "JobName": "${BuildJobName}",
@@ -43,11 +43,17 @@
                             }
                         }
                     },
-                    "LOAD-gfe-db": {
+                    "Invoke Cypher Load Query": {
                         "Type": "Task",
                         "Resource": "${InvokeLoadScriptFunctionArn}",
+                        "Next": "Load Neo4j"
+                    },
+                    "Load Neo4j": {
+                        "Type": "Task",
+                        "Resource": "${LoadNeo4jActivityArn}",
+                        "HeartbeatSeconds": 10,
                         "End": true
-                    }
+                      }
                 }
             }
         },
