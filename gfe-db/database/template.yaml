@@ -187,7 +187,15 @@ Resources:
                   - "logs:DescribeLogStreams"
                   - "logs:PutLogEvents"
                   - "cloudwatch:PutMetricData"
-                Resource: 
+                Resource:
+                  - "*"
+              - Effect: "Allow"
+                Action: 
+                  - "states:GetActivityTask"
+                  - "states:SendTaskHeartbeat"
+                  - "states:SendTaskSuccess"
+                  - "states:SendTaskFailure"
+                Resource:
                   - "*"
   
   Neo4jDatabaseInstanceProfile:
@@ -231,17 +239,17 @@ Resources:
         parameters:
           sourceType:
             type: "String"
-            description: "(Required) Specify the source type."
+            description: "S3"
             default: "S3"
           sourceInfo:
             type: "StringMap"
-            description: "(Required) Specify the information required to access the resource from the source. If source type is GitHub, then you can specify any of the following: 'owner', 'repository', 'path', 'getOptions', 'tokenInfo'. If source type is S3, then you can specify 'path'."
+            description: !Sub "Downloads all files under the ${AppName} scripts prefix"
             default:
-              path: !Sub 'https://${DataBucketName}.s3.amazonaws.com/config/scripts/load_db.sh'
+              path: !Sub 'https://${DataBucketName}.s3.amazonaws.com/config/scripts/'
           commandLine:
             type: "String"
-            description: "(Required) Specify the command line to be executed. The following formats of commands can be run: 'pythonMainFile.py argument1 argument2', 'ansible-playbook -i \"localhost,\" -c local example.yml'"
-            default: "bash load_db.sh"
+            description: "These commands are invoked by a Lambda script which sets the correct arguments."
+            default: 'bash load_waiter.sh "bash load_db.sh 3470" & bash load_db.sh 3470'
           workingDirectory:
             type: "String"
             description: "Working directory"

@@ -17,6 +17,16 @@ else
     echo "Starting load process for $RELEASE"
 fi
 
+# TODO: read GetActivity response JSON and store variables
+# TASK_TOKEN=$(echo $ACTIVITY | jq -r '.taskToken')
+# TASK_INPUT=$(echo $ACTIVITY | jq -r '.input')
+
+# TODO: spawn child process to send hearbeat token to sfn
+# load_waiter.sh &
+
+# TODO: kill child processes;
+trap 'kill 0' EXIT
+
 # Get Neo4j Credentials
 NEO4J_CREDENTIALS=$(aws secretsmanager get-secret-value \
     --region $REGION \
@@ -49,7 +59,7 @@ aws s3 cp --recursive s3://$DATA_BUCKET_NAME/data/$RELEASE/csv/ $NEO4J_IMPORT_PA
 mkdir -p $NEO4J_CYPHER_PATH/tmp/$RELEASE/
 cat /var/lib/neo4j/cypher/load.cyp | sed "s/RELEASE/$RELEASE/g" > $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp
 
-printf "Updated script for release $RELEASE:\n$(cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp)"
+printf "Updated script for release $RELEASE:\n$(cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp)\n"
 
 # Run Cypher load query
 echo "Loading data for release $RELEASE into Neo4j..."
@@ -59,9 +69,16 @@ cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp | \
         --password $NEO4J_PASSWORD \
         --format verbose
 
+# TODO: if $? == 0, send TaskSuccess to StepFunctions API
+
 # TODO: Conditional queries for alignments, KIR (requires running separate Cypher scripts)
 # if $ALIGN; then \
     # load alignments
 
+# TODO: remove CSV files
+rm -r $NEO4J_IMPORT_PATH/*
+
+# TODO: kill all spawned processes
+# kill 0
 echo "Done"
 exit 0
