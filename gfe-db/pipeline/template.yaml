@@ -509,6 +509,8 @@ Resources:
         Variables:
           NEO4J_LOAD_QUERY_DOCUMENT_NAME: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName}}'
           NEO4J_DATABASE_INSTANCE_ID: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId}}'
+          LOAD_NEO4J_ACTIVITY: !Ref LoadNeo4jActivity
+          APP_NAME: !Ref AppName
       Policies:
         - AWSLambdaBasicExecutionRole
         - Version: "2012-10-17"
@@ -533,7 +535,7 @@ Resources:
         BuildJobName: !Sub '${Stage}-${AppName}-build-job'
         BuildJobQueue: !Ref BuildJobQueue
         InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
-        LoadNeo4jActivityArn: !Sub "arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:activity:load-neo4j"
+        LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref InvokeLoadScriptFunction
