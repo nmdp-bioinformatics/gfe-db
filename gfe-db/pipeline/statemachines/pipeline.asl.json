@@ -3,7 +3,7 @@
     "States": {
         "Build & Load IPD-IMGT/HLA Release": {
             "Type": "Map",
-            "Next": "Finish",
+            "End": true,
             "MaxConcurrency": 1,
             "Iterator": {
                 "StartAt": "Generate CSV files",
@@ -12,7 +12,7 @@
                         "Type": "Task",
                         "Resource": "arn:aws:states:::batch:submitJob.sync",
                         "ResultPath": null,
-                        "Next": "Invoke Cypher Load Query",
+                        "Next": "Load Data",
                         "Parameters": {
                             "JobDefinition": "${BuildJobDefinition}",
                             "JobName": "${BuildJobName}",
@@ -43,22 +43,35 @@
                             }
                         }
                     },
-                    "Invoke Cypher Load Query": {
-                        "Type": "Task",
-                        "Resource": "${InvokeLoadScriptFunctionArn}",
-                        "Next": "Load Neo4j"
-                    },
-                    "Load Neo4j": {
-                        "Type": "Task",
-                        "Resource": "${LoadNeo4jActivityArn}",
-                        "HeartbeatSeconds": 10,
-                        "End": true
-                      }
+                    "Load Data": {
+                        "Type": "Parallel",
+                        "End": true,
+                        "Branches": [
+                            {
+                                "StartAt": "Invoke Load Script",
+                                "States": {
+                                    "Invoke Load Script": {
+                                        "Type": "Task",
+                                        "Resource": "${InvokeLoadScriptFunctionArn}",
+                                        "End": true
+                                    }
+                                }
+                            },
+                            {
+                                "StartAt": "Monitor Load Process",
+                                "States": {
+                                    "Monitor Load Process": {
+                                        "Type": "Task",
+                                        "Resource": "${LoadNeo4jActivityArn}",
+                                        "HeartbeatSeconds": 10,
+                                        "End": true
+                                    }
+                                }
+                            }
+                        ]
+                    }
                 }
             }
-        },
-        "Finish": {
-            "Type": "Succeed"
         }
     }
 }
