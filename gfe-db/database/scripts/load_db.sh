@@ -10,7 +10,7 @@ S3_NEO4J_CYPHER_PATH=config/neo4j/cypher
 S3_CSV_PATH=data/$RELEASE/csv
 
 if [[ -z $REGION ]]; then
-    export REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)
+    export REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')
 fi
 
 if [[ -z $RELEASE ]]; then
@@ -52,7 +52,10 @@ aws s3 cp --recursive s3://$DATA_BUCKET_NAME/$S3_CSV_PATH/ $NEO4J_IMPORT_PATH/
 mkdir -p $NEO4J_CYPHER_PATH/tmp/$RELEASE/
 cat /var/lib/neo4j/cypher/load.cyp | sed "s/RELEASE/$RELEASE/g" > $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp
 
-# printf "Updated script for release $RELEASE:\n$(cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp)\n"
+echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Executing query"
+echo "****** Begin Cypher ******"
+printf "$(cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp)\n"
+echo "****** End Cypher ******"
 
 # Run Cypher load query
 echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Loading data for release $RELEASE into Neo4j..."

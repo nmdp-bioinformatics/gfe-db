@@ -14,5 +14,7 @@ do
         exit 1
     fi
 
+    # TODO exit if StepFunctions returns activity timeout
+
     sleep $HEARTBEAT_INTERVAL
 done
