@@ -1,10 +1,10 @@
 {
-    "StartAt": "Build & Load IPD-IMGT/HLA Release",
+    "StartAt": "Build Stage",
     "States": {
-        "Build & Load IPD-IMGT/HLA Release": {
+        "Build Stage": {
             "Type": "Map",
-            "End": true,
-            "MaxConcurrency": 1,
+            "Next": "Load Stage",
+            "MaxConcurrency": 0,
             "Iterator": {
                 "StartAt": "Generate CSV files",
                 "States": {
@@ -12,7 +12,7 @@
                         "Type": "Task",
                         "Resource": "arn:aws:states:::batch:submitJob.sync",
                         "ResultPath": null,
-                        "Next": "Load Data",
+                        "End": true,
                         "Parameters": {
                             "JobDefinition": "${BuildJobDefinition}",
                             "JobName": "${BuildJobName}",
@@ -42,7 +42,17 @@
                                 ]
                             }
                         }
-                    },
+                    }
+                }
+            }
+        },
+        "Load Stage": {
+            "Type": "Map",
+            "End": true,
+            "MaxConcurrency": 1,
+            "Iterator": {
+                "StartAt": "Load Data",
+                "States": {
                     "Load Data": {
                         "Type": "Parallel",
                         "End": true,
@@ -58,12 +68,12 @@
                                 }
                             },
                             {
-                                "StartAt": "Monitor Load Process",
+                                "StartAt": "Load Neo4j",
                                 "States": {
-                                    "Monitor Load Process": {
+                                    "Load Neo4j": {
                                         "Type": "Task",
                                         "Resource": "${LoadNeo4jActivityArn}",
-                                        "HeartbeatSeconds": 10,
+                                        "HeartbeatSeconds": 60,
                                         "End": true
                                     }
                                 }
