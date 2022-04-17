@@ -9,6 +9,8 @@ logger.setLevel(logging.INFO)
 # TODO: Environment variables
 neo4j_load_query_document_name = os.environ["NEO4J_LOAD_QUERY_DOCUMENT_NAME"]
 neo4j_database_instance_id = os.environ["NEO4J_DATABASE_INSTANCE_ID"]
+load_neo4j_activity = os.environ["LOAD_NEO4J_ACTIVITY"]
+app_name = os.environ["APP_NAME"]
 
 # Get SSM Document Neo4jLoadQuery
 ssm = boto3.client('ssm')
@@ -41,10 +43,17 @@ def lambda_handler(event, context):
     """
 
     logger.info(json.dumps(event))
-    release = event["RELEASES"]
 
     # Update params for this execution
-    cmd = " ".join([command_line_default, release])
+    params = {
+        "params": {
+            "app_name": app_name,
+            "activity_arn": load_neo4j_activity,
+        }
+    }
+
+    # Include params JSON as command line argument
+    cmd = f"{command_line_default} \'{json.dumps(params)}\'"
 
     try:
         response = ssm.send_command(

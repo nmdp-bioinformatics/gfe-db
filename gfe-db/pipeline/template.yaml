@@ -33,8 +33,6 @@ Parameters:
     Type: String
   BuildServiceRepositoryName:
     Type: String
-  # LoadServiceRepositoryName:
-  #   Type: String
 
 Resources:
   BuildServerSG:
@@ -507,8 +505,10 @@ Resources:
         - x86_64
       Environment:
         Variables:
-          NEO4J_LOAD_QUERY_DOCUMENT_NAME: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName}}'
+          NEO4J_LOAD_QUERY_DOCUMENT_NAME: !Ref Neo4jLoadQueryDocument
           NEO4J_DATABASE_INSTANCE_ID: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId}}'
+          LOAD_NEO4J_ACTIVITY: !Ref LoadNeo4jActivity
+          APP_NAME: !Ref AppName
       Policies:
         - AWSLambdaBasicExecutionRole
         - Version: "2012-10-17"
@@ -518,7 +518,7 @@ Resources:
                 - "ssm:SendCommand"
                 - "ssm:GetDocument"
               Resource:
-                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName}}'
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${Neo4jLoadQueryDocument}'
                 - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId}}'
 
   # TODO: Update Build Map concurrency to 0 executions, Load Map concurrency to 1
@@ -533,6 +533,7 @@ Resources:
         BuildJobName: !Sub '${Stage}-${AppName}-build-job'
         BuildJobQueue: !Ref BuildJobQueue
         InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
+        LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref InvokeLoadScriptFunction
@@ -582,6 +583,23 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineArn'
       Description: "ARN of gfe-db update pipeline state machine"
       Value: !GetAtt UpdatePipeline.Arn
+
+  # Testing purposes only
+  TestActivityTask:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: statemachines/test-activity.asl.json
+      DefinitionSubstitutions:
+        InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
+        LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref InvokeLoadScriptFunction
+  LoadNeo4jActivity:
+    Type: AWS::StepFunctions::Activity
+    Properties: 
+      Name: load-neo4j
+
   FailedAllelesQueue:
     Type: AWS::SQS::Queue
     Properties:
@@ -591,3 +609,53 @@ Resources:
         maxReceiveCount: 5
   FailedAllelesDeadLetterQueue:
     Type: AWS::SQS::Queue
+
+  Neo4jLoadQueryDocument: 
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: "Command"
+      DocumentFormat: "YAML"
+      TargetType: "/AWS::EC2::Instance"
+      Content:
+        schemaVersion: "2.2"
+        description: !Sub "Load Neo4j for ${AppName}"
+        parameters:
+          sourceType:
+            type: "String"
+            description: "S3"
+            default: "S3"
+          sourceInfo:
+            type: "StringMap"
+            description: !Sub "Downloads all files under the ${AppName} scripts prefix"
+            default:
+              path: !Sub 'https://{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}.s3.amazonaws.com/config/scripts/'
+          commandLine:
+            type: "String"
+            description: "These commands are invoked by a Lambda script which sets the correct parameters (Refer to documentation)."
+            default: 'bash start_task.sh'
+          workingDirectory:
+            type: "String"
+            description: "Working directory"
+            default: "/home/ubuntu"
+          executionTimeout:
+            type: "String"
+            description: "(Optional) The time in seconds for a command to complete before it is considered to have failed. Default is 3600 (1 hour). Maximum is 28800 (8 hours)."
+            default: "86400"
+        mainSteps:
+          - action: "aws:downloadContent"
+            name: "downloadContent"
+            inputs:
+              sourceType: "{{ sourceType }}"
+              sourceInfo: "{{ sourceInfo }}"
+              destinationPath: "{{ workingDirectory }}"
+          - action: "aws:runShellScript"
+            name: "runShellScript"
+            inputs: 
+              runCommand:
+                - ""
+                - "directory=$(pwd)"
+                - "export PATH=$PATH:$directory"
+                - " {{ commandLine }} " 
+                - ""
+              workingDirectory: "{{ workingDirectory }}"
+              timeoutSeconds: "{{ executionTimeout }}"

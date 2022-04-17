@@ -26,6 +26,11 @@ export LOAD_REPOSITORY ?= ${STAGE}-${APP_NAME}-load-service
 export PIPELINE_STATE_PATH ?= config/IMGTHLA-repository-state.json
 export PIPELINE_PARAMS_PATH ?= config/pipeline-input.json
 
+# # Capture datetime of most recent parameter change (force refresh paramter references)
+# export SSM_PARAM_MODIFIED ?= $(shell aws ssm describe-parameters \
+# 	| jq -c '.Parameters[] | select(.Name | contains("/${APP_NAME}/${STAGE}/${REGION}/"))' \
+# 	| jq -r '.LastModifiedDate' | sort -r | head -n 1)
+
 target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
