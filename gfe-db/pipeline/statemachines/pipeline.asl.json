@@ -12,7 +12,15 @@
                         "Type": "Task",
                         "Resource": "arn:aws:states:::batch:submitJob.sync",
                         "ResultPath": null,
-                        "End": true,
+                        "Next": "Build Success",
+                        "Catch": [
+                            {
+                                "ErrorEquals": [
+                                    "States.ALL"
+                                ],
+                                "Next": "Build Error"
+                            }
+                        ],
                         "Parameters": {
                             "JobDefinition": "${BuildJobDefinition}",
                             "JobName": "${BuildJobName}",
@@ -42,6 +50,14 @@
                                 ]
                             }
                         }
+                    },
+                    "Build Error": {
+                        "Type": "Pass",
+                        "End": true
+                    },
+                    "Build Success": {
+                        "Type": "Pass",
+                        "End": true
                     }
                 }
             }
@@ -55,7 +71,15 @@
                 "States": {
                     "Load Data": {
                         "Type": "Parallel",
-                        "End": true,
+                        "Next": "Load Success",
+                        "Catch": [
+                            {
+                                "ErrorEquals": [
+                                    "States.ALL"
+                                ],
+                                "Next": "Load Error"
+                            }
+                        ],
                         "Branches": [
                             {
                                 "StartAt": "Invoke Load Script",
@@ -68,9 +92,9 @@
                                 }
                             },
                             {
-                                "StartAt": "Load Neo4j",
+                                "StartAt": "Load GFEs",
                                 "States": {
-                                    "Load Neo4j": {
+                                    "Load GFEs": {
                                         "Type": "Task",
                                         "Resource": "${LoadNeo4jActivityArn}",
                                         "HeartbeatSeconds": 60,
@@ -79,6 +103,14 @@
                                 }
                             }
                         ]
+                    },
+                    "Load Error": {
+                        "Type": "Pass",
+                        "End": true
+                    },
+                    "Load Success": {
+                        "Type": "Pass",
+                        "End": true
                     }
                 }
             }
