@@ -12,23 +12,26 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
   - [Project Structure](#project-structure)
   - [Description](#description)
   - [Architecture](#architecture)
-  - [Services](#services)
     - [Infrastructure](#infrastructure)
     - [Database](#database)
-    - [Pipeline](#pipeline)
-  - [AWS Deployment](#aws-deployment)
+    - [Data Pipeline](#data-pipeline)
+  - [Deployment](#deployment)
     - [Quick Start](#quick-start)
     - [Prerequisites](#prerequisites)
     - [Environment](#environment)
-      - [AWS/SAM CLI](#awssam-cli)
-      - [gfe-db](#gfe-db-1)
-    - [Deployment using Make](#deployment-using-make)
-  - [Application Configurations](#application-configurations)
-    - [Neo4j Configuration](#neo4j-configuration)
-    - [Pipeline Input Parameters](#pipeline-input-parameters)
-    - [Storing and Retrieving State](#storing-and-retrieving-state)
+      - [AWS Credentials](#aws-credentials)
+      - [Shell Variables](#shell-variables)
+    - [Makefile Usage](#makefile-usage)
+  - [Managing Configuration](#managing-configuration)
+    - [Database](#database-1)
+      - [Neo4j](#neo4j)
+      - [Shell Scripts](#shell-scripts)
+      - [Cypher Scripts](#cypher-scripts)
+    - [Data Pipeline](#data-pipeline-1)
+      - [Invocation Input](#invocation-input)
+      - [IMGT/HLA Release Versions State](#imgthla-release-versions-state)
     - [Deploying Configuration Files](#deploying-configuration-files)
-    - [Running the Pipeline](#running-the-pipeline)
+  - [Loading Neo4j](#loading-neo4j)
     - [Clean Up](#clean-up)
   - [Local Development](#local-development)
     - [Creating a Python Virtual Environment](#creating-a-python-virtual-environment)
@@ -45,23 +48,54 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
 └── gfe-db
     ├── database                  # Database service including backup
     │   ├── Makefile
-    │   ├── neo4j
-    │   │   └── neo4j.template    # Neo4j configuration
-    │   ├── scripts               # Backup script
+    │   ├── amazon-cloudwatch-agent
+    │   │   └── amazon-cloudwatch-agent.json
+    │   ├── <stage>-gfe-db-<region>-neo4j-key.pem
+    │   ├── neo4j
+    │   │   ├── cypher
+    │   │   │   ├── create_constraints.cyp
+    │   │   │   ├── drop_constraints.cyp
+    │   │   │   ├── init_db.cyp
+    │   │   │   └── load.cyp
+    │   │   └── neo4j.template
+    │   ├── scripts
+    │   │   ├── backup.sh
+    │   │   ├── init_db.sh
+    │   │   ├── load_db.sh
+    │   │   ├── send_heartbeat.sh
+    │   │   └── start_task.sh
     │   └── template.yaml
     ├── infrastructure            # Infrastructure including VPC and subnets, S3 bucket, SSM Parameters and Secrets
     │   ├── Makefile
     │   └── template.yaml
     └── pipeline                  # Update pipeline including Batch jobs, StepFunctions, trigger
         ├── Makefile
-        ├── config                # JSON files for storing app state
-        ├── functions             # Lambda functions
-        │   ├── Makefile
-        │   └── trigger           # Pipeline trigger Lambda for new IMGT/HLA releases
+        ├── config                # JSON files for storing app state
+        │   ├── IMGTHLA-repository-state.json
+        │   └── pipeline-input.json
+        ├── functions
+        │   ├── environment.json
+        │   ├── invoke_load_script
+        │   │   ├── app.py
+        │   │   ├── event.json
+        │   │   └── requirements.txt
+        │   └── invoke_pipeline
+        │       ├── app.py
+        │       ├── event.json
+        │       ├── requirements.txt
+        │       └── schedule-event.json
         ├── jobs                  # AWS Batch jobs, triggered when a new IMGT/HLA version is released
         │   ├── Makefile
-        │   ├── build
-        │   └── load
+        │   ├── build
+        │   │   ├── Dockerfile
+        │   │   ├── logs
+        │   │   ├── requirements.txt
+        │   │   ├── run.sh
+        │   │   ├── scripts
+        │   │   │   └── get_alignments.sh
+        │   │   └── src
+        │   │       ├── app.py
+        │   │       └── constants.py
         └── template.yaml
 ```
 
@@ -76,37 +110,41 @@ The `gfe-db` represents IPD-IMGT/HLA sequence data as GFE nodes and relationship
 ## Architecture
 <br>
 <p align="center">
-  <img src="docs/img/gfe-db-arch-v220112.png" alt="gfe-db architecture diagram">
+  <img src="docs/img/gfe-db-arch-v220417.png" alt="gfe-db architecture diagram">
 </p>
 
-## Services
-Resources are organized by service so that deployments can be decoupled using Makefiles. There are three main services within gfe-db: infrastructure, database and pipeline. Common configuration parameters are shared between resources using AWS SSM Paramter Store and Secrets Manager.
+gfe-db architecture is organized by 3 layers:
+1) Infrastructure 
+2) Database 
+3) Data pipeline
+ 
+This allows deployments to be decoupled using Makefiles. Common configuration parameters are shared between resources using environment variables, JSON files, AWS SSM Paramter Store and Secrets Manager.
 
 ### Infrastructure
-The infrastructure service deploys a VPC, public subnet, S3 bucket and common SSM parameters and secrets for the other services to use.
+The infrastructure layer deploys a VPC, public subnet, S3 bucket, Elastic IP and common SSM parameters and secrets for the other services to use.
 
 ### Database
-The database service deploys an EC2 instance running the Neo4j Community Edition AMI (Ubuntu 18.04) into a public subnet. Neo4j is ready to be accessed through a browser once the instance has booted sucessfully.
+The database layer deploys an EC2 instance running the Neo4j Community Edition AMI (Ubuntu 18.04) into a public subnet. During initialization, Cypher queries are run to create constraints and indexes, which help speed up loading and ensure data integrity. Neo4j is ready to be accessed through a browser once the instance has booted sucessfully.
 
-### Pipeline
-The pipeline service automates integration of newly released data into the database using a scheduled Lambda. The trigger Lambda watches the source data repository and triggers the pipeline when it detects a new IMGT/HLA version is released. The pipeline uses a Step Functions state machine to orchestrate a Batch jobs including a build step which produces an intermediate set of CSV files, and a load step which deploys a long-running server that generates pre-signed S3 URLs for the CSVs and performs the loading using Cypher queries sent over HTTP. State for the pipeline is maintained using a JSON file stored in S3. Pipeline input parameters are also stored as a JSON in S3.
+### Data Pipeline
+The data pipeline layer automates integration of newly released IMGT/HLA data into Neo4j using a scheduled Lambda which watches the source data repository and invokes the build and load processes when it detects a new IMGT/HLA version. The pipeline consists of a Step Functions state machine which orchestrates two basic processes: build and load. The build process employs a Batch job which produces an intermediate set of CSV files. The load process leverages SSM Run Command to copy the CSV files to the Neo4j server and execute Cypher statements directly on the server (server-side loading). When loading the full dataset of 35,000+ alleles, the build step will generally take around 15 minutes, however the load step can take an hour or more.
 
-When loading the full dataset of 35,000+ alleles, the build step will generally take around 15 minutes, however the load step can take several hours.
-
-## AWS Deployment
+## Deployment
 Follow the steps to build and deploy the application to AWS.
 
 ### Quick Start
-1. Install prerequisites
+This list outlines the basic steps for deployment. For more details please see the following sections.
+1. [Install prerequisites](#Prerequisites)
 2. [Set environment variables](#environment-variables)
 3. Check the config JSONs (parameters and state) and edit the values as desired
-4. Run `make deploy`
-5. Invoke the trigger Lambda to start the pipeline using the current state
-6. Query Neo4j
+4. Run `make deploy` to deploy the stacks to AWS
+5. Run `make load.database release=<version>` to load the Neo4j
+6. Run `make get.neo4j` to get the URL for the Neo4j browser
 
 ### Prerequisites
+Please refer to the respective documentation for specific installation instructions.
 * GNU Make 3.81
-* coreutils
+* coreutils (optional)
 * AWS CLI
 * SAM CLI
 * Docker
@@ -114,7 +152,7 @@ Follow the steps to build and deploy the application to AWS.
 
 ### Environment
 
-####  AWS/SAM CLI
+####  AWS Credentials
 Valid AWS credentials must be available to AWS CLI and SAM CLI. The easiest way to do this is with the following steps.
 1. Run `aws configure` and follow the prompts, or copy/paste them into `~/.aws/credentials` 
 2. Export the `AWS_PROFILE` variable for the chosen profile to the shell environment.
@@ -125,7 +163,7 @@ export AWS_PROFILE=default
 For more information visit the documentation page:
 [Configuration and credential file settings](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)
 
-#### gfe-db
+#### Shell Variables
 These variables must be present in the shell environment before running Make. The best way to set these variables is with a `.env` file following these steps.
 1. Create a `.env` file in the project root and add the values.
 ```bash
@@ -147,7 +185,7 @@ env
 ```
 *Important:* *Always use a `.env` file or AWS SSM Parameter Store or Secrets Manager for sensitive variables like credentials and API keys. Never hard-code them, including when developing. AWS will quarantine an account if any credentials get accidentally exposed and this will cause problems. Make sure to update `.gitignore` to avoid pushing sensitive data to public repositories.
 
-### Deployment using Make
+### Makefile Usage
 Once an AWS profile is configured and environment variables are exported, the application can be deployed using `make`.
 ```bash
 make deploy
@@ -181,14 +219,24 @@ GITHUB_PERSONAL_ACCESS_TOKEN=<personal access token>
 For instructions on how to create a token, please see [Creating a personal access token
 ](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token). -->
 
-## Application Configurations
+## Managing Configuration
 Initial parameters and state for `gfe-db` are maintained using JSON files stored in the S3 (`DATA_BUCKET_NAME`) under the `config/` prefix.
 
-### Neo4j Configuration
+### Database
+
+#### Neo4j
 Custom configuration settings for Neo4j are contained in `neo4j.template`. This file is copied into `/etc/neo4j` during boot or manually. When Neo4j is restarted it will use the settings in `neo4j.template` to overwrite `neo4j.conf`. More information can be found in the documentation here: [Neo4j Cloud Virtual Machines] (https://neo4j.com/developer/neo4j-cloud-vms/)
 
-### Pipeline Input Parameters
-This file contains the base input parameters (excluding the `releases` value) that are passed to the Step Functions State Machine and determine it's output. The `releases` value is appended at runtime by the trigger Lambda when it finds a new release in the source repository. The pipeline can also be triggered manually by sending an event containing `pipeline-input.json` with `releases` specified.
+#### Shell Scripts
+Bash scripts are used for automating Neo4j configuration, loading and backup. These are stored in S3 and run using SSM Run Command. These are found in `gfe-db/gfe-db/database/scripts/`.
+
+#### Cypher Scripts
+Cypher scripts manage node constraints & indexes and load the data. These are found in `gfe-db/gfe-db/database/neo4j/cypher/`.
+
+### Data Pipeline
+
+#### Invocation Input
+Base input parameters (excluding the `releases` value) are passed to the Step Functions State Machine and determine it's behavior during build. The `releases` value is appended at runtime by the trigger Lambda when it finds a new release in the source repository. The `pipeline-input.json` is stored in S3 and contains the default configuration used for automated updates. 
 ```json
 // pipeline-input.json
 {
@@ -206,8 +254,8 @@ This file contains the base input parameters (excluding the `releases` value) th
 | KIR            | False                            | string           | Include or exclude KIR data alignments in the build                                                                        |
 | MEM_PROFILE    | False                            | string           | Enable memory profiling (for catching memory leaks during build)                                                          |
 
-### Storing and Retrieving State
-The application's state tracks which releases have been processed and added to the database. This file tracks the releases which have already been processed. If the trigger detects a valid release branch in the source data repository that is not in the `releases` array, it will start the pipeline for this release. Once the update is finished, the processed release is appended to the array.
+#### IMGT/HLA Release Versions State
+The application's state tracks which releases have been processed and added to the database. This file tracks the releases which have already been processed. If the `gfe-db-invoke-pipeline` function detects a valid release branch in the source data repository that is not in the `releases` array, it will start the pipeline for this release. Once the update is finished, the processed release is appended to the array.
 ```json
 // IMGTHLA-repository-state.json
 {
@@ -216,7 +264,7 @@ The application's state tracks which releases have been processed and added to t
   "releases": [
     "3100",
     ...,
-    "3450"
+    "3470"
   ]
 }
 ```
@@ -224,7 +272,7 @@ The application's state tracks which releases have been processed and added to t
 | Variable       | Example Value                    | Type             | Description                                                                                                               |
 |----------------|----------------------------------|------------------|---------------------------------------------------------------------------------------------------------------------------|
 | repository_url | https://github.com/ANHIG/IMGTHLA | string           | The repository the trigger is watching                                                                                    |
-| releases       | ["3100", ..., "3450"]            | array of strings | List of available releases. Any release added to the repository that is not in this list will trigger the pipeline build. |
+| releases       | ["3100", ..., "3470"]            | array of strings | List of available releases. Any release added to the repository that is not in this list will trigger the pipeline build. |
 
 ### Deploying Configuration Files
 To deploy updates to state and/or pipeline input parameters, run the command.
@@ -232,11 +280,39 @@ To deploy updates to state and/or pipeline input parameters, run the command.
 make deploy.config
 ```
 
-### Running the Pipeline
-The update pipeline downloads raw data from [ANHIG/IMGTHLA](https://github.com/ANHIG/IMGTHLA) GitHub repository, builds a set of intermediate CSV files and loads these into Neo4j. To run the pipeline, navigate to the `gfe-db-trigger` function in the AWS Lambda console, use one of these methods.
-1. Select the **Test** tab, then click "Test". Because the function is run on a schedule it is not necessary to specify an event. The function will return an object like the following, depending on how many releases were passed to the input:
+## Loading Neo4j
+For each invocation the data pipeline will download raw data from [ANHIG/IMGTHLA](https://github.com/ANHIG/IMGTHLA) GitHub repository, build a set of intermediate CSV files and load these into Neo4j via S3. To invoke the pipeline, run the following command.
+```bash
+make load.database releases="<version>"
+
+# Example for single version
+make load.database releases="3470"
+
+# Example for multiple versions
+make load.database releases="3450,3460,3470"
+
+# Example with limit
+make load.database releases="3470" limit="1000"
+
+# Example with all arguments included
+make load.database releases="3470" limit="" align="False" kir="False"
+```
+
+These commands build an event payload to send to the `invoke-gfe-db-pipeline` Lambda.
 ```json
-// Trigger Lambda function return object
+// Test payload example
+{
+  "align": "False",
+  "kir": "False",
+  "mem_profile": "False",
+  "limit": "",
+  "releases": 3470
+}
+```
+
+The Lambda function returns the following object which can be viewed in CloudWatch Logs.
+```json
+// invoke-gfe-db-pipeline Lambda function response
 {
   "status": 200,
   "message": "Pipeline triggered",
@@ -246,26 +322,15 @@ The update pipeline downloads raw data from [ANHIG/IMGTHLA](https://github.com/A
       "KIR": "False",
       "MEM_PROFILE": "False",
       "LIMIT": "",
-      "RELEASES": "3460"
+      "RELEASES": "3470"
     },
     ...
   ]
 }
 ```
-2. Add a test event payload containing the desired parameters and release you wish to load into Neo4j.
-```json
-// Test payload example
-{
-  "align": "False",
-  "kir": "False",
-  "mem_profile": "False",
-  "limit": "100",
-  "releases": 3470
-}
-```
 
 ### Clean Up
-To tear down resources run the command.
+To tear down resources run the command. You will need to manually delete the data in the S3 bucket first.
 ```bash
 make delete
 ```
