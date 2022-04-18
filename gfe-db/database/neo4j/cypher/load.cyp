@@ -6,7 +6,7 @@ CALL apoc.periodic.iterate(
     ','
     MERGE (gfe:GFE { gfe_name: row.gfe_name }) ON CREATE SET gfe.locus = row.locus
     ',
-    {batchSize:5000, parallel:true});
+    {batchSize:500, parallel:true});
 // RETURN '(:Submitter)' AS `Creating Submitter nodes...`;
 MERGE (sub:Submitter { 
     institution: 'EMBL-EBI',
@@ -31,7 +31,7 @@ CALL apoc.periodic.iterate(
         seq.sequence = row.sequence,
         seq.length = row.length
     ',
-    {batchSize:5000, parallel:true});
+    {batchSize:500, parallel:true});
 // RETURN '(:Feature)' AS `Creating Feature nodes...`;
 CALL apoc.periodic.iterate(
     '
@@ -45,7 +45,7 @@ CALL apoc.periodic.iterate(
         accession: row.accession
         })
     ',
-    {batchSize:5000, parallel:true});
+    {batchSize:500, parallel:true});
 CALL apoc.periodic.iterate(
     '
     LOAD CSV WITH HEADERS FROM "file:///gfe_sequences.RELEASE.csv" as row
@@ -54,7 +54,7 @@ CALL apoc.periodic.iterate(
     MERGE (who:WHO { name: row.hla_name })
     ON CREATE SET who.gene = row.locus
     ',
-    {batchSize:5000, parallel:true});
+    {batchSize:500, parallel:true});
 CALL apoc.periodic.iterate(
     '
     LOAD CSV WITH HEADERS FROM "file:///all_groups.RELEASE.csv" as groups_row
@@ -65,7 +65,7 @@ CALL apoc.periodic.iterate(
         WHEN groups_row.ard_name = "G" THEN [1]
         ELSE [] END | SET who.G = groups_row.ard_id)
     ',
-    {batchSize:5000, parallel:true});
+    {batchSize:500, parallel:true});
 CALL apoc.periodic.iterate(
     '
     LOAD CSV WITH HEADERS FROM "file:///all_groups.RELEASE.csv" as groups_row
@@ -77,7 +77,7 @@ CALL apoc.periodic.iterate(
             ELSE [] END | SET who.lg = groups_row.ard_id
     )
     ',
-    {batchSize:5000, parallel:true});
+    {batchSize:500, parallel:true});
 // RETURN '(:WHO)-[:HAS_WHO]->(:GFE)' AS `Creating relationships...`;
 CALL apoc.periodic.iterate(
     '
@@ -90,7 +90,7 @@ CALL apoc.periodic.iterate(
     ON CREATE SET rel.releases = [replace(row.imgt_release, ".", "")]
     ON MATCH SET rel.releases = rel.releases + [replace(row.imgt_release, ".", "")]
     ',
-    {batchSize:5000, parallel:false});
+    {batchSize:500, parallel:true});
 // RETURN '(:Submitter)-[:SUBMITTED]->(:GFE)' AS `Creating relationships...`;
 CALL apoc.periodic.iterate(
     '
@@ -102,7 +102,7 @@ CALL apoc.periodic.iterate(
     MERGE (sub)-[s:SUBMITTED]->(gfe)
     ON CREATE SET s.submit_date = date()
     ',
-    {batchSize:5000, parallel:false});
+    {batchSize:500, parallel:false});
 // RETURN '(:GFE)-[:HAS_SEQUENCE]->(:Sequence)' AS `Creating relationships...`;
 CALL apoc.periodic.iterate(
     '
@@ -113,7 +113,7 @@ CALL apoc.periodic.iterate(
     MATCH (seq:Sequence { sequence: row.sequence })
     MERGE (gfe)-[:HAS_SEQUENCE]->(seq)
     ',
-    {batchSize:5000, parallel:false});
+    {batchSize:500, parallel:false});
 // RETURN '(:GFE)-[:HAS_FEATURE]->(:Feature)' AS `Creating relationships...`;
 CALL apoc.periodic.iterate(
     '
@@ -129,4 +129,4 @@ CALL apoc.periodic.iterate(
         })
     MERGE (gfe)-[:HAS_FEATURE]->(f)
     ',
-    {batchSize:5000, parallel:false});
+    {batchSize:500, parallel:false});
