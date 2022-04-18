@@ -93,16 +93,8 @@ Resources:
             software-properties-common \
             zip \
             unzip
-          # # CloudWatch Logs old method
-          # curl https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py -O
-          # curl https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/AgentDependencies.tar.gz -O
-          # tar xvf AgentDependencies.tar.gz -C /tmp/
-          # python ./awslogs-agent-setup.py --region ${AWS::Region} --dependency-path /tmp/AgentDependencies
-          # service awslogs start
-          # CloudWatch Logs new method
           curl -o /root/amazon-cloudwatch-agent.deb https://s3.amazonaws.com/amazoncloudwatch-agent/debian/amd64/latest/amazon-cloudwatch-agent.deb
           dpkg -i -E /root/amazon-cloudwatch-agent.deb
-          # usermod -aG adm cwagent
           aws s3 cp s3://${DataBucketName}/config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
           systemctl enable amazon-cloudwatch-agent.service
           service amazon-cloudwatch-agent start
