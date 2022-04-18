@@ -136,6 +136,12 @@ load.database:
 		--payload file://payload.json \
 		response.json 2>&1
 
+make get.neo4j:
+	@neo4j_endpoint="$$(aws ssm get-parameters \
+		--names "/$${APP_NAME}/$${STAGE}/$${REGION}/Neo4jDatabaseEndpoint" \
+			| jq -r '.Parameters | map(select(.Version == 1))[0].Value')" && \
+	echo " http://$$neo4j_endpoint:7474/browser/"
+
 delete: # data=true/false ##=> Delete services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${APP_NAME} in ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) delete.pipeline
