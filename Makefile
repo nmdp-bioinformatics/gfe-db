@@ -25,6 +25,7 @@ export BUILD_REPOSITORY ?= ${STAGE}-${APP_NAME}-build-service
 export LOAD_REPOSITORY ?= ${STAGE}-${APP_NAME}-load-service
 export PIPELINE_STATE_PATH ?= config/IMGTHLA-repository-state.json
 export PIPELINE_PARAMS_PATH ?= config/pipeline-input.json
+export FUNCTIONS_PATH ?= ${APP_NAME}/pipeline/functions
 
 # # Capture datetime of most recent parameter change (force refresh paramter references)
 # export SSM_PARAM_MODIFIED ?= $(shell aws ssm describe-parameters \
@@ -118,6 +119,23 @@ deploy.config:
 	$(MAKE) -C gfe-db/pipeline/ deploy.config
 	$(MAKE) -C gfe-db/database/ deploy.config
 
+load.database:
+	@echo "Confirm payload:" && \
+	[ "$$align" ] && align="$$align" || align="False" && \
+	[ "$$kir" ] && kir="$$kir" || kir="False" && \
+	[ "$$limit" ] && limit="$$limit" || limit="" && \
+	[ "$$releases" ] && releases="$$releases" || releases="" && \
+	payload="{ \"align\": \"$$align\", \"kir\": \"$$kir\", \"limit\": \"$$limit\", \"releases\": \"$$releases\", \"mem_profile\": \"False\" }" && \
+	echo "$$payload" | jq -r && \
+	echo "$$payload" | jq > payload.json
+	@echo -n "Run pipeline with this payload? [y/N] " && read ans && [ $${ans:-N} = y ]
+	@function_name="${STAGE}"-"${APP_NAME}"-"$$(cat ${FUNCTIONS_PATH}/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.FunctionName')" && \
+	aws lambda invoke \
+		--cli-binary-format raw-in-base64-out \
+		--function-name "$$function_name" \
+		--payload file://payload.json \
+		response.json 2>&1
+
 delete: # data=true/false ##=> Delete services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${APP_NAME} in ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) delete.pipeline
@@ -199,7 +217,7 @@ define HELP_MESSAGE
 	$ make deploy
 
 	...::: Run the StepFunctions State Machine to load Neo4j :::...
-	$ make run release=3450 align=False kir=False mem_profile=False limit=1000
+	$ make invoke.pipeline releases=<version> align=<boolean> kir=<boolean> limit=<int>
 
 	...::: Delete all CloudFormation based services and data :::...
 	$ make delete

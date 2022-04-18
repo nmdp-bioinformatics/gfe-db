@@ -194,21 +194,12 @@ Resources:
       Roles:
         - !Ref Neo4jDatabaseInstanceRole
   
-  # TODO: add name
-  # TODO: move to infrastructure template so that the EIP does not change on redeploy
-  Neo4jDatabaseElasticIp:
-    Type: AWS::EC2::EIP
+  Neo4jDatabaseElasticIpAssociation:
+    Type: AWS::EC2::EIPAssociation
     Properties:
       InstanceId: !Ref Neo4jDatabaseInstance
-  
-  Neo4jDatabaseEndpointParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint'
-      Description: "Endpoint for gfe-db build service repository"
-      Value: !Ref Neo4jDatabaseElasticIp
-  
+      AllocationId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId}}'
+
   Neo4jDatabaseInstanceIdParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -303,10 +294,3 @@ Resources:
           Values:
             - !Ref Neo4jDatabaseInstance
       WindowId: !Ref Neo4jBackupMaintenanceWindow
-
-Outputs:
-  Neo4jDatabaseElasticIp:
-    Description: "Elastic IP for gfe-db Neo4j database instance"
-    Value: !Ref Neo4jDatabaseElasticIp
-    Export:
-      Name: Neo4jDatabaseElasticIp
