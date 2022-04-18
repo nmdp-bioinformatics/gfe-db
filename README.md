@@ -22,6 +22,7 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
       - [AWS Credentials](#aws-credentials)
       - [Shell Variables](#shell-variables)
     - [Makefile Usage](#makefile-usage)
+      - [Makefile Command Reference](#makefile-command-reference)
   - [Managing Configuration](#managing-configuration)
     - [Database](#database-1)
       - [Neo4j](#neo4j)
@@ -43,59 +44,37 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
 ```bash
 .
 ├── LICENSE
-├── Makefile                      # Use the root Makefile to deploy and delete infrastructure
+├── Makefile                                        # Use the root Makefile to deploy, delete and manage resources and configuration
 ├── README.md
 └── gfe-db
-    ├── database                  # Database service including backup
+# Database layer
+    ├── database                                    # Neo4j database server, configuration and automation
     │   ├── Makefile
     │   ├── amazon-cloudwatch-agent
-    │   │   └── amazon-cloudwatch-agent.json
-    │   ├── <stage>-gfe-db-<region>-neo4j-key.pem
+    │   │   └── amazon-cloudwatch-agent.json        # Sends EC2 logs to CloudWatch Logs for monitoring
+    │   ├── <stage>-gfe-db-<region>-neo4j-key.pem   # EC2 key pair for SSH access to Neo4j server
     │   ├── neo4j
-    │   │   ├── cypher
-    │   │   │   ├── create_constraints.cyp
-    │   │   │   ├── drop_constraints.cyp
-    │   │   │   ├── init_db.cyp
-    │   │   │   └── load.cyp
-    │   │   └── neo4j.template
-    │   ├── scripts
-    │   │   ├── backup.sh
-    │   │   ├── init_db.sh
-    │   │   ├── load_db.sh
-    │   │   ├── send_heartbeat.sh
-    │   │   └── start_task.sh
+    │   │   ├── cypher                              # Cypher scripts for initialization and loading
+    │   │   └── neo4j.template                      # Neo4j server configuration file
+    │   ├── scripts                                 # Shell scripts for automation, backups and loading
     │   └── template.yaml
-    ├── infrastructure            # Infrastructure including VPC and subnets, S3 bucket, SSM Parameters and Secrets
+# Infrastructure layer
+    ├── infrastructure                               # Infrastructure including VPC and subnets, S3 bucket, SSM Parameters and Secrets
     │   ├── Makefile
     │   └── template.yaml
-    └── pipeline                  # Update pipeline including Batch jobs, StepFunctions, trigger
+# Data pipeline layer
+    └── pipeline                                     # Data pipeline including Batch job, Lambda functions & state machine
         ├── Makefile
-        ├── config                # JSON files for storing app state
-        │   ├── IMGTHLA-repository-state.json
-        │   └── pipeline-input.json
+        ├── config                                   # JSON files for storing app state
+        │   ├── IMGTHLA-repository-state.json        # IMGT/HLA release version state
+        │   └── pipeline-input.json                  # Default pipeline input parameters for scheduled invocations
         ├── functions
-        │   ├── environment.json
-        │   ├── invoke_load_script
-        │   │   ├── app.py
-        │   │   ├── event.json
-        │   │   └── requirements.txt
-        │   └── invoke_pipeline
-        │       ├── app.py
-        │       ├── event.json
-        │       ├── requirements.txt
-        │       └── schedule-event.json
-        ├── jobs                  # AWS Batch jobs, triggered when a new IMGT/HLA version is released
+        │   ├── environment.json                     # Lambda configurations
+        │   ├── invoke_load_script                   # Invokes Run Command to download and execute a schell script on EC2
+        │   └── invoke_pipeline                      # Invokes the state machine
+        ├── jobs                                     # Build job, triggered when a new IMGT/HLA version is released
         │   ├── Makefile
-        │   ├── build
-        │   │   ├── Dockerfile
-        │   │   ├── logs
-        │   │   ├── requirements.txt
-        │   │   ├── run.sh
-        │   │   ├── scripts
-        │   │   │   └── get_alignments.sh
-        │   │   └── src
-        │   │       ├── app.py
-        │   │       └── constants.py
+        │   └── build
         └── template.yaml
 ```
 
@@ -203,6 +182,31 @@ make deploy.pipeline
 ```
 *Note:* It is recommended to only deploy from the project root. This is because common parameters are passed from the root Makefile to nested Makefiles. If a stack has not been changed, the deployment script will continue until it reaches a stack with changes and deploy that.
 
+#### Makefile Command Reference
+To see a list of possible commands using Make, run `make` on the command line.
+```bash
+# Deploy all CloudFormation based services
+make deploy
+
+# Deploy config files and scripts to S3
+make deploy.config
+
+# Run the StepFunctions State Machine to load Neo4j
+make load.database releases=<version> align=<boolean> kir=<boolean> limit=<int>
+
+# Download CSV data from S3
+make get.data
+
+# Download logs from EC2
+make get.logs
+
+# Display the Neo4j Browser endpoint URL
+make get.neo4j
+
+# Delete all CloudFormation based services and data
+make delete
+```
+
 <!-- ## Local Development
 
 ### Prerequisites
@@ -220,7 +224,10 @@ For instructions on how to create a token, please see [Creating a personal acces
 ](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token). -->
 
 ## Managing Configuration
-Initial parameters and state for `gfe-db` are maintained using JSON files stored in the S3 (`DATA_BUCKET_NAME`) under the `config/` prefix.
+Configuring is managed using JSON files, SSM Parameter Store, Secrets Manager, and shell variables. To deploy changes in these files, run the command.
+```bash
+make deploy.config
+```
 
 ### Database
 
@@ -236,7 +243,7 @@ Cypher scripts manage node constraints & indexes and load the data. These are fo
 ### Data Pipeline
 
 #### Invocation Input
-Base input parameters (excluding the `releases` value) are passed to the Step Functions State Machine and determine it's behavior during build. The `releases` value is appended at runtime by the trigger Lambda when it finds a new release in the source repository. The `pipeline-input.json` is stored in S3 and contains the default configuration used for automated updates. 
+Base input parameters (excluding the `releases` value) are passed to the Step Functions State Machine and determine it's behavior during build. The `releases` value is appended at runtime by the trigger Lambda when it finds a new release in the source repository. The `pipeline-input.json` is stored in S3 and contains the default configuration used for automated updates.
 ```json
 // pipeline-input.json
 {
@@ -253,6 +260,11 @@ Base input parameters (excluding the `releases` value) are passed to the Step Fu
 | ALIGN          | False                            | string           | Include or exclude alignments in the build                                                                                |
 | KIR            | False                            | string           | Include or exclude KIR data alignments in the build                                                                        |
 | MEM_PROFILE    | False                            | string           | Enable memory profiling (for catching memory leaks during build)                                                          |
+
+The data pipeline can also be invoked from the command line:
+```bash
+make load.database releases=<version> align=<boolean> kir=<boolean> limit=<int>
+```
 
 #### IMGT/HLA Release Versions State
 The application's state tracks which releases have been processed and added to the database. This file tracks the releases which have already been processed. If the `gfe-db-invoke-pipeline` function detects a valid release branch in the source data repository that is not in the `releases` array, it will start the pipeline for this release. Once the update is finished, the processed release is appended to the array.
