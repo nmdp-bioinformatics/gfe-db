@@ -8,16 +8,18 @@ logger.setLevel(logging.INFO)
 
 # TODO: Environment variables
 neo4j_load_query_document_name = os.environ["NEO4J_LOAD_QUERY_DOCUMENT_NAME"]
-neo4j_database_instance_id = os.environ["NEO4J_DATABASE_INSTANCE_ID"]
+# neo4j_database_instance_id = os.environ["NEO4J_DATABASE_INSTANCE_ID"]
+neo4j_database_instance_id_param = os.environ["NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM"]
 load_neo4j_activity = os.environ["LOAD_NEO4J_ACTIVITY"]
 app_name = os.environ["APP_NAME"]
 
 # Get SSM Document Neo4jLoadQuery
 ssm = boto3.client('ssm')
-response = ssm.get_document(
-    Name=neo4j_load_query_document_name)
-
+response = ssm.get_document(Name=neo4j_load_query_document_name)
 neo4j_load_query_document_content = json.loads(response["Content"])
+
+# Get Instance ID
+neo4j_database_instance_id = ssm.get_parameter(Name=neo4j_database_instance_id_param)["Parameter"]["Value"]
 
 # Extract document parameters
 neo4j_load_query_document_parameters = neo4j_load_query_document_content["parameters"]

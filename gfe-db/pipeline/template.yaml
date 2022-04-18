@@ -506,7 +506,7 @@ Resources:
       Environment:
         Variables:
           NEO4J_LOAD_QUERY_DOCUMENT_NAME: !Ref Neo4jLoadQueryDocument
-          NEO4J_DATABASE_INSTANCE_ID: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId}}'
+          NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId'
           LOAD_NEO4J_ACTIVITY: !Ref LoadNeo4jActivity
           APP_NAME: !Ref AppName
       Policies:
@@ -519,7 +519,14 @@ Resources:
                 - "ssm:GetDocument"
               Resource:
                 - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${Neo4jLoadQueryDocument}'
-                - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId}}'
+                - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*'
+            - Effect: "Allow"
+              Action: 
+                - "ssm:GetParameters"
+                - "ssm:GetParameter"
+              Resource: 
+                - "*"
+
 
   # TODO: Update Build Map concurrency to 0 executions, Load Map concurrency to 1
   UpdatePipeline:
