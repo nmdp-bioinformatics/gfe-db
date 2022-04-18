@@ -136,12 +136,6 @@ load.database:
 		--payload file://payload.json \
 		response.json 2>&1
 
-make get.neo4j:
-	@neo4j_endpoint="$$(aws ssm get-parameters \
-		--names "/$${APP_NAME}/$${STAGE}/$${REGION}/Neo4jDatabaseEndpoint" \
-			| jq -r '.Parameters | map(select(.Version == 1))[0].Value')" && \
-	echo " http://$$neo4j_endpoint:7474/browser/"
-
 delete: # data=true/false ##=> Delete services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${APP_NAME} in ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) delete.pipeline
@@ -167,6 +161,11 @@ get.data: #=> Download the build data locally
 get.logs: #=> Download all logs locally
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/logs/ ${LOGS_DIR}/
 
+get.neo4j:
+	@neo4j_endpoint="$$(aws ssm get-parameters \
+		--names "/$${APP_NAME}/$${STAGE}/$${REGION}/Neo4jDatabaseEndpoint" \
+			| jq -r '.Parameters | map(select(.Version == 1))[0].Value')" && \
+	echo " http://$$neo4j_endpoint:7474/browser/"
 
 # TODO: finished administrative targets
 # get.config:
@@ -208,22 +207,25 @@ define HELP_MESSAGE
 	DATA_BUCKET_NAME "$${DATA_BUCKET_NAME}"
 		Description: Name of the S3 bucket for data, config and logs
 
-	ECR_BASE_URI: "$${ECR_BASE_URI}"
-		Description: Base URI for AWS Elastic Container Registry
-
-	BUILD_REPOSITORY: "$${BUILD_REPOSITORY}"
-		Description: Name of the ECR repository for the build service
-
-	LOAD_REPOSITORY: "$${LOAD_REPOSITORY}"
-		Description: Name of the ECR repository for the load service
-
 	Common usage:
 
 	...::: Deploy all CloudFormation based services :::...
 	$ make deploy
 
+	...::: Deploy config files and scripts to S3 :::...
+	$ make deploy.config
+
 	...::: Run the StepFunctions State Machine to load Neo4j :::...
-	$ make invoke.pipeline releases=<version> align=<boolean> kir=<boolean> limit=<int>
+	$ make load.database releases=<version> align=<boolean> kir=<boolean> limit=<int>
+
+	...::: Download CSV data from S3 :::...
+	$ make get.data
+
+	...::: Download logs from EC2 :::...
+	$ make get.logs
+
+	...::: Display the Neo4j Browser endpoint URL :::...
+	$ make get.neo4j
 
 	...::: Delete all CloudFormation based services and data :::...
 	$ make delete
