@@ -9,8 +9,6 @@ Parameters:
     Type: String
   DataBucketName:
     Type: String
-  # DataBucketExists:
-  #   Type: String
   Neo4jUsername:
     Type: String
     NoEcho: true
@@ -38,11 +36,6 @@ Mappings:
       AvailabilityZone: eu-west-2a
     eu-west-3:
       AvailabilityZone: eu-west-3a
-
-# Conditions:
-#   CreateDataBucket: !Equals
-#     - !Ref DataBucketExists
-#     - "true"
 
 Resources:
   Vpc:
@@ -167,3 +160,31 @@ Resources:
           Value: !Ref Stage
         - Key: AppName 
           Value: !Ref AppName
+
+  Neo4jDatabaseElasticIp:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  Neo4jDatabaseEndpointParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint'
+      Description: !Sub 'Endpoint for ${AppName} Neo4j server'
+      Value: !Ref Neo4jDatabaseElasticIp
+
+  Neo4jDatabaseEndpointAllocationIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId'
+      Description: !Sub 'AllocationId for ${AppName} Neo4j server static IP'
+      Value: !GetAtt Neo4jDatabaseElasticIp.AllocationId
+
+Outputs:
+  Neo4jDatabaseElasticIp:
+    Description: "Elastic IP for gfe-db Neo4j database instance"
+    Value: !Ref Neo4jDatabaseElasticIp
+    Export:
+      Name: Neo4jDatabaseElasticIp

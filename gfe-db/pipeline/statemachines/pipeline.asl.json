@@ -1,18 +1,26 @@
 {
-    "StartAt": "Update release",
+    "StartAt": "Build Stage",
     "States": {
-        "Update release": {
+        "Build Stage": {
             "Type": "Map",
-            "Next": "Finish",
-            "MaxConcurrency": 1,
+            "Next": "Load Stage",
+            "MaxConcurrency": 0,
             "Iterator": {
-                "StartAt": "BUILD_gfe-db",
+                "StartAt": "Generate CSV files",
                 "States": {
-                    "BUILD_gfe-db": {
+                    "Generate CSV files": {
                         "Type": "Task",
                         "Resource": "arn:aws:states:::batch:submitJob.sync",
                         "ResultPath": null,
-                        "Next": "LOAD-gfe-db",
+                        "Next": "Build Success",
+                        "Catch": [
+                            {
+                                "ErrorEquals": [
+                                    "States.ALL"
+                                ],
+                                "Next": "Build Error"
+                            }
+                        ],
                         "Parameters": {
                             "JobDefinition": "${BuildJobDefinition}",
                             "JobName": "${BuildJobName}",
@@ -43,16 +51,69 @@
                             }
                         }
                     },
-                    "LOAD-gfe-db": {
-                        "Type": "Task",
-                        "Resource": "${InvokeLoadScriptFunctionArn}",
+                    "Build Error": {
+                        "Type": "Pass",
+                        "End": true
+                    },
+                    "Build Success": {
+                        "Type": "Pass",
                         "End": true
                     }
                 }
             }
         },
-        "Finish": {
-            "Type": "Succeed"
+        "Load Stage": {
+            "Type": "Map",
+            "End": true,
+            "MaxConcurrency": 1,
+            "Iterator": {
+                "StartAt": "Load Data",
+                "States": {
+                    "Load Data": {
+                        "Type": "Parallel",
+                        "Next": "Load Success",
+                        "Catch": [
+                            {
+                                "ErrorEquals": [
+                                    "States.ALL"
+                                ],
+                                "Next": "Load Error"
+                            }
+                        ],
+                        "Branches": [
+                            {
+                                "StartAt": "Invoke Load Script",
+                                "States": {
+                                    "Invoke Load Script": {
+                                        "Type": "Task",
+                                        "Resource": "${InvokeLoadScriptFunctionArn}",
+                                        "End": true
+                                    }
+                                }
+                            },
+                            {
+                                "StartAt": "Load GFEs",
+                                "States": {
+                                    "Load GFEs": {
+                                        "Type": "Task",
+                                        "Resource": "${LoadNeo4jActivityArn}",
+                                        "HeartbeatSeconds": 60,
+                                        "End": true
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    "Load Error": {
+                        "Type": "Pass",
+                        "End": true
+                    },
+                    "Load Success": {
+                        "Type": "Pass",
+                        "End": true
+                    }
+                }
+            }
         }
     }
 }

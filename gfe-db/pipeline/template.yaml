@@ -33,8 +33,6 @@ Parameters:
     Type: String
   BuildServiceRepositoryName:
     Type: String
-  # LoadServiceRepositoryName:
-  #   Type: String
 
 Resources:
   BuildServerSG:
@@ -51,20 +49,7 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub '${Stage}-${AppName}-build-server-sg'
-  # LoadServerSG:
-  #   Type: AWS::EC2::SecurityGroup
-  #   Properties:
-  #     GroupName: !Sub '${Stage}-${AppName}-load-server-sg'
-  #     GroupDescription: !Sub 'Security group for the ${Stage}-${AppName} load server'
-  #     VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcID}}'
-  #     # SecurityGroupIngress:
-  #     #   - CidrIp: 0.0.0.0/0
-  #     #     FromPort: 22
-  #     #     IpProtocol: tcp
-  #     #     ToPort: 22
-  #     Tags:
-  #       - Key: Name
-  #         Value: !Sub '${Stage}-${AppName}-load-server-sg'
+
   BatchServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -155,6 +140,7 @@ Resources:
                   - "sqs:DeleteMessage"
                 Resource:
                   - !GetAtt FailedAllelesQueue.Arn
+
   BuildJobDefinition:
     Type: AWS::Batch::JobDefinition
     Properties:
@@ -177,6 +163,7 @@ Resources:
             Value: !Ref AWS::Region
       RetryStrategy:
         Attempts: 1
+
   BuildJobQueue:
     Type: AWS::Batch::JobQueue
     Properties:
@@ -185,6 +172,7 @@ Resources:
       ComputeEnvironmentOrder:
         - Order: 1
           ComputeEnvironment: !Ref BuildComputeEnvironment
+
   BuildComputeEnvironment:
     Type: AWS::Batch::ComputeEnvironment
     Properties:
@@ -208,6 +196,7 @@ Resources:
           LaunchTemplateId: !Ref BuildLaunchTemplate
         Tags: { "Name": "gfe-db-build-worker" }
       ServiceRole: !GetAtt BatchServiceRole.Arn
+
   BuildLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
@@ -248,6 +237,7 @@ Resources:
           Tags: 
             - Key: Name
               Value: 'gfe-db-build-worker'
+
   BatchTaskExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -288,111 +278,6 @@ Resources:
                 Resource: 
                   - "*"
                   
-  # # TODO: Add logging configuration
-  # LoadJobDefinition:
-  #   Type: AWS::Batch::JobDefinition
-  #   Properties:
-  #     Type: container
-  #     JobDefinitionName: !Sub '${Stage}-${AppName}-LoadJobDefinition'
-  #     ContainerProperties:
-  #       ExecutionRoleArn: !GetAtt BatchTaskExecutionRole.Arn
-  #       Image: !Sub '${ECRBaseUri}/${LoadServiceRepositoryName}:latest'
-  #       Vcpus: 2
-  #       # TODO: Move Memory param to ResourceRequirements
-  #       Memory: 4000
-  #       Command:
-  #         - bash
-  #         - run.sh
-  #       Environment:
-  #         - Name: GFE_BUCKET
-  #           Value: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
-  #         - Name: REGION
-  #           Value: !Ref AWS::Region
-  #         - Name: NEO4J_HOST_SSM_PARAM
-  #           Value: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint' # Passes in the name of the parameter only, not the value
-  #       Secrets:
-  #         - Name: "NEO4J_USERNAME"
-  #           ValueFrom: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn}}:NEO4J_USERNAME:AWSCURRENT:'
-  #         - Name: "NEO4J_PASSWORD"
-  #           ValueFrom: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn}}:NEO4J_PASSWORD:AWSCURRENT:'
-  #     RetryStrategy:
-  #       Attempts: 1
-  # LoadJobQueue:
-  #   Type: AWS::Batch::JobQueue
-  #   Properties:
-  #     JobQueueName: !Sub '${Stage}-${AppName}-LoadJobQueue'
-  #     Priority: 1
-  #     ComputeEnvironmentOrder:
-  #       - Order: 1
-  #         ComputeEnvironment: !Ref LoadComputeEnvironment
-  # LoadComputeEnvironment:
-  #   Type: AWS::Batch::ComputeEnvironment
-  #   Properties:
-  #     Type: MANAGED
-  #     ComputeResources:
-  #       Type: EC2
-  #       # # Testing only, comment before production deployment
-  #       # Ec2KeyPair: !Ref EC2KeyPairName
-  #       # #
-  #       MinvCpus: 0
-  #       DesiredvCpus: 0
-  #       MaxvCpus: 2
-  #       InstanceTypes:
-  #         - optimal
-  #       Subnets:
-  #         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID}}'
-  #       SecurityGroupIds:
-  #         - !Ref LoadServerSG
-  #       InstanceRole: !Ref BatchWorkerInstanceProfile
-  #       Tags: { "Name": "gfe-db-load-worker" }
-  #     ServiceRole: !GetAtt BatchServiceRole.Arn
-  # UpdatePipelineExecutionRole:
-  #   Type: AWS::IAM::Role
-  #   Properties:
-  #     AssumeRolePolicyDocument:
-  #       Version: "2008-10-17"
-  #       Statement:
-  #         - Sid: ""
-  #           Effect: Allow
-  #           Principal:
-  #             Service: states.amazonaws.com
-  #           Action: sts:AssumeRole
-  #     ManagedPolicyArns:
-  #       - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
-  #     Policies:
-  #       - PolicyName: !Sub '${Stage}-${AppName}-PipelineLogsPolicy'
-  #         PolicyDocument: 
-  #           Version: "2012-10-17"
-  #           Statement:
-  #             - Effect: Allow
-  #               Action:
-  #                 - "logs:CreateLogDelivery"
-  #                 - "logs:GetLogDelivery"
-  #                 - "logs:UpdateLogDelivery"
-  #                 - "logs:DeleteLogDelivery"
-  #                 - "logs:ListLogDeliveries"
-  #                 - "logs:PutResourcePolicy"
-  #                 - "logs:DescribeResourcePolicies"
-  #                 - "logs:DescribeLogGroups"
-  #               Resource: "*"
-  #       - PolicyName: !Sub '${Stage}-${AppName}-PipelineBatchExecutionPolicy'
-  #         PolicyDocument:
-  #           Version: "2012-10-17"
-  #           Statement:
-  #             - Effect: "Allow"
-  #               Action: 
-  #                 - "batch:SubmitJob"
-  #                 - "batch:DescribeJobs"
-  #                 - "batch:TerminateJob"
-  #               Resource: "*"
-  #             - Effect: "Allow"
-  #               Action: 
-  #                 - "events:PutTargets"
-  #                 - "events:PutRule"
-  #                 - "events:DescribeRule"
-  #               Resource: 
-  #                 - !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule'
-
   BuildServiceRepository:
     Type: AWS::ECR::Repository
     Properties:
@@ -413,6 +298,7 @@ Resources:
               - "ecr:InitiateLayerUpload"
               - "ecr:UploadLayerPart"
               - "ecr:CompleteLayerUpload"
+
   BuildServiceRepositoryNameParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -421,39 +307,11 @@ Resources:
       Description: "Name of gfe-db build service repository"
       Value: !Ref BuildServiceRepositoryName
 
-  # LoadServiceRepository:
-  #   Type: AWS::ECR::Repository
-  #   Properties:
-  #     RepositoryName: !Ref LoadServiceRepositoryName
-  #     RepositoryPolicyText:
-  #       Version: "2012-10-17"
-  #       Statement:
-  #         - Sid: "AllowPushPull"
-  #           Effect: "Allow"
-  #           Principal:
-  #             AWS:
-  #               - !Sub 'arn:aws:iam::${AWS::AccountId}:role/${BatchWorkerInstanceRole}'
-  #           Action:
-  #             - "ecr:GetDownloadUrlForLayer"
-  #             - "ecr:BatchGetImage"
-  #             - "ecr:BatchCheckLayerAvailability"
-  #             - "ecr:PutImage"
-  #             - "ecr:InitiateLayerUpload"
-  #             - "ecr:UploadLayerPart"
-  #             - "ecr:CompleteLayerUpload"
-  # LoadServiceRepositoryNameParameter:
-  #   Type: AWS::SSM::Parameter
-  #   Properties:
-  #     Type: String
-  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/LoadServiceRepositoryName'
-  #     Description: "Name of gfe-db load service repository"
-  #     Value: !Ref LoadServiceRepositoryName
-
   InvokePipelineFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Ref InvokePipelineFunctionName
-      Description: "gfe-db update pipeline trigger: checks for new IMGT/HLA releases and starts the loading process"
+      Description: !Sub '${AppName} update pipeline trigger: checks for new IMGT/HLA releases and starts the loading process'
       CodeUri: functions/invoke_pipeline/
       Handler: app.lambda_handler
       Runtime: python3.8
@@ -507,8 +365,10 @@ Resources:
         - x86_64
       Environment:
         Variables:
-          NEO4J_LOAD_QUERY_DOCUMENT_NAME: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName}}'
-          NEO4J_DATABASE_INSTANCE_ID: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId}}'
+          NEO4J_LOAD_QUERY_DOCUMENT_NAME: !Ref Neo4jLoadQueryDocument
+          NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId'
+          LOAD_NEO4J_ACTIVITY: !Ref LoadNeo4jActivity
+          APP_NAME: !Ref AppName
       Policies:
         - AWSLambdaBasicExecutionRole
         - Version: "2012-10-17"
@@ -518,10 +378,15 @@ Resources:
                 - "ssm:SendCommand"
                 - "ssm:GetDocument"
               Resource:
-                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName}}'
-                - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId}}'
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${Neo4jLoadQueryDocument}'
+                - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*'
+            - Effect: "Allow"
+              Action: 
+                - "ssm:GetParameters"
+                - "ssm:GetParameter"
+              Resource: 
+                - "*"
 
-  # TODO: Update Build Map concurrency to 0 executions, Load Map concurrency to 1
   UpdatePipeline:
     Type: AWS::Serverless::StateMachine
     Properties:
@@ -533,6 +398,7 @@ Resources:
         BuildJobName: !Sub '${Stage}-${AppName}-build-job'
         BuildJobQueue: !Ref BuildJobQueue
         InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
+        LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref InvokeLoadScriptFunction
@@ -571,10 +437,12 @@ Resources:
               LogGroupArn: !GetAtt UpdatePipelineLogGroup.Arn
         IncludeExecutionData: true
         Level: ALL
+
   UpdatePipelineLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "${Stage}-${AppName}-pipeline-execution-logs"
+
   UpdatePipelineArnParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -582,6 +450,24 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineArn'
       Description: "ARN of gfe-db update pipeline state machine"
       Value: !GetAtt UpdatePipeline.Arn
+
+  # # Testing purposes only
+  # TestActivityTask:
+  #   Type: AWS::Serverless::StateMachine
+  #   Properties:
+  #     DefinitionUri: statemachines/test-activity.asl.json
+  #     DefinitionSubstitutions:
+  #       InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
+  #       LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
+  #     Policies:
+  #       - LambdaInvokePolicy:
+  #           FunctionName: !Ref InvokeLoadScriptFunction
+
+  LoadNeo4jActivity:
+    Type: AWS::StepFunctions::Activity
+    Properties: 
+      Name: load-neo4j
+
   FailedAllelesQueue:
     Type: AWS::SQS::Queue
     Properties:
@@ -591,3 +477,53 @@ Resources:
         maxReceiveCount: 5
   FailedAllelesDeadLetterQueue:
     Type: AWS::SQS::Queue
+
+  Neo4jLoadQueryDocument: 
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: "Command"
+      DocumentFormat: "YAML"
+      TargetType: "/AWS::EC2::Instance"
+      Content:
+        schemaVersion: "2.2"
+        description: !Sub "Load Neo4j for ${AppName}"
+        parameters:
+          sourceType:
+            type: "String"
+            description: "S3"
+            default: "S3"
+          sourceInfo:
+            type: "StringMap"
+            description: !Sub "Downloads all files under the ${AppName} scripts prefix"
+            default:
+              path: !Sub 'https://{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}.s3.amazonaws.com/config/scripts/'
+          commandLine:
+            type: "String"
+            description: "These commands are invoked by a Lambda script which sets the correct parameters (Refer to documentation)."
+            default: 'bash start_task.sh'
+          workingDirectory:
+            type: "String"
+            description: "Working directory"
+            default: "/home/ubuntu"
+          executionTimeout:
+            type: "String"
+            description: "(Optional) The time in seconds for a command to complete before it is considered to have failed. Default is 3600 (1 hour). Maximum is 28800 (8 hours)."
+            default: "86400"
+        mainSteps:
+          - action: "aws:downloadContent"
+            name: "downloadContent"
+            inputs:
+              sourceType: "{{ sourceType }}"
+              sourceInfo: "{{ sourceInfo }}"
+              destinationPath: "{{ workingDirectory }}"
+          - action: "aws:runShellScript"
+            name: "runShellScript"
+            inputs: 
+              runCommand:
+                - ""
+                - "directory=$(pwd)"
+                - "export PATH=$PATH:$directory"
+                - " {{ commandLine }} " 
+                - ""
+              workingDirectory: "{{ workingDirectory }}"
+              timeoutSeconds: "{{ executionTimeout }}"

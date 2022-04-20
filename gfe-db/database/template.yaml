@@ -93,11 +93,11 @@ Resources:
             software-properties-common \
             zip \
             unzip
-          curl https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py -O
-          curl https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/AgentDependencies.tar.gz -O
-          tar xvf AgentDependencies.tar.gz -C /tmp/
-          python ./awslogs-agent-setup.py --region ${AWS::Region} --dependency-path /tmp/AgentDependencies
-          service awslogs start
+          curl -o /root/amazon-cloudwatch-agent.deb https://s3.amazonaws.com/amazoncloudwatch-agent/debian/amd64/latest/amazon-cloudwatch-agent.deb
+          dpkg -i -E /root/amazon-cloudwatch-agent.deb
+          aws s3 cp s3://${DataBucketName}/config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+          systemctl enable amazon-cloudwatch-agent.service
+          service amazon-cloudwatch-agent start
           echo "Downloading Neo4j configuration from ${DataBucketName} to /etc/neo4j/neo4j.template..."
           aws s3 cp s3://${DataBucketName}/config/neo4j/neo4j.template /etc/neo4j/neo4j.template
           echo "Downloading APOC Full plugin..."
@@ -171,9 +171,7 @@ Resources:
                   - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
                   - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
               - Effect: "Allow"
-                Action: 
-                  - "ssm:GetParameters"
-                  - "ssm:GetParameter"
+                Action:
                   - "secretsmanager:GetResourcePolicy"
                   - "secretsmanager:GetSecretValue"
                   - "secretsmanager:DescribeSecret"
@@ -183,11 +181,11 @@ Resources:
                   - "*"
               - Effect: "Allow"
                 Action: 
-                  - "logs:CreateLogStream"
-                  - "logs:DescribeLogStreams"
-                  - "logs:PutLogEvents"
-                  - "cloudwatch:PutMetricData"
-                Resource: 
+                  - "states:GetActivityTask"
+                  - "states:SendTaskHeartbeat"
+                  - "states:SendTaskSuccess"
+                  - "states:SendTaskFailure"
+                Resource:
                   - "*"
   
   Neo4jDatabaseInstanceProfile:
@@ -196,21 +194,12 @@ Resources:
       Roles:
         - !Ref Neo4jDatabaseInstanceRole
   
-  # TODO: add name
-  # TODO: move to infrastructure template so that the EIP does not change on redeploy
-  Neo4jDatabaseElasticIp:
-    Type: AWS::EC2::EIP
+  Neo4jDatabaseElasticIpAssociation:
+    Type: AWS::EC2::EIPAssociation
     Properties:
       InstanceId: !Ref Neo4jDatabaseInstance
-  
-  Neo4jDatabaseEndpointParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint'
-      Description: "Endpoint for gfe-db build service repository"
-      Value: !Ref Neo4jDatabaseElasticIp
-  
+      AllocationId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId}}'
+
   Neo4jDatabaseInstanceIdParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -218,64 +207,6 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId'
       Description: "Instance ID for gfe-db Neo4j database instance"
       Value: !Ref Neo4jDatabaseInstance
-
-  Neo4jLoadQueryDocument: 
-    Type: AWS::SSM::Document
-    Properties:
-      DocumentType: "Command"
-      DocumentFormat: "YAML"
-      TargetType: "/AWS::EC2::Instance"
-      Content:
-        schemaVersion: "2.2"
-        description: !Sub "Load Neo4j for ${AppName}"
-        parameters:
-          sourceType:
-            type: "String"
-            description: "(Required) Specify the source type."
-            default: "S3"
-          sourceInfo:
-            type: "StringMap"
-            description: "(Required) Specify the information required to access the resource from the source. If source type is GitHub, then you can specify any of the following: 'owner', 'repository', 'path', 'getOptions', 'tokenInfo'. If source type is S3, then you can specify 'path'."
-            default:
-              path: !Sub 'https://${DataBucketName}.s3.amazonaws.com/config/scripts/load_db.sh'
-          commandLine:
-            type: "String"
-            description: "(Required) Specify the command line to be executed. The following formats of commands can be run: 'pythonMainFile.py argument1 argument2', 'ansible-playbook -i \"localhost,\" -c local example.yml'"
-            default: "bash load_db.sh"
-          workingDirectory:
-            type: "String"
-            description: "Working directory"
-            default: "/home/ubuntu"
-          executionTimeout:
-            type: "String"
-            description: "(Optional) The time in seconds for a command to complete before it is considered to have failed. Default is 3600 (1 hour). Maximum is 28800 (8 hours)."
-            default: "3600"
-        mainSteps:
-          - action: "aws:downloadContent"
-            name: "downloadContent"
-            inputs:
-              sourceType: "{{ sourceType }}"
-              sourceInfo: "{{ sourceInfo }}"
-              destinationPath: "{{ workingDirectory }}"
-          - action: "aws:runShellScript"
-            name: "runShellScript"
-            inputs: 
-              runCommand:
-                - ""
-                - "directory=$(pwd)"
-                - "export PATH=$PATH:$directory"
-                - " {{ commandLine }} " 
-                - ""
-              workingDirectory: "{{ workingDirectory }}"
-              timeoutSeconds: "{{ executionTimeout }}"
-
-  Neo4jLoadQueryDocumentNameParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName'
-      Description: !Sub "Neo4j load query document name for ${AppName}"
-      Value: !Ref Neo4jLoadQueryDocument
 
   Neo4jBackupDocument: 
     Type: AWS::SSM::Document
@@ -307,7 +238,7 @@ Resources:
           executionTimeout:
             type: "String"
             description: "(Optional) The time in seconds for a command to complete before it is considered to have failed. Default is 3600 (1 hour). Maximum is 28800 (8 hours)."
-            default: "3600"
+            default: "86400"
         mainSteps:
           - action: "aws:downloadContent"
             name: "downloadContent"
@@ -363,10 +294,3 @@ Resources:
           Values:
             - !Ref Neo4jDatabaseInstance
       WindowId: !Ref Neo4jBackupMaintenanceWindow
-
-Outputs:
-  Neo4jDatabaseElasticIp:
-    Description: "Elastic IP for gfe-db Neo4j database instance"
-    Value: !Ref Neo4jDatabaseElasticIp
-    Export:
-      Name: Neo4jDatabaseElasticIp

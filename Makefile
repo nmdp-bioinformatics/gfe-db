@@ -25,6 +25,12 @@ export BUILD_REPOSITORY ?= ${STAGE}-${APP_NAME}-build-service
 export LOAD_REPOSITORY ?= ${STAGE}-${APP_NAME}-load-service
 export PIPELINE_STATE_PATH ?= config/IMGTHLA-repository-state.json
 export PIPELINE_PARAMS_PATH ?= config/pipeline-input.json
+export FUNCTIONS_PATH ?= ${APP_NAME}/pipeline/functions
+
+# # Capture datetime of most recent parameter change (force refresh paramter references)
+# export SSM_PARAM_MODIFIED ?= $(shell aws ssm describe-parameters \
+# 	| jq -c '.Parameters[] | select(.Name | contains("/${APP_NAME}/${STAGE}/${REGION}/"))' \
+# 	| jq -r '.LastModifiedDate' | sort -r | head -n 1)
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -113,6 +119,23 @@ deploy.config:
 	$(MAKE) -C gfe-db/pipeline/ deploy.config
 	$(MAKE) -C gfe-db/database/ deploy.config
 
+load.database:
+	@echo "Confirm payload:" && \
+	[ "$$align" ] && align="$$align" || align="False" && \
+	[ "$$kir" ] && kir="$$kir" || kir="False" && \
+	[ "$$limit" ] && limit="$$limit" || limit="" && \
+	[ "$$releases" ] && releases="$$releases" || releases="" && \
+	payload="{ \"align\": \"$$align\", \"kir\": \"$$kir\", \"limit\": \"$$limit\", \"releases\": \"$$releases\", \"mem_profile\": \"False\" }" && \
+	echo "$$payload" | jq -r && \
+	echo "$$payload" | jq > payload.json
+	@echo -n "Run pipeline with this payload? [y/N] " && read ans && [ $${ans:-N} = y ]
+	@function_name="${STAGE}"-"${APP_NAME}"-"$$(cat ${FUNCTIONS_PATH}/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.FunctionName')" && \
+	aws lambda invoke \
+		--cli-binary-format raw-in-base64-out \
+		--function-name "$$function_name" \
+		--payload file://payload.json \
+		response.json 2>&1
+
 delete: # data=true/false ##=> Delete services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${APP_NAME} in ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) delete.pipeline
@@ -138,6 +161,11 @@ get.data: #=> Download the build data locally
 get.logs: #=> Download all logs locally
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/logs/ ${LOGS_DIR}/
 
+get.neo4j:
+	@neo4j_endpoint="$$(aws ssm get-parameters \
+		--names "/$${APP_NAME}/$${STAGE}/$${REGION}/Neo4jDatabaseEndpoint" \
+			| jq -r '.Parameters | map(select(.Version == 1))[0].Value')" && \
+	echo " http://$$neo4j_endpoint:7474/browser/"
 
 # TODO: finished administrative targets
 # get.config:
@@ -179,22 +207,25 @@ define HELP_MESSAGE
 	DATA_BUCKET_NAME "$${DATA_BUCKET_NAME}"
 		Description: Name of the S3 bucket for data, config and logs
 
-	ECR_BASE_URI: "$${ECR_BASE_URI}"
-		Description: Base URI for AWS Elastic Container Registry
-
-	BUILD_REPOSITORY: "$${BUILD_REPOSITORY}"
-		Description: Name of the ECR repository for the build service
-
-	LOAD_REPOSITORY: "$${LOAD_REPOSITORY}"
-		Description: Name of the ECR repository for the load service
-
 	Common usage:
 
 	...::: Deploy all CloudFormation based services :::...
 	$ make deploy
 
+	...::: Deploy config files and scripts to S3 :::...
+	$ make deploy.config
+
 	...::: Run the StepFunctions State Machine to load Neo4j :::...
-	$ make run release=3450 align=False kir=False mem_profile=False limit=1000
+	$ make load.database releases=<version> align=<boolean> kir=<boolean> limit=<int>
+
+	...::: Download CSV data from S3 :::...
+	$ make get.data
+
+	...::: Download logs from EC2 :::...
+	$ make get.logs
+
+	...::: Display the Neo4j Browser endpoint URL :::...
+	$ make get.neo4j
 
 	...::: Delete all CloudFormation based services and data :::...
 	$ make delete

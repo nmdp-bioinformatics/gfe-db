@@ -100,3 +100,5 @@ packaged.yaml
 samconfig.toml
 _*
 _reference/
+payload.json
+response.json
