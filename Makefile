@@ -36,6 +36,9 @@ export NEO4J_ENDPOINT=$(shell aws ssm get-parameters \
 	--names "/$${APP_NAME}/$${STAGE}/$${REGION}/Neo4jDatabaseEndpoint" \
 	| jq -r '.Parameters | map(select(.Version == 1))[0].Value')
 
+# Uses a prexisting hosted zone, available in the Route53 console
+export HOSTED_ZONE_ID ?= Z1B70QOX271VPU
+
 # # Capture datetime of most recent parameter change (force refresh paramter references)
 # export SSM_PARAM_MODIFIED ?= $(shell aws ssm describe-parameters \
 # 	| jq -c '.Parameters[] | select(.Name | contains("/${APP_NAME}/${STAGE}/${REGION}/"))' \

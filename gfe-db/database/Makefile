@@ -70,7 +70,8 @@ deploy.database:
 			DataBucketName="$${DATA_BUCKET_NAME}" \
 			Neo4jAmiId="$${NEO4J_AMI_ID}" \
 			Neo4jPassword="$${NEO4J_PASSWORD}" \
-			DatabaseVolumeSize="$${DATABASE_VOLUME_SIZE}" 2>&1 | tee -a $$CFN_LOG_PATH || true
+			DatabaseVolumeSize="$${DATABASE_VOLUME_SIZE}" \
+			HostedZoneId="$${HOSTED_ZONE_ID}" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 
 deploy.copy-s3-logs:

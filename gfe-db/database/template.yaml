@@ -23,6 +23,8 @@ Parameters:
     Default: init_db.cyp
   DatabaseVolumeSize:
     Type: String
+  HostedZoneId:
+    Type: String
 
 # TODO: add map of accepted instances for Neo4j CE AMI
 
@@ -34,18 +36,18 @@ Resources:
       GroupDescription: Security group for the GFE database
       VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcID}}'
       SecurityGroupIngress:
-        - CidrIp: 0.0.0.0/0
-          FromPort: 80
-          IpProtocol: tcp
-          ToPort: 80
+        # - CidrIp: 0.0.0.0/0
+        #   FromPort: 80
+        #   IpProtocol: tcp
+        #   ToPort: 80
         - CidrIp: 0.0.0.0/0
           FromPort: 22
           IpProtocol: tcp
           ToPort: 22
-        - CidrIp: 0.0.0.0/0
-          FromPort: 7474
-          IpProtocol: tcp
-          ToPort: 7474
+        # - CidrIp: 0.0.0.0/0
+        #   FromPort: 7474
+        #   IpProtocol: tcp
+        #   ToPort: 7474
         - CidrIp: 0.0.0.0/0
           FromPort: 7473
           IpProtocol: tcp
@@ -54,6 +56,10 @@ Resources:
           FromPort: 7687
           IpProtocol: tcp
           ToPort: 7687
+        - CidrIp: 0.0.0.0/0
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
       Tags:
         - Key: Name
           Value: !Sub '${Stage}-${AppName}-neo4j-sg'
@@ -112,7 +118,8 @@ Resources:
           aws s3 cp s3://${DataBucketName}/config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
           systemctl enable amazon-cloudwatch-agent.service
           service amazon-cloudwatch-agent start
-          # # Configure Neo4j server
+          # Configure Neo4j server
+          mkdir -p /opt/bitnami/neo4j/certificates/https /opt/bitnami/neo4j/certificates/bolt
           # echo "Downloading Neo4j configuration from ${DataBucketName} to /etc/neo4j/neo4j.template..."
           # aws s3 cp s3://${DataBucketName}/config/neo4j/neo4j.template /etc/neo4j/neo4j.template
           # echo "Downloading APOC Full plugin..."
@@ -317,3 +324,14 @@ Resources:
           Values:
             - !Ref Neo4jDatabaseInstance
       WindowId: !Ref Neo4jBackupMaintenanceWindow
+
+  Neo4jDNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Comment: !Sub 'DNS name for ${AppName} server'
+      Name: !Sub '${AppName}.cloudftl.com'
+      Type: A
+      TTL: 300
+      ResourceRecords:
+      - !GetAtt Neo4jDatabaseInstance.PublicIp
