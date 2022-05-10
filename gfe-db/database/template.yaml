@@ -25,6 +25,10 @@ Parameters:
     Type: String
   HostedZoneId:
     Type: String
+  HostDomain:
+    Type: String
+  AdminEmail:
+    Type: String
 
 # TODO: add map of accepted instances for Neo4j CE AMI
 
@@ -36,18 +40,18 @@ Resources:
       GroupDescription: Security group for the GFE database
       VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcID}}'
       SecurityGroupIngress:
-        # - CidrIp: 0.0.0.0/0
-        #   FromPort: 80
-        #   IpProtocol: tcp
-        #   ToPort: 80
+        - CidrIp: 0.0.0.0/0
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
         - CidrIp: 0.0.0.0/0
           FromPort: 22
           IpProtocol: tcp
           ToPort: 22
-        # - CidrIp: 0.0.0.0/0
-        #   FromPort: 7474
-        #   IpProtocol: tcp
-        #   ToPort: 7474
+        - CidrIp: 0.0.0.0/0
+          FromPort: 7474
+          IpProtocol: tcp
+          ToPort: 7474
         - CidrIp: 0.0.0.0/0
           FromPort: 7473
           IpProtocol: tcp
@@ -68,7 +72,7 @@ Resources:
     Type: AWS::EC2::Instance
     CreationPolicy:
       ResourceSignal:
-        Timeout: PT5M
+        Timeout: PT10M
     Properties:
       KeyName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}'
       DisableApiTermination: false
@@ -103,15 +107,16 @@ Resources:
             zip \
             unzip \
             collectd \
-            python3-setuptools
-          mkdir -p /tmp/ssm /tmp/amazon-cloudwatch-agent /tmp/cfn /tmp/logs
+            python3-setuptools \
+            certbot
+          mkdir -p /tmp/{ssm,cfn,logs,amazon-cloudwatch-agent}
           # Install CloudFormation helper scripts (for cfn-signal)
           wget -q -O /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
           python3 -m easy_install --script-dir /opt/aws/bin /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz
           # Install SSM Agent for automation
           wget -q -O /tmp/ssm/amazon-ssm-agent.deb https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb
-          sudo dpkg -i /tmp/ssm/amazon-ssm-agent.deb
-          sudo systemctl enable amazon-ssm-agent
+          dpkg -i /tmp/ssm/amazon-ssm-agent.deb
+          systemctl enable amazon-ssm-agent
           # Install and configure CloudWatch Agent for logs and metrics
           wget -q -O /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb https://s3.amazonaws.com/amazoncloudwatch-agent/debian/amd64/latest/amazon-cloudwatch-agent.deb
           dpkg -i -E /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb
@@ -119,34 +124,60 @@ Resources:
           systemctl enable amazon-cloudwatch-agent.service
           service amazon-cloudwatch-agent start
           # Configure Neo4j server
-          mkdir -p /opt/bitnami/neo4j/certificates/https /opt/bitnami/neo4j/certificates/bolt
-          # echo "Downloading Neo4j configuration from ${DataBucketName} to /etc/neo4j/neo4j.template..."
-          # aws s3 cp s3://${DataBucketName}/config/neo4j/neo4j.template /etc/neo4j/neo4j.template
+          export NEO4J_HOME=/opt/bitnami/neo4j
+          echo "Stopping Neo4j..."
+          /opt/bitnami/ctlscript.sh stop
+          echo "Downloading Neo4j configuration from ${DataBucketName} to /etc/neo4j/neo4j.conf..."
+          aws s3 cp s3://${DataBucketName}/config/neo4j/neo4j.conf $NEO4J_HOME/conf/neo4j.conf
           # echo "Downloading APOC Full plugin..."
           # curl -L https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/4.4.0.3/apoc-4.4.0.3-all.jar -O
-          # mv apoc-4.4.0.3-all.jar /var/lib/neo4j/plugins/apoc-4.4.0.3-all.jar
-          # echo "Downloading Neo4j Graph Data Science plugin..."
-          # curl -L https://graphdatascience.ninja/neo4j-graph-data-science-2.0.1.zip -O
-          # unzip neo4j-graph-data-science-2.0.1.zip
-          # mv neo4j-graph-data-science-2.0.1.jar /var/lib/neo4j/plugins/neo4j-graph-data-science-2.0.1.jar
+          # mv apoc-4.4.0.3-all.jar $NEO4J_HOME/plugins/apoc-4.4.0.3-all.jar
+          echo "Downloading Neo4j Graph Data Science plugin..."
+          curl -L https://graphdatascience.ninja/neo4j-graph-data-science-2.0.1.zip -O
+          unzip neo4j-graph-data-science-2.0.1.zip
+          mv neo4j-graph-data-science-2.0.1.jar $NEO4J_HOME/plugins/neo4j-graph-data-science-2.0.1.jar
           # echo "Resetting default password..."
           # Stop Neo4j & Reset password
           # /opt/bitnami/ctlscript.sh stop neo4j
           # /opt/bitnami/neo4j/bin/neo4j-admin set-initial-password ${Neo4jPassword}
           # echo "Restarting Neo4j server..."
-          # sudo /opt/bitnami/ctlscript.sh start neo4j
+          # /opt/bitnami/ctlscript.sh start neo4j
           # systemctl enable neo4j.service
           # systemctl start neo4j
-          until $(curl --output /dev/null --silent --head --fail http://localhost:7474) ; do \
-          printf '.' ; \
-          sleep 1 ; \
+          echo "Provisioning SSL certificate..."
+          export HOST_DOMAIN=${HostDomain}
+          certbot certonly -n \
+            -d $HOST_DOMAIN \
+            --standalone \
+            -m ${AdminEmail} \
+            --agree-tos \
+            --redirect
+          chgrp -R neo4j /etc/letsencrypt/*
+          chmod -R g+rx /etc/letsencrypt/*
+          mkdir -p $NEO4J_HOME/certificates/{bolt,cluster,https}/trusted
+          for certsource in bolt cluster https; do \
+            ln -sf "/etc/letsencrypt/live/$HOST_DOMAIN/fullchain.pem" "$NEO4J_HOME/certificates/$certsource/neo4j.cert" \
+            ln -sf "/etc/letsencrypt/live/$HOST_DOMAIN/privkey.pem" "$NEO4J_HOME/certificates/$certsource/neo4j.key" \
+            ln -sf "/etc/letsencrypt/live/$HOST_DOMAIN/fullchain.pem" "$NEO4J_HOME/certificates/$certsource/trusted/neo4j.cert" \
           done
-          printf "%s\n" " "
-          echo "Neo4j is ready"
-          # mkdir -p /var/lib/neo4j/backups /var/lib/neo4j/cypher
+          chgrp -R neo4j $NEO4J_HOME/certificates/*
+          chmod -R g+rx $NEO4J_HOME/certificates/*
+          echo "Starting Neo4j..."
+          /opt/bitnami/ctlscript.sh start
+          # timeout=600
+          # counter=0
+          # until $(curl --output /dev/null --silent --head --fail http://localhost:7474) ; do \
+          #   printf '.' ; \
+          #   sleep 1 ; \
+          #   counter=$((counter + 1)) \
+          #   [ $counter -eq $timeout ] && break || true
+          # done
+          # printf "%s\n" " "
+          # echo "Neo4j is ready"
+          # mkdir -p $NEO4J_HOME/backups $NEO4J_HOME/cypher
           # echo "Fetching cypher scripts from S3..."
-          # aws s3 cp --recursive s3://${DataBucketName}/config/neo4j/cypher/ /var/lib/neo4j/cypher/
-          # cat /var/lib/neo4j/cypher/${Neo4jInitScript} | \
+          # aws s3 cp --recursive s3://${DataBucketName}/config/neo4j/cypher/ $NEO4J_HOME/cypher/
+          # cat $NEO4J_HOME/cypher/${Neo4jInitScript} | \
           # /usr/bin/cypher-shell \
           #   -u neo4j \
           #   -p ${Neo4jPassword}

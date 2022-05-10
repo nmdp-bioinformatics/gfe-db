@@ -13,7 +13,7 @@ export ROOT_DIR ?= $(shell pwd)
 export LOGS_DIR ?= $(shell echo "${ROOT_DIR}/logs")
 export CFN_LOG_PATH ?= $(shell echo "${LOGS_DIR}/cfn/logs.txt")
 export PURGE_LOGS ?= false
-# export NEO4J_AMI_ID ?= ami-0e1324ddfc4d086bb # Neo4j CE is discontinued; Requires subscription through AWS Marketplace
+# export NEO4J_AMI_ID ?= ami-0e1324ddfc4d086bb # Neo4j Community Edition AMI is no longer supported; 
 export NEO4J_AMI_ID ?= ami-04aa5da301f99bf58 # Bitnami Neo4j, requires subscription through AWS Marketplace
 export DATABASE_VOLUME_SIZE ?= 50
 # TODO: Add TRIGGER_SCHEDULE variable
@@ -37,6 +37,7 @@ export NEO4J_ENDPOINT=$(shell aws ssm get-parameters \
 	| jq -r '.Parameters | map(select(.Version == 1))[0].Value')
 
 # Uses a prexisting hosted zone, available in the Route53 console
+# Automate sourcing this variable
 export HOSTED_ZONE_ID ?= Z1B70QOX271VPU
 
 # # Capture datetime of most recent parameter change (force refresh paramter references)
@@ -80,6 +81,12 @@ $(error NEO4J_PASSWORD is not set.)
 endif
 ifndef GITHUB_PERSONAL_ACCESS_TOKEN
 $(error GITHUB_PERSONAL_ACCESS_TOKEN is not set.)
+endif
+ifndef HOST_DOMAIN
+$(error HOST_DOMAIN is not set.)
+endif
+ifndef ADMIN_EMAIL
+$(error ADMIN_EMAIL is not set.)
 endif
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
 
