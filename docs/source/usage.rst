@@ -4,7 +4,8 @@ Usage
 Deployment to AWS
 -----------------
 
-Follow the steps to build and deploy the application to AWS.
+Follow the steps to build and deploy the application to AWS. For information 
+about the architecture deployed please see :ref:`architecture`.
 
 Quick Start
 ~~~~~~~~~~~
@@ -44,6 +45,7 @@ AWS Credentials
 
 Valid AWS credentials must be available to AWS CLI and SAM CLI. The
 easiest way to do this is with the following steps. 
+
 #. Run ``aws configure`` and follow the prompts, or copy/paste them into ``~/.aws/credentials`` 
 #. Export the ``AWS_PROFILE`` variable for the chosen profile to the shell environment.
 
@@ -148,3 +150,9 @@ command line.
 
    # Delete all CloudFormation based services and data
    make delete
+
+Developing Locally
+------------------
+
+.. note:: 
+   This information is coming soon.

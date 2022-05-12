@@ -8,7 +8,7 @@ gfe-db
 
 Graph database representing IPD-IMGT/HLA sequence data as GFE.
 
-.. image:: _static/img/schema-alpha-v220511.png
+.. image:: /_static/img/schema-alpha-v220511.png
    :scale: 50%
 
 The `gfe-db` represents IPD-IMGT/HLA sequence data as GFE nodes and relationships in a 
@@ -20,6 +20,7 @@ Check out the source on `GitHub <https://github.com/nmdp-bioinformatics/gfe-db>`
 .. toctree::
    :maxdepth: 3
 
+   introduction
    usage
    reference
 
