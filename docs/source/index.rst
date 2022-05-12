@@ -19,6 +19,7 @@ database and an automated data pipeline for updates.
 Check out the source on `GitHub <https://github.com/nmdp-bioinformatics/gfe-db>`_.
 
 .. toctree::
+   :caption: Table of Contents
    :maxdepth: 3
 
    introduction
