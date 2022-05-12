@@ -17,7 +17,7 @@ please see the following sections.
 #. Set `environment variables <environment_>`__ 
 #. Check the config JSONs (parameters and state) and edit the values as desired 
 #. Run ``make deploy`` to deploy the stacks to AWS 
-#. Run ``make load.database release=<version>`` to load the Neo4j 
+#. Run ``make load.database release=<version>`` to load Neo4j
 #. Run ``make get.neo4j`` to get the URL for the Neo4j browser
 
 .. _prerequisites:
@@ -29,7 +29,7 @@ Please refer to the respective documentation for specific installation
 instructions.
 
 * GNU Make 3.81
-* coreutils (optional)
+* coreutils (optional for macOS)
 * AWS CLI
 * SAM CLI
 * Docker
@@ -97,7 +97,8 @@ Makefile Usage
 ~~~~~~~~~~~~~~
 
 Once an AWS profile is configured and environment variables are
-exported, the application can be deployed using ``make``.
+exported, the application can be deployed using ``make``. For more `make`
+commands please see :ref:`makefileref`.
 
 .. code:: bash
 
@@ -122,37 +123,116 @@ It is also possible to deploy or update individual services.
     Makefiles. If a stack has not been changed, the deployment script will
     continue until it reaches a stack with changes and deploy that.
 
-Makefile Command Reference
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+Deploying Configuration Files
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To see a list of possible commands using Make, run ``make`` on the
-command line.
+To deploy updates to state and/or pipeline input parameters, run the
+command.
 
 .. code:: bash
 
-   # Deploy all CloudFormation based services
-   make deploy
-
-   # Deploy config files and scripts to S3
    make deploy.config
 
-   # Run the StepFunctions State Machine to load Neo4j
+Clean Up
+~~~~~~~~
+
+To tear down resources run the command. You will need to manually delete
+the data in the S3 bucket first.
+
+.. code:: bash
+
+   make delete
+
+Use the following commands to tear down individual services.
+
+.. code:: bash
+
+   # Delete only the infrastructure service. 
+   make delete.infrastructure
+
+   # Delete only the database service
+   make delete.database
+
+   # Delete only the pipeline service
+   make delete.pipeline
+
+.. warning::
+   Deleting and re-deploying a layer may cause the parameters shared by
+   other layers to go out of date. To avoid this the recommendation is to deploy
+   sequentially and teardown in reverse sequence. For example, tearing down and
+   re-deploying the database stack may affect parameters shared with the pipeline stack, 
+   causing the pipeline stack to fail. The solution would be to also be 
+   tear down and re-deploy the pipeline stack.
+
+Loading Releases
+----------------
+
+Input Parameters
+~~~~~~~~~~~~~~~~
+
+Base input parameters (excluding the ``releases`` value) are passed to
+the Step Functions State Machine and determine it's behavior during
+build. These are stored in a configuration file in S3 (see the :ref:`datapipelineconfig` 
+configuration reference) but can be overridden. The ``releases`` value 
+is appended at runtime by the trigger Lambda when it finds a new release 
+in the source repository. 
+
++-------------+---------------+--------+--------------------------------------------------------------------+
+| Variable    | Example Value | Type   | Description                                                        |
++=============+===============+========+====================================================================+
+| LIMIT       | 100           | string | Number of alleles to build. Leave blank ("") to build all alleles. |
++-------------+---------------+--------+--------------------------------------------------------------------+
+| ALIGN       | False         | string | Include or exclude alignments in the build                         |
++-------------+---------------+--------+--------------------------------------------------------------------+
+| KIR         | False         | string | Include or exclude KIR data alignments in the build                |
++-------------+---------------+--------+--------------------------------------------------------------------+
+| MEM_PROFILE | False         | string | Enable memory profiling (for catching memory leaks during build)   |
++-------------+---------------+--------+--------------------------------------------------------------------+
+
+Pipeline Execution
+~~~~~~~~~~~~~~~~~~
+
+The data pipeline can also be invoked from the command line.
+
+.. code:: bash
+
    make load.database releases=<version> align=<boolean> kir=<boolean> limit=<int>
 
-   # Download CSV data from S3
-   make get.data
-
-   # Download logs from EC2
-   make get.logs
-
-   # Display the Neo4j Browser endpoint URL
-   make get.neo4j
-
-   # Delete all CloudFormation based services and data
-   make delete
+Retrieving logs, data and parameters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+See the reference section :ref:`makefilerefretrieve` for useful commands.
 
 Developing Locally
 ------------------
 
 .. note:: 
-   This information is coming soon.
+   This information is incomplete but will be updated soon.
+
+Creating a Python Virtual Environment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When developing locally, you will need to create an individual virtual
+environment to run scripts in the ``jobs`` or ``functions`` directories,
+since they require different dependencies.
+
+.. code:: bash
+
+   cd <specific job or function directory>
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -U pip
+   pip install -r requirements.txt
+
+To use the virtual environment inside a Jupyter Notebook, first activate
+the virtual environment, then create a kernel for it.
+
+.. code:: bash
+
+   # Install ipykernal
+   pip install ipykernel python-dotenv
+
+   # Add the kernel
+   python3 -m ipykernel install --user --name=<environment name>
+
+   # Remove the kernel
+   jupyter kernelspec uninstall <environment name>

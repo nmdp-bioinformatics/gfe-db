@@ -11,6 +11,7 @@ WHO designations or WHO labels an optional annotation of GFEs.
 
 .. image:: /_static/img/schema-alpha-v220511.png
    :scale: 50%
+   :align: center
 
 GFE nodes
 ~~~~~~~~~~~~~
@@ -207,7 +208,7 @@ Properties
 +---------------+----------------------+-----------+-------------------------+
 | Property      | Example              | Data Type | Description             |
 +===============+======================+===========+=========================+
-|``email``      | @cibmtr.org          | string    | Submitter's email       |
+|``email``      | user@cibmtr.org      | string    | Submitter's email       |
 +---------------+----------------------+-----------+-------------------------+
 |``institution``| CIBMTR               | integer   | Submitter's institution |
 +---------------+----------------------+-----------+-------------------------+
@@ -301,7 +302,7 @@ Properties
 .. code:: json
 
    {
-     "releases": [3470, 3460]
+     "releases": 3470
    }
 
 +------------+--------------+----------------+----------------------------------------------+
@@ -340,9 +341,9 @@ Properties
 Breaking down a GFE
 ~~~~~~~~~~~~~~~~~~~
 
-.. deprecated:: 0.1
-   This section discusses the ``WHO`` node which is has been deprecated. 
-   We hope to update this as quickly as possible. 
+.. note::
+   This section discusses the ``WHO`` and ``IMGT_HLA`` nodes which have 
+   been deprecated.
 
 The representation of a single GFE, for example corresponding to the
 allele ``HLA-A*01:01:01:01`` can be understood from the graph.
@@ -413,62 +414,199 @@ Here is a older example of a relationship between a WHO/IMGT_HLA allele
 (``HLA-DRB1*11:17``) and the corresponding GFE.
 
 .. image:: /_static/img/157B500B-9399-4B46-9E48-628F72C869C0.jpeg
-      :scale: 50%
+   :scale: 50%
+   :align: center
 
 In this example, the GFE associated with this allele changed between
 3.42.0 and 3.43.0
 
-.. _architecture:
-
-AWS Cloud Architecture
+Service Configurations
 ----------------------
 
-.. image:: /_static/img/arch-v220417.png
-   :scale: 50%
+Configuring is managed using JSON files, SSM Parameter Store, Secrets
+Manager, and shell variables. To deploy changes in these files, run the
+command.
 
-``gfe-db`` architecture is organized into 3 layers.
+.. code:: bash
 
-#. `Base infrastructure <infrastructure_>`__ 
-#. `Database <database_>`__ 
-#. `Data Pipeline <datapipeline_>`__ 
+   make deploy.config
 
-This allows deployments to be decoupled using Makefiles. Common
-configuration parameters are shared between resources using environment
-variables, JSON files, AWS SSM Parameter Store and Secrets Manager.
+Graph Database
+~~~~~~~~~~~~~~
 
-.. _infrastructure:
+Neo4j
+^^^^^
 
-Base infrastructure
-~~~~~~~~~~~~~~~~~~~
+Custom configuration settings for Neo4j are contained in
+``neo4j.template``. This file is copied into ``/etc/neo4j`` during boot
+or manually. When Neo4j is restarted it will use the settings in
+``neo4j.template`` to overwrite ``neo4j.conf``. More information can be
+found in the documentation here at `Neo4j Cloud Virtual Machines
+<https://neo4j.com/developer/neo4j-cloud-vms/>`_.
 
-The base infrastructure layer deploys a VPC, public subnet, S3 bucket,
-Elastic IP and common SSM parameters and secrets for the other services
-to use.
+.. important::
+   Neo4j no longer supports the Community Edition of their AMI for EC2.
+   The next release of ``gfe-db`` will use the Bitnami Neo4j AMI which 
+   will change this information.
 
-.. _database:
+Shell Scripts
+^^^^^^^^^^^^^
 
-Database
-~~~~~~~~
+Bash scripts are used for automating Neo4j configuration, loading and
+backup. These are stored in S3 and executed on the database instance using 
+SSM Run Command. These are found in ``gfe-db/gfe-db/database/scripts/``.
 
-The database layer deploys an EC2 instance running the Neo4j Community
-Edition into a public subnet. During initialization,
-Cypher queries are run to create constraints and indexes, which help
-speed up loading and ensure data integrity. Neo4j is ready to be
-accessed through a browser once the instance has booted sucessfully.
+Cypher Scripts
+^^^^^^^^^^^^^^
 
-.. _datapipeline:
+Cypher scripts manage node constraints & indexes and load the data.
+These are found in ``gfe-db/gfe-db/database/neo4j/cypher/``.
+
+.. _datapipelineconfig:
 
 Data Pipeline
 ~~~~~~~~~~~~~
 
-The data pipeline layer automates integration of newly released IMGT/HLA
-data into Neo4j using a scheduled Lambda which watches the source data
-repository and invokes the build and load processes when it detects a
-new IMGT/HLA version. The pipeline consists of a Step Functions state
-machine which orchestrates two basic processes: build and load. The
-build process employs a Batch job which produces an intermediate set of
-CSV files. The load process leverages SSM Run Command to copy the CSV
-files to the Neo4j server and execute Cypher statements directly on the
-server (server-side loading). When loading the full dataset of 35,000+
-alleles, the build step will generally take around 15 minutes, however
-the load step can take an hour or more.
+Input Parameters
+^^^^^^^^^^^^^^^^
+
+The ``pipeline-input.json`` is stored in S3 and contains the default
+configuration used for automated updates.
+
+.. code:: json
+
+   // pipeline-input.json
+   {
+     "align": "False",
+     "kir": "False",
+     "mem_profile": "False",
+     "limit": ""
+   }
+
+IMGT/HLA Release Versions State
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The application’s state tracks which releases have been processed and
+added to the database. This file tracks the releases which have already
+been processed. If the ``gfe-db-invoke-pipeline`` function detects a
+valid release branch in the source data repository that is not in the
+``releases`` array, it will start the pipeline for this release. Once
+the update is finished, the processed release is appended to the array.
+
+.. code:: json
+
+   // IMGTHLA-repository-state.json
+   {
+     "timestamp": "2021-12-09 02:36:59",
+     "repository_url": "https://github.com/ANHIG/IMGTHLA",
+     "releases": [
+       "3100",
+       // ...,
+       "3470"
+     ]
+   }
+
++----------------+----------------------------------+------------------+------------------------------------------------------------------+
+| Variable       | Example Value                    | Type             | Description                                                      |
++================+==================================+==================+==================================================================+
+| repository_url | https://github.com/ANHIG/IMGTHLA | string           | The repository the trigger is watching                           |
++----------------+----------------------------------+------------------+------------------------------------------------------------------+
+| releases       | ["3100", ..., "3470"]            | array of strings | List of available releases. Any release added to the repository  |
+|                |                                  |                  | that is not in this list will trigger the pipeline build.        |
++----------------+----------------------------------+------------------+------------------------------------------------------------------+
+
+Logging
+~~~~~~~
+Logs for EC2, Lambda and Batch are collected by CloudWatch Logs. 
+
+.. _makefileref:
+
+Makefile Command Reference
+--------------------------
+
+To see a list of possible commands using Make, run ``make`` on the
+command line.
+
+Deploy to AWS
+~~~~~~~~~~~~~
+
+Deploy all CloudFormation based services:
+
+.. code:: bash
+
+   make deploy
+
+Deploy specific stacks.
+
+.. code:: bash
+
+   make deploy.infrastructure
+
+.. code:: bash
+
+   make deploy.database
+
+.. code:: bash
+
+   make deploy.pipeline
+
+Deploy config files and scripts to S3:
+
+.. code:: bash
+
+   make deploy.config
+
+Load releases
+~~~~~~~~~~~~~
+
+Run the StepFunctions State Machine to load Neo4j:
+
+.. code:: bash
+
+   make load.database releases=<version> align=<boolean> kir=<boolean> limit=<int>
+
+.. _makefilerefretrieve:
+
+Retrieve logs, data and configuration values
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Download CSV data from S3 to ``./data``:
+
+.. code:: bash
+
+   make get.data
+
+Download logs from EC2 to ``./logs``:
+
+.. code:: bash
+
+   make get.logs
+
+Display the Neo4j Browser endpoint URL:
+
+.. code:: bash
+
+   make get.neo4j
+
+Tear down infrastructure
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Delete all CloudFormation based services and data:
+
+.. code:: bash
+
+   make delete
+
+Delete specific stacks (may cause issues):
+
+.. code:: bash
+
+   make delete.infrastructure
+
+.. code:: bash
+
+   make delete.database
+
+.. code:: bash
+
+   make delete.pipeline

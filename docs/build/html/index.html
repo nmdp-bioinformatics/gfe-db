@@ -7,6 +7,7 @@
   <title>gfe-db &mdash; gfe-db 1.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="_static/copybutton.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -15,6 +16,8 @@
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/clipboard.min.js"></script>
+        <script src="_static/copybutton.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -69,7 +72,7 @@
   <section id="gfe-db">
 <h1>gfe-db<a class="headerlink" href="#gfe-db" title="Permalink to this headline"></a></h1>
 <p>Graph database representing IPD-IMGT/HLA sequence data as GFE.</p>
-<a class="reference internal image-reference" href="_images/schema-alpha-v220511.png"><img alt="_images/schema-alpha-v220511.png" src="_images/schema-alpha-v220511.png" style="width: 472.5px; height: 400.5px;" /></a>
+<a class="reference internal image-reference" href="_images/schema-alpha-v220511.png"><img alt="_images/schema-alpha-v220511.png" class="align-center" src="_images/schema-alpha-v220511.png" style="width: 472.5px; height: 400.5px;" /></a>
 <p>The <cite>gfe-db</cite> represents IPD-IMGT/HLA sequence data as GFE nodes and relationships in a
 Neo4j graph database. This application deploys and configures AWS resources for the GFE
 database and an automated data pipeline for updates.</p>
@@ -77,9 +80,17 @@ database and an automated data pipeline for updates.</p>
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="introduction.html">Introduction</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="introduction.html#introduction-to-gfe">Introduction to GFE</a></li>
-<li class="toctree-l2"><a class="reference internal" href="introduction.html#approach">Approach</a></li>
-<li class="toctree-l2"><a class="reference internal" href="introduction.html#references">References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="introduction.html#gene-feature-enumeration">Gene Feature Enumeration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="introduction.html#approach">Approach</a></li>
+<li class="toctree-l3"><a class="reference internal" href="introduction.html#references">References</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="introduction.html#architecture">Architecture</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="introduction.html#base-infrastructure">Base Infrastructure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="introduction.html#database">Database</a></li>
+<li class="toctree-l3"><a class="reference internal" href="introduction.html#data-pipeline">Data Pipeline</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a><ul>
@@ -88,9 +99,20 @@ database and an automated data pipeline for updates.</p>
 <li class="toctree-l3"><a class="reference internal" href="usage.html#prerequisites">Prerequisites</a></li>
 <li class="toctree-l3"><a class="reference internal" href="usage.html#environment">Environment</a></li>
 <li class="toctree-l3"><a class="reference internal" href="usage.html#makefile-usage">Makefile Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="usage.html#deploying-configuration-files">Deploying Configuration Files</a></li>
+<li class="toctree-l3"><a class="reference internal" href="usage.html#clean-up">Clean Up</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="usage.html#developing-locally">Developing Locally</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage.html#loading-releases">Loading Releases</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="usage.html#input-parameters">Input Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="usage.html#pipeline-execution">Pipeline Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="usage.html#retrieving-logs-data-and-parameters">Retrieving logs, data and parameters</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="usage.html#developing-locally">Developing Locally</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="usage.html#creating-a-python-virtual-environment">Creating a Python Virtual Environment</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="reference.html">Reference</a><ul>
@@ -109,16 +131,24 @@ database and an automated data pipeline for updates.</p>
 <li class="toctree-l3"><a class="reference internal" href="reference.html#breaking-down-a-gfe">Breaking down a GFE</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="reference.html#aws-cloud-architecture">AWS Cloud Architecture</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="reference.html#base-infrastructure">Base infrastructure</a></li>
-<li class="toctree-l3"><a class="reference internal" href="reference.html#database">Database</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference.html#service-configurations">Service Configurations</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="reference.html#graph-database">Graph Database</a></li>
 <li class="toctree-l3"><a class="reference internal" href="reference.html#data-pipeline">Data Pipeline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="reference.html#logging">Logging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="reference.html#makefile-command-reference">Makefile Command Reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="reference.html#deploy-to-aws">Deploy to AWS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="reference.html#load-releases">Load releases</a></li>
+<li class="toctree-l3"><a class="reference internal" href="reference.html#retrieve-logs-data-and-configuration-values">Retrieve logs, data and configuration values</a></li>
+<li class="toctree-l3"><a class="reference internal" href="reference.html#tear-down-infrastructure">Tear down infrastructure</a></li>
 </ul>
 </li>
 </ul>
 </li>
 </ul>
 </div>
+<img alt="https://bethematch.org/content/site/images/btm_logo.png" class="align-center" src="https://bethematch.org/content/site/images/btm_logo.png" />
 </section>
 
 
