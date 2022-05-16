@@ -73,7 +73,6 @@ deploy.database:
 			Neo4jAmiId="$${NEO4J_AMI_ID}" \
 			Neo4jPassword="$${NEO4J_PASSWORD}" \
 			DatabaseVolumeSize="$${DATABASE_VOLUME_SIZE}" \
-			HostedZoneId="$${HOSTED_ZONE_ID}" \
 			HostDomain="$${HOST_DOMAIN}" \
 			AdminEmail="$${ADMIN_EMAIL}" 2>&1 | tee -a $$CFN_LOG_PATH || true
 

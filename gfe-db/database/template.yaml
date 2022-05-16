@@ -23,8 +23,6 @@ Parameters:
     Default: init_db.cyp
   DatabaseVolumeSize:
     Type: String
-  HostedZoneId:
-    Type: String
   HostDomain:
     Type: String
   AdminEmail:
@@ -77,7 +75,7 @@ Resources:
       KeyName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}'
       DisableApiTermination: false
       ImageId: !Ref Neo4jAmiId
-      InstanceType: m5.xlarge
+      InstanceType: m5.large # m5.xlarge
       IamInstanceProfile: !Ref Neo4jDatabaseInstanceProfile
       Monitoring: true
       BlockDeviceMappings: 
@@ -123,6 +121,20 @@ Resources:
           aws s3 cp s3://${DataBucketName}/config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
           systemctl enable amazon-cloudwatch-agent.service
           service amazon-cloudwatch-agent start
+          # Signal the status from cfn-init; Ideally the UserData is run using cfn-init, and the exit code of cfn-init is passed to cfn-signal indicating
+          # successful deployment
+          # cfn-signal tells CloudFormation the instance is created. This lets CloudFormation proceed with associating it with the EIP
+          /opt/aws/bin/cfn-signal \
+            --exit-code $? \
+            --stack  ${AWS::StackName} \
+            --resource Neo4jDatabaseInstance \
+            --region  ${AWS::Region}
+          # everything below needs its own separate scripts
+          # sleep condition and test if instance is associated with EIP
+          # test EIP and echo value
+          # sleep 60
+          # test EIP again and echo value to make sure it changed, could write a waiter script for this part
+          # Proceed with SSL cert creation and Neo4j config
           # Configure Neo4j server
           export NEO4J_HOME=/opt/bitnami/neo4j
           echo "Stopping Neo4j..."
@@ -144,26 +156,13 @@ Resources:
           # /opt/bitnami/ctlscript.sh start neo4j
           # systemctl enable neo4j.service
           # systemctl start neo4j
-          echo "Provisioning SSL certificate..."
+          # Provision SSL certificate
+          aws s3 cp s3://${DataBucketName}/config/scripts/create_cert.sh create_cert.sh
           export HOST_DOMAIN=${HostDomain}
-          certbot certonly -n \
-            -d $HOST_DOMAIN \
-            --standalone \
-            -m ${AdminEmail} \
-            --agree-tos \
-            --redirect
-          chgrp -R neo4j /etc/letsencrypt/*
-          chmod -R g+rx /etc/letsencrypt/*
-          mkdir -p $NEO4J_HOME/certificates/{bolt,cluster,https}/trusted
-          for certsource in bolt cluster https; do \
-            ln -sf "/etc/letsencrypt/live/$HOST_DOMAIN/fullchain.pem" "$NEO4J_HOME/certificates/$certsource/neo4j.cert" \
-            ln -sf "/etc/letsencrypt/live/$HOST_DOMAIN/privkey.pem" "$NEO4J_HOME/certificates/$certsource/neo4j.key" \
-            ln -sf "/etc/letsencrypt/live/$HOST_DOMAIN/fullchain.pem" "$NEO4J_HOME/certificates/$certsource/trusted/neo4j.cert" \
-          done
-          chgrp -R neo4j $NEO4J_HOME/certificates/*
-          chmod -R g+rx $NEO4J_HOME/certificates/*
-          echo "Starting Neo4j..."
-          /opt/bitnami/ctlscript.sh start
+          export ADMIN_EMAIL=${AdminEmail}
+          bash create_cert.sh
+          # echo "Starting Neo4j..."
+          # /opt/bitnami/ctlscript.sh start
           # timeout=600
           # counter=0
           # until $(curl --output /dev/null --silent --head --fail http://localhost:7474) ; do \
@@ -187,13 +186,7 @@ Resources:
           echo "Copying Neo4j logs to S3..."
           journalctl -e -u neo4j > /tmp/logs/neo4j.log
           aws s3 cp --recursive /tmp/logs/ s3://${DataBucketName}/logs/database/bootstrap/$(date +'%Y/%m/%d/%H')/
-          # Signal the status from cfn-init; Ideally the UserData is run using cfn-init, and the exit code of cfn-init is passed to cfn-signal indicating
-          # successful deployment
-          /opt/aws/bin/cfn-signal \
-            --exit-code $? \
-            --stack  ${AWS::StackName} \
-            --resource Neo4jDatabaseInstance \
-            --region  ${AWS::Region}
+
       Tags:
         - Key: Name
           Value: !Ref AppName
@@ -355,14 +348,3 @@ Resources:
           Values:
             - !Ref Neo4jDatabaseInstance
       WindowId: !Ref Neo4jBackupMaintenanceWindow
-
-  Neo4jDNSRecord:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneId: !Ref HostedZoneId
-      Comment: !Sub 'DNS name for ${AppName} server'
-      Name: !Sub '${AppName}.cloudftl.com'
-      Type: A
-      TTL: 300
-      ResourceRecords:
-      - !GetAtt Neo4jDatabaseInstance.PublicIp
