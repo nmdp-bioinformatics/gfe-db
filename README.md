@@ -117,7 +117,7 @@ This list outlines the basic steps for deployment. For more details please see t
 2. [Set environment variables](#environment-variables)
 3. Check the config JSONs (parameters and state) and edit the values as desired
 4. Run `make deploy` to deploy the stacks to AWS
-5. Run `make load.database release=<version>` to load the Neo4j
+5. Run `make load.database releases=<version>` to load the Neo4j
 6. Run `make get.neo4j` to get the URL for the Neo4j browser
 
 ### Prerequisites
