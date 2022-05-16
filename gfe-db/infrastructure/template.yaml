@@ -187,4 +187,4 @@ Outputs:
     Description: "Elastic IP for gfe-db Neo4j database instance"
     Value: !Ref Neo4jDatabaseElasticIp
     Export:
-      Name: Neo4jDatabaseElasticIp
+      Name: !Sub "${AppName}-${Stage}-Neo4jDatabaseElasticIp"
