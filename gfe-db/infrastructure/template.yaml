@@ -18,6 +18,8 @@ Parameters:
   GitHubPersonalAccessToken:
     Type: String
     NoEcho: true
+  HostedZoneId:
+    Type: String
     
 Mappings:
   # AvailabilityZoneMap defines availability zones where an m5d.xlarge instance is available (used for Neo4j server).
@@ -165,6 +167,17 @@ Resources:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
+
+  Neo4jDNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Comment: !Sub 'DNS name for ${AppName} server'
+      Name: !Sub '${AppName}.cloudftl.com'
+      Type: A
+      TTL: 300
+      ResourceRecords:
+      - !Ref Neo4jDatabaseElasticIp
 
   Neo4jDatabaseEndpointParameter:
     Type: AWS::SSM::Parameter
