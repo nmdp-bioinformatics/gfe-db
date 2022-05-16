@@ -28,4 +28,4 @@ Check out the source on `GitHub <https://github.com/nmdp-bioinformatics/gfe-db>`
 
 .. image:: https://bethematch.org/content/site/images/btm_logo.png
    :align: center
-   
+   :target: https://bethematch.org/
