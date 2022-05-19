@@ -7,8 +7,7 @@ target:
 deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH
 	# $(MAKE) ecr.login
-	$(MAKE) deploy-ecr.jobs.build
-	# $(MAKE) deploy-ecr.jobs.load
+	$(MAKE) deploy.ecr.jobs.build
 
 # Skipped, causes timeout issues on some internet connections; added to individual build targets
 # ecr.login:
@@ -19,7 +18,7 @@ deploy:
 # 			--password-stdin "$${ECR_BASE_URI}" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 # TODO: use a for loop for build/load targets
-deploy-ecr.jobs.build:
+deploy.ecr.jobs.build:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Pushing Build Service Docker image to ECR" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws ecr get-login-password \
 		--region "$${REGION}" | docker login \
@@ -29,23 +28,12 @@ deploy-ecr.jobs.build:
 	docker tag "$${BUILD_REPOSITORY}:latest" "$${ECR_BASE_URI}/$${BUILD_REPOSITORY}:latest" && \
 	docker push "$${ECR_BASE_URI}/$${BUILD_REPOSITORY}:latest" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
-# deploy-ecr.jobs.load:
-# 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Pushing Load Service Docker image to ECR" 2>&1 | tee -a $$CFN_LOG_PATH
-# 	@aws ecr get-login-password \
-# 		--region "$${REGION}" | docker login \
-# 			--username AWS \
-# 			--password-stdin "$${ECR_BASE_URI}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
-# 	docker build -t "$${LOAD_REPOSITORY}" load/ && \
-# 	docker tag "$${LOAD_REPOSITORY}:latest" "$${ECR_BASE_URI}/$${LOAD_REPOSITORY}:latest" && \
-# 	docker push "$${ECR_BASE_URI}/$${LOAD_REPOSITORY}:latest" 2>&1 | tee -a $$CFN_LOG_PATH || true
-
 delete:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH
-	$(MAKE) delete-ecr.jobs.build 
-	# $(MAKE) delete-ecr.jobs.load
+	$(MAKE) delete.ecr.jobs.build
 
 # TODO: use a for loop for build/load targets
-delete-ecr.jobs.build:
+delete.ecr.jobs.build:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting Build Service Docker images" 2>&1 | tee -a $$CFN_LOG_PATH
 	@ecr_images="$$(aws ecr list-images \
 		--region $${REGION} \
@@ -59,21 +47,6 @@ delete-ecr.jobs.build:
 		--region "$${REGION}" \
 		--repository-name "$${BUILD_REPOSITORY}" \
 		--image-ids "$$ecr_images" 2>&1 | tee -a $$CFN_LOG_PATH || true
-
-# delete-ecr.jobs.load:
-# 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting Load Service Docker images" 2>&1 | tee -a $$CFN_LOG_PATH
-# 	@ecr_images="$$(aws ecr list-images \
-# 		--region $${REGION} \
-# 		--repository-name $${LOAD_REPOSITORY} \
-# 		--query 'imageIds[*]' \
-# 		--output json || true)" && \
-# 	[ "$$ecr_images" = "[]" ] && \
-# 	echo "No images to delete in $${ECR_BASE_URI}/$${LOAD_REPOSITORY}" && exit 0 || \
-# 	echo "Deleting images in $${ECR_BASE_URI}/$${LOAD_REPOSITORY}" && \
-# 	aws ecr batch-delete-image \
-# 		--region "$${REGION}" \
-# 		--repository-name "$${LOAD_REPOSITORY}" \
-# 		--image-ids "$$ecr_images" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 #############
 #  Helpers  #

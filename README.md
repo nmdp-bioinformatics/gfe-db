@@ -24,14 +24,14 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
     - [Makefile Usage](#makefile-usage)
       - [Makefile Command Reference](#makefile-command-reference)
   - [Managing Configuration](#managing-configuration)
-    - [Database](#database-1)
+    - [Database Config](#database-config)
       - [Neo4j](#neo4j)
       - [Shell Scripts](#shell-scripts)
       - [Cypher Scripts](#cypher-scripts)
-    - [Data Pipeline](#data-pipeline-1)
+      - [SSL Policy](#ssl-policy)
+    - [Data Pipeline Config](#data-pipeline-config)
       - [Invocation Input](#invocation-input)
       - [IMGT/HLA Release Versions State](#imgthla-release-versions-state)
-    - [Deploying Configuration Files](#deploying-configuration-files)
   - [Loading Neo4j](#loading-neo4j)
     - [Clean Up](#clean-up)
   - [Local Development](#local-development)
@@ -117,7 +117,7 @@ This list outlines the basic steps for deployment. For more details please see t
 2. [Set environment variables](#environment-variables)
 3. Check the config JSONs (parameters and state) and edit the values as desired
 4. Run `make deploy` to deploy the stacks to AWS
-5. Run `make load.database releases=<version>` to load the Neo4j
+5. Run `make database.load release=<version>` to load the Neo4j
 6. Run `make get.neo4j` to get the URL for the Neo4j browser
 
 ### Prerequisites
@@ -152,6 +152,8 @@ REGION=<AWS region>
 NEO4J_USERNAME=<secret>
 NEO4J_PASSWORD=<secret>
 GITHUB_PERSONAL_ACCESS_TOKEN=<secret>
+HOST_DOMAIN=<fqdn>
+ADMIN_EMAIL=<email>
 ```
 
 2. Source the variables to the environment.
@@ -192,7 +194,7 @@ make deploy
 make deploy.config
 
 # Run the StepFunctions State Machine to load Neo4j
-make load.database releases=<version> align=<boolean> kir=<boolean> limit=<int>
+make database.load releases=<version> align=<boolean> kir=<boolean> limit=<int>
 
 # Download CSV data from S3
 make get.data
@@ -229,7 +231,7 @@ Configuring is managed using JSON files, SSM Parameter Store, Secrets Manager, a
 make deploy.config
 ```
 
-### Database
+### Database Config
 
 #### Neo4j
 Custom configuration settings for Neo4j are contained in `neo4j.template`. This file is copied into `/etc/neo4j` during boot or manually. When Neo4j is restarted it will use the settings in `neo4j.template` to overwrite `neo4j.conf`. More information can be found in the documentation here: [Neo4j Cloud Virtual Machines] (https://neo4j.com/developer/neo4j-cloud-vms/)
@@ -240,7 +242,10 @@ Bash scripts are used for automating Neo4j configuration, loading and backup. Th
 #### Cypher Scripts
 Cypher scripts manage node constraints & indexes and load the data. These are found in `gfe-db/gfe-db/database/neo4j/cypher/`.
 
-### Data Pipeline
+#### SSL Policy
+- Port 80 HTTP must be open on security group
+
+### Data Pipeline Config
 
 #### Invocation Input
 Base input parameters (excluding the `releases` value) are passed to the Step Functions State Machine and determine it's behavior during build. The `releases` value is appended at runtime by the trigger Lambda when it finds a new release in the source repository. The `pipeline-input.json` is stored in S3 and contains the default configuration used for automated updates.
@@ -263,7 +268,7 @@ Base input parameters (excluding the `releases` value) are passed to the Step Fu
 
 The data pipeline can also be invoked from the command line:
 ```bash
-make load.database releases=<version> align=<boolean> kir=<boolean> limit=<int>
+make database.load releases=<version> align=<boolean> kir=<boolean> limit=<int>
 ```
 
 #### IMGT/HLA Release Versions State
@@ -286,28 +291,22 @@ The application's state tracks which releases have been processed and added to t
 | repository_url | https://github.com/ANHIG/IMGTHLA | string           | The repository the trigger is watching                                                                                    |
 | releases       | ["3100", ..., "3470"]            | array of strings | List of available releases. Any release added to the repository that is not in this list will trigger the pipeline build. |
 
-### Deploying Configuration Files
-To deploy updates to state and/or pipeline input parameters, run the command.
-```bash
-make deploy.config
-```
-
 ## Loading Neo4j
 For each invocation the data pipeline will download raw data from [ANHIG/IMGTHLA](https://github.com/ANHIG/IMGTHLA) GitHub repository, build a set of intermediate CSV files and load these into Neo4j via S3. To invoke the pipeline, run the following command.
 ```bash
-make load.database releases="<version>"
+make database.load releases="<version>"
 
 # Example for single version
-make load.database releases="3470"
+make database.load releases="3470"
 
 # Example for multiple versions
-make load.database releases="3450,3460,3470"
+make database.load releases="3450,3460,3470"
 
 # Example with limit
-make load.database releases="3470" limit="1000"
+make database.load releases="3470" limit="1000"
 
 # Example with all arguments included
-make load.database releases="3470" limit="" align="False" kir="False"
+make database.load releases="3470" limit="" align="False" kir="False"
 ```
 
 These commands build an event payload to send to the `invoke-gfe-db-pipeline` Lambda.
