@@ -466,7 +466,7 @@ Resources:
   LoadNeo4jActivity:
     Type: AWS::StepFunctions::Activity
     Properties: 
-      Name: load-neo4j
+      Name: !Sub "${AppName}-${Stage}-load-Neo4j"
 
   FailedAllelesQueue:
     Type: AWS::SQS::Queue
