@@ -10,10 +10,13 @@ export REGION ?= us-east-1
 
 # TODO: Application Configuration, can move to JSON
 export ROOT_DIR ?= $(shell pwd)
+export DATABASE_DIR ?= ${ROOT_DIR}/${APP_NAME}/database
 export LOGS_DIR ?= $(shell echo "${ROOT_DIR}/logs")
 export CFN_LOG_PATH ?= $(shell echo "${LOGS_DIR}/cfn/logs.txt")
 export PURGE_LOGS ?= false
 # export NEO4J_AMI_ID ?= ami-0e1324ddfc4d086bb # Neo4j Community Edition AMI is no longer supported; 
+
+# TODO move these to a config file
 export NEO4J_AMI_ID ?= ami-04aa5da301f99bf58 # Bitnami Neo4j, requires subscription through AWS Marketplace
 export DATABASE_VOLUME_SIZE ?= 50
 # TODO: Add TRIGGER_SCHEDULE variable
@@ -137,6 +140,16 @@ deploy.pipeline:
 deploy.config:
 	$(MAKE) -C gfe-db/pipeline/ deploy.config
 	$(MAKE) -C gfe-db/database/ deploy.config
+
+# Sets and deploys the environment variables used for scripts run on the database instance; don't store sensitive data
+database.env.set:
+	@echo "STAGE=${STAGE}" > ${DATABASE_DIR}/scripts/.env
+	@echo "APP_NAME=${APP_NAME}" >> ${DATABASE_DIR}/scripts/.env
+	@echo "REGION=${REGION}" >> ${DATABASE_DIR}/scripts/.env
+	@echo "DATA_BUCKET_NAME=${DATA_BUCKET_NAME}" >> ${DATABASE_DIR}/scripts/.env
+	@echo "HOST_DOMAIN=${HOST_DOMAIN}" >> ${DATABASE_DIR}/scripts/.env
+	@echo "ADMIN_EMAIL=${ADMIN_EMAIL}" >> ${DATABASE_DIR}/scripts/.env
+
 
 database.load:
 	@echo "Confirm payload:" && \
