@@ -3,6 +3,9 @@
 # Check for release argument
 RELEASE=$1
 
+# Get APP_NAME, REGION, STAGE setup on db install
+source $(dirname "$0")/env.sh
+
 # Set paths
 NEO4J_CYPHER_PATH=/var/lib/neo4j/cypher
 NEO4J_IMPORT_PATH=/var/lib/neo4j/import
@@ -23,14 +26,14 @@ fi
 # Get Neo4j Credentials
 NEO4J_CREDENTIALS=$(aws secretsmanager get-secret-value \
     --region $REGION \
-    --secret-id gfe-db-dev-Neo4jCredentials | jq -r '.SecretString')
+    --secret-id ${APP_NAME}-${STAGE}-Neo4jCredentials | jq -r '.SecretString')
 NEO4J_USERNAME=$(echo $NEO4J_CREDENTIALS | jq -r '.NEO4J_USERNAME')
 NEO4J_PASSWORD=$(echo $NEO4J_CREDENTIALS | jq -r '.NEO4J_PASSWORD')
 
 # Get data bucket name
 DATA_BUCKET_NAME=$(aws ssm get-parameters \
     --region $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/\(.*\)[a-z]/\1/') \
-    --names "/gfe-db/dev/us-east-1/DataBucketName" \
+    --names "/${APP_NAME}/${STAGE}/${REGION}/DataBucketName" \
     | jq -r '.Parameters | map(select(.Version == 1))[0].Value')
 
 if [[ -z $DATA_BUCKET_NAME ]]; then

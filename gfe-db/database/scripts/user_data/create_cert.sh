@@ -1,11 +1,13 @@
 #!/bin/bash
 
-# Part of user data, to be run on the database instance on initialization
+# Part of user data, to be run on the database instance on initialization, or later for renewal
 
 echo "Provisioning SSL certificate..."
 export NEO4J_HOME=/opt/bitnami/neo4j
-export HOST_DOMAIN=gfe-db.cloudftl.com
-export ADMIN_EMAIL=gclindsey@gmail.com
+
+# Passed from command line
+HOST_DOMAIN=$1
+ADMIN_EMAIL=$2
 
 certbot certonly -n \
   -d $HOST_DOMAIN \

@@ -101,12 +101,15 @@ Resources:
             apt-transport-https \
             ca-certificates \
             curl \
+            jq \
             software-properties-common \
             zip \
             unzip \
             collectd \
             python3-setuptools \
             certbot
+          
+          # Install cfn helper scripts, SSM Agent & CloudWatch Logs Agent
           mkdir -p /tmp/{ssm,cfn,logs,amazon-cloudwatch-agent}
           # Install CloudFormation helper scripts (for cfn-signal)
           wget -q -O /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
@@ -121,59 +124,52 @@ Resources:
           aws s3 cp s3://${DataBucketName}/config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
           systemctl enable amazon-cloudwatch-agent.service
           service amazon-cloudwatch-agent start
+          # Capture the initial public IP to check EIP association later
+          export BOOTSTRAP_PUBLIC_IPV4=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
+          echo "BOOTSTRAP_PUBLIC_IPV4=$BOOTSTRAP_PUBLIC_IPV4" >> env.sh
+          # Fetch user data scripts from S3
+          aws s3 cp --recursive s3://${DataBucketName}/config/scripts/ .
           # Signal the status from cfn-init; Ideally the UserData is run using cfn-init, and the exit code of cfn-init is passed to cfn-signal indicating
           # successful deployment
           # cfn-signal tells CloudFormation the instance is created. This lets CloudFormation proceed with associating it with the EIP
+          echo "Signaling successful bootstrap with cfn-signal"
+          # TODO capture original public IP for verification of association
           /opt/aws/bin/cfn-signal \
             --exit-code $? \
             --stack  ${AWS::StackName} \
             --resource Neo4jDatabaseInstance \
             --region  ${AWS::Region}
-          # everything below needs its own separate scripts
-          # sleep condition and test if instance is associated with EIP
-          # test EIP and echo value
-          # sleep 60
-          # test EIP again and echo value to make sure it changed, could write a waiter script for this part
-          # Proceed with SSL cert creation and Neo4j config
-          # Configure Neo4j server
+          # TODO capture current public IP and verify that it is different from the original
+          # TODO verify that new IP matches the value in SSM Parameter Store          
+          # Next parts depend on EIP association (instance IP will be changed)
           export NEO4J_HOME=/opt/bitnami/neo4j
-          echo "Stopping Neo4j..."
-          /opt/bitnami/ctlscript.sh stop
-          echo "Downloading Neo4j configuration from ${DataBucketName} to /etc/neo4j/neo4j.conf..."
-          aws s3 cp s3://${DataBucketName}/config/neo4j/neo4j.conf $NEO4J_HOME/conf/neo4j.conf
-          # echo "Downloading APOC Full plugin..."
-          # curl -L https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/4.4.0.3/apoc-4.4.0.3-all.jar -O
-          # mv apoc-4.4.0.3-all.jar $NEO4J_HOME/plugins/apoc-4.4.0.3-all.jar
+          # Stores the environment for the load scripts which are executed in different shells than user data
+          export REGION=${AWS::Region}
+          echo "REGION=${AWS::Region}" >> /home/ubuntu/env.sh
+          export APP_NAME=${AppName}
+          echo "APP_NAME=${AppName}" >> /home/ubuntu/env.sh
+          export STAGE=${Stage}
+          echo "STAGE=${Stage}" >> /home/ubuntu/env.sh
+          echo "Stopping Neo4j for configuration update..."
+          /opt/bitnami/ctlscript.sh stop neo4j
+          # Bitnami does not ship with GDS
           echo "Downloading Neo4j Graph Data Science plugin..."
           curl -L https://graphdatascience.ninja/neo4j-graph-data-science-2.0.1.zip -O
           unzip neo4j-graph-data-science-2.0.1.zip
           mv neo4j-graph-data-science-2.0.1.jar $NEO4J_HOME/plugins/neo4j-graph-data-science-2.0.1.jar
-          # echo "Resetting default password..."
-          # Stop Neo4j & Reset password
-          # /opt/bitnami/ctlscript.sh stop neo4j
-          # /opt/bitnami/neo4j/bin/neo4j-admin set-initial-password ${Neo4jPassword}
-          # echo "Restarting Neo4j server..."
-          # /opt/bitnami/ctlscript.sh start neo4j
-          # systemctl enable neo4j.service
-          # systemctl start neo4j
+          # Update Neo4j config
+          echo "Downloading Neo4j configuration from ${DataBucketName} to /etc/neo4j/neo4j.conf..."
+          # Get neo4j.conf from S3 and save original
+          mv $NEO4J_HOME/conf/neo4j.conf $NEO4J_HOME/conf/neo4j.conf.bkp
+          aws s3 cp s3://${DataBucketName}/config/neo4j/neo4j.conf $NEO4J_HOME/conf/neo4j.conf
           # Provision SSL certificate
-          aws s3 cp s3://${DataBucketName}/config/scripts/create_cert.sh create_cert.sh
-          export HOST_DOMAIN=${HostDomain}
-          export ADMIN_EMAIL=${AdminEmail}
-          bash create_cert.sh
-          # echo "Starting Neo4j..."
-          # /opt/bitnami/ctlscript.sh start
-          # timeout=600
-          # counter=0
-          # until $(curl --output /dev/null --silent --head --fail http://localhost:7474) ; do \
-          #   printf '.' ; \
-          #   sleep 1 ; \
-          #   counter=$((counter + 1)) \
-          #   [ $counter -eq $timeout ] && break || true
-          # done
-          # printf "%s\n" " "
-          # echo "Neo4j is ready"
-          # mkdir -p $NEO4J_HOME/backups $NEO4J_HOME/cypher
+          # Get create_cert script from S3
+          # aws s3 cp s3://${DataBucketName}/config/scripts/create_cert.sh create_cert.sh
+          bash user_data/create_cert.sh ${HostDomain} ${AdminEmail}
+          echo "Restarting Neo4j server"
+          /opt/bitnami/ctlscript.sh start neo4j          
+          # # Run cypher init scripts
+          # mkdir -p $NEO4J_HOME/{backups,cypher}
           # echo "Fetching cypher scripts from S3..."
           # aws s3 cp --recursive s3://${DataBucketName}/config/neo4j/cypher/ $NEO4J_HOME/cypher/
           # cat $NEO4J_HOME/cypher/${Neo4jInitScript} | \
@@ -186,13 +182,14 @@ Resources:
           echo "Copying Neo4j logs to S3..."
           journalctl -e -u neo4j > /tmp/logs/neo4j.log
           aws s3 cp --recursive /tmp/logs/ s3://${DataBucketName}/logs/database/bootstrap/$(date +'%Y/%m/%d/%H')/
-
+          echo "Ready"
+      
       Tags:
         - Key: Name
-          Value: !Ref AppName
+          Value: !Sub '${AppName}-${Stage}'
         - Key: Stage
-          Value: !Ref Stage
-  
+          Value: !Sub '${AppName}-${Stage}'
+
   Neo4jDatabaseInstanceRole:
     Type: AWS::IAM::Role
     Properties:
