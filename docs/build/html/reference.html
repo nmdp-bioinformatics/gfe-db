@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reference &mdash; gfe-db 1.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="_static/copybutton.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/clipboard.min.js"></script>
+        <script src="_static/copybutton.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Usage" href="usage.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> gfe-db
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Table of Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#gfe-graph">GFE Graph</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gfe-nodes">GFE nodes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#description">Description</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#properties">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#feature-nodes">Feature nodes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#description-1">Description</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#properties-1">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sequence-nodes">Sequence nodes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#description-2">Description</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#properties-2">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#ipd-allele-nodes">IPD_Allele nodes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#description-3a">Description</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#properties-3a">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#ipd-acc-nodes">IPD_ACC nodes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#description-3b">Description</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#properties-3b">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#submitter-nodes">Submitter nodes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#description-4">Description</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#properties-4">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#has-feature-edges">HAS_FEATURE edges</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#description-5">Description</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#properties-5">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#has-sequence-edges">HAS_SEQUENCE edges</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#description-6">Description</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#properties-6">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#has-ipd-allele-edges">HAS_IPD_Allele edges</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#description-7a">Description</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#properties-7a">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#id17">HAS_IPD_Allele edges</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#description-7b">Description</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#properties-7b">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#submitted-edges">SUBMITTED edges</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#description-8">Description</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#properties-8">Properties</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#breaking-down-a-gfe">Breaking down a GFE</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#service-configurations">Service Configurations</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#graph-database">Graph Database</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#neo4j">Neo4j</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#shell-scripts">Shell Scripts</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cypher-scripts">Cypher Scripts</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#data-pipeline">Data Pipeline</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#input-parameters">Input Parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#imgt-hla-release-versions-state">IMGT/HLA Release Versions State</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#logging">Logging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#makefile-command-reference">Makefile Command Reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#deploy-to-aws">Deploy to AWS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#load-releases">Load releases</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#retrieve-logs-data-and-configuration-values">Retrieve logs, data and configuration values</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tear-down-infrastructure">Tear down infrastructure</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">gfe-db</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Reference</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/reference.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="reference">
+<h1>Reference<a class="headerlink" href="#reference" title="Permalink to this headline"></a></h1>
+<section id="gfe-graph">
+<h2>GFE Graph<a class="headerlink" href="#gfe-graph" title="Permalink to this headline"></a></h2>
+<p>The GFE database (<code class="docutils literal notranslate"><span class="pre">gfe-db</span></code>) represents the relationships between GFEs,
+features, sequences and other types of data. The new schema is centered
+around the GFE node and makes the curation and database versioning of
+WHO designations or WHO labels an optional annotation of GFEs.</p>
+<a class="reference internal image-reference" href="_images/schema-alpha-v220511.png"><img alt="_images/schema-alpha-v220511.png" class="align-center" src="_images/schema-alpha-v220511.png" style="width: 472.5px; height: 400.5px;" /></a>
+<section id="gfe-nodes">
+<h3>GFE nodes<a class="headerlink" href="#gfe-nodes" title="Permalink to this headline"></a></h3>
+<section id="description">
+<h4>Description<a class="headerlink" href="#description" title="Permalink to this headline"></a></h4>
+<p>Each node represents a distinct GFE object. For example, a GFE with
+<code class="docutils literal notranslate"><span class="pre">gfe_name=&quot;HLA-Aw2-1-1-1-1-4-1-1-1-2-1-1-1-1-1-1-4&quot;</span></code> corresponds to a full
+sequence and also 17 features: - FIVE_PRIME_UTR - EXON (1-8) - INTRON
+(1-7) - THREE_PRIME_UTR</p>
+</section>
+<section id="properties">
+<h4>Properties<a class="headerlink" href="#properties" title="Permalink to this headline"></a></h4>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;gfe_name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;HLA-Aw99-8-363-912-781-2901-128-581-151-324-198-9-316-80-508-43-30&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;locus&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;HLA-A&quot;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 11%" />
+<col style="width: 51%" />
+<col style="width: 8%" />
+<col style="width: 30%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Property</p></th>
+<th class="head"><p>Example</p></th>
+<th class="head"><p>Data Type</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gfe_name</span></code></p></td>
+<td><p>HLA-Aw99-8-363-912-781-2901-128-581-151-324-198-9-316-80-508-43-30</p></td>
+<td><p>string</p></td>
+<td><p>GFE name</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">locus</span></code></p></td>
+<td><p>HLA-A</p></td>
+<td><p>string</p></td>
+<td><p>Position of the gene on the chromosome</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="feature-nodes">
+<h3>Feature nodes<a class="headerlink" href="#feature-nodes" title="Permalink to this headline"></a></h3>
+<section id="description-1">
+<span id="id1"></span><h4>Description<a class="headerlink" href="#description-1" title="Permalink to this headline"></a></h4>
+<p>A feature is a tuple of: locus, term and rank. A locus is “anything in
+<a class="reference external" href="https://www.genenames.org/">HUGO</a>”, and a term is “anything in
+<a class="reference external" href="http://www.sequenceontology.org/">sequence ontology</a>”.</p>
+</section>
+<section id="properties-1">
+<span id="id2"></span><h4>Properties<a class="headerlink" href="#properties-1" title="Permalink to this headline"></a></h4>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;accession&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">99</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;locus&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;HLA-A&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;rank&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;term&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;FIVE_PRIME_UTR&quot;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 12%" />
+<col style="width: 8%" />
+<col style="width: 70%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Property</p></th>
+<th class="head"><p>Example</p></th>
+<th class="head"><p>Data Type</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">accession</span></code></p></td>
+<td><p>2901</p></td>
+<td><p>string</p></td>
+<td><p>Relatively stable unique record identifier for a sequence</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">locus</span></code></p></td>
+<td><p>HLA-A</p></td>
+<td><p>string</p></td>
+<td><p>Position of the gene on the chromosome</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">rank</span></code></p></td>
+<td><p>7</p></td>
+<td><p>string</p></td>
+<td><p>Ordinal number describing the position of the Feature sequence on the allele</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">term</span></code></p></td>
+<td><p>FIVE_PRIME_UTR</p></td>
+<td><p>string</p></td>
+<td><p>Label describing the type of Feature; One of FIVE_PRIME_UTR, EXON, INTRON, THREE_PRIME_UTR</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="sequence-nodes">
+<h3>Sequence nodes<a class="headerlink" href="#sequence-nodes" title="Permalink to this headline"></a></h3>
+<section id="description-2">
+<span id="id3"></span><h4>Description<a class="headerlink" href="#description-2" title="Permalink to this headline"></a></h4>
+<p>The nucleotide sequence corresponding to the GFE.</p>
+</section>
+<section id="properties-2">
+<span id="id4"></span><h4>Properties<a class="headerlink" href="#properties-2" title="Permalink to this headline"></a></h4>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;gfe_name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;HLA-Cw393-14-261-132-1610-454-45-532-107-272-205-3-264-71-398-4-621&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;length&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3918</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;locus&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;HLA-C&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;seq_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">27670532806245477286153332635897</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;sequence&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;TTATTTTGCTGGATGTAGTTTAATATTACCTGAGGTGAGGTAAGGTA...&quot;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 7%" />
+<col style="width: 42%" />
+<col style="width: 7%" />
+<col style="width: 45%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Property</p></th>
+<th class="head"><p>Example</p></th>
+<th class="head"><p>Data Type</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gfe_name</span></code></p></td>
+<td><p>HLA-Cw393-14-261-132-1610-454-45-532-107-272-205-3-264-71-398-4-621</p></td>
+<td><p>string</p></td>
+<td><p>Gene Feature Enumeration name</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">length</span></code></p></td>
+<td><p>3918</p></td>
+<td><p>integer</p></td>
+<td><p>Length of nucleotide sequence</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">locus</span></code></p></td>
+<td><p>HLA-C</p></td>
+<td><p>string</p></td>
+<td><p>Position of the gene on the chromosome</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">seq_id</span></code></p></td>
+<td><p>27670532806245477286153332635897</p></td>
+<td><p>integer</p></td>
+<td><p>Compressed UUID based on MD5 hash of sequence (used for faster indexing)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sequence</span></code></p></td>
+<td><p>TTATTTTGCTGGATGTAGTTTAATATTACCTGAGGTGAGGTAAGGTA…</p></td>
+<td><p>string</p></td>
+<td><p>Full nucleotide sequence</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="ipd-allele-nodes">
+<h3>IPD_Allele nodes<a class="headerlink" href="#ipd-allele-nodes" title="Permalink to this headline"></a></h3>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code class="docutils literal notranslate"><span class="pre">IPD_Allele</span></code> and <code class="docutils literal notranslate"><span class="pre">IPD_ACC</span></code> nodes replace the previous <code class="docutils literal notranslate"><span class="pre">WHO</span></code> nodes. Documentation
+is in progress.</p>
+</div>
+<section id="description-3a">
+<span id="id5"></span><h4>Description<a class="headerlink" href="#description-3a" title="Permalink to this headline"></a></h4>
+<p><em>Documentation in progress</em></p>
+</section>
+<section id="properties-3a">
+<span id="id6"></span><h4>Properties<a class="headerlink" href="#properties-3a" title="Permalink to this headline"></a></h4>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="c1">// Documentation in progress</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 16%" />
+<col style="width: 30%" />
+<col style="width: 17%" />
+<col style="width: 38%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Property</p></th>
+<th class="head"><p>Example</p></th>
+<th class="head"><p>Data Type</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="ipd-acc-nodes">
+<h3>IPD_ACC nodes<a class="headerlink" href="#ipd-acc-nodes" title="Permalink to this headline"></a></h3>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code class="docutils literal notranslate"><span class="pre">IPD_Allele</span></code> and <code class="docutils literal notranslate"><span class="pre">IPD_ACC</span></code> nodes replace the previous <code class="docutils literal notranslate"><span class="pre">WHO</span></code> nodes. Documentation
+is in progress.</p>
+</div>
+<section id="description-3b">
+<span id="id7"></span><h4>Description<a class="headerlink" href="#description-3b" title="Permalink to this headline"></a></h4>
+<p><em>Documentation in progress</em></p>
+</section>
+<section id="properties-3b">
+<span id="id8"></span><h4>Properties<a class="headerlink" href="#properties-3b" title="Permalink to this headline"></a></h4>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="c1">// Documentation in progress</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 16%" />
+<col style="width: 30%" />
+<col style="width: 17%" />
+<col style="width: 38%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Property</p></th>
+<th class="head"><p>Example</p></th>
+<th class="head"><p>Data Type</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="submitter-nodes">
+<h3>Submitter nodes<a class="headerlink" href="#submitter-nodes" title="Permalink to this headline"></a></h3>
+<section id="description-4">
+<span id="id9"></span><h4>Description<a class="headerlink" href="#description-4" title="Permalink to this headline"></a></h4>
+<p>Describes the submitter of a GFE node.</p>
+</section>
+<section id="properties-4">
+<span id="id10"></span><h4>Properties<a class="headerlink" href="#properties-4" title="Permalink to this headline"></a></h4>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;email&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;email&gt;&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;institution&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;institution name&gt;&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;name&gt;&quot;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 21%" />
+<col style="width: 30%" />
+<col style="width: 15%" />
+<col style="width: 34%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Property</p></th>
+<th class="head"><p>Example</p></th>
+<th class="head"><p>Data Type</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">email</span></code></p></td>
+<td><p><a class="reference external" href="mailto:user&#37;&#52;&#48;cibmtr&#46;org">user<span>&#64;</span>cibmtr<span>&#46;</span>org</a></p></td>
+<td><p>string</p></td>
+<td><p>Submitter’s email</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">institution</span></code></p></td>
+<td><p>CIBMTR</p></td>
+<td><p>integer</p></td>
+<td><p>Submitter’s institution</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">name</span></code></p></td>
+<td><p>first name last name</p></td>
+<td><p>string</p></td>
+<td><p>Submitter’s full name</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="has-feature-edges">
+<h3>HAS_FEATURE edges<a class="headerlink" href="#has-feature-edges" title="Permalink to this headline"></a></h3>
+<section id="description-5">
+<span id="id11"></span><h4>Description<a class="headerlink" href="#description-5" title="Permalink to this headline"></a></h4>
+<p>Links a GFE node to a Feature node.</p>
+</section>
+<section id="properties-5">
+<span id="id12"></span><h4>Properties<a class="headerlink" href="#properties-5" title="Permalink to this headline"></a></h4>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="c1">// No properties</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="has-sequence-edges">
+<h3>HAS_SEQUENCE edges<a class="headerlink" href="#has-sequence-edges" title="Permalink to this headline"></a></h3>
+<section id="description-6">
+<span id="id13"></span><h4>Description<a class="headerlink" href="#description-6" title="Permalink to this headline"></a></h4>
+<p>Links a GFE node to the full Sequence node.</p>
+</section>
+<section id="properties-6">
+<span id="id14"></span><h4>Properties<a class="headerlink" href="#properties-6" title="Permalink to this headline"></a></h4>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="c1">// No properties</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="has-ipd-allele-edges">
+<h3>HAS_IPD_Allele edges<a class="headerlink" href="#has-ipd-allele-edges" title="Permalink to this headline"></a></h3>
+<section id="description-7a">
+<span id="id15"></span><h4>Description<a class="headerlink" href="#description-7a" title="Permalink to this headline"></a></h4>
+<p>Links a GFE node to the IPD_Allele node.</p>
+</section>
+<section id="properties-7a">
+<span id="id16"></span><h4>Properties<a class="headerlink" href="#properties-7a" title="Permalink to this headline"></a></h4>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;releases&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">3470</span><span class="p">,</span><span class="w"> </span><span class="mi">3460</span><span class="p">]</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 14%" />
+<col style="width: 16%" />
+<col style="width: 18%" />
+<col style="width: 52%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Property</p></th>
+<th class="head"><p>Example</p></th>
+<th class="head"><p>Data Type</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">releases</span></code></p></td>
+<td><p>[3470, 3460]</p></td>
+<td><p>array[integer]</p></td>
+<td><p>Release versions containing the relationship</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="id17">
+<h3>HAS_IPD_Allele edges<a class="headerlink" href="#id17" title="Permalink to this headline"></a></h3>
+<section id="description-7b">
+<span id="id18"></span><h4>Description<a class="headerlink" href="#description-7b" title="Permalink to this headline"></a></h4>
+<p>Links an IPD_Allele node to the IPD_ACC node.</p>
+</section>
+<section id="properties-7b">
+<span id="id19"></span><h4>Properties<a class="headerlink" href="#properties-7b" title="Permalink to this headline"></a></h4>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;releases&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3470</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 14%" />
+<col style="width: 16%" />
+<col style="width: 18%" />
+<col style="width: 52%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Property</p></th>
+<th class="head"><p>Example</p></th>
+<th class="head"><p>Data Type</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">releases</span></code></p></td>
+<td><p>3470</p></td>
+<td><p>integer</p></td>
+<td><p>Release versions containing the relationship</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="submitted-edges">
+<h3>SUBMITTED edges<a class="headerlink" href="#submitted-edges" title="Permalink to this headline"></a></h3>
+<section id="description-8">
+<span id="id20"></span><h4>Description<a class="headerlink" href="#description-8" title="Permalink to this headline"></a></h4>
+<p>Links the Submitter node to the GFE node.</p>
+</section>
+<section id="properties-8">
+<span id="id21"></span><h4>Properties<a class="headerlink" href="#properties-8" title="Permalink to this headline"></a></h4>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;submit_date&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2022-02-17&quot;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 23%" />
+<col style="width: 19%" />
+<col style="width: 27%" />
+<col style="width: 31%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Property</p></th>
+<th class="head"><p>Example</p></th>
+<th class="head"><p>Data Type</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">submit_date</span></code></p></td>
+<td><p>2022-02-17</p></td>
+<td><p>datetime string</p></td>
+<td><p>Date of submission</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="breaking-down-a-gfe">
+<h3>Breaking down a GFE<a class="headerlink" href="#breaking-down-a-gfe" title="Permalink to this headline"></a></h3>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This section discusses the <code class="docutils literal notranslate"><span class="pre">WHO</span></code> and <code class="docutils literal notranslate"><span class="pre">IMGT_HLA</span></code> nodes which have
+been deprecated.</p>
+</div>
+<p>The representation of a single GFE, for example corresponding to the
+allele <code class="docutils literal notranslate"><span class="pre">HLA-A*01:01:01:01</span></code> can be understood from the graph.</p>
+<p>The GFE node points to a WHO node as one of possibly many annotations.
+With this schema it is possible to analyze GFEs that do not have an WHO
+label associated with it.</p>
+<p>To see the how a GFE expands to its constituent components, the
+following query returns the corresponding features associated with the
+GFE referred to by the WHO allele <code class="docutils literal notranslate"><span class="pre">HLA-A*01:03:01:01</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">MATCH</span> <span class="p">(:</span><span class="n">WHO</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span><span class="s1">&#39;HLA-A*01:03:01:01&#39;</span><span class="p">})</span><span class="o">-</span><span class="p">[]</span><span class="o">-</span><span class="p">(:</span><span class="n">GFE</span><span class="p">)</span><span class="o">-</span><span class="p">[]</span><span class="o">-</span><span class="p">(</span><span class="n">f</span><span class="p">:</span><span class="n">Feature</span><span class="p">)</span>
+<span class="n">RETURN</span> <span class="n">f</span><span class="o">.</span><span class="n">term</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">rank</span> <span class="n">ORDER</span> <span class="n">BY</span> <span class="n">f</span><span class="o">.</span><span class="n">term</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">rank</span>
+</pre></div>
+</div>
+<p>Results:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 68%" />
+<col style="width: 32%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>f.term</p></th>
+<th class="head"><p>f.rank</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>EXON</p></td>
+<td><p>1</p></td>
+</tr>
+<tr class="row-odd"><td><p>EXON</p></td>
+<td><p>2</p></td>
+</tr>
+<tr class="row-even"><td><p>EXON</p></td>
+<td><p>3</p></td>
+</tr>
+<tr class="row-odd"><td><p>EXON</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-even"><td><p>EXON</p></td>
+<td><p>5</p></td>
+</tr>
+<tr class="row-odd"><td><p>EXON</p></td>
+<td><p>6</p></td>
+</tr>
+<tr class="row-even"><td><p>EXON</p></td>
+<td><p>7</p></td>
+</tr>
+<tr class="row-odd"><td><p>EXON</p></td>
+<td><p>8</p></td>
+</tr>
+<tr class="row-even"><td><p>FIVE_PRIME_UTR</p></td>
+<td><p>1</p></td>
+</tr>
+<tr class="row-odd"><td><p>INTRON</p></td>
+<td><p>1</p></td>
+</tr>
+<tr class="row-even"><td><p>INTRON</p></td>
+<td><p>2</p></td>
+</tr>
+<tr class="row-odd"><td><p>INTRON</p></td>
+<td><p>3</p></td>
+</tr>
+<tr class="row-even"><td><p>INTRON</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-odd"><td><p>INTRON</p></td>
+<td><p>5</p></td>
+</tr>
+<tr class="row-even"><td><p>INTRON</p></td>
+<td><p>6</p></td>
+</tr>
+<tr class="row-odd"><td><p>INTRON</p></td>
+<td><p>7</p></td>
+</tr>
+<tr class="row-even"><td><p>THREE_PRIME_UTR</p></td>
+<td><p>1</p></td>
+</tr>
+</tbody>
+</table>
+<p>These features each have an accession number that is unique in the
+context of the locus, term and rank combination and is a <strong>permanent
+reversible 1-to-1 mapping</strong> between the sequence and the accession
+number in that context.</p>
+<p>Mapping is not permanent, reversible or 1-to-1 for these entity
+properties: - WHO/IMGT_HLA names and sequences - WHO/IMGT_HLA names and
+IMGT accession numbers - IMGT accession numbers and sequence</p>
+<p>Here is a older example of a relationship between a WHO/IMGT_HLA allele
+(<code class="docutils literal notranslate"><span class="pre">HLA-DRB1*11:17</span></code>) and the corresponding GFE.</p>
+<a class="reference internal image-reference" href="_images/157B500B-9399-4B46-9E48-628F72C869C0.jpeg"><img alt="_images/157B500B-9399-4B46-9E48-628F72C869C0.jpeg" class="align-center" src="_images/157B500B-9399-4B46-9E48-628F72C869C0.jpeg" style="width: 734.5px; height: 528.0px;" /></a>
+<p>In this example, the GFE associated with this allele changed between
+3.42.0 and 3.43.0</p>
+</section>
+</section>
+<section id="service-configurations">
+<h2>Service Configurations<a class="headerlink" href="#service-configurations" title="Permalink to this headline"></a></h2>
+<p>Configuring is managed using JSON files, SSM Parameter Store, Secrets
+Manager, and shell variables. To deploy changes in these files, run the
+command.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make deploy.config
+</pre></div>
+</div>
+<section id="graph-database">
+<h3>Graph Database<a class="headerlink" href="#graph-database" title="Permalink to this headline"></a></h3>
+<section id="neo4j">
+<h4>Neo4j<a class="headerlink" href="#neo4j" title="Permalink to this headline"></a></h4>
+<p>Custom configuration settings for Neo4j are contained in
+<code class="docutils literal notranslate"><span class="pre">neo4j.template</span></code>. This file is copied into <code class="docutils literal notranslate"><span class="pre">/etc/neo4j</span></code> during boot
+or manually. When Neo4j is restarted it will use the settings in
+<code class="docutils literal notranslate"><span class="pre">neo4j.template</span></code> to overwrite <code class="docutils literal notranslate"><span class="pre">neo4j.conf</span></code>. More information can be
+found in the documentation here at <a class="reference external" href="https://neo4j.com/developer/neo4j-cloud-vms/">Neo4j Cloud Virtual Machines</a>.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Neo4j no longer supports the Community Edition of their AMI for EC2.
+The next release of <code class="docutils literal notranslate"><span class="pre">gfe-db</span></code> will use the Bitnami Neo4j AMI which
+will change this information.</p>
+</div>
+</section>
+<section id="shell-scripts">
+<h4>Shell Scripts<a class="headerlink" href="#shell-scripts" title="Permalink to this headline"></a></h4>
+<p>Bash scripts are used for automating Neo4j configuration, loading and
+backup. These are stored in S3 and executed on the database instance using
+SSM Run Command. These are found in <code class="docutils literal notranslate"><span class="pre">gfe-db/gfe-db/database/scripts/</span></code>.</p>
+</section>
+<section id="cypher-scripts">
+<h4>Cypher Scripts<a class="headerlink" href="#cypher-scripts" title="Permalink to this headline"></a></h4>
+<p>Cypher scripts manage node constraints &amp; indexes and load the data.
+These are found in <code class="docutils literal notranslate"><span class="pre">gfe-db/gfe-db/database/neo4j/cypher/</span></code>.</p>
+</section>
+</section>
+<section id="data-pipeline">
+<span id="datapipelineconfig"></span><h3>Data Pipeline<a class="headerlink" href="#data-pipeline" title="Permalink to this headline"></a></h3>
+<section id="input-parameters">
+<h4>Input Parameters<a class="headerlink" href="#input-parameters" title="Permalink to this headline"></a></h4>
+<p>The <code class="docutils literal notranslate"><span class="pre">pipeline-input.json</span></code> is stored in S3 and contains the default
+configuration used for automated updates.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="c1">// pipeline-input.json</span><span class="w"></span>
+<span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;align&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;False&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;kir&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;False&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;mem_profile&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;False&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;limit&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+</section>
+<section id="imgt-hla-release-versions-state">
+<h4>IMGT/HLA Release Versions State<a class="headerlink" href="#imgt-hla-release-versions-state" title="Permalink to this headline"></a></h4>
+<p>The application’s state tracks which releases have been processed and
+added to the database. This file tracks the releases which have already
+been processed. If the <code class="docutils literal notranslate"><span class="pre">gfe-db-invoke-pipeline</span></code> function detects a
+valid release branch in the source data repository that is not in the
+<code class="docutils literal notranslate"><span class="pre">releases</span></code> array, it will start the pipeline for this release. Once
+the update is finished, the processed release is appended to the array.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="c1">// IMGTHLA-repository-state.json</span><span class="w"></span>
+<span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;timestamp&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2021-12-09 02:36:59&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;repository_url&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://github.com/ANHIG/IMGTHLA&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;releases&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"></span>
+<span class="w">    </span><span class="s2">&quot;3100&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="c1">// ...,</span><span class="w"></span>
+<span class="w">    </span><span class="s2">&quot;3470&quot;</span><span class="w"></span>
+<span class="w">  </span><span class="p">]</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 12%" />
+<col style="width: 25%" />
+<col style="width: 13%" />
+<col style="width: 49%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Variable</p></th>
+<th class="head"><p>Example Value</p></th>
+<th class="head"><p>Type</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>repository_url</p></td>
+<td><p><a class="reference external" href="https://github.com/ANHIG/IMGTHLA">https://github.com/ANHIG/IMGTHLA</a></p></td>
+<td><p>string</p></td>
+<td><p>The repository the trigger is watching</p></td>
+</tr>
+<tr class="row-odd"><td><p>releases</p></td>
+<td><p>[“3100”, …, “3470”]</p></td>
+<td><p>array of strings</p></td>
+<td><p>List of available releases. Any release added to the repository
+that is not in this list will trigger the pipeline build.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="logging">
+<h3>Logging<a class="headerlink" href="#logging" title="Permalink to this headline"></a></h3>
+<p>Logs for EC2, Lambda and Batch are collected by CloudWatch Logs.</p>
+</section>
+</section>
+<section id="makefile-command-reference">
+<span id="makefileref"></span><h2>Makefile Command Reference<a class="headerlink" href="#makefile-command-reference" title="Permalink to this headline"></a></h2>
+<p>To see a list of possible commands using Make, run <code class="docutils literal notranslate"><span class="pre">make</span></code> on the
+command line.</p>
+<section id="deploy-to-aws">
+<h3>Deploy to AWS<a class="headerlink" href="#deploy-to-aws" title="Permalink to this headline"></a></h3>
+<p>Deploy all CloudFormation based services:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make deploy
+</pre></div>
+</div>
+<p>Deploy specific stacks.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make deploy.infrastructure
+</pre></div>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make deploy.database
+</pre></div>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make deploy.pipeline
+</pre></div>
+</div>
+<p>Deploy config files and scripts to S3:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make deploy.config
+</pre></div>
+</div>
+</section>
+<section id="load-releases">
+<h3>Load releases<a class="headerlink" href="#load-releases" title="Permalink to this headline"></a></h3>
+<p>Run the StepFunctions State Machine to load Neo4j:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make load.database <span class="nv">releases</span><span class="o">=</span>&lt;version&gt; <span class="nv">align</span><span class="o">=</span>&lt;boolean&gt; <span class="nv">kir</span><span class="o">=</span>&lt;boolean&gt; <span class="nv">limit</span><span class="o">=</span>&lt;int&gt;
+</pre></div>
+</div>
+</section>
+<section id="retrieve-logs-data-and-configuration-values">
+<span id="makefilerefretrieve"></span><h3>Retrieve logs, data and configuration values<a class="headerlink" href="#retrieve-logs-data-and-configuration-values" title="Permalink to this headline"></a></h3>
+<p>Download CSV data from S3 to <code class="docutils literal notranslate"><span class="pre">./data</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make get.data
+</pre></div>
+</div>
+<p>Download logs from EC2 to <code class="docutils literal notranslate"><span class="pre">./logs</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make get.logs
+</pre></div>
+</div>
+<p>Display the Neo4j Browser endpoint URL:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make get.neo4j
+</pre></div>
+</div>
+</section>
+<section id="tear-down-infrastructure">
+<h3>Tear down infrastructure<a class="headerlink" href="#tear-down-infrastructure" title="Permalink to this headline"></a></h3>
+<p>Delete all CloudFormation based services and data:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make delete
+</pre></div>
+</div>
+<p>Delete specific stacks (may cause issues):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make delete.infrastructure
+</pre></div>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make delete.database
+</pre></div>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make delete.pipeline
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="usage.html" class="btn btn-neutral float-left" title="Usage" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, National Marrow Donor Program.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

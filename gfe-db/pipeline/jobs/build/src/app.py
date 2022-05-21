@@ -229,7 +229,7 @@ def build_GFE(allele):
 
         row = {
             "gfe_name": gfe_name,
-            "allele_id": allele.id,
+            "acc_name": allele.name,
             "locus": locus,
             "hla_name": hla_name,
             #"a_name": hla_name.split("-")[1],

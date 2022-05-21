@@ -98,7 +98,8 @@ cicd.yml
 .aws-sam
 packaged.yaml
 samconfig.toml
-_*
+_*.*
 _reference/
-payload.json
-response.json
+_docs/
+_debug*/
+.github/_*

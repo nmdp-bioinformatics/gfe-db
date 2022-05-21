@@ -73,7 +73,7 @@ def lambda_handler(event, context):
             logger.error(json.dumps(response, cls=DatetimeEncoder))
             raise Exception("Failed to send command")
         else:
-            logger.info("Command `{cmd}` invoked on instance {neo4j_database_instance_id}")
+            logger.info(f"Command `{cmd}` invoked on instance {neo4j_database_instance_id}")
     
     except Exception as err:
         logger.error(err)

@@ -160,7 +160,7 @@ database.load:
 	payload="{ \"align\": \"$$align\", \"kir\": \"$$kir\", \"limit\": \"$$limit\", \"releases\": \"$$releases\", \"mem_profile\": \"False\" }" && \
 	echo "$$payload" | jq -r && \
 	echo "$$payload" | jq > payload.json
-	@echo -n "Run pipeline with this payload? [y/N] " && read ans && [ $${ans:-N} = y ]
+	@echo "Run pipeline with this payload? [y/N]\c " && read ans && [ $${ans:-N} = y ]
 	@function_name="${STAGE}"-"${APP_NAME}"-"$$(cat ${FUNCTIONS_PATH}/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.FunctionName')" && \
 	aws lambda invoke \
 		--cli-binary-format raw-in-base64-out \
