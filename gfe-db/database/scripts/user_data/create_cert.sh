@@ -21,12 +21,12 @@ chmod -R g+rx /etc/letsencrypt/*
 mkdir -p $NEO4J_HOME/certificates/{bolt,cluster,https}/trusted
 
 for certsource in bolt cluster https; do
-  sudo ln -sf "/etc/letsencrypt/live/$HOST_DOMAIN/fullchain.pem" "$NEO4J_HOME/certificates/$certsource/neo4j.cert"
-  sudo ln -sf "/etc/letsencrypt/live/$HOST_DOMAIN/privkey.pem" "$NEO4J_HOME/certificates/$certsource/neo4j.key"
-  sudo ln -sf "/etc/letsencrypt/live/$HOST_DOMAIN/fullchain.pem" "$NEO4J_HOME/certificates/$certsource/trusted/neo4j.cert"
+  ln -sf "/etc/letsencrypt/live/$HOST_DOMAIN/fullchain.pem" "$NEO4J_HOME/certificates/$certsource/neo4j.cert"
+  ln -sf "/etc/letsencrypt/live/$HOST_DOMAIN/privkey.pem" "$NEO4J_HOME/certificates/$certsource/neo4j.key"
+  ln -sf "/etc/letsencrypt/live/$HOST_DOMAIN/fullchain.pem" "$NEO4J_HOME/certificates/$certsource/trusted/neo4j.cert"
 done
 
-sudo chgrp -R neo4j $NEO4J_HOME/certificates/*
-sudo chmod -R g+rx $NEO4J_HOME/certificates/*
+chgrp -R neo4j $NEO4J_HOME/certificates/*
+chmod -R g+rx $NEO4J_HOME/certificates/*
 
 exit 0

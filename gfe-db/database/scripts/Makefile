@@ -6,7 +6,7 @@ include .env
 export
 
 export ROOT_DIR=/home/bitnami
-export NEO4J_HOME=/home/bitnami/neo4j
+export NEO4J_HOME=/opt/bitnami/neo4j
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -14,13 +14,12 @@ target:
 
 # TODO fetch all shell scripts from S3
 # fetch.scripts:
-# fetch.cypher
-
+# fetch.cypher:
 # env.fetch:
 
 env.check:
 ifndef DATA_BUCKET_NAME
-$(error DATA_BUCKET_NAME is not set. Please select an AWS profile to use.)
+$(error DATA_BUCKET_NAME is not set.)
 endif
 ifndef NEO4J_HOME
 $(error NEO4J_HOME is not set.)
@@ -30,6 +29,13 @@ $(error HOST_DOMAIN is not set.)
 endif
 ifndef ADMIN_EMAIL
 $(error ADMIN_EMAIL is not set.)
+endif
+ifndef APOC_VERSION
+$(error APOC_VERSION is not set.)
+endif
+ifndef GDS_VERSION
+$(error GDS_VERSION is not set.)
+endif
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1
 
 env.app.list:
@@ -47,21 +53,36 @@ env.make.list:
 # 	# certbot
 # 	# python
 
-# aws.cfn.helpers.install
+cfn-helpers.install:
+	@mkdir -p /tmp/cfn
+	@wget -q -O /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+	@python3 -m easy_install --script-dir /opt/aws/bin /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz
 
-# aws.cfn.cfn-signal.success
+cfn-signal: ##=> make cfn-signal exitcode=0 for success
+	@/opt/aws/bin/cfn-signal --exit-code $$exitcode --stack  ${STAGE}-${APP_NAME}-database --resource Neo4jDatabaseInstance --region  ${REGION}
 
-# aws.cfn.cfn-signal.failure
+ssm.install:
+	@mkdir -p /tmp/ssm
+	@wget -q -O /tmp/ssm/amazon-ssm-agent.deb https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb
+	@dpkg -i /tmp/ssm/amazon-ssm-agent.deb
+	@systemctl enable amazon-ssm-agent
 
-# aws.ssm.agent.install
-
-# aws.cw.agent.install
+cloudwatch.install:
+	@mkdir -p /tmp/amazon-cloudwatch-agent
+	@wget -q -O /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb https://s3.amazonaws.com/amazoncloudwatch-agent/debian/amd64/latest/amazon-cloudwatch-agent.deb
+	@dpkg -i -E /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb
+	@aws s3 cp s3://${DATA_BUCKET_NAME}/config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+	@systemctl enable amazon-cloudwatch-agent.service
+	@service amazon-cloudwatch-agent start
 
 # eip
 eip.waiter:
 	@bash ${ROOT_DIR}/user_data/eip_assoc_waiter.sh
 
 # neo4j
+neo4j.status:
+	@/opt/bitnami/ctlscript.sh status
+
 neo4j.stop:
 	@/opt/bitnami/ctlscript.sh stop
 
@@ -71,62 +92,60 @@ neo4j.start:
 neo4j.restart:
 	@/opt/bitnami/ctlscript.sh restart
 
-# TODO test
-neo4j.config.update:
+neo4j.config:
 	@mv ${NEO4J_HOME}/conf/neo4j.conf ${NEO4J_HOME}/conf/neo4j.conf.bkp
 	@echo "Downloading Neo4j configuration from ${DATA_BUCKET_NAME}"
 	@aws s3 cp s3://${DATA_BUCKET_NAME}/config/neo4j/neo4j.conf ${NEO4J_HOME}/conf/neo4j.conf
 
-# neo4j.plugins.update.apoc:
+neo4j.install.apoc:
+	@echo "Downloading APOC Full plugin..."
+	@curl -L https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/${APOC_VERSION}/apoc-${APOC_VERSION}-all.jar -O
+	@mv apoc-${APOC_VERSION}-all.jar ${NEO4J_HOME}/plugins/apoc-${APOC_VERSION}-all.jar
 
-# TODO test
-# TODO add version argument
-neo4j.plugins.update.gds:
+neo4j.install.gds:
 	@echo "Downloading Neo4j Graph Data Science plugin..."
-	@curl -L https://graphdatascience.ninja/neo4j-graph-data-science-2.0.1.zip -O
-	@unzip neo4j-graph-data-science-2.0.1.zip
-	@mv neo4j-graph-data-science-2.0.1.jar $NEO4J_HOME/plugins/neo4j-graph-data-science-2.0.1.jar
+	@curl -L https://graphdatascience.ninja/neo4j-graph-data-science-${GDS_VERSION}.zip -O
+	@unzip neo4j-graph-data-science-${GDS_VERSION}.zip
+	@mv neo4j-graph-data-science-${GDS_VERSION}.jar ${NEO4J_HOME}/plugins/neo4j-graph-data-science-${GDS_VERSION}.jar
+	@echo "Cleaning up"
+	@rm neo4j-graph-data-science-${GDS_VERSION}.zip
+
+neo4j.init:
+	@mkdir -p ${NEO4J_HOME}/{backups,cypher}
+	@echo "Fetching cypher scripts from S3..."
+	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
+	@cat ${NEO4J_HOME}/cypher/init.cyp | cypher-shell -u ${NEO4J_USER} -p ${NEO4J_PASSWORD} -a neo4j+s://${HOST_DOMAIN}:7687
 
 # TODO test
-# neo4j.graph.init:
-# # Run cypher init scripts
-# mkdir -p $NEO4J_HOME/{backups,cypher}
-# echo "Fetching cypher scripts from S3..."
-# aws s3 cp --recursive s3://${DataBucketName}/config/neo4j/cypher/ $NEO4J_HOME/cypher/
-# cat $NEO4J_HOME/cypher/${Neo4jInitScript} | \
-# /usr/bin/cypher-shell \
-#   -u neo4j \
-#   -p ${Neo4jPassword}
+neo4j.import:
+	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
+	@echo "Fetching cypher scripts from S3..."
+	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
+	@cat ${NEO4J_HOME}/cypher/${Neo4jInitScript} | /usr/bin/cypher-shell -u neo4j -p ${NEO4J_PASSWORD}
 
-# TODO test
-# neo4j.graph.import:
-# mkdir -p $NEO4J_HOME/backups $NEO4J_HOME/cypher
-# echo "Fetching cypher scripts from S3..."
-# aws s3 cp --recursive s3://${DataBucketName}/config/neo4j/cypher/ $NEO4J_HOME/cypher/
-# cat $NEO4J_HOME/cypher/${Neo4jInitScript} | \
-# /usr/bin/cypher-shell \
-#   -u neo4j \
-#   -p ${Neo4jPassword}
+neo4j.create-constraints:
+	@mkdir -p ${NEO4J_HOME}/{backups,cypher}
+	@echo "Fetching cypher scripts from S3..."
+	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
+	@cat ${NEO4J_HOME}/cypher/create_constraints.cyp | cypher-shell -u ${NEO4J_USER} -p ${NEO4J_PASSWORD} -a neo4j+s://${HOST_DOMAIN}:7687
 
-# neo4j.graph.constraints.create:
+neo4j.drop-constraints:
+	@mkdir -p ${NEO4J_HOME}/{backups,cypher}
+	@echo "Fetching cypher scripts from S3..."
+	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
+	@cat ${NEO4J_HOME}/cypher/drop_constraints.cyp | cypher-shell -u ${NEO4J_USER} -p ${NEO4J_PASSWORD} -a neo4j+s://${HOST_DOMAIN}:7687
 
-# neo4j.graph.constraints.delete:
+ssl.create-cert:
+	@bash user_data/create_cert.sh ${HOST_DOMAIN} ${ADMIN_EMAIL}
 
-# TODO test
-# ssl.create
-	@bash user_data/create_cert.sh ${HostDomain} ${AdminEmail}
-
-# ssl.renew
-
-# TODO test
-# logs
-# echo "Copying logs to S3..."
-# export INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/instance-id)
-# journalctl -b > /tmp/logs/$INSTANCE_ID-boot.log
-# echo "Copying Neo4j logs to S3..."
-# journalctl -e -u neo4j > /tmp/logs/neo4j.log
-# aws s3 cp --recursive /tmp/logs/ s3://${DataBucketName}/logs/database/bootstrap/$(date +'%Y/%m/%d/%H')/
-# echo "Ready"
+copy-logs:
+	@echo "Copying logs to S3..."
+	@mkdir -p /tmp/logs
+	@export instance_id=$$(curl http://169.254.169.254/latest/meta-data/instance-id) && \
+	journalctl -b > /tmp/logs/$$instance_id-boot.log
+	@echo "Copying Neo4j logs to S3..."
+	@journalctl -e -u neo4j > /tmp/logs/neo4j.log
+	@aws s3 cp --recursive /tmp/logs/ s3://${DATA_BUCKET_NAME}/logs/database/bootstrap/$$(date +'%Y/%m/%d/%H')/
 
 define HELP_MESSAGE
 
@@ -137,10 +156,7 @@ define HELP_MESSAGE
 
 	Common usage:
 
-	...::: Deploy all CloudFormation based services :::...
-	$ make deploy
-
-	...::: Delete all CloudFormation based services :::...
-	$ make delete
+	...::: Run targets :::...
+	$ make <target> <args>
 
 endef

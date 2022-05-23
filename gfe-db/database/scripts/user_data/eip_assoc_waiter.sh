@@ -3,11 +3,12 @@
 # DIR=$(pwd)
 # PARENT_DIR="$(dirname "$DIR")"
 ROOT_DIR=/home/bitnami
+PUBLIC_IPV4_ROUTE=http://169.254.169.254/latest/meta-data/public-ipv4
 
 # Load BOOTSTRAP_PUBLIC_IPV4 set in user data
 source $ROOT_DIR/env.sh
 echo "Bootstrapped public IP is $BOOTSTRAP_PUBLIC_IPV4"
-PUBLIC_IPV4=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
+PUBLIC_IPV4=$(curl -sS $PUBLIC_IPV4_ROUTE)
 echo "Current public IPv4 is $PUBLIC_IPV4"
 
 export NEO4J_ENDPOINT=$(aws ssm get-parameters \
@@ -22,7 +23,7 @@ echo "Waiting for Elastic IP Association..."
 TIMEOUT=${1:-60}
 counter=0
 until [ "$PUBLIC_IPV4" = "$NEO4J_ENDPOINT" ]; do
-    PUBLIC_IPV4=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
+    PUBLIC_IPV4=$(curl -sS $PUBLIC_IPV4_ROUTE)
     printf '.'
     sleep 1
     counter=$((counter + 1))
