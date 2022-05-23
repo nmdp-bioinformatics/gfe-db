@@ -64,9 +64,10 @@ bootstrap:
 neo4j: bootstrap
 	$(MAKE) neo4j.stop
 	$(MAKE) neo4j.config
-	# $(MAKE) neo4j.install.apoc
+	$(MAKE) neo4j.install.apoc
 	$(MAKE) neo4j.install.apoc
 	$(MAKE) neo4j.start
+	@sleep 10
 	$(MAKE) neo4j.init
 	$(MAKE) copy-logs
 
@@ -76,7 +77,11 @@ cfn-helpers.install:
 	@python3 -m easy_install --script-dir /opt/aws/bin /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz
 
 cfn-signal: ##=> make cfn-signal exitcode=0 for success
-	@/opt/aws/bin/cfn-signal --exit-code $$exitcode --stack  ${STAGE}-${APP_NAME}-database --resource Neo4jDatabaseInstance --region  ${REGION}
+	@res=$$(/opt/aws/bin/cfn-signal \
+		--exit-code $$exitcode \
+		--stack  ${STAGE}-${APP_NAME}-database \
+		--resource Neo4jDatabaseInstance \
+		--region ${REGION}) || echo "skipping cfn-signal"
 
 ssm.install:
 	@mkdir -p /tmp/ssm
@@ -138,7 +143,7 @@ neo4j.import:
 	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
 	@echo "Fetching cypher scripts from S3..."
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
-	@cat ${NEO4J_HOME}/cypher/${Neo4jInitScript} | /usr/bin/cypher-shell -u neo4j -p ${NEO4J_PASSWORD}
+	@cat ${NEO4J_HOME}/cypher/${Neo4jInitScript} | cypher-shell -u neo4j -p ${NEO4J_PASSWORD}
 
 neo4j.create-constraints:
 	@mkdir -p ${NEO4J_HOME}/{backups,cypher}
