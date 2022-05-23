@@ -2,6 +2,11 @@
 # Bootstrapping variables
 ##########################
 
+# TODO add include and put all variables in .env (avoid having to run set -a && source .env etc.)
+# Application specific environment variables
+include .env
+export
+
 # Base settings, these should almost never change
 export STAGE ?= dev
 export APP_NAME ?= gfe-db
@@ -228,14 +233,16 @@ get.neo4j:
 # show.state:
 # show.endpoint:
 
-# run: ##=> Load an IMGT/HLA release version; make run release=3450 align=False kir=False mem_profile=False limit=1000
-# 	$(info [*] Starting StepFunctions execution for release $(release))
+# TODOAdd validation for positional arguments: release, align, kir, mem_profile, limit
+pipeline.run: ##=> Load an IMGT/HLA release version; make run releases=3450 align=False kir=False mem_profile=False limit=1000
+	$(info [*] Starting Step Functions execution for release $(releases))
+	@echo "Execution running:"
+	@aws stepfunctions start-execution \
+	 	--state-machine-arn $$(aws ssm get-parameter --name "/${APP_NAME}/${STAGE}/${REGION}/UpdatePipelineArn" | jq -r '.Parameter.Value') \
+	 	--input "[{\"params\":{\"environment\":{\"RELEASES\":$(releases),\"ALIGN\":\"False\",\"KIR\":\"False\",\"MEM_PROFILE\":\"False\",\"LIMIT\":\"$(limit)\"}}}]" | jq '.executionArn'
 
-# #	@# TODO: Add validation for positional arguments: release, align, kir, mem_profile, limit
-# 	@echo "Execution running:"
-# 	@aws stepfunctions start-execution \
-# 	 	--state-machine-arn $$(aws ssm get-parameter --name "/${APP_NAME}/${STAGE}/${REGION}/UpdatePipelineArn" | jq -r '.Parameter.Value') \
-# 	 	--input "{\"params\":{\"environment\":{\"RELEASES\":\"$(release)\",\"ALIGN\":\"False\",\"KIR\":\"False\",\"MEM_PROFILE\":\"False\",\"LIMIT\":\"$(limit)\"}}}" | jq '.executionArn'
+# # TODO get pipeline execution status
+# pipeline.status:
 
 define HELP_MESSAGE
 

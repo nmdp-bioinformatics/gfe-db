@@ -1,5 +1,5 @@
-# This Makefile only orchestrates process that are run on the EC2 database instance, it is not called by the root Makefile
-# Run as sudo
+# This Makefile only orchestrates process that are run on the EC2 database instance, it is deployed and called on the server
+# Run as sudo only
 
 # Application specific environment variables
 include .env
@@ -52,6 +52,23 @@ env.make.list:
 # 	# wget
 # 	# certbot
 # 	# python
+
+bootstrap:
+	$(MAKE) cfn-helpers.install
+	$(MAKE) ssm.install
+	$(MAKE) cloudwatch.install
+	$(MAKE) cfn-signal exitcode=0
+	$(MAKE) eip.waiter
+	$(MAKE) ssl.create-cert
+
+neo4j: bootstrap
+	$(MAKE) neo4j.stop
+	$(MAKE) neo4j.config
+	# $(MAKE) neo4j.install.apoc
+	$(MAKE) neo4j.install.apoc
+	$(MAKE) neo4j.start
+	$(MAKE) neo4j.init
+	$(MAKE) copy-logs
 
 cfn-helpers.install:
 	@mkdir -p /tmp/cfn
@@ -151,8 +168,11 @@ define HELP_MESSAGE
 
 	Environment variables:
 
-	SERVICE: "${SERVICE}"
-		Description: Name of the service being deployed
+	ROOT_DIR: "${ROOT_DIR}"
+		Description: Root directory where the Makefile resides
+	
+	NEO4J_HOME: "${NEO4J_HOME}"
+		Description: Directory where Neo4j resides
 
 	Common usage:
 
