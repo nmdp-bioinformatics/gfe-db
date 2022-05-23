@@ -15,17 +15,7 @@ Parameters:
     Type: String #AWS::EC2::Image::Id
     # Default: ami-0e1324ddfc4d086bb
     Description: AMI ID for Neo4j Community edition from AWS Marketplace
-  Neo4jPassword:
-    Type: String
-    NoEcho: true
-  Neo4jInitScript:
-    Type: String
-    Default: init_db.cyp
   DatabaseVolumeSize:
-    Type: String
-  HostDomain:
-    Type: String
-  AdminEmail:
     Type: String
 
 # TODO: add map of accepted instances for Neo4j CE AMI
@@ -96,94 +86,22 @@ Resources:
           apt-get update -y
           apt-get upgrade -y
           apt-get install -y \
-            -o Dpkg::Options::='--force-confdef' \
-            -o Dpkg::Options::='--force-confold' \
-            apt-transport-https \
-            ca-certificates \
-            curl \
-            jq \
-            software-properties-common \
-            zip \
-            unzip \
-            collectd \
-            python3-setuptools \
-            certbot
-          
-          # Install cfn helper scripts, SSM Agent & CloudWatch Logs Agent
-          mkdir -p /tmp/{ssm,cfn,logs,amazon-cloudwatch-agent}
-          # Install CloudFormation helper scripts (for cfn-signal)
-          wget -q -O /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
-          python3 -m easy_install --script-dir /opt/aws/bin /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz
-          # Install SSM Agent for automation
-          wget -q -O /tmp/ssm/amazon-ssm-agent.deb https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb
-          dpkg -i /tmp/ssm/amazon-ssm-agent.deb
-          systemctl enable amazon-ssm-agent
-          # Install and configure CloudWatch Agent for logs and metrics
-          wget -q -O /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb https://s3.amazonaws.com/amazoncloudwatch-agent/debian/amd64/latest/amazon-cloudwatch-agent.deb
-          dpkg -i -E /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb
-          aws s3 cp s3://${DataBucketName}/config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
-          systemctl enable amazon-cloudwatch-agent.service
-          service amazon-cloudwatch-agent start
-          # Capture the initial public IP to check EIP association later
-          export BOOTSTRAP_PUBLIC_IPV4=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
-          echo "BOOTSTRAP_PUBLIC_IPV4=$BOOTSTRAP_PUBLIC_IPV4" >> env.sh
-          # Fetch user data scripts from S3
-          aws s3 cp --recursive s3://${DataBucketName}/config/scripts/ .
-          # Signal the status from cfn-init; Ideally the UserData is run using cfn-init, and the exit code of cfn-init is passed to cfn-signal indicating
-          # successful deployment
-          # cfn-signal tells CloudFormation the instance is created. This lets CloudFormation proceed with associating it with the EIP
-          echo "Signaling successful bootstrap with cfn-signal"
-          # TODO capture original public IP for verification of association
-          /opt/aws/bin/cfn-signal \
-            --exit-code $? \
-            --stack  ${AWS::StackName} \
-            --resource Neo4jDatabaseInstance \
-            --region  ${AWS::Region}
-          # TODO capture current public IP and verify that it is different from the original
-          # TODO verify that new IP matches the value in SSM Parameter Store          
-          # Next parts depend on EIP association (instance IP will be changed)
-          export NEO4J_HOME=/opt/bitnami/neo4j
-          # Stores the environment for the load scripts which are executed in different shells than user data
-          export REGION=${AWS::Region}
-          echo "REGION=${AWS::Region}" >> /home/ubuntu/env.sh
-          export APP_NAME=${AppName}
-          echo "APP_NAME=${AppName}" >> /home/ubuntu/env.sh
-          export STAGE=${Stage}
-          echo "STAGE=${Stage}" >> /home/ubuntu/env.sh
-          echo "Stopping Neo4j for configuration update..."
-          /opt/bitnami/ctlscript.sh stop neo4j
-          # Bitnami does not ship with GDS
-          echo "Downloading Neo4j Graph Data Science plugin..."
-          curl -L https://graphdatascience.ninja/neo4j-graph-data-science-2.0.1.zip -O
-          unzip neo4j-graph-data-science-2.0.1.zip
-          mv neo4j-graph-data-science-2.0.1.jar $NEO4J_HOME/plugins/neo4j-graph-data-science-2.0.1.jar
-          # Update Neo4j config
-          echo "Downloading Neo4j configuration from ${DataBucketName} to /etc/neo4j/neo4j.conf..."
-          # Get neo4j.conf from S3 and save original
-          mv $NEO4J_HOME/conf/neo4j.conf $NEO4J_HOME/conf/neo4j.conf.bkp
-          aws s3 cp s3://${DataBucketName}/config/neo4j/neo4j.conf $NEO4J_HOME/conf/neo4j.conf
-          # Provision SSL certificate
-          # Get create_cert script from S3
-          # aws s3 cp s3://${DataBucketName}/config/scripts/create_cert.sh create_cert.sh
-          bash user_data/create_cert.sh ${HostDomain} ${AdminEmail}
-          echo "Restarting Neo4j server"
-          /opt/bitnami/ctlscript.sh start neo4j          
-          # # Run cypher init scripts
-          # mkdir -p $NEO4J_HOME/{backups,cypher}
-          # echo "Fetching cypher scripts from S3..."
-          # aws s3 cp --recursive s3://${DataBucketName}/config/neo4j/cypher/ $NEO4J_HOME/cypher/
-          # cat $NEO4J_HOME/cypher/${Neo4jInitScript} | \
-          # /usr/bin/cypher-shell \
-          #   -u neo4j \
-          #   -p ${Neo4jPassword}
-          echo "Copying logs to S3..."
-          export INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/instance-id)
-          journalctl -b > /tmp/logs/$INSTANCE_ID-boot.log
-          echo "Copying Neo4j logs to S3..."
-          journalctl -e -u neo4j > /tmp/logs/neo4j.log
-          aws s3 cp --recursive /tmp/logs/ s3://${DataBucketName}/logs/database/bootstrap/$(date +'%Y/%m/%d/%H')/
-          echo "Ready"
-      
+          -o Dpkg::Options::='--force-confdef' \
+          -o Dpkg::Options::='--force-confold' \
+          apt-transport-https \
+          ca-certificates \
+          curl \
+          jq \
+          software-properties-common \
+          zip \
+          unzip \
+          collectd \
+          python3-setuptools \
+          certbot \
+          git
+          # Download Makefile
+          aws s3 cp s3://${DataBucketName}/config/scripts/ .
+          make neo4j
       Tags:
         - Key: Name
           Value: !Sub '${AppName}-${Stage}'

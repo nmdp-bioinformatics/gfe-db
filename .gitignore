@@ -102,4 +102,5 @@ _*.*
 _reference/
 _docs/
 _debug*/
+_dev*
 .github/_*
