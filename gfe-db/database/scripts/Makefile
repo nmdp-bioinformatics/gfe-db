@@ -7,6 +7,8 @@ export
 
 export ROOT_DIR=/home/bitnami
 export NEO4J_HOME=/opt/bitnami/neo4j
+export NEO4J_USER=$(shell cat bitnami_credentials | sed 's/ /\n/g' | grep -E "'([a-zA-Z0-9]+)'" | sed "s/'//g" | sed "s/\.//g" | head -n 1)
+export NEO4J_PASSWORD=$(shell cat bitnami_credentials | sed 's/ /\n/g' | grep -E "'([a-zA-Z0-9]+)'" | sed "s/'//g" | sed "s/\.//g" | tail -n 1)
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -65,7 +67,7 @@ neo4j: bootstrap
 	$(MAKE) neo4j.stop
 	$(MAKE) neo4j.config
 	$(MAKE) neo4j.install.apoc
-	$(MAKE) neo4j.install.apoc
+	$(MAKE) neo4j.install.gds
 	$(MAKE) neo4j.start
 	@sleep 10
 	$(MAKE) neo4j.init
