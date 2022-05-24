@@ -17,7 +17,14 @@ Parameters:
     Description: AMI ID for Neo4j Community edition from AWS Marketplace
   DatabaseVolumeSize:
     Type: String
-
+  HostDomain:
+    Type: String
+  AdminEmail:
+    Type: String
+  APOCVersion:
+    Type: String
+  GDSVersion:
+    Type: String
 # TODO: add map of accepted instances for Neo4j CE AMI
 
 Resources:
@@ -58,9 +65,9 @@ Resources:
   
   Neo4jDatabaseInstance:
     Type: AWS::EC2::Instance
-    CreationPolicy:
-      ResourceSignal:
-        Timeout: PT10M
+    # CreationPolicy:
+    #   ResourceSignal:
+    #     Timeout: PT10M
     Properties:
       KeyName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}'
       DisableApiTermination: false
@@ -99,8 +106,20 @@ Resources:
           python3-setuptools \
           certbot \
           git
-          # Download Makefile
-          aws s3 cp s3://${DataBucketName}/config/scripts/ .
+          # Set environment
+          echo -e "\n# BEGIN ${AppName} APPLICATION ENVIRONMENT VARIABLES" >> .bashrc
+          echo "export STAGE=${Stage}" >> .bashrc
+          echo "export APP_NAME=${AppName}" >> .bashrc
+          echo "export REGION=${AWS::Region}" >> .bashrc
+          echo "export DATA_BUCKET_NAME=${DataBucketName}" >> .bashrc
+          echo "export HOST_DOMAIN=${HostDomain}" >> .bashrc
+          echo "export ADMIN_EMAIL=${AdminEmail}" >> .bashrc
+          echo "export APOC_VERSION=${APOCVersion}" >> .bashrc
+          echo "export GDS_VERSION=${GDSVersion}" >> .bashrc
+          echo "export NEO4J_HOME=/opt/bitnami/neo4j" >> .bashrc
+          echo "# END ${AppName} APPLICATION ENVIRONMENT VARIABLES" >> .bashrc
+          # Download Makefile from dev-gfe-db-531868584498-us-east-1
+          aws s3 cp --recursive s3://${DataBucketName}/config/scripts/ .
           make neo4j
       Tags:
         - Key: Name
