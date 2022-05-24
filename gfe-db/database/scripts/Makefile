@@ -15,8 +15,10 @@ target:
 	@exit 0
 
 # TODO fetch all shell scripts from S3
-# fetch.scripts:
-# fetch.cypher:
+# get.scripts:
+# get.cypher:
+get.data: #=> Download the build data locally; get.data release=3470
+	@[ -z "$$release" ] && aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/data/$$release/csv/ ${NEO4J_HOME}/import/ || echo "No release argument"
 # env.fetch:
 
 env.check:
