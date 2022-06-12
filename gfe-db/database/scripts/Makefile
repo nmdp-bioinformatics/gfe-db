@@ -65,7 +65,6 @@ neo4j: bootstrap
 	$(MAKE) neo4j.plugins.install-apoc
 	$(MAKE) neo4j.plugins.install-gds
 	$(MAKE) neo4j.start
-	$(MAKE) neo4j.wait
 	$(MAKE) neo4j.init
 	$(MAKE) copy-logs
 
@@ -112,12 +111,29 @@ neo4j.stop:
 
 neo4j.start:
 	@/opt/bitnami/ctlscript.sh start
-
-neo4j.wait:
-	@sleep 60
+	@timeout=300 && \
+	counter=0 && \
+	until $$(curl --output /dev/null --silent --head --fail http://localhost:7474) ; do \
+		printf '.' ; \
+		sleep 1 ; \
+		counter=$$((counter + 1)) ; \
+		[ $$counter -eq $$timeout ] && exit 1 || true ; \
+	done
+	@printf "%s\n" " "
+	@echo "Neo4j is ready"
 
 neo4j.restart:
 	@/opt/bitnami/ctlscript.sh restart
+	@timeout=300 && \
+	counter=0 && \
+	until $$(curl --output /dev/null --silent --head --fail http://localhost:7474) ; do \
+		printf '.' ; \
+		sleep 1 ; \
+		counter=$$((counter + 1)) ; \
+		[ $$counter -eq $$timeout ] && exit 1 || true ; \
+	done
+	@printf "%s\n" " "
+	@echo "Neo4j is ready"
 
 neo4j.config.update:
 	@mv ${NEO4J_HOME}/conf/neo4j.conf ${NEO4J_HOME}/conf/neo4j.conf.bkp
