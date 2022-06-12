@@ -25,7 +25,6 @@ Parameters:
     Type: String
   GDSVersion:
     Type: String
-# TODO: add map of accepted instances for Neo4j CE AMI
 
 Resources:
   Neo4jDatabaseSecurityGroup:
@@ -106,27 +105,48 @@ Resources:
           python3-setuptools \
           certbot \
           git
-          # Set environment
-          echo -e "\n# BEGIN ${AppName} APPLICATION ENVIRONMENT VARIABLES" >> .bashrc
-          echo "export STAGE=${Stage}" >> .bashrc
-          echo "export APP_NAME=${AppName}" >> .bashrc
-          echo "export REGION=${AWS::Region}" >> .bashrc
-          echo "export DATA_BUCKET_NAME=${DataBucketName}" >> .bashrc
-          echo "export HOST_DOMAIN=${HostDomain}" >> .bashrc
-          echo "export ADMIN_EMAIL=${AdminEmail}" >> .bashrc
-          echo "export APOC_VERSION=${APOCVersion}" >> .bashrc
-          echo "export GDS_VERSION=${GDSVersion}" >> .bashrc
-          echo "export NEO4J_HOME=/opt/bitnami/neo4j" >> .bashrc
-          echo "# END ${AppName} APPLICATION ENVIRONMENT VARIABLES" >> .bashrc
-          # Download Makefile from dev-gfe-db-531868584498-us-east-1
-          aws s3 cp --recursive s3://${DataBucketName}/config/scripts/ .
-          make neo4j
+          export BITNAMI_HOME=/home/bitnami
+          # CloudWatch Logs Agent
+          mkdir -p /tmp/amazon-cloudwatch-agent
+          wget -q -O /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb https://s3.amazonaws.com/amazoncloudwatch-agent/debian/amd64/latest/amazon-cloudwatch-agent.deb
+          dpkg -i -E /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb
+          aws s3 cp s3://${DataBucketName}/config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+          systemctl enable amazon-cloudwatch-agent.service
+          service amazon-cloudwatch-agent start
+          # CloudFormation Helpers
+          mkdir -p /tmp/cfn
+          wget -q -O /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+          python3 -m easy_install --script-dir /opt/aws/bin /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz
+          # SSM Agent
+          mkdir -p /tmp/ssm
+          wget -q -O /tmp/ssm/amazon-ssm-agent.deb https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb
+          dpkg -i /tmp/ssm/amazon-ssm-agent.deb
+          systemctl enable amazon-ssm-agent
+          systemctl start amazon-ssm-agent
+          # Permanently set application environment variables (these should never change for the duration of the deployment)
+          echo "STAGE=${Stage}" >> $BITNAMI_HOME/.env
+          echo "APP_NAME=${AppName}" >> $BITNAMI_HOME/.env
+          echo "REGION=${AWS::Region}" >> $BITNAMI_HOME/.env
+          echo "DATA_BUCKET_NAME=${DataBucketName}" >> $BITNAMI_HOME/.env
+          echo "HOST_DOMAIN=${HostDomain}" >> $BITNAMI_HOME/.env
+          echo "ADMIN_EMAIL=${AdminEmail}" >> $BITNAMI_HOME/.env
+          echo "APOC_VERSION=${APOCVersion}" >> $BITNAMI_HOME/.env
+          echo "GDS_VERSION=${GDSVersion}" >> $BITNAMI_HOME/.env
+          echo "NEO4J_HOME=/opt/bitnami/neo4j" >> $BITNAMI_HOME/.env
+          # Download Makefile from data bucket
+          aws s3 cp --recursive s3://${DataBucketName}/config/scripts/ $BITNAMI_HOME/
+          # cfn-signal
+          /opt/aws/bin/cfn-signal \
+            --exit-code $? \
+            --stack  ${Stage}-${AppName}-database \
+            --resource Neo4jDatabaseInstance \
+            --region ${AWS::Region}
+          cd $BITNAMI_HOME && make neo4j
       Tags:
         - Key: Name
           Value: !Sub '${AppName}-${Stage}'
         - Key: Stage
           Value: !Sub '${AppName}-${Stage}'
-
   Neo4jDatabaseInstanceRole:
     Type: AWS::IAM::Role
     Properties:

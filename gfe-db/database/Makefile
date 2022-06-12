@@ -75,8 +75,8 @@ deploy.database:
 			DatabaseVolumeSize="$${DATABASE_VOLUME_SIZE}" \
 			HostDomain="$${HOST_DOMAIN}" \
 			AdminEmail="$${ADMIN_EMAIL}" \
-			APOCVersion="$${APOC_VERSION}\
-			GDSVersion="$${GDS_VERSION} 2>&1 | tee -a $$CFN_LOG_PATH || true
+			APOCVersion="$${APOC_VERSION}" \
+			GDSVersion="$${GDS_VERSION}" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 
 deploy.copy-s3-logs:
