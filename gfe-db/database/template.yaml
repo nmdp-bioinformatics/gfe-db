@@ -27,6 +27,19 @@ Parameters:
     Type: String
 
 Resources:
+
+  Neo4jCredentialsSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub "${AppName}-${Stage}-Neo4jCredentials"
+      Description: Must match the username/password specified in the Neo4j Dockerfile
+      SecretString: '{"NEO4J_USERNAME":"","NEO4J_PASSWORD":""}'
+      Tags:
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: AppName 
+          Value: !Ref AppName
+
   Neo4jDatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -133,6 +146,7 @@ Resources:
           echo "APOC_VERSION=${APOCVersion}" >> $BITNAMI_HOME/.env
           echo "GDS_VERSION=${GDSVersion}" >> $BITNAMI_HOME/.env
           echo "NEO4J_HOME=/opt/bitnami/neo4j" >> $BITNAMI_HOME/.env
+          echo "NEO4J_CREDENTIALS_SECRET_ARN=${Neo4jCredentialsSecret}" >> $BITNAMI_HOME/.env
           # Download Makefile from data bucket
           aws s3 cp --recursive s3://${DataBucketName}/config/scripts/ $BITNAMI_HOME/
           # cfn-signal
@@ -141,6 +155,7 @@ Resources:
             --stack  ${Stage}-${AppName}-database \
             --resource Neo4jDatabaseInstance \
             --region ${AWS::Region}
+          # Bootstrap Neo4j 
           cd $BITNAMI_HOME && make neo4j
       Tags:
         - Key: Name
@@ -181,12 +196,17 @@ Resources:
               - Effect: "Allow"
                 Action:
                   - "secretsmanager:GetResourcePolicy"
-                  - "secretsmanager:GetSecretValue"
-                  - "secretsmanager:DescribeSecret"
                   - "secretsmanager:ListSecretVersionIds"
                   - "secretsmanager:ListSecrets"
                 Resource: 
                   - "*"
+              - Effect: "Allow"
+                Action:
+                  - "secretsmanager:UpdateSecret"
+                  - "secretsmanager:GetSecretValue"
+                  - "secretsmanager:DescribeSecret"
+                Resource: 
+                  - !Ref Neo4jCredentialsSecret
               - Effect: "Allow"
                 Action: 
                   - "states:GetActivityTask"

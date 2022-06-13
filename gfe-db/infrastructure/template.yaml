@@ -9,12 +9,6 @@ Parameters:
     Type: String
   DataBucketName:
     Type: String
-  Neo4jUsername:
-    Type: String
-    NoEcho: true
-  Neo4jPassword:
-    Type: String
-    NoEcho: true
   GitHubPersonalAccessToken:
     Type: String
     NoEcho: true
@@ -130,26 +124,6 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataBucketRegionalDomainName'
       Description: "S3 Bucket Regional Domain name for application bucket"
       Value: !GetAtt DataBucket.RegionalDomainName
-  
-  Neo4jCredentialsSecret:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      Name: !Sub "${AppName}-${Stage}-Neo4jCredentials"
-      Description: Must match the username/password specified in the Neo4j Dockerfile
-      SecretString: !Sub '{"NEO4J_USERNAME":"${Neo4jUsername}","NEO4J_PASSWORD":"${Neo4jPassword}"}'
-      Tags:
-        - Key: Stage
-          Value: !Ref Stage
-        - Key: AppName 
-          Value: !Ref AppName
-  
-  Neo4jCredentialsSecretArnParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn'
-      Description: "Secret ARN for Neo4j Credentials"
-      Value: !Ref Neo4jCredentialsSecret
   
   GitHubPersonalAccessTokenSecret:
     Type: AWS::SecretsManager::Secret

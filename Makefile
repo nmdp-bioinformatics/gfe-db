@@ -193,6 +193,12 @@ database.stop:
 	echo "Previous state: $$(echo "$$response" | jq -r '.StoppingInstances[] | select(.InstanceId | contains("${INSTANCE_ID}")).PreviousState.Name')" && \
 	echo "Current state: $$(echo "$$response" | jq -r '.StoppingInstances[] | select(.InstanceId | contains("${INSTANCE_ID}")).CurrentState.Name')"
 
+database.get-endpoint:
+	@echo "http://$${NEO4J_ENDPOINT}:7473/browser/"
+
+# TODO neo4j.get-credentials
+# neo4j.get-credentials:
+
 delete: # data=true/false ##=> Delete services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${APP_NAME} in ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) delete.pipeline
@@ -217,9 +223,6 @@ get.data: #=> Download the build data locally
 
 get.logs: #=> Download all logs locally
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/logs/ ${LOGS_DIR}/
-
-get.neo4j:
-	@echo "http://$${NEO4J_ENDPOINT}:7474/browser/"
 
 # TODO: finished administrative targets
 # get.config:

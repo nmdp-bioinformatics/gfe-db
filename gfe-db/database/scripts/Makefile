@@ -7,7 +7,7 @@ export
 
 export ROOT_DIR=/home/bitnami
 export NEO4J_HOME=/opt/bitnami/neo4j
-export NEO4J_USER=$(shell cat ${ROOT_DIR}/bitnami_credentials | sed 's/ /\n/g' | grep -E "'([a-zA-Z0-9]+)'" | sed "s/'//g" | sed "s/\.//g" | head -n 1)
+export NEO4J_USERNAME=$(shell cat ${ROOT_DIR}/bitnami_credentials | sed 's/ /\n/g' | grep -E "'([a-zA-Z0-9]+)'" | sed "s/'//g" | sed "s/\.//g" | head -n 1)
 export NEO4J_PASSWORD=$(shell cat ${ROOT_DIR}/bitnami_credentials | sed 's/ /\n/g' | grep -E "'([a-zA-Z0-9]+)'" | sed "s/'//g" | sed "s/\.//g" | tail -n 1)
 
 target:
@@ -26,6 +26,12 @@ ifndef DATA_BUCKET_NAME
 $(error DATA_BUCKET_NAME is not set.)
 endif
 ifndef NEO4J_HOME
+$(error NEO4J_HOME is not set.)
+endif
+ifndef NEO4J_USERNAME
+$(error NEO4J_HOME is not set.)
+endif
+ifndef NEO4J_PASSWORD
 $(error NEO4J_HOME is not set.)
 endif
 ifndef HOST_DOMAIN
@@ -52,55 +58,27 @@ endif
 # 	# python
 
 bootstrap:
-	# $(MAKE) cfn-helpers.install
-	# $(MAKE) ssm.install
-	# $(MAKE) cloudwatch.install
-	# $(MAKE) cfn-signal exitcode=0
 	$(MAKE) eip.waiter
 	$(MAKE) ssl.create-cert
 
 neo4j: bootstrap
-	$(MAKE) neo4j.stop
+	$(MAKE) neo4j.publish-credentials
 	$(MAKE) neo4j.config.update
 	$(MAKE) neo4j.plugins.install-apoc
 	$(MAKE) neo4j.plugins.install-gds
-	$(MAKE) neo4j.start
+	$(MAKE) neo4j.restart
 	$(MAKE) neo4j.init
 	$(MAKE) copy-logs
-
-# TODO keep in User Data to separate the boostrap logic from the application logic 
-# cfn-helpers.install:
-# 	@mkdir -p /tmp/cfn
-# 	@wget -q -O /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
-# 	@python3 -m easy_install --script-dir /opt/aws/bin /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz
-
-# TODO keep in User Data to separate the boostrap logic from the application logic 
-# cfn-signal: ##=> make cfn-signal exitcode=0 for success
-# 	@res=$$(/opt/aws/bin/cfn-signal \
-# 		--exit-code $$exitcode \
-# 		--stack  ${STAGE}-${APP_NAME}-database \
-# 		--resource Neo4jDatabaseInstance \
-# 		--region ${REGION}) || echo "skipping cfn-signal"
-
-# TODO keep in User Data to separate the boostrap logic from the application logic 
-# ssm.install:
-# 	@mkdir -p /tmp/ssm
-# 	@wget -q -O /tmp/ssm/amazon-ssm-agent.deb https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb
-# 	@dpkg -i /tmp/ssm/amazon-ssm-agent.deb
-# 	@systemctl enable amazon-ssm-agent
-
-# TODO keep in User Data to separate the boostrap logic from the application logic 
-# cloudwatch.install:
-# 	@mkdir -p /tmp/amazon-cloudwatch-agent
-# 	@wget -q -O /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb https://s3.amazonaws.com/amazoncloudwatch-agent/debian/amd64/latest/amazon-cloudwatch-agent.deb
-# 	@dpkg -i -E /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb
-# 	@aws s3 cp s3://${DATA_BUCKET_NAME}/config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
-# 	@systemctl enable amazon-cloudwatch-agent.service
-# 	@service amazon-cloudwatch-agent start
 
 # eip
 eip.waiter:
 	@bash ${ROOT_DIR}/init/eip_assoc_waiter.sh
+
+# secretsmanager
+neo4j.publish-credentials:
+	@aws --region ${REGION} secretsmanager update-secret \
+		--secret-id ${NEO4J_CREDENTIALS_SECRET_ARN} \
+		--secret-string "{\"NEO4J_USERNAME\":\"${NEO4J_USERNAME}\",\"NEO4J_PASSWORD\":\"${NEO4J_PASSWORD}\"}"
 
 # neo4j
 neo4j.status:
@@ -157,7 +135,7 @@ neo4j.init:
 	@mkdir -p ${NEO4J_HOME}/{backups,cypher}
 	@echo "Fetching cypher scripts from S3..."
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
-	@cat ${NEO4J_HOME}/cypher/init.cyp | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USER} -p ${NEO4J_PASSWORD} -a neo4j+s://${HOST_DOMAIN}:7687
+	@cat ${NEO4J_HOME}/cypher/init.cyp | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${HOST_DOMAIN}:7687
 
 # TODO test
 neo4j.import:
@@ -170,13 +148,13 @@ neo4j.create-constraints:
 	@mkdir -p ${NEO4J_HOME}/{backups,cypher}
 	@echo "Fetching cypher scripts from S3..."
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
-	@cat ${NEO4J_HOME}/cypher/create_constraints.cyp | cypher-shell -u ${NEO4J_USER} -p ${NEO4J_PASSWORD} -a neo4j+s://${HOST_DOMAIN}:7687
+	@cat ${NEO4J_HOME}/cypher/create_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${HOST_DOMAIN}:7687
 
 neo4j.drop-constraints:
 	@mkdir -p ${NEO4J_HOME}/{backups,cypher}
 	@echo "Fetching cypher scripts from S3..."
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
-	@cat ${NEO4J_HOME}/cypher/drop_constraints.cyp | cypher-shell -u ${NEO4J_USER} -p ${NEO4J_PASSWORD} -a neo4j+s://${HOST_DOMAIN}:7687
+	@cat ${NEO4J_HOME}/cypher/drop_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${HOST_DOMAIN}:7687
 
 ssl.create-cert:
 	@bash init/create_cert.sh ${HOST_DOMAIN} ${ADMIN_EMAIL}
