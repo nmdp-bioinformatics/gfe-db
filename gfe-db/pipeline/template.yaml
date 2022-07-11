@@ -312,7 +312,7 @@ Resources:
     Properties:
       FunctionName: !Ref InvokePipelineFunctionName
       Description: !Sub '${AppName} update pipeline trigger: checks for new IMGT/HLA releases and starts the loading process'
-      CodeUri: functions/invoke_pipeline/
+      CodeUri: functions/invoke_pipeline/src/
       Handler: app.lambda_handler
       Runtime: python3.8
       MemorySize: !Ref InvokePipelineFunctionMemorySize
@@ -342,6 +342,7 @@ Resources:
               Action:
                 - "s3:GetObject"
                 - "s3:PutObject"
+                - "s3:ListBucket"
               Resource:
                 - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
                 - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
@@ -451,17 +452,17 @@ Resources:
       Description: "ARN of gfe-db update pipeline state machine"
       Value: !GetAtt UpdatePipeline.Arn
 
-  # # Testing purposes only
-  # TestActivityTask:
-  #   Type: AWS::Serverless::StateMachine
-  #   Properties:
-  #     DefinitionUri: statemachines/test-activity.asl.json
-  #     DefinitionSubstitutions:
-  #       InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
-  #       LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
-  #     Policies:
-  #       - LambdaInvokePolicy:
-  #           FunctionName: !Ref InvokeLoadScriptFunction
+  # Testing purposes only
+  TestActivityTask:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: statemachines/test-activity.asl.json
+      DefinitionSubstitutions:
+        InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
+        LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref InvokeLoadScriptFunction
 
   LoadNeo4jActivity:
     Type: AWS::StepFunctions::Activity

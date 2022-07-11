@@ -40,7 +40,6 @@ deploy.pipeline:
 			AppName="$${APP_NAME}" \
 			ECRBaseUri="${ECR_BASE_URI}" \
 			BuildServiceRepositoryName="${BUILD_REPOSITORY}" \
-			LoadServiceRepositoryName="${LOAD_REPOSITORY}" \
 			2>&1 | tee -a $$CFN_LOG_PATH || true
 
 deploy.jobs:
