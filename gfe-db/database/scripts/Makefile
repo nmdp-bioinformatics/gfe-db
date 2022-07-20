@@ -2,7 +2,7 @@
 # Run as sudo only
 
 # Application specific environment variables
-include .env
+include env.sh
 export
 
 export ROOT_DIR=/home/bitnami
@@ -13,6 +13,9 @@ export NEO4J_PASSWORD=$(shell cat ${ROOT_DIR}/bitnami_credentials | sed 's/ /\n/
 target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
+
+env:
+	@printenv
 
 # TODO fetch all shell scripts from S3
 # get.scripts:
@@ -58,6 +61,10 @@ endif
 # 	# python
 
 bootstrap:
+	# $(MAKE) cfn-helpers.install
+	# $(MAKE) ssm.install
+	# $(MAKE) cloudwatch.install
+	# $(MAKE) cfn-signal exitcode=0
 	$(MAKE) eip.waiter
 	$(MAKE) ssl.create-cert
 
@@ -69,6 +76,36 @@ neo4j: bootstrap
 	$(MAKE) neo4j.restart
 	$(MAKE) neo4j.init
 	$(MAKE) copy-logs
+
+# TODO keep in User Data to separate the boostrap logic from the application logic 
+# cfn-helpers.install:
+# 	@mkdir -p /tmp/cfn
+# 	@wget -q -O /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+# 	@python3 -m easy_install --script-dir /opt/aws/bin /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz
+
+# TODO keep in User Data to separate the boostrap logic from the application logic 
+# cfn-signal: ##=> make cfn-signal exitcode=0 for success
+# 	@res=$$(/opt/aws/bin/cfn-signal \
+# 		--exit-code $$exitcode \
+# 		--stack  ${STAGE}-${APP_NAME}-database \
+# 		--resource Neo4jDatabaseInstance \
+# 		--region ${REGION}) || echo "skipping cfn-signal"
+
+# TODO keep in User Data to separate the boostrap logic from the application logic 
+# ssm.install:
+# 	@mkdir -p /tmp/ssm
+# 	@wget -q -O /tmp/ssm/amazon-ssm-agent.deb https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb
+# 	@dpkg -i /tmp/ssm/amazon-ssm-agent.deb
+# 	@systemctl enable amazon-ssm-agent
+
+# TODO keep in User Data to separate the boostrap logic from the application logic 
+# cloudwatch.install:
+# 	@mkdir -p /tmp/amazon-cloudwatch-agent
+# 	@wget -q -O /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb https://s3.amazonaws.com/amazoncloudwatch-agent/debian/amd64/latest/amazon-cloudwatch-agent.deb
+# 	@dpkg -i -E /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb
+# 	@aws s3 cp s3://${DATA_BUCKET_NAME}/config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+# 	@systemctl enable amazon-cloudwatch-agent.service
+# 	@service amazon-cloudwatch-agent start
 
 # eip
 eip.waiter:
@@ -89,29 +126,11 @@ neo4j.stop:
 
 neo4j.start:
 	@/opt/bitnami/ctlscript.sh start
-	@timeout=300 && \
-	counter=0 && \
-	until $$(curl --output /dev/null --silent --head --fail http://localhost:7474) ; do \
-		printf '.' ; \
-		sleep 1 ; \
-		counter=$$((counter + 1)) ; \
-		[ $$counter -eq $$timeout ] && exit 1 || true ; \
-	done
-	@printf "%s\n" " "
-	@echo "Neo4j is ready"
+	$(MAKE) neo4j.waiter
 
 neo4j.restart:
 	@/opt/bitnami/ctlscript.sh restart
-	@timeout=300 && \
-	counter=0 && \
-	until $$(curl --output /dev/null --silent --head --fail http://localhost:7474) ; do \
-		printf '.' ; \
-		sleep 1 ; \
-		counter=$$((counter + 1)) ; \
-		[ $$counter -eq $$timeout ] && exit 1 || true ; \
-	done
-	@printf "%s\n" " "
-	@echo "Neo4j is ready"
+	$(MAKE) neo4j.waiter
 
 neo4j.config.update:
 	@mv ${NEO4J_HOME}/conf/neo4j.conf ${NEO4J_HOME}/conf/neo4j.conf.bkp
@@ -133,9 +152,23 @@ neo4j.plugins.install-gds:
 
 neo4j.init:
 	@mkdir -p ${NEO4J_HOME}/{backups,cypher}
-	@echo "Fetching cypher scripts from S3..."
+	@echo "Fetching Cypher scripts from S3..."
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
+	@echo "Executing initialization queries..."
 	@cat ${NEO4J_HOME}/cypher/init.cyp | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${HOST_DOMAIN}:7687
+
+neo4j.waiter:
+	@timeout=300 && \
+	counter=0 && \
+	echo "Waiting for response from Neo4j at https://${HOST_DOMAIN}:7473..." && \
+	until $$(curl --output /dev/null --silent --head --fail https://${HOST_DOMAIN}:7473) ; do \
+		printf '.' ; \
+		sleep 1 ; \
+		counter=$$((counter + 1)) ; \
+		[ $$counter -eq $$timeout ] && break || true ; \
+	done && \
+	printf "%s\n" " " && \
+	[ $$counter -eq $$timeout ] && echo "Operation timed out!" || echo "Neo4j is ready"
 
 # TODO test
 neo4j.import:
