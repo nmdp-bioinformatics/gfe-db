@@ -28,17 +28,11 @@ deploy.check-key-pair: ##=> Checks if the key pair already exists and creates it
 		--value "${EC2_KEY_PAIR_NAME}" \
 		--overwrite 2>&1 | tee -a $$CFN_LOG_PATH || true
 
-deploy.config: config.neo4j config.scripts config.cloudwatch-agent
+config.deploy: config.neo4j config.scripts config.cloudwatch-agent
 
+# TODO: use sed to replace dbms.default_advertised_address=<FQDN> with the domain
 config.neo4j:
-	@neo4j_conf_s3_path=s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.template && \
-	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Neo4j config to $$neo4j_conf_s3_path" 2>&1 \
-		| tee -a $$CFN_LOG_PATH && \
-	aws s3 cp neo4j/neo4j.template $$neo4j_conf_s3_path 2>&1 | tee -a $$CFN_LOG_PATH
-	@neo4j_cypher_s3_path=s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ && \
-	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Neo4j config to $$neo4j_cypher_s3_path" 2>&1 \
-		| tee -a $$CFN_LOG_PATH && \
-	aws s3 cp --recursive neo4j/cypher/ $$neo4j_cypher_s3_path 2>&1 | tee -a $$CFN_LOG_PATH
+	@aws s3 cp --recursive neo4j/ s3://$$DATA_BUCKET_NAME/config/neo4j/ 2>&1 | tee -a $$CFN_LOG_PATH
 
 config.scripts:
 	@script_s3_path=s3://$$DATA_BUCKET_NAME/config/scripts/ && \
@@ -70,8 +64,11 @@ deploy.database:
 			DataBucketName="$${DATA_BUCKET_NAME}" \
 			Neo4jAmiId="$${NEO4J_AMI_ID}" \
 			Neo4jPassword="$${NEO4J_PASSWORD}" \
-			DatabaseVolumeSize="$${DATABASE_VOLUME_SIZE}" 2>&1 | tee -a $$CFN_LOG_PATH || true
-
+			DatabaseVolumeSize="$${DATABASE_VOLUME_SIZE}" \
+			HostDomain="$${HOST_DOMAIN}" \
+			AdminEmail="$${ADMIN_EMAIL}" \
+			APOCVersion="$${APOC_VERSION}" \
+			GDSVersion="$${GDS_VERSION}" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 deploy.copy-s3-logs:
 	@aws s3 cp --recursive s3://$$DATA_BUCKET_NAME/logs/ $$LOGS_DIR/

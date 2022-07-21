@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Usage &mdash; gfe-db 1.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="_static/copybutton.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/clipboard.min.js"></script>
+        <script src="_static/copybutton.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Reference" href="reference.html" />
+    <link rel="prev" title="Introduction" href="introduction.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> gfe-db
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Table of Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">Introduction</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#deployment-to-aws">Deployment to AWS</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#quick-start">Quick Start</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#environment">Environment</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#aws-credentials">AWS Credentials</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#shell-variables">Shell Variables</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#makefile-usage">Makefile Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#deploying-configuration-files">Deploying Configuration Files</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#clean-up">Clean Up</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#loading-releases">Loading Releases</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#input-parameters">Input Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pipeline-execution">Pipeline Execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#retrieving-logs-data-and-parameters">Retrieving logs, data and parameters</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#developing-locally">Developing Locally</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#creating-a-python-virtual-environment">Creating a Python Virtual Environment</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="reference.html">Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">gfe-db</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Usage</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/usage.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="usage">
+<h1>Usage<a class="headerlink" href="#usage" title="Permalink to this headline"></a></h1>
+<section id="deployment-to-aws">
+<h2>Deployment to AWS<a class="headerlink" href="#deployment-to-aws" title="Permalink to this headline"></a></h2>
+<p>Follow the steps to build and deploy the application to AWS. For information
+about the architecture deployed please see <a class="reference internal" href="introduction.html#architecture"><span class="std std-ref">Architecture</span></a>.</p>
+<section id="quick-start">
+<h3>Quick Start<a class="headerlink" href="#quick-start" title="Permalink to this headline"></a></h3>
+<p>This list outlines the basic steps for deployment. For more details
+please see the following sections.</p>
+<ol class="arabic simple">
+<li><p>Install <a class="reference internal" href="#prerequisites">prerequisites</a></p></li>
+<li><p>Set <a class="reference internal" href="#environment">environment variables</a></p></li>
+<li><p>Check the config JSONs (parameters and state) and edit the values as desired</p></li>
+<li><p>Run <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">deploy</span></code> to deploy the stacks to AWS</p></li>
+<li><p>Run <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">load.database</span> <span class="pre">release=&lt;version&gt;</span></code> to load Neo4j</p></li>
+<li><p>Run <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">get.neo4j</span></code> to get the URL for the Neo4j browser</p></li>
+</ol>
+</section>
+<section id="prerequisites">
+<span id="id1"></span><h3>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this headline"></a></h3>
+<p>Please refer to the respective documentation for specific installation
+instructions.</p>
+<ul class="simple">
+<li><p>GNU Make 3.81</p></li>
+<li><p>coreutils (optional for macOS)</p></li>
+<li><p>AWS CLI</p></li>
+<li><p>SAM CLI</p></li>
+<li><p>Docker</p></li>
+<li><p>jq</p></li>
+</ul>
+</section>
+<section id="environment">
+<span id="id2"></span><h3>Environment<a class="headerlink" href="#environment" title="Permalink to this headline"></a></h3>
+<section id="aws-credentials">
+<h4>AWS Credentials<a class="headerlink" href="#aws-credentials" title="Permalink to this headline"></a></h4>
+<p>Valid AWS credentials must be available to AWS CLI and SAM CLI. The
+easiest way to do this is with the following steps.</p>
+<ol class="arabic simple">
+<li><p>Run <code class="docutils literal notranslate"><span class="pre">aws</span> <span class="pre">configure</span></code> and follow the prompts, or copy/paste them into <code class="docutils literal notranslate"><span class="pre">~/.aws/credentials</span></code></p></li>
+<li><p>Export the <code class="docutils literal notranslate"><span class="pre">AWS_PROFILE</span></code> variable for the chosen profile to the shell environment.</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span> <span class="nv">AWS_PROFILE</span><span class="o">=</span>default
+</pre></div>
+</div>
+<p>For more information visit the documentation page: <a class="reference external" href="https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html">Configuration and credential file settings</a></p>
+</section>
+<section id="shell-variables">
+<h4>Shell Variables<a class="headerlink" href="#shell-variables" title="Permalink to this headline"></a></h4>
+<p>These variables must be present in the shell environment before running
+Make. The best way to set these variables is with a <code class="docutils literal notranslate"><span class="pre">.env</span></code> file
+following these steps.</p>
+<ol class="arabic simple">
+<li><p>Create a <code class="docutils literal notranslate"><span class="pre">.env</span></code> file in the project root and add the values.</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">STAGE</span><span class="o">=</span>&lt;dev or prod&gt;
+<span class="nv">APP_NAME</span><span class="o">=</span>gfe-db
+<span class="nv">REGION</span><span class="o">=</span>&lt;AWS region&gt;
+<span class="nv">NEO4J_USERNAME</span><span class="o">=</span>&lt;secret&gt;
+<span class="nv">NEO4J_PASSWORD</span><span class="o">=</span>&lt;secret&gt;
+<span class="nv">GITHUB_PERSONAL_ACCESS_TOKEN</span><span class="o">=</span>&lt;secret&gt;
+</pre></div>
+</div>
+<ol class="arabic simple" start="2">
+<li><p>Source the variables to the environment.</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Export .env file variables</span>
+<span class="nb">set</span> -a <span class="o">&amp;&amp;</span> <span class="nb">source</span> .env <span class="o">&amp;&amp;</span> <span class="nb">set</span> +a
+
+<span class="c1"># Check that the variables were set</span>
+env
+</pre></div>
+</div>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Always use a <code class="docutils literal notranslate"><span class="pre">.env</span></code> file, AWS SSM Parameter Store, or
+Secrets Manager for sensitive variables like credentials and API keys.
+Never hard-code them, including when developing. AWS will quarantine an
+account if any credentials get accidentally exposed and this will cause
+problems. Make sure to update <code class="docutils literal notranslate"><span class="pre">.gitignore</span></code> to avoid pushing sensitive
+data to public repositories.</p>
+</div>
+</section>
+</section>
+<section id="makefile-usage">
+<h3>Makefile Usage<a class="headerlink" href="#makefile-usage" title="Permalink to this headline"></a></h3>
+<p>Once an AWS profile is configured and environment variables are
+exported, the application can be deployed using <code class="docutils literal notranslate"><span class="pre">make</span></code>. For more <cite>make</cite>
+commands please see <a class="reference internal" href="reference.html#makefileref"><span class="std std-ref">Makefile Command Reference</span></a>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make deploy
+</pre></div>
+</div>
+<p>It is also possible to deploy or update individual services.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Deploy/update only the infrastructure service</span>
+make deploy.infrastructure
+
+<span class="c1"># Deploy/update only the database service</span>
+make deploy.database
+
+<span class="c1"># Deploy/update only the pipeline service</span>
+make deploy.pipeline
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>It is recommended to only deploy from the project root. This is
+because common parameters are passed from the root Makefile to nested
+Makefiles. If a stack has not been changed, the deployment script will
+continue until it reaches a stack with changes and deploy that.</p>
+</div>
+</section>
+<section id="deploying-configuration-files">
+<h3>Deploying Configuration Files<a class="headerlink" href="#deploying-configuration-files" title="Permalink to this headline"></a></h3>
+<p>To deploy updates to state and/or pipeline input parameters, run the
+command.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make deploy.config
+</pre></div>
+</div>
+</section>
+<section id="clean-up">
+<h3>Clean Up<a class="headerlink" href="#clean-up" title="Permalink to this headline"></a></h3>
+<p>To tear down resources run the command. You will need to manually delete
+the data in the S3 bucket first.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make delete
+</pre></div>
+</div>
+<p>Use the following commands to tear down individual services.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Delete only the infrastructure service.</span>
+make delete.infrastructure
+
+<span class="c1"># Delete only the database service</span>
+make delete.database
+
+<span class="c1"># Delete only the pipeline service</span>
+make delete.pipeline
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Deleting and re-deploying a layer may cause the parameters shared by
+other layers to go out of date. To avoid this the recommendation is to deploy
+sequentially and teardown in reverse sequence. For example, tearing down and
+re-deploying the database stack may affect parameters shared with the pipeline stack,
+causing the pipeline stack to fail. The solution would be to also be
+tear down and re-deploy the pipeline stack.</p>
+</div>
+</section>
+</section>
+<section id="loading-releases">
+<h2>Loading Releases<a class="headerlink" href="#loading-releases" title="Permalink to this headline"></a></h2>
+<section id="input-parameters">
+<h3>Input Parameters<a class="headerlink" href="#input-parameters" title="Permalink to this headline"></a></h3>
+<p>Base input parameters (excluding the <code class="docutils literal notranslate"><span class="pre">releases</span></code> value) are passed to
+the Step Functions State Machine and determine it’s behavior during
+build. These are stored in a configuration file in S3 (see the <a class="reference internal" href="reference.html#datapipelineconfig"><span class="std std-ref">Data Pipeline</span></a>
+configuration reference) but can be overridden. The <code class="docutils literal notranslate"><span class="pre">releases</span></code> value
+is appended at runtime by the trigger Lambda when it finds a new release
+in the source repository.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 13%" />
+<col style="width: 14%" />
+<col style="width: 8%" />
+<col style="width: 65%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Variable</p></th>
+<th class="head"><p>Example Value</p></th>
+<th class="head"><p>Type</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>LIMIT</p></td>
+<td><p>100</p></td>
+<td><p>string</p></td>
+<td><p>Number of alleles to build. Leave blank (“”) to build all alleles.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ALIGN</p></td>
+<td><p>False</p></td>
+<td><p>string</p></td>
+<td><p>Include or exclude alignments in the build</p></td>
+</tr>
+<tr class="row-even"><td><p>KIR</p></td>
+<td><p>False</p></td>
+<td><p>string</p></td>
+<td><p>Include or exclude KIR data alignments in the build</p></td>
+</tr>
+<tr class="row-odd"><td><p>MEM_PROFILE</p></td>
+<td><p>False</p></td>
+<td><p>string</p></td>
+<td><p>Enable memory profiling (for catching memory leaks during build)</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="pipeline-execution">
+<h3>Pipeline Execution<a class="headerlink" href="#pipeline-execution" title="Permalink to this headline"></a></h3>
+<p>The data pipeline can also be invoked from the command line.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make load.database <span class="nv">releases</span><span class="o">=</span>&lt;version&gt; <span class="nv">align</span><span class="o">=</span>&lt;boolean&gt; <span class="nv">kir</span><span class="o">=</span>&lt;boolean&gt; <span class="nv">limit</span><span class="o">=</span>&lt;int&gt;
+</pre></div>
+</div>
+</section>
+<section id="retrieving-logs-data-and-parameters">
+<h3>Retrieving logs, data and parameters<a class="headerlink" href="#retrieving-logs-data-and-parameters" title="Permalink to this headline"></a></h3>
+<p>See the reference section <a class="reference internal" href="reference.html#makefilerefretrieve"><span class="std std-ref">Retrieve logs, data and configuration values</span></a> for useful commands.</p>
+</section>
+</section>
+<section id="developing-locally">
+<h2>Developing Locally<a class="headerlink" href="#developing-locally" title="Permalink to this headline"></a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This information is incomplete but will be updated soon.</p>
+</div>
+<section id="creating-a-python-virtual-environment">
+<h3>Creating a Python Virtual Environment<a class="headerlink" href="#creating-a-python-virtual-environment" title="Permalink to this headline"></a></h3>
+<p>When developing locally, you will need to create an individual virtual
+environment to run scripts in the <code class="docutils literal notranslate"><span class="pre">jobs</span></code> or <code class="docutils literal notranslate"><span class="pre">functions</span></code> directories,
+since they require different dependencies.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> &lt;specific job or <span class="k">function</span> directory&gt;
+python3 -m venv .venv
+<span class="nb">source</span> .venv/bin/activate
+pip install -U pip
+pip install -r requirements.txt
+</pre></div>
+</div>
+<p>To use the virtual environment inside a Jupyter Notebook, first activate
+the virtual environment, then create a kernel for it.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Install ipykernal</span>
+pip install ipykernel python-dotenv
+
+<span class="c1"># Add the kernel</span>
+python3 -m ipykernel install --user --name<span class="o">=</span>&lt;environment name&gt;
+
+<span class="c1"># Remove the kernel</span>
+jupyter kernelspec uninstall &lt;environment name&gt;
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="introduction.html" class="btn btn-neutral float-left" title="Introduction" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="reference.html" class="btn btn-neutral float-right" title="Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, National Marrow Donor Program.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

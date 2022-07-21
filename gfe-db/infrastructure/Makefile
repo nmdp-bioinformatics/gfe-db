@@ -18,9 +18,8 @@ deploy.cfn:
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
 			DataBucketName="$$DATA_BUCKET_NAME" \
-			Neo4jUsername="$$NEO4J_USERNAME" \
-			Neo4jPassword="$$NEO4J_PASSWORD" \
-			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN" 2>&1 | tee -a $$CFN_LOG_PATH || true
+			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN" \
+			HostedZoneId="$${HOSTED_ZONE_ID}" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 delete: ##=> Delete resources
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
