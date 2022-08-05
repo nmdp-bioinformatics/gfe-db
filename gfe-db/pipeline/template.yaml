@@ -312,9 +312,9 @@ Resources:
     Properties:
       FunctionName: !Ref InvokePipelineFunctionName
       Description: !Sub '${AppName} update pipeline trigger: checks for new IMGT/HLA releases and starts the loading process'
-      CodeUri: functions/invoke_pipeline/
+      CodeUri: functions/invoke_pipeline/src/
       Handler: app.lambda_handler
-      Runtime: python3.8
+      Runtime: python3.9
       MemorySize: !Ref InvokePipelineFunctionMemorySize
       Timeout: !Ref InvokePipelineFunctionTimeout
       Architectures:
@@ -325,7 +325,7 @@ Resources:
           GITHUB_REPOSITORY_OWNER: !Ref GitHubRepositoryOwner
           GITHUB_REPOSITORY_NAME: !Ref GitHubRepositoryName
           GFE_BUCKET: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
-          UPDATE_PIPELINE_STATE_MACHINE_ARN: !GetAtt UpdatePipeline.Arn
+          UPDATE_PIPELINE_STATE_MACHINE_ARN: !GetAtt UpdatePipelineStateMachine.Arn
           PIPELINE_STATE_PATH: !Ref PipelineStatePath
           PIPELINE_PARAMS_PATH: !Ref PipelineParamsPath
       Events:
@@ -342,6 +342,7 @@ Resources:
               Action:
                 - "s3:GetObject"
                 - "s3:PutObject"
+                - "s3:ListBucket"
               Resource:
                 - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
                 - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
@@ -349,8 +350,9 @@ Resources:
               Effect: "Allow"
               Action:
                 - "states:StartExecution"
-              Resource: !GetAtt UpdatePipeline.Arn
+              Resource: !GetAtt UpdatePipelineStateMachine.Arn
 
+  # TODO add logs group and specify in command invocation
   InvokeLoadScriptFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -358,7 +360,7 @@ Resources:
       Description: !Sub "Invoke server-side loading on Neo4j for ${AppName}"
       CodeUri: functions/invoke_load_script/
       Handler: app.lambda_handler
-      Runtime: python3.8
+      Runtime: python3.9
       MemorySize: 256
       Timeout: 60
       Architectures:
@@ -387,7 +389,7 @@ Resources:
               Resource: 
                 - "*"
 
-  UpdatePipeline:
+  UpdatePipelineStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
       # RoleArn: !GetAtt UpdatePipelineExecutionRole.Arn # Replace with Policies
@@ -449,19 +451,19 @@ Resources:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineArn'
       Description: "ARN of gfe-db update pipeline state machine"
-      Value: !GetAtt UpdatePipeline.Arn
+      Value: !GetAtt UpdatePipelineStateMachine.Arn
 
-  # # Testing purposes only
-  # TestActivityTask:
-  #   Type: AWS::Serverless::StateMachine
-  #   Properties:
-  #     DefinitionUri: statemachines/test-activity.asl.json
-  #     DefinitionSubstitutions:
-  #       InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
-  #       LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
-  #     Policies:
-  #       - LambdaInvokePolicy:
-  #           FunctionName: !Ref InvokeLoadScriptFunction
+  # Testing purposes only
+  TestActivityTask:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: statemachines/test-activity.asl.json
+      DefinitionSubstitutions:
+        InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
+        LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref InvokeLoadScriptFunction
 
   LoadNeo4jActivity:
     Type: AWS::StepFunctions::Activity

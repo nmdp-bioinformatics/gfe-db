@@ -149,8 +149,6 @@ These variables must be present in the shell environment before running Make. Th
 STAGE=<dev or prod>
 APP_NAME=gfe-db
 REGION=<AWS region>
-NEO4J_USERNAME=<secret>
-NEO4J_PASSWORD=<secret>
 GITHUB_PERSONAL_ACCESS_TOKEN=<secret>
 HOST_DOMAIN=<fqdn>
 ADMIN_EMAIL=<email>
@@ -195,6 +193,9 @@ make deploy.config
 
 # Run the StepFunctions State Machine to load Neo4j
 make database.load releases=<version> align=<boolean> kir=<boolean> limit=<int>
+
+# Retrieve Neo4j credentials after deployment
+make database.get-credentials
 
 # Download CSV data from S3
 make get.data

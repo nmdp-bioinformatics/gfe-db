@@ -1,5 +1,7 @@
 #!/bin/bash
 
+
+# TODO remove hard coded REGION
 gfe_bucket=$(aws ssm get-parameters \
     --region $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/\(.*\)[a-z]/\1/') \
     --names "/gfe-db/dev/us-east-1/DataBucketName" \
@@ -12,11 +14,14 @@ else
     echo "Found S3 bucket: $gfe_bucket"
 fi
 
+# TODO update start/stop commands for Bitnami AMI
 # Stop, perform dump and restart database
 echo "Stopping Neo4j..."
 sudo systemctl stop neo4j
 echo "Backing up graph data..."
+
 # mkdir -p /var/lib/neo4j/backups # This directory is created by the user data script on initial boot to avoid permissions issues
+# TODO update Neo4j paths for Bitnami AMI
 sudo neo4j-admin dump \
     --database=neo4j \
     --to=/var/lib/neo4j/backups/gfedb.dump

@@ -2,6 +2,8 @@
 
 set -e
 
+# TODO remove the application logic to make this script agnostic
+
 # Send task failure if script errors
 send_result () {
     if [[ $status = "SUCCESS" ]]; then
@@ -34,6 +36,8 @@ else
 fi
 
 export ACTIVITY_ARN=$(echo $PARAMS | jq -r '.params.activity_arn')
+
+# TODO can now source APP_NAME and STAGE from env.sh
 export APP_NAME=$(echo $PARAMS | jq -r '.params.app_name')
 
 echo "ACTIVITY_ARN=$ACTIVITY_ARN"

@@ -40,7 +40,6 @@ deploy.pipeline:
 			AppName="$${APP_NAME}" \
 			ECRBaseUri="${ECR_BASE_URI}" \
 			BuildServiceRepositoryName="${BUILD_REPOSITORY}" \
-			LoadServiceRepositoryName="${LOAD_REPOSITORY}" \
 			2>&1 | tee -a $$CFN_LOG_PATH || true
 
 deploy.jobs:
@@ -49,7 +48,8 @@ deploy.jobs:
 # deploy.functions:
 # 	$(MAKE) -C functions/ deploy
 
-deploy.config:
+# TODO parameterize S3 config path and export as environment variable to recall in database shell scripts
+config.deploy:
 	@config_s3_path=s3://$$DATA_BUCKET_NAME/config/ && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying config to $$config_s3_path" 2>&1 | tee -a $$CFN_LOG_PATH && \
 	aws s3 cp --recursive config/ $$config_s3_path 2>&1 | tee -a $$CFN_LOG_PATH

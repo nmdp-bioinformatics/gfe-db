@@ -267,11 +267,17 @@ def parse_state(state_path, params_path):
 
 
 if __name__ == "__main__":
+    import os
+    from pathlib import Path
 
-    path = '/Users/ammon/Documents/00-Projects/nmdp-bioinformatics/02-Repositories/gfe-db/gfe-db/pipeline/functions/trigger/src/event.json'
-    # path = '/Users/ammon/Documents/00-Projects/nmdp-bioinformatics/02-Repositories/gfe-db/gfe-db/pipeline/functions/trigger/src/schedule-event.json'
+    def read_json(path):
+        with open(path, 'r') as file:
+            event = json.load(file)
+        return event
 
-    with open(path, "r") as file:
-        event = json.load(file)
+    path = Path(__file__)
+    path = str(path.parent.parent / "events" / "event.json")
+    
+    event = read_json(path)
 
-    lambda_handler(event,"")
+    lambda_handler("","")

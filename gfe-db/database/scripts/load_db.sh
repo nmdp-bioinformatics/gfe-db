@@ -1,16 +1,27 @@
 # #!/bin/bash
 
+export BITNAMI_HOME=/home/bitnami
+
 # Check for release argument
 RELEASE=$1
 
 # Get APP_NAME, REGION, STAGE setup on db install
-source $(dirname "$0")/env.sh
+source $BITNAMI_HOME/env.sh
+
+if [[ -z $NEO4J_HOME ]]; then
+    echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Neo4j not found"
+    exit 1
+else
+    echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Found Neo4j in $NEO4J_HOME"
+fi
 
 # Set paths
-NEO4J_CYPHER_PATH=/var/lib/neo4j/cypher
-NEO4J_IMPORT_PATH=/var/lib/neo4j/import
+NEO4J_CYPHER_PATH=$NEO4J_HOME/cypher
+NEO4J_IMPORT_PATH=/bitnami/neo4j/import
 S3_NEO4J_CYPHER_PATH=config/neo4j/cypher
 S3_CSV_PATH=data/$RELEASE/csv
+
+# exit 1
 
 if [[ -z $REGION ]]; then
     export REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')
@@ -47,13 +58,13 @@ fi
 echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Fetching most recent Cypher scripts"
 aws s3 cp --recursive s3://$DATA_BUCKET_NAME/$S3_NEO4J_CYPHER_PATH/ $NEO4J_CYPHER_PATH
 
-# Download data to /var/lib/neo4j/import
+# Download data to NEO4J_HOME/import
 echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Downloading CSV data for release $RELEASE"
 aws s3 cp --recursive s3://$DATA_BUCKET_NAME/$S3_CSV_PATH/ $NEO4J_IMPORT_PATH/
 
 # Update Cypher load query for correct release
 mkdir -p $NEO4J_CYPHER_PATH/tmp/$RELEASE/
-cat /var/lib/neo4j/cypher/load.cyp | sed "s/RELEASE/$RELEASE/g" > $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp
+cat $NEO4J_CYPHER_PATH/load.cyp | sed "s/RELEASE/$RELEASE/g" > $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp
 
 echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Executing query"
 echo "****** Begin Cypher ******"
@@ -63,7 +74,9 @@ echo "****** End Cypher ******"
 # Run Cypher load query
 echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Loading data for release $RELEASE into Neo4j..."
 cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp | \
-    /usr/bin/cypher-shell \
+    /$NEO4J_HOME/bin/cypher-shell \
+        --address neo4j://$HOST_DOMAIN:7687 \
+        --encryption true \
         --username $NEO4J_USERNAME \
         --password $NEO4J_PASSWORD \
         --format verbose

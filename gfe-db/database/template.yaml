@@ -15,22 +15,31 @@ Parameters:
     Type: String #AWS::EC2::Image::Id
     # Default: ami-0e1324ddfc4d086bb
     Description: AMI ID for Neo4j Community edition from AWS Marketplace
-  Neo4jPassword:
-    Type: String
-    NoEcho: true
-  Neo4jInitScript:
-    Type: String
-    Default: init_db.cyp
   DatabaseVolumeSize:
     Type: String
   HostDomain:
     Type: String
   AdminEmail:
     Type: String
-
-# TODO: add map of accepted instances for Neo4j CE AMI
+  APOCVersion:
+    Type: String
+  GDSVersion:
+    Type: String
 
 Resources:
+
+  Neo4jCredentialsSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub "${AppName}-${Stage}-Neo4jCredentials"
+      Description: Must match the username/password specified in the Neo4j Dockerfile
+      SecretString: '{"NEO4J_USERNAME":"","NEO4J_PASSWORD":""}'
+      Tags:
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: AppName 
+          Value: !Ref AppName
+
   Neo4jDatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -68,9 +77,9 @@ Resources:
   
   Neo4jDatabaseInstance:
     Type: AWS::EC2::Instance
-    CreationPolicy:
-      ResourceSignal:
-        Timeout: PT10M
+    # CreationPolicy:
+    #   ResourceSignal:
+    #     Timeout: PT10M
     Properties:
       KeyName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}'
       DisableApiTermination: false
@@ -94,108 +103,66 @@ Resources:
           !Sub |
           #!/bin/bash -x
           apt-get update -y
-          apt-get upgrade -y
+          DEBIAN_FRONTEND=noninteractive apt-get upgrade -yq
           apt-get install -y \
-            -o Dpkg::Options::='--force-confdef' \
-            -o Dpkg::Options::='--force-confold' \
-            apt-transport-https \
-            ca-certificates \
-            curl \
-            software-properties-common \
-            zip \
-            unzip \
-            collectd \
-            python3-setuptools \
-            certbot
-          mkdir -p /tmp/{ssm,cfn,logs,amazon-cloudwatch-agent}
-          # Install CloudFormation helper scripts (for cfn-signal)
-          wget -q -O /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
-          python3 -m easy_install --script-dir /opt/aws/bin /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz
-          # Install SSM Agent for automation
-          wget -q -O /tmp/ssm/amazon-ssm-agent.deb https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb
-          dpkg -i /tmp/ssm/amazon-ssm-agent.deb
-          systemctl enable amazon-ssm-agent
-          # Install and configure CloudWatch Agent for logs and metrics
+          -o Dpkg::Options::='--force-confdef' \
+          -o Dpkg::Options::='--force-confold' \
+          apt-transport-https \
+          ca-certificates \
+          curl \
+          jq \
+          software-properties-common \
+          zip \
+          unzip \
+          collectd \
+          python3-setuptools \
+          certbot \
+          git
+          export BITNAMI_HOME=/home/bitnami
+          # CloudWatch Logs Agent
+          mkdir -p /tmp/amazon-cloudwatch-agent
           wget -q -O /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb https://s3.amazonaws.com/amazoncloudwatch-agent/debian/amd64/latest/amazon-cloudwatch-agent.deb
           dpkg -i -E /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb
           aws s3 cp s3://${DataBucketName}/config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
           systemctl enable amazon-cloudwatch-agent.service
           service amazon-cloudwatch-agent start
-          # Signal the status from cfn-init; Ideally the UserData is run using cfn-init, and the exit code of cfn-init is passed to cfn-signal indicating
-          # successful deployment
-          # cfn-signal tells CloudFormation the instance is created. This lets CloudFormation proceed with associating it with the EIP
+          # CloudFormation Helpers
+          mkdir -p /tmp/cfn
+          wget -q -O /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+          python3 -m easy_install --script-dir /opt/aws/bin /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz
+          # SSM Agent
+          mkdir -p /tmp/ssm
+          wget -q -O /tmp/ssm/amazon-ssm-agent.deb https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb
+          dpkg -i /tmp/ssm/amazon-ssm-agent.deb
+          systemctl enable amazon-ssm-agent
+          systemctl start amazon-ssm-agent
+          # Permanently set application environment variables (these should never change for the duration of the deployment)
+          echo "STAGE=${Stage}" >> $BITNAMI_HOME/env.sh
+          echo "APP_NAME=${AppName}" >> $BITNAMI_HOME/env.sh
+          echo "REGION=${AWS::Region}" >> $BITNAMI_HOME/env.sh
+          echo "DATA_BUCKET_NAME=${DataBucketName}" >> $BITNAMI_HOME/env.sh
+          echo "HOST_DOMAIN=${HostDomain}" >> $BITNAMI_HOME/env.sh
+          echo "ADMIN_EMAIL=${AdminEmail}" >> $BITNAMI_HOME/env.sh
+          echo "APOC_VERSION=${APOCVersion}" >> $BITNAMI_HOME/env.sh
+          echo "GDS_VERSION=${GDSVersion}" >> $BITNAMI_HOME/env.sh
+          echo "NEO4J_HOME=/opt/bitnami/neo4j" >> $BITNAMI_HOME/env.sh
+          echo "NEO4J_CREDENTIALS_SECRET_ARN=${Neo4jCredentialsSecret}" >> $BITNAMI_HOME/env.sh
+          # Download Makefile from data bucket
+          aws s3 cp --recursive s3://${DataBucketName}/config/scripts/ $BITNAMI_HOME/
+          # cfn-signal
           /opt/aws/bin/cfn-signal \
             --exit-code $? \
-            --stack  ${AWS::StackName} \
+            --stack  ${Stage}-${AppName}-database \
             --resource Neo4jDatabaseInstance \
-            --region  ${AWS::Region}
-          # everything below needs its own separate scripts
-          # sleep condition and test if instance is associated with EIP
-          # test EIP and echo value
-          # sleep 60
-          # test EIP again and echo value to make sure it changed, could write a waiter script for this part
-          # Proceed with SSL cert creation and Neo4j config
-          # Configure Neo4j server
-          export NEO4J_HOME=/opt/bitnami/neo4j
-          echo "Stopping Neo4j..."
-          /opt/bitnami/ctlscript.sh stop
-          echo "Downloading Neo4j configuration from ${DataBucketName} to /etc/neo4j/neo4j.conf..."
-          aws s3 cp s3://${DataBucketName}/config/neo4j/neo4j.conf $NEO4J_HOME/conf/neo4j.conf
-          # echo "Downloading APOC Full plugin..."
-          # curl -L https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/4.4.0.3/apoc-4.4.0.3-all.jar -O
-          # mv apoc-4.4.0.3-all.jar $NEO4J_HOME/plugins/apoc-4.4.0.3-all.jar
-          echo "Downloading Neo4j Graph Data Science plugin..."
-          curl -L https://graphdatascience.ninja/neo4j-graph-data-science-2.0.1.zip -O
-          unzip neo4j-graph-data-science-2.0.1.zip
-          mv neo4j-graph-data-science-2.0.1.jar $NEO4J_HOME/plugins/neo4j-graph-data-science-2.0.1.jar
-          # echo "Resetting default password..."
-          # Stop Neo4j & Reset password
-          # /opt/bitnami/ctlscript.sh stop neo4j
-          # /opt/bitnami/neo4j/bin/neo4j-admin set-initial-password ${Neo4jPassword}
-          # echo "Restarting Neo4j server..."
-          # /opt/bitnami/ctlscript.sh start neo4j
-          # systemctl enable neo4j.service
-          # systemctl start neo4j
-          # Provision SSL certificate
-          aws s3 cp s3://${DataBucketName}/config/scripts/create_cert.sh create_cert.sh
-          export HOST_DOMAIN=${HostDomain}
-          export ADMIN_EMAIL=${AdminEmail}
-          bash create_cert.sh
-          # echo "Starting Neo4j..."
-          # /opt/bitnami/ctlscript.sh start
-          # timeout=600
-          # counter=0
-          # until $(curl --output /dev/null --silent --head --fail http://localhost:7474) ; do \
-          #   printf '.' ; \
-          #   sleep 1 ; \
-          #   counter=$((counter + 1)) \
-          #   [ $counter -eq $timeout ] && break || true
-          # done
-          # printf "%s\n" " "
-          # echo "Neo4j is ready"
-          # mkdir -p $NEO4J_HOME/backups $NEO4J_HOME/cypher
-          # echo "Fetching cypher scripts from S3..."
-          # aws s3 cp --recursive s3://${DataBucketName}/config/neo4j/cypher/ $NEO4J_HOME/cypher/
-          # cat $NEO4J_HOME/cypher/${Neo4jInitScript} | \
-          # /usr/bin/cypher-shell \
-          #   -u neo4j \
-          #   -p ${Neo4jPassword}
-          echo "Copying logs to S3..."
-          export INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/instance-id)
-          journalctl -b > /tmp/logs/$INSTANCE_ID-boot.log
-          echo "Copying Neo4j logs to S3..."
-          journalctl -e -u neo4j > /tmp/logs/neo4j.log
-          aws s3 cp --recursive /tmp/logs/ s3://${DataBucketName}/logs/database/bootstrap/$(date +'%Y/%m/%d/%H')/
-          echo "REGION=${AWS::Region}" >> /home/ubuntu/env.sh
-          echo "APP_NAME=${AppName}" >> /home/ubuntu/env.sh
-          echo "STAGE=${Stage}" >> /home/ubuntu/env.sh
-          echo "Ready"
+            --region ${AWS::Region}
+          # Bootstrap Neo4j 
+          cd $BITNAMI_HOME && make neo4j
       Tags:
         - Key: Name
           Value: !Sub '${AppName}-${Stage}'
         - Key: Stage
           Value: !Sub '${AppName}-${Stage}'
-
+          
   Neo4jDatabaseInstanceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -230,12 +197,17 @@ Resources:
               - Effect: "Allow"
                 Action:
                   - "secretsmanager:GetResourcePolicy"
-                  - "secretsmanager:GetSecretValue"
-                  - "secretsmanager:DescribeSecret"
                   - "secretsmanager:ListSecretVersionIds"
                   - "secretsmanager:ListSecrets"
                 Resource: 
                   - "*"
+              - Effect: "Allow"
+                Action:
+                  - "secretsmanager:UpdateSecret"
+                  - "secretsmanager:GetSecretValue"
+                  - "secretsmanager:DescribeSecret"
+                Resource: 
+                  - !Ref Neo4jCredentialsSecret
               - Effect: "Allow"
                 Action: 
                   - "states:GetActivityTask"
@@ -265,6 +237,7 @@ Resources:
       Description: "Instance ID for gfe-db Neo4j database instance"
       Value: !Ref Neo4jDatabaseInstance
 
+  # TODO add logs group and specify in command invocation
   Neo4jBackupDocument: 
     Type: AWS::SSM::Document
     Properties:
