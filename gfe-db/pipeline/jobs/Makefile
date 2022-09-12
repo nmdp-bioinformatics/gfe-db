@@ -13,7 +13,7 @@ deploy:
 # ecr.login:
 # 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Logging into ECR" 2>&1 | tee -a $$CFN_LOG_PATH
 # 	@aws ecr get-login-password \
-# 		--region "$${REGION}" | docker login \
+# 		--region "$${AWS_REGION}" | docker login \
 # 			--username AWS \
 # 			--password-stdin "$${ECR_BASE_URI}" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
@@ -21,7 +21,7 @@ deploy:
 deploy.ecr.jobs.build:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Pushing Build Service Docker image to ECR" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws ecr get-login-password \
-		--region "$${REGION}" | docker login \
+		--region "$${AWS_REGION}" | docker login \
 			--username AWS \
 			--password-stdin "$${ECR_BASE_URI}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
 	docker build -t "$${BUILD_REPOSITORY}" build/ && \
@@ -36,7 +36,7 @@ delete:
 delete.ecr.jobs.build:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting Build Service Docker images" 2>&1 | tee -a $$CFN_LOG_PATH
 	@ecr_images="$$(aws ecr list-images \
-		--region $${REGION} \
+		--region $${AWS_REGION} \
 		--repository-name $${BUILD_REPOSITORY} \
 		--query 'imageIds[*]' \
 		--output json || true)" && \
@@ -44,7 +44,7 @@ delete.ecr.jobs.build:
 	echo "No images to delete in $${ECR_BASE_URI}/$${BUILD_REPOSITORY}" && exit 0 || \
 	echo "Deleting images in $${ECR_BASE_URI}/$${BUILD_REPOSITORY}" && \
 	aws ecr batch-delete-image \
-		--region "$${REGION}" \
+		--region "$${AWS_REGION}" \
 		--repository-name "$${BUILD_REPOSITORY}" \
 		--image-ids "$$ecr_images" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
