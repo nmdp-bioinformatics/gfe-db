@@ -1,11 +1,11 @@
-# #!/bin/bash
+# #!/bin/bash -x
 
 export BITNAMI_HOME=/home/bitnami
 
 # Check for release argument
 RELEASE=$1
 
-# Get APP_NAME, REGION, STAGE setup on db install
+# Get APP_NAME, AWS_REGION, STAGE setup on db install
 source $BITNAMI_HOME/env.sh
 
 if [[ -z $NEO4J_HOME ]]; then
@@ -23,8 +23,8 @@ S3_CSV_PATH=data/$RELEASE/csv
 
 # exit 1
 
-if [[ -z $REGION ]]; then
-    export REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')
+if [[ -z $AWS_REGION ]]; then
+    export AWS_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')
 fi
 
 if [[ -z $RELEASE ]]; then
@@ -36,7 +36,7 @@ fi
 
 # Get Neo4j Credentials
 NEO4J_CREDENTIALS=$(aws secretsmanager get-secret-value \
-    --region $REGION \
+    --region $AWS_REGION \
     --secret-id ${APP_NAME}-${STAGE}-Neo4jCredentials | jq -r '.SecretString')
 NEO4J_USERNAME=$(echo $NEO4J_CREDENTIALS | jq -r '.NEO4J_USERNAME')
 NEO4J_PASSWORD=$(echo $NEO4J_CREDENTIALS | jq -r '.NEO4J_PASSWORD')
@@ -44,7 +44,7 @@ NEO4J_PASSWORD=$(echo $NEO4J_CREDENTIALS | jq -r '.NEO4J_PASSWORD')
 # Get data bucket name
 DATA_BUCKET_NAME=$(aws ssm get-parameters \
     --region $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/\(.*\)[a-z]/\1/') \
-    --names "/${APP_NAME}/${STAGE}/${REGION}/DataBucketName" \
+    --names "/${APP_NAME}/${STAGE}/${AWS_REGION}/DataBucketName" \
     | jq -r '.Parameters | map(select(.Version == 1))[0].Value')
 
 if [[ -z $DATA_BUCKET_NAME ]]; then
@@ -75,7 +75,7 @@ echo "****** End Cypher ******"
 echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Loading data for release $RELEASE into Neo4j..."
 cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp | \
     /$NEO4J_HOME/bin/cypher-shell \
-        --address neo4j://$HOST_DOMAIN:7687 \
+        --address neo4j://$SUBDOMAIN.$HOST_DOMAIN:7687 \
         --encryption true \
         --username $NEO4J_USERNAME \
         --password $NEO4J_PASSWORD \

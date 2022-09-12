@@ -89,7 +89,7 @@ neo4j: bootstrap
 # 		--exit-code $$exitcode \
 # 		--stack  ${STAGE}-${APP_NAME}-database \
 # 		--resource Neo4jDatabaseInstance \
-# 		--region ${REGION}) || echo "skipping cfn-signal"
+# 		--region ${AWS_REGION}) || echo "skipping cfn-signal"
 
 # TODO keep in User Data to separate the boostrap logic from the application logic 
 # ssm.install:
@@ -113,7 +113,7 @@ eip.waiter:
 
 # secretsmanager
 neo4j.publish-credentials:
-	@aws --region ${REGION} secretsmanager update-secret \
+	@aws --region ${AWS_REGION} secretsmanager update-secret \
 		--secret-id ${NEO4J_CREDENTIALS_SECRET_ARN} \
 		--secret-string "{\"NEO4J_USERNAME\":\"${NEO4J_USERNAME}\",\"NEO4J_PASSWORD\":\"${NEO4J_PASSWORD}\"}"
 
@@ -155,13 +155,13 @@ neo4j.init:
 	@echo "Fetching Cypher scripts from S3..."
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
 	@echo "Executing initialization queries..."
-	@cat ${NEO4J_HOME}/cypher/init.cyp | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${HOST_DOMAIN}:7687
+	@cat ${NEO4J_HOME}/cypher/init.cyp | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 
 neo4j.waiter:
 	@timeout=300 && \
 	counter=0 && \
-	echo "Waiting for response from Neo4j at https://${HOST_DOMAIN}:7473..." && \
-	until $$(curl --output /dev/null --silent --head --fail https://${HOST_DOMAIN}:7473) ; do \
+	echo "Waiting for response from Neo4j at https://${SUBDOMAIN}.${HOST_DOMAIN}:7473..." && \
+	until $$(curl --output /dev/null --silent --head --fail https://${SUBDOMAIN}.${HOST_DOMAIN}:7473) ; do \
 		printf '.' ; \
 		sleep 1 ; \
 		counter=$$((counter + 1)) ; \
@@ -181,16 +181,16 @@ neo4j.create-constraints:
 	@mkdir -p ${NEO4J_HOME}/{backups,cypher}
 	@echo "Fetching cypher scripts from S3..."
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
-	@cat ${NEO4J_HOME}/cypher/create_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${HOST_DOMAIN}:7687
+	@cat ${NEO4J_HOME}/cypher/create_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 
 neo4j.drop-constraints:
 	@mkdir -p ${NEO4J_HOME}/{backups,cypher}
 	@echo "Fetching cypher scripts from S3..."
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
-	@cat ${NEO4J_HOME}/cypher/drop_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${HOST_DOMAIN}:7687
+	@cat ${NEO4J_HOME}/cypher/drop_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 
 ssl.create-cert:
-	@bash init/create_cert.sh ${HOST_DOMAIN} ${ADMIN_EMAIL}
+	@bash init/create_cert.sh "${SUBDOMAIN}.${HOST_DOMAIN}" ${ADMIN_EMAIL}
 
 copy-logs:
 	@echo "Copying logs to S3..."

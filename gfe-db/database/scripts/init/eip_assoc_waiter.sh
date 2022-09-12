@@ -12,8 +12,8 @@ PUBLIC_IPV4=$(curl -sS $PUBLIC_IPV4_ROUTE)
 echo "Current public IPv4 is $PUBLIC_IPV4"
 
 export NEO4J_ENDPOINT=$(aws ssm get-parameters \
-    --region $REGION \
-    --names "/$APP_NAME/$STAGE/$REGION/Neo4jDatabaseEndpoint" \
+    --region $AWS_REGION \
+    --names "/$APP_NAME/$STAGE/$AWS_REGION/Neo4jDatabaseEndpoint" \
     | jq -r '.Parameters | map(select(.Version == 1))[0].Value')
 
 echo "Target Elastic IP is $NEO4J_ENDPOINT"
