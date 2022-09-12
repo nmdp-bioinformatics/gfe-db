@@ -237,9 +237,6 @@ define HELP_MESSAGE
 	...::: Download logs from EC2 :::...
 	$ make get.logs
 
-	...::: Display the Neo4j Browser endpoint URL :::...
-	$ make get.neo4j
-
 	...::: Delete all CloudFormation based services and data :::...
 	$ make delete
 
