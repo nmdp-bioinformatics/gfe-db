@@ -75,6 +75,7 @@ neo4j: bootstrap
 	$(MAKE) neo4j.plugins.install-gds
 	$(MAKE) neo4j.restart
 	$(MAKE) neo4j.init
+	$(MAKE) neo4j.restart
 	$(MAKE) copy-logs
 
 # TODO keep in User Data to separate the boostrap logic from the application logic 
@@ -170,12 +171,12 @@ neo4j.waiter:
 	printf "%s\n" " " && \
 	[ $$counter -eq $$timeout ] && echo "Operation timed out!" || echo "Neo4j is ready"
 
-# TODO test
-neo4j.import:
-	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
-	@echo "Fetching cypher scripts from S3..."
-	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
-	@cat ${NEO4J_HOME}/cypher/${Neo4jInitScript} | cypher-shell -u neo4j -p ${NEO4J_PASSWORD}
+# # TODO test
+# neo4j.import:
+# 	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
+# 	@echo "Fetching cypher scripts from S3..."
+# 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
+# 	@cat ${NEO4J_HOME}/cypher/${Neo4jInitScript} | cypher-shell -u neo4j -p ${NEO4J_PASSWORD}
 
 neo4j.create-constraints:
 	@mkdir -p ${NEO4J_HOME}/{backups,cypher}
