@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 set -e
 
@@ -11,20 +11,20 @@ send_result () {
         aws stepfunctions send-task-success \
             --task-token "$TASK_TOKEN" \
             --task-output "{\"status\":\"$status\"}" \
-            --region $REGION
+            --region $AWS_REGION
     else
         echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Sending task failure"
         aws stepfunctions send-task-failure \
             --task-token "$TASK_TOKEN" \
             --cause "$cause" \
             --error "$error" \
-            --region $REGION
+            --region $AWS_REGION
     fi
 }
 
 trap 'cause="Error on line $LINENO" && error=$? && send_result && kill 0' ERR
 
-export REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')
+export AWS_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')
 
 export PARAMS=$1
 if [[ -z $PARAMS ]]; then
@@ -48,7 +48,7 @@ echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Polling for new activities..."
 export ACTIVITY=$(aws stepfunctions get-activity-task \
     --activity-arn $ACTIVITY_ARN \
     --worker-name $APP_NAME \
-    --region $REGION)
+    --region $AWS_REGION)
 
 echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Activity found"
 

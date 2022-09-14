@@ -19,6 +19,11 @@ Parameters:
     Type: String
   HostDomain:
     Type: String
+    AllowedPattern: '((^[a-z0-9-]{1,}\.[a-z]{1,}$)|^$)'
+  Subdomain:
+    Type: String
+  HostedZoneId:
+    Type: String
   AdminEmail:
     Type: String
   APOCVersion:
@@ -27,6 +32,16 @@ Parameters:
     Type: String
 
 Resources:
+  Neo4jDNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Sub "${HostDomain}."
+      Comment: !Sub 'DNS name for ${Stage}-${AppName} server'
+      Name: !Sub ${Subdomain}.${HostDomain}.
+      Type: A
+      TTL: 300
+      ResourceRecords:
+      - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint}}'
 
   Neo4jCredentialsSecret:
     Type: AWS::SecretsManager::Secret
@@ -51,26 +66,32 @@ Resources:
           FromPort: 80
           IpProtocol: tcp
           ToPort: 80
-        - CidrIp: 0.0.0.0/0
-          FromPort: 22
-          IpProtocol: tcp
-          ToPort: 22
-        - CidrIp: 0.0.0.0/0
-          FromPort: 7474
-          IpProtocol: tcp
-          ToPort: 7474
-        - CidrIp: 0.0.0.0/0
-          FromPort: 7473
-          IpProtocol: tcp
-          ToPort: 7473
-        - CidrIp: 0.0.0.0/0
-          FromPort: 7687
-          IpProtocol: tcp
-          ToPort: 7687
+          Description: HTTP access for SSL certificate creation (required)
         - CidrIp: 0.0.0.0/0
           FromPort: 443
           IpProtocol: tcp
           ToPort: 443
+          Description: HTTPs access (required)
+        - CidrIp: 0.0.0.0/0
+          FromPort: 7474
+          IpProtocol: tcp
+          ToPort: 7474
+          Description: Neo4j HTTP access (required)
+        - CidrIp: 0.0.0.0/0
+          FromPort: 7473
+          IpProtocol: tcp
+          ToPort: 7473
+          Description: Neo4j HTTPS access (required)
+        - CidrIp: 0.0.0.0/0
+          FromPort: 7687
+          IpProtocol: tcp
+          ToPort: 7687
+          Description: Neo4j Bolt driver access (required)
+        # - CidrIp: 0.0.0.0/0
+        #   FromPort: 22
+        #   IpProtocol: tcp
+        #   ToPort: 22
+        #   Description: Update IP to use MyIP
       Tags:
         - Key: Name
           Value: !Sub '${Stage}-${AppName}-neo4j-sg'
@@ -139,9 +160,10 @@ Resources:
           # Permanently set application environment variables (these should never change for the duration of the deployment)
           echo "STAGE=${Stage}" >> $BITNAMI_HOME/env.sh
           echo "APP_NAME=${AppName}" >> $BITNAMI_HOME/env.sh
-          echo "REGION=${AWS::Region}" >> $BITNAMI_HOME/env.sh
+          echo "AWS_REGION=${AWS::Region}" >> $BITNAMI_HOME/env.sh
           echo "DATA_BUCKET_NAME=${DataBucketName}" >> $BITNAMI_HOME/env.sh
           echo "HOST_DOMAIN=${HostDomain}" >> $BITNAMI_HOME/env.sh
+          echo "SUBDOMAIN=${Subdomain}" >> $BITNAMI_HOME/env.sh
           echo "ADMIN_EMAIL=${AdminEmail}" >> $BITNAMI_HOME/env.sh
           echo "APOC_VERSION=${APOCVersion}" >> $BITNAMI_HOME/env.sh
           echo "GDS_VERSION=${GDSVersion}" >> $BITNAMI_HOME/env.sh
@@ -157,6 +179,11 @@ Resources:
             --region ${AWS::Region}
           # Bootstrap Neo4j 
           cd $BITNAMI_HOME && make neo4j
+          # Copy logs to home dir for easy access
+          mkdir logs
+          sudo journalctl -b > logs/boot.log
+          cat /opt/bitnami/neo4j/logs/neo4j.log > logs/neo4j.log
+          cat /opt/bitnami/neo4j/logs/debug.log > logs/debug.log
       Tags:
         - Key: Name
           Value: !Sub '${AppName}-${Stage}'

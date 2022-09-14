@@ -9,7 +9,7 @@ deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
 	$(MAKE) deploy.pipeline
 	$(MAKE) deploy.jobs
-	$(MAKE) deploy.config
+	$(MAKE) config.deploy
 
 deploy.pipeline:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} - functions" 2>&1 | tee -a $$CFN_LOG_PATH
@@ -20,7 +20,7 @@ deploy.pipeline:
 		--output-template-file packaged.yaml  2>&1 | tee -a $$CFN_LOG_PATH || true && \
 	sam deploy \
 		--no-fail-on-empty-changeset \
-		--region "$${REGION}" \
+		--region "$${AWS_REGION}" \
 		--template-file packaged.yaml \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" \
 		--capabilities CAPABILITY_IAM \
