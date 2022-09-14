@@ -1,7 +1,6 @@
-#!/bin/bash
+#!/bin/bash -x
 
 
-# TODO remove hard coded REGION
 gfe_bucket=$(aws ssm get-parameters \
     --region $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/\(.*\)[a-z]/\1/') \
     --names "/gfe-db/dev/us-east-1/DataBucketName" \

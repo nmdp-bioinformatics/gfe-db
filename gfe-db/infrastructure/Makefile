@@ -8,10 +8,11 @@ deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
 	$(MAKE) deploy.cfn
 
+# TODO test AWSCLI output and validate the stack was created successfully
 deploy.cfn:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying CloudFormation" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws cloudformation deploy \
-		--region $${REGION} \
+		--region $${AWS_REGION} \
 		--template-file template.yaml \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" \
 		--parameter-overrides \

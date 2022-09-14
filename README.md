@@ -83,16 +83,16 @@ The `gfe-db` represents IPD-IMGT/HLA sequence data as GFE nodes and relationship
 
 <br>
 <p align="center">
-  <img src="docs/img/schema-light-v220218.png" alt="gfe-db schema" height="75%" width="75%">
+  <img src="docs/source/_static/img/schema-alpha-v220511.png" alt="gfe-db schema" height="75%" width="75%">
 </p>
 
 ## Architecture
 <br>
 <p align="center">
-  <img src="docs/img/gfe-db-arch-v220417.png" alt="gfe-db architecture diagram">
+  <img src="docs/source/_static/img/arch-v220417.png" alt="gfe-db architecture diagram">
 </p>
 
-gfe-db architecture is organized by 3 layers:
+`gfe-db` architecture is organized by 3 layers:
 1) Infrastructure 
 2) Database 
 3) Data pipeline
@@ -103,7 +103,9 @@ This allows deployments to be decoupled using Makefiles. Common configuration pa
 The infrastructure layer deploys a VPC, public subnet, S3 bucket, Elastic IP and common SSM parameters and secrets for the other services to use.
 
 ### Database
-The database layer deploys an EC2 instance running the Neo4j Community Edition AMI (Ubuntu 18.04) into a public subnet. During initialization, Cypher queries are run to create constraints and indexes, which help speed up loading and ensure data integrity. Neo4j is ready to be accessed through a browser once the instance has booted sucessfully.
+The database layer deploys an EC2 instance running the Bitnai Neo4j AMI (Ubuntu 18.04) into a public subnet. CloudFormation also creates an A record for a Route53 domain which is used for SSL. During initialization, an SSL certificate is created and Cypher queries are run to create constraints and indexes, which help speed up loading and ensure data integrity. Neo4j is ready to be accessed through a browser once the instance has booted sucessfully.
+
+During loading, the `invoke_load_script` Lambda function uses SSM Run Command to execute bash scripts on the daatabase instance. These scripts communicate with the Step Functions API to retrieve the job parameters, fetch the CSVs from S3 and load the alleles into Neo4j.
 
 ### Data Pipeline
 The data pipeline layer automates integration of newly released IMGT/HLA data into Neo4j using a scheduled Lambda which watches the source data repository and invokes the build and load processes when it detects a new IMGT/HLA version. The pipeline consists of a Step Functions state machine which orchestrates two basic processes: build and load. The build process employs a Batch job which produces an intermediate set of CSV files. The load process leverages SSM Run Command to copy the CSV files to the Neo4j server and execute Cypher statements directly on the server (server-side loading). When loading the full dataset of 35,000+ alleles, the build step will generally take around 15 minutes, however the load step can take an hour or more.
@@ -115,10 +117,11 @@ Follow the steps to build and deploy the application to AWS.
 This list outlines the basic steps for deployment. For more details please see the following sections.
 1. [Install prerequisites](#Prerequisites)
 2. [Set environment variables](#environment-variables)
-3. Check the config JSONs (parameters and state) and edit the values as desired
+3. Check the [config JSONs](#data-pipeline-config) (parameters and state) and edit the values as desired
 4. Run `make deploy` to deploy the stacks to AWS
-5. Run `make database.load release=<version>` to load the Neo4j
-6. Run `make get.neo4j` to get the URL for the Neo4j browser
+5. Run `make database.load release=<version>` to load the Neo4j, or `make database.load release=<version> limit=<limit>` to run with a limited number of alleles
+6. Run `make database.get-credentials` to get the username and password for Neo4j
+7. Navigate to the Neo4j browser at the subdomain and host domain, for example `https://gfe-db.cloudftl.com:7473/browser/`
 
 ### Prerequisites
 Please refer to the respective documentation for specific installation instructions.
@@ -143,26 +146,21 @@ For more information visit the documentation page:
 [Configuration and credential file settings](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)
 
 #### Shell Variables
-These variables must be present in the shell environment before running Make. The best way to set these variables is with a `.env` file following these steps.
-1. Create a `.env` file in the project root and add the values.
+These variables must be defined before running Make. The best way to set these variables is with a `.env` file following this structure.
 ```bash
 STAGE=<dev or prod>
 APP_NAME=gfe-db
-REGION=<AWS region>
+AWS_REGION=<AWS region>
 GITHUB_PERSONAL_ACCESS_TOKEN=<secret>
-HOST_DOMAIN=<fqdn>
+HOST_DOMAIN=<fully qualified domain name>
+SUBDOMAIN=<subdomain>
 ADMIN_EMAIL=<email>
+APOC_VERSION=4.4.0.3
+GDS_VERSION=2.0.1
+NEO4J_AMI_ID=<ami ID>
 ```
 
-2. Source the variables to the environment.
-```bash
-# Export .env file variables
-set -a && source .env && set +a
-
-# Check that the variables were set
-env
-```
-*Important:* *Always use a `.env` file or AWS SSM Parameter Store or Secrets Manager for sensitive variables like credentials and API keys. Never hard-code them, including when developing. AWS will quarantine an account if any credentials get accidentally exposed and this will cause problems. Make sure to update `.gitignore` to avoid pushing sensitive data to public repositories.
+***Important**:* *Always use a `.env` file or AWS SSM Parameter Store or Secrets Manager for sensitive variables like credentials and API keys. Never hard-code them, including when developing. AWS will quarantine an account if any credentials get accidentally exposed and this will cause problems. Make sure to update `.gitignore` to avoid pushing sensitive data to public repositories.*
 
 ### Makefile Usage
 Once an AWS profile is configured and environment variables are exported, the application can be deployed using `make`.
@@ -172,13 +170,13 @@ make deploy
 It is also possible to deploy or update individual services.
 ```bash
 # Deploy/update only the infrastructure service
-make deploy.infrastructure
+make infrastructure.deploy
 
 # Deploy/update only the database service
-make deploy.database
+make database.deploy
 
 # Deploy/update only the pipeline service
-make deploy.pipeline
+make pipeline.deploy
 ```
 *Note:* It is recommended to only deploy from the project root. This is because common parameters are passed from the root Makefile to nested Makefiles. If a stack has not been changed, the deployment script will continue until it reaches a stack with changes and deploy that.
 
@@ -189,7 +187,7 @@ To see a list of possible commands using Make, run `make` on the command line.
 make deploy
 
 # Deploy config files and scripts to S3
-make deploy.config
+make config.deploy
 
 # Run the StepFunctions State Machine to load Neo4j
 make database.load releases=<version> align=<boolean> kir=<boolean> limit=<int>
@@ -203,28 +201,9 @@ make get.data
 # Download logs from EC2
 make get.logs
 
-# Display the Neo4j Browser endpoint URL
-make get.neo4j
-
 # Delete all CloudFormation based services and data
 make delete
 ```
-
-<!-- ## Local Development
-
-### Prerequisites
-These dependencies are needed to run any of the scripts locally.
-* Python 3.8
-* Docker -->
-
-<!-- 
-### Lambda Trigger
-1. Create a `.env` file in the `./gfe-db/pipeline/functions//trigger` directory and add the GitHub Personal Access Token so that Lambda can access the GitHub API.
-```bash
-GITHUB_PERSONAL_ACCESS_TOKEN=<personal access token>
-```
-For instructions on how to create a token, please see [Creating a personal access token
-](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token). -->
 
 ## Managing Configuration
 Configuring is managed using JSON files, SSM Parameter Store, Secrets Manager, and shell variables. To deploy changes in these files, run the command.
@@ -240,12 +219,34 @@ Custom configuration settings for Neo4j are contained in `neo4j.template`. This 
 #### Shell Scripts
 Bash scripts are used for automating Neo4j configuration, loading and backup. These are stored in S3 and run using SSM Run Command. These are found in `gfe-db/gfe-db/database/scripts/`.
 
+```bash
+gfe-db/database/scripts
+├── Makefile                  # Orchestrates tasks on the database instance
+├── backup.sh                 # Back up Neo4j to S3
+├── init  
+│   ├── create_cert.sh        # Create an SSL certificate
+│   └── eip_assoc_waiter.sh   # Waits for the instance to associate with an Elastic IP
+├── load_db.sh                # Loads data into Neo4j
+├── send_heartbeat.sh         # Sends task heartbeat to Step Functions API during loading
+└── start_task.sh             # Coordinates database loading with the Step Functions API
+```
+
 #### Cypher Scripts
 Cypher scripts manage node constraints & indexes and load the data. These are found in `gfe-db/gfe-db/database/neo4j/cypher/`.
 
-#### SSL Policy
-- Port 80 HTTP must be open on security group
+```bash
+gfe-db/database/neo4j/
+├── cypher                      # Cypher scripts
+│   ├── create_constraints.cyp  # Creates constraints and indexes
+│   ├── drop_constraints.cyp    # Drops constraints and indexes
+│   ├── init.cyp                # Run intiialization queries
+│   └── load.cyp                # Load Neo4j from local files
+├── (neo4j.conf)                # Artifact create by Makefile containing DNS configuration
+└── neo4j.template              # Config template used by Makefile
+```
 
+#### SSL Policy
+SSL is created during deployment and requires access on ports 443 (HTTPS) and 7473 (Neo4j browser for HTTPS).
 ### Data Pipeline Config
 
 #### Invocation Input
@@ -262,7 +263,7 @@ Base input parameters (excluding the `releases` value) are passed to the Step Fu
 ```
 | Variable       | Example Value                    | Type             | Description                                                                                                               |
 |----------------|----------------------------------|------------------|---------------------------------------------------------------------------------------------------------------------------|
-| LIMIT          | 100                              | string           | Number of alleles to build. Leave blank ("") to build all alleles.                                                        |
+| LIMIT          | 1000                             | string           | Number of alleles to build. Leave blank ("") to build all alleles.                                                        |
 | ALIGN          | False                            | string           | Include or exclude alignments in the build                                                                                |
 | KIR            | False                            | string           | Include or exclude KIR data alignments in the build                                                                        |
 | MEM_PROFILE    | False                            | string           | Enable memory profiling (for catching memory leaks during build)                                                          |
@@ -275,14 +276,16 @@ make database.load releases=<version> align=<boolean> kir=<boolean> limit=<int>
 #### IMGT/HLA Release Versions State
 The application's state tracks which releases have been processed and added to the database. This file tracks the releases which have already been processed. If the `gfe-db-invoke-pipeline` function detects a valid release branch in the source data repository that is not in the `releases` array, it will start the pipeline for this release. Once the update is finished, the processed release is appended to the array.
 ```json
-// IMGTHLA-repository-state.json
+// ./gfe-db/gfe-db/pipeline/config/IMGTHLA-repository-state.json
 {
   "timestamp": "2021-12-09 02:36:59",
   "repository_url": "https://github.com/ANHIG/IMGTHLA",
+  // Releases already loaded (or skipped)
+  // Any releases not found in this array will be loaded
   "releases": [
     "3100",
     ...,
-    "3470"
+    "3480"
   ]
 }
 ```
@@ -349,13 +352,13 @@ make delete
 Use the following commands to tear down individual services.
 ```bash
 # Delete only the infrastructure service. Note that S3 data must be deleted manually or this will fail.
-make delete.infrastructure
+make infrastructure.delete
 
 # Delete only the database service
-make delete.database
+make database.delete
 
 # Delete only the pipeline service
-make delete.pipeline
+make pipeline.delete
 ```
 
 ## Local Development
@@ -381,23 +384,36 @@ python3 -m ipykernel install --user --name=<environment name>
 # Remove the kernel
 jupyter kernelspec uninstall <environment name>
 ```
+<!-- 
+### Build GFE dataset
+Run the command to build the container for the build service.
+```
+# Build and run Docker locally
+cd build
+docker build --tag gfe-db-build-service .
+```
+Run the command to start the build. (Requires an S3 bucket)
+```
+docker run \
+  --rm \
+  -v "$(pwd)"/../data:/opt/data \
+  -v "$(pwd)"/logs:/opt/app/logs \
+  -e GFE_BUCKET='<S3 bucket name>' \
+  -e RELEASES='3480' \
+  -e ALIGN='False' \
+  -e KIR='False' \
+  -e MEM_PROFILE='True' \
+  -e LIMIT='100' \
+  --name gfe-db-build-service \
+  gfe-db-build-service:latest
+``` 
+```
+# Load from Docker locally
+cd load
+docker build -t gfe-db-load-service .
+docker run gfe-db-load-service:latest
+```
 
-<!-- ### Docker
-Build the Docker image as defined in the Dockerfile.
-```bash
-cd <directory>
-docker build --tag gfe-db .
-```
-Run the container to start Docker. Specify volumes, ports, or environment variables if necessary.
-```
-# Run Neo4j Docker
-docker run -d --name gfe-db \
-  -v "$(pwd)"/../data/csv/:/var/lib/neo4j/import \
-  -v "$(pwd)"/../neo4j/plugins:/var/lib/neo4j/plugins \
-  -v "$(pwd)"/../neo4j/logs:/var/lib/neo4j/logs \
-  -p 7474:7474 -p 7473:7473 \
-  -p 7687:7687 gfe-db
-```
 Access the container logs during startup to check the status of Neo4j.
 ```bash
 docker logs -f gfe-db
@@ -414,53 +430,14 @@ docker start gfe-db
 docker exec -it <container> bash
 ``` -->
 
-<!-- ### Build GFE dataset
-Run the command to build the container for the build service.
-```
-# Build and run Docker locally
-cd build
-docker build --tag gfe-db-build-service .
-```
-Run the command to start the build. (Requires an S3 bucket)
-```
-docker run \
-  --rm \
-  -v "$(pwd)"/../data:/opt/data \
-  -v "$(pwd)"/logs:/opt/app/logs \
-  -e GFE_BUCKET='<S3 bucket name>' \
-  -e RELEASES='3440' \
-  -e ALIGN='False' \
-  -e KIR='False' \
-  -e MEM_PROFILE='True' \
-  -e LIMIT='100' \
-  --name gfe-db-build-service \
-  gfe-db-build-service:latest
-``` 
-```
-# Load from Docker locally
-cd load
-docker build -t gfe-db-load-service .
-docker run gfe-db-load-service:latest
-```
-
-### Load the dataset into Neo4j
-Once the container is running, the Neo4j server is up, and the dataset has been created, run the command to load it into Neo4j.
-```
-bash bin/load_db.sh
-``` -->
+<!-- # ### Load the dataset into Neo4j
+# Once the container is running, the Neo4j server is up, and the dataset has been created, run the command to load it into Neo4j.
+# ```
+# bash bin/load_db.sh
+# ``` -->
 
 <!-- ### Running the GFE database in Neo4j 4.2 using Docker
 This README outlines the steps for building and running a development version of `gfe-db` in a local Docker container. Docker will deploy an instance of Neo4j 4.2 including the [APOC](https://neo4j.com/labs/apoc/4.1/) and [Graph Data Science](https://neo4j.com/docs/graph-data-science/current/) plugins. GFE data is stored in the `data/csv/` directory which is mounted as an external volume within the container when run. This keeps the data outside the container so that it can be updated easily. -->
-
-
-
-<!-- ### `1.0-load-gfe-db`
-Python notebook for developing the load service using the Neo4j HTTP API, Requests and Boto3 libraries.
-
-### `1.0-refactor-gfedb_utils`
-Development notebook for refactoring `gfe-db` and the `build/src/build_gfedb.py` module used for building the CSV datasets. -->
-
-<!-- ## Running Tests -->
 
 <!-- ## Configuring Neo4j in Dockerfile
 Configuration settings for Neo4j are passed through environment variables in the Dockerfile.

@@ -2,16 +2,12 @@
 # Bootstrapping variables
 ##########################
 
-# TODO add include and put all variables in .env (avoid having to run set -a && source .env etc.)
 # Application specific environment variables
 include .env
 export
 
 # Base settings, these should almost never change
-export STAGE ?= dev
-export APP_NAME ?= gfe-db
 export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity --query Account --output text)
-export REGION ?= us-east-1
 
 # TODO: Application Configuration, can move to JSON
 export ROOT_DIR ?= $(shell pwd)
@@ -19,42 +15,33 @@ export DATABASE_DIR ?= ${ROOT_DIR}/${APP_NAME}/database
 export LOGS_DIR ?= $(shell echo "${ROOT_DIR}/logs")
 export CFN_LOG_PATH ?= $(shell echo "${LOGS_DIR}/cfn/logs.txt")
 export PURGE_LOGS ?= false
-# export NEO4J_AMI_ID ?= ami-0e1324ddfc4d086bb # Neo4j Community Edition AMI is no longer supported; 
 
 # TODO move these to a config file
-# export NEO4J_AMI_ID ?= ami-076c8bb9db1ab34a3 # new AMI 
 export NEO4J_AMI_ID ?= ami-04aa5da301f99bf58 # Bitnami Neo4j, requires subscription through AWS Marketplace
 export DATABASE_VOLUME_SIZE ?= 50
 # TODO: Add TRIGGER_SCHEDULE variable
 # TODO: Add BACKUP_SCHEDULE variable
 
 # Resource identifiers
-export DATA_BUCKET_NAME ?= ${STAGE}-${APP_NAME}-${AWS_ACCOUNT}-${REGION}
-export ECR_BASE_URI ?= ${AWS_ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com
+export DATA_BUCKET_NAME ?= ${STAGE}-${APP_NAME}-${AWS_ACCOUNT}-${AWS_REGION}
+export ECR_BASE_URI ?= ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com
 export BUILD_REPOSITORY ?= ${STAGE}-${APP_NAME}-build-service
+# export SUBDOMAIN ?= ${STAGE}-${APP_NAME}
+export INSTANCE_ID ?= $(shell aws ssm get-parameters \
+		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseInstanceId" \
+		--output json \
+		| jq -r '.Parameters | map(select(.Version == 1))[0].Value')
+
+# S3 paths
 export PIPELINE_STATE_PATH ?= config/IMGTHLA-repository-state.json
 export PIPELINE_PARAMS_PATH ?= config/pipeline-input.json
 export FUNCTIONS_PATH ?= ${APP_NAME}/pipeline/functions
 
-export INSTANCE_ID ?= $(shell aws ssm get-parameters \
-		--names "/${APP_NAME}/${STAGE}/${REGION}/Neo4jDatabaseInstanceId" \
-		--output json \
-		| jq -r '.Parameters | map(select(.Version == 1))[0].Value')
-
+# App state values
 export INSTANCE_STATE ?= $(shell aws ec2 describe-instance-status | jq -r '.InstanceStatuses[] | select(.InstanceId | contains("i-0ea29a765388720a8")).InstanceState.Name')
-
 export NEO4J_ENDPOINT ?= $(shell aws ssm get-parameters \
-	--names "/$${APP_NAME}/$${STAGE}/$${REGION}/Neo4jDatabaseEndpoint" \
+	--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseEndpoint" \
 	| jq -r '.Parameters | map(select(.Version == 1))[0].Value')
-
-# Uses a prexisting hosted zone, available in the Route53 console
-# Automate sourcing this variable
-export HOSTED_ZONE_ID ?= Z1B70QOX271VPU
-
-# # Capture datetime of most recent parameter change (force refresh paramter references)
-# export SSM_PARAM_MODIFIED ?= $(shell aws ssm describe-parameters \
-# 	| jq -c '.Parameters[] | select(.Name | contains("/${APP_NAME}/${STAGE}/${REGION}/"))' \
-# 	| jq -r '.LastModifiedDate' | sort -r | head -n 1)
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -80,17 +67,20 @@ logs.dirs:
 		"${LOGS_DIR}/database/bootstrap" || true
 
 check.env: check.dependencies
+ifndef AWS_REGION
+$(error AWS_REGION is not set. Please add AWS_REGION to the environment variables.)
+endif
 ifndef AWS_PROFILE
 $(error AWS_PROFILE is not set. Please select an AWS profile to use.)
 endif
 ifndef GITHUB_PERSONAL_ACCESS_TOKEN
-$(error GITHUB_PERSONAL_ACCESS_TOKEN is not set.)
+$(error GITHUB_PERSONAL_ACCESS_TOKEN is not set. Please add GITHUB_PERSONAL_ACCESS_TOKEN to the environment variables.)
 endif
 ifndef HOST_DOMAIN
-$(error HOST_DOMAIN is not set.)
+$(error HOST_DOMAIN is not set. Please add HOST_DOMAIN to the environment variables.)
 endif
 ifndef ADMIN_EMAIL
-$(error ADMIN_EMAIL is not set.)
+$(error ADMIN_EMAIL is not set. Please add ADMIN_EMAIL to the environment variables.)
 endif
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
 
@@ -174,6 +164,7 @@ database.stop:
 	echo "Previous state: $$(echo "$$response" | jq -r '.StoppingInstances[] | select(.InstanceId | contains("${INSTANCE_ID}")).PreviousState.Name')" && \
 	echo "Current state: $$(echo "$$response" | jq -r '.StoppingInstances[] | select(.InstanceId | contains("${INSTANCE_ID}")).CurrentState.Name')"
 
+# TODO account for http or https and whether or not EIP or DNS is being used
 database.get-endpoint:
 	@echo "http://$${NEO4J_ENDPOINT}:7473/browser/"
 
@@ -207,29 +198,6 @@ get.data: #=> Download the build data locally
 get.logs: #=> Download all logs locally
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/logs/ ${LOGS_DIR}/
 
-# TODO: finished administrative targets
-# get.config:
-# ifndef dir=""
-# 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/data/ ${ROOT_DIR}/data/ 
-# endif
-# 	# @aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/data/ $(dir)
-
-# show.config:
-# get.state:
-# show.state:
-# show.endpoint:
-
-# # TODOAdd validation for positional arguments: release, align, kir, mem_profile, limit
-# pipeline.run: ##=> Load an IMGT/HLA release version; make run releases=3450 align=False kir=False mem_profile=False limit=1000
-# 	$(info [*] Starting Step Functions execution for release $(releases))
-# 	@payload="[{\"RELEASES\":\"$(releases)\",\"ALIGN\":\"False\",\"KIR\":\"False\",\"MEM_PROFILE\":\"False\",\"LIMIT\":\"$(limit)\"}]" && \
-# 	echo "Running with payload:" && \
-# 	echo $$payload | jq -r 
-	
-# 	# aws stepfunctions start-execution \
-# 	#  	--state-machine-arn $$(aws ssm get-parameter --name "/${APP_NAME}/${STAGE}/${REGION}/UpdatePipelineArn" | jq -r '.Parameter.Value') \
-# 	#  	--input $$payload | jq '.executionArn'
-
 # # TODO get pipeline execution status
 # pipeline.status:
 
@@ -246,7 +214,7 @@ define HELP_MESSAGE
 	AWS_ACCOUNT: "${AWS_ACCOUNT}":
 		Description: AWS account ID for deployment
 
-	REGION: "${REGION}":
+	AWS_REGION: "${AWS_REGION}":
 		Description: AWS region for deployment
 
 	DATA_BUCKET_NAME "$${DATA_BUCKET_NAME}"
@@ -268,9 +236,6 @@ define HELP_MESSAGE
 
 	...::: Download logs from EC2 :::...
 	$ make get.logs
-
-	...::: Display the Neo4j Browser endpoint URL :::...
-	$ make get.neo4j
 
 	...::: Delete all CloudFormation based services and data :::...
 	$ make delete

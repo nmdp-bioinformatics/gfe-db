@@ -1,5 +1,5 @@
 SERVICE := database
-EC2_KEY_PAIR_NAME := $${STAGE}-$${APP_NAME}-$${REGION}-neo4j-key
+EC2_KEY_PAIR_NAME := $${STAGE}-$${APP_NAME}-$${AWS_REGION}-neo4j-key
 
 # TODO: add brackets to environment variables passed from root Makefile
 
@@ -10,10 +10,10 @@ target:
 deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
 	$(MAKE) deploy.check-key-pair
-	$(MAKE) deploy.config
+	$(MAKE) config.deploy
 	$(MAKE) deploy.database
-	# Won't copy most recent logs if database is still initializing
-	# $(MAKE) deploy.copy-s3-logs
+#	# Won't copy most recent logs if database is still initializing
+#	# $(MAKE) deploy.copy-s3-logs
 
 
 deploy.check-key-pair: ##=> Checks if the key pair already exists and creates it if it does not
@@ -23,16 +23,21 @@ deploy.check-key-pair: ##=> Checks if the key pair already exists and creates it
 	echo "Creating EC2 key pair \"${EC2_KEY_PAIR_NAME}\"" && \
 	aws ec2 create-key-pair --key-name ${EC2_KEY_PAIR_NAME} | jq -r '.KeyMaterial' > ${EC2_KEY_PAIR_NAME}.pem && \
 	aws ssm put-parameter \
-		--name "/$${APP_NAME}/$${STAGE}/$${REGION}/EC2KeyPairName" \
+		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/EC2KeyPairName" \
 		--type "String" \
 		--value "${EC2_KEY_PAIR_NAME}" \
 		--overwrite 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 config.deploy: config.neo4j config.scripts config.cloudwatch-agent
 
-# TODO: use sed to replace dbms.default_advertised_address=<FQDN> with the domain
-config.neo4j:
-	@aws s3 cp --recursive neo4j/ s3://$$DATA_BUCKET_NAME/config/neo4j/ 2>&1 | tee -a $$CFN_LOG_PATH
+config.neo4j: config.update-dns
+	@aws s3 cp neo4j/neo4j.conf s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
+	@aws s3 cp --recursive neo4j/cypher/ s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
+
+config.update-dns:
+	@[ "${HOST_DOMAIN}" != "" ] && \
+	cat neo4j/neo4j.template | \
+	sed s"/# dbms.default_advertised_address=.*/dbms.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > neo4j/neo4j.conf
 
 config.scripts:
 	@script_s3_path=s3://$$DATA_BUCKET_NAME/config/scripts/ && \
@@ -54,7 +59,7 @@ config.cloudwatch-agent:
 deploy.database:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Neo4j to EC2 with ${NEO4J_AMI_ID}" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws cloudformation deploy \
-		--region $${REGION} \
+		--region $${AWS_REGION} \
 		--template-file template.yaml \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" \
 		--capabilities CAPABILITY_IAM \
@@ -66,6 +71,8 @@ deploy.database:
 			Neo4jPassword="$${NEO4J_PASSWORD}" \
 			DatabaseVolumeSize="$${DATABASE_VOLUME_SIZE}" \
 			HostDomain="$${HOST_DOMAIN}" \
+			Subdomain="$${SUBDOMAIN}" \
+			HostedZoneId="$${HOSTED_ZONE_ID}" \
 			AdminEmail="$${ADMIN_EMAIL}" \
 			APOCVersion="$${APOC_VERSION}" \
 			GDSVersion="$${GDS_VERSION}" 2>&1 | tee -a $$CFN_LOG_PATH || true
@@ -75,7 +82,7 @@ deploy.copy-s3-logs:
 
 # ec2.check-state:
 # 	@instance_id="$$(aws ssm get-parameters \
-# 		--names "/$${APP_NAME}/$${STAGE}/$${REGION}/Neo4jDatabaseInstanceId" \
+# 		--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseInstanceId" \
 # 			| jq -r '.Parameters | map(select(.Version == 1))[0].Value')" && \
 # 	echo $$instance_id && \
 # 	instance_status="$$(aws ec2 describe-instance-status --instance-ids $$instance_id)" | jq && \
@@ -92,7 +99,7 @@ delete.database:
 	aws cloudformation wait stack-delete-complete \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
 	aws ec2 delete-key-pair --key-name "${EC2_KEY_PAIR_NAME}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
-	aws ssm delete-parameter --name "/$${APP_NAME}/$${STAGE}/$${REGION}/EC2KeyPairName" 2>&1 | tee -a $$CFN_LOG_PATH || true
+	aws ssm delete-parameter --name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/EC2KeyPairName" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 #############
 #  Helpers  #
