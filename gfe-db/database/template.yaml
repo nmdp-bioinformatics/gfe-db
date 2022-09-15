@@ -182,8 +182,8 @@ Resources:
           # Copy logs to home dir for easy access
           mkdir logs
           sudo journalctl -b > logs/boot.log
-          cat /opt/bitnami/neo4j/logs/neo4j.log > neo4j.log
-          cat /opt/bitnami/neo4j/logs/debug.log > debug.log
+          cat /opt/bitnami/neo4j/logs/neo4j.log > logs/neo4j.log
+          cat /opt/bitnami/neo4j/logs/debug.log > logs/debug.log
       Tags:
         - Key: Name
           Value: !Sub '${AppName}-${Stage}'
