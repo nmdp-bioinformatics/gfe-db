@@ -171,6 +171,16 @@ neo4j.waiter:
 	printf "%s\n" " " && \
 	[ $$counter -eq $$timeout ] && echo "Operation timed out!" || echo "Neo4j is ready"
 
+neo4j.backup:
+	$(MAKE) neo4j.stop
+	@-rm ${NEO4J_HOME}/backups/gfedb.dump
+	@-neo4j-admin dump \
+		--database=neo4j \
+		--to=${NEO4J_HOME}/backups/gfedb.dump
+	@result=$$(aws s3 cp ${NEO4J_HOME}/backups/gfedb.dump s3://${DATA_BUCKET_NAME}/backups/database/$$(date +'%Y/%m/%d/%H')/gfedb.dump) && \
+		echo $$result
+	$(MAKE) neo4j.start
+
 # # TODO test
 # neo4j.import:
 # 	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
@@ -179,7 +189,7 @@ neo4j.waiter:
 # 	@cat ${NEO4J_HOME}/cypher/${Neo4jInitScript} | cypher-shell -u neo4j -p ${NEO4J_PASSWORD}
 
 neo4j.create-constraints:
-	@mkdir -p ${NEO4J_HOME}/{backups,cypher}
+	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
 	@echo "Fetching cypher scripts from S3..."
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
 	@cat ${NEO4J_HOME}/cypher/create_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687

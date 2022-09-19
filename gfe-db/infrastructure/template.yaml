@@ -12,8 +12,6 @@ Parameters:
   GitHubPersonalAccessToken:
     Type: String
     NoEcho: true
-  HostedZoneId:
-    Type: String
     
 Mappings:
   # AvailabilityZoneMap defines availability zones where an m5d.xlarge instance is available (used for Neo4j server).
