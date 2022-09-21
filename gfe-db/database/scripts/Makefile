@@ -152,7 +152,7 @@ neo4j.plugins.install-gds:
 	@rm neo4j-graph-data-science-${GDS_VERSION}.zip
 
 neo4j.init:
-	@mkdir -p ${NEO4J_HOME}/{backups,cypher}
+	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
 	@echo "Fetching Cypher scripts from S3..."
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
 	@echo "Executing initialization queries..."
@@ -171,15 +171,23 @@ neo4j.waiter:
 	printf "%s\n" " " && \
 	[ $$counter -eq $$timeout ] && echo "Operation timed out!" || echo "Neo4j is ready"
 
+# TODO add target for loading
+# neo4j.load: # params=<json string>
+# 	@bash start_task.sh $$params
+
 neo4j.backup:
 	$(MAKE) neo4j.stop
-	@-rm ${NEO4J_HOME}/backups/gfedb.dump
-	@-neo4j-admin dump \
-		--database=neo4j \
-		--to=${NEO4J_HOME}/backups/gfedb.dump
-	@result=$$(aws s3 cp ${NEO4J_HOME}/backups/gfedb.dump s3://${DATA_BUCKET_NAME}/backups/database/$$(date +'%Y/%m/%d/%H')/gfedb.dump) && \
+	@cd ${BITNAMI_NEO4J}/data/ && zip ${BITNAMI_HOME}/gfedb.zip databases/
+	@result=$$(aws s3 cp ${BITNAMI_HOME}/gfedb.zip s3://${DATA_BUCKET_NAME}/backups/neo4j/$$(date +'%Y/%m/%d/%H')/gfedb.zip) && \
 		echo $$result
-	$(MAKE) neo4j.start
+	@rm ${BITNAMI_HOME}/gfedb.zip
+
+# neo4j.restore: #s3_path
+# # get path (path selection process should get most recent)
+# # download archive from s3
+# # unzip and overwrite
+# 	@unzip -o ${BITNAMI_HOME}/gfedb.zip 
+# # -d data/databases/
 
 # # TODO test
 # neo4j.import:
@@ -195,7 +203,7 @@ neo4j.create-constraints:
 	@cat ${NEO4J_HOME}/cypher/create_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 
 neo4j.drop-constraints:
-	@mkdir -p ${NEO4J_HOME}/{backups,cypher}
+	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
 	@echo "Fetching cypher scripts from S3..."
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
 	@cat ${NEO4J_HOME}/cypher/drop_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
