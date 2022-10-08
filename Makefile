@@ -30,7 +30,7 @@ export BUILD_REPOSITORY ?= ${STAGE}-${APP_NAME}-build-service
 export INSTANCE_ID ?= $(shell aws ssm get-parameters \
 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseInstanceId" \
 		--output json \
-		| jq -r '.Parameters | map(select(.Version == 1))[0].Value')
+		| jq -r '.Parameters[0].Value')
 
 # S3 paths
 export PIPELINE_STATE_PATH ?= config/IMGTHLA-repository-state.json
@@ -41,7 +41,7 @@ export FUNCTIONS_PATH ?= ${APP_NAME}/pipeline/functions
 export INSTANCE_STATE ?= $(shell aws ec2 describe-instance-status | jq -r '.InstanceStatuses[] | select(.InstanceId | contains("i-0ea29a765388720a8")).InstanceState.Name')
 export NEO4J_ENDPOINT ?= $(shell aws ssm get-parameters \
 	--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseEndpoint" \
-	| jq -r '.Parameters | map(select(.Version == 1))[0].Value')
+	| jq -r '.Parameters[0].Value')
 
 target:
 	$(info ${HELP_MESSAGE})
