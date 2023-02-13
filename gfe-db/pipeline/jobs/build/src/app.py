@@ -536,7 +536,13 @@ if __name__ == '__main__':
     out_dir = args.out_dir
 
     # Pipeline parameters
-    imgt_release = f'{dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}'
+    # 3 digits: 300 - 390
+    # 4 digits: 3100 - 
+    if len(dbversion) == 3:
+        imgt_release = f'{dbversion[0]}.{dbversion[1]}.{dbversion[2]}'
+    else:
+        imgt_release = f'{dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}'
+
     kir = True if '-k' in sys.argv else False
     align = True if '-a' in sys.argv else False
 
@@ -631,6 +637,6 @@ if __name__ == '__main__':
                 logger.error("Failed to send message")
                 raise err
 
-    logging.info(f'Finished build for version {dbversion[0]}.{dbversion[1:3]}.{dbversion[3]}')
+    logging.info(f'Finished build for version ${imgt_release}')
     end = time.time()
     logging.info(f'****** Build finished in {round(end - start, 2)} seconds ******')
