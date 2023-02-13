@@ -21,6 +21,7 @@ env:
 # get.scripts:
 # get.cypher:
 get.data: #=> Download the build data locally; get.data release=3470
+	# should be [[ -n "$$release" ]]
 	@[ -z "$$release" ] && aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/data/$$release/csv/ ${NEO4J_HOME}/import/ || echo "No release argument"
 # env.fetch:
 
@@ -159,7 +160,7 @@ neo4j.init:
 	@cat ${NEO4J_HOME}/cypher/init.cyp | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 
 neo4j.waiter:
-	@timeout=300 && \
+	@timeout=120 && \
 	counter=0 && \
 	echo "Waiting for response from Neo4j at https://${SUBDOMAIN}.${HOST_DOMAIN}:7473..." && \
 	until $$(curl --output /dev/null --silent --head --fail https://${SUBDOMAIN}.${HOST_DOMAIN}:7473) ; do \

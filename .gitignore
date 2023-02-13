@@ -108,3 +108,5 @@ _dev*
 payload.json
 response.json
 neo4j.conf
+___*
+gfedb.zip
