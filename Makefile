@@ -132,7 +132,7 @@ config.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ config.deploy
 	$(MAKE) -C ${APP_NAME}/database/ config.deploy
 
-database.load:
+database.load: # args: align, kir, limit, releases
 	@echo "Confirm payload:" && \
 	[ "$$align" ] && align="$$align" || align="False" && \
 	[ "$$kir" ] && kir="$$kir" || kir="False" && \

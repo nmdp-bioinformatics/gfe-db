@@ -66,6 +66,9 @@ Resources:
   
   Route:
     Type: AWS::EC2::Route
+    DependsOn:
+      - InternetGateway
+      - VpcGatewayAttachment
     Properties:
       RouteTableId: !Ref RouteTable
       DestinationCidrBlock: 0.0.0.0/0
