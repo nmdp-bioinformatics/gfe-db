@@ -24,7 +24,10 @@ deploy.ecr.jobs.build:
 		--region "$${AWS_REGION}" | docker login \
 			--username AWS \
 			--password-stdin "$${ECR_BASE_URI}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
-	docker build -t "$${BUILD_REPOSITORY}" build/ && \
+	docker build \
+		-t "$${BUILD_REPOSITORY}" \
+		--platform "linux/amd64" \
+		build/ && \
 	docker tag "$${BUILD_REPOSITORY}:latest" "$${ECR_BASE_URI}/$${BUILD_REPOSITORY}:latest" && \
 	docker push "$${ECR_BASE_URI}/$${BUILD_REPOSITORY}:latest" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
