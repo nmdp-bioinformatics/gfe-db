@@ -506,7 +506,8 @@ if __name__ == '__main__':
                         help="Option for running in verbose",
                         action="store_true")
 
-    # TO DO: add option to specify last n releases
+    # TO DO: add option to specify last n releases UPDATE: instead of having this script handle multiple releases,
+    # have it handle one release and just call it multiple times for an array or queue of releases
     # parser.add_argument("-n", "--number",
     #                     required=False,
     #                     help="Number of IMGT/DB releases",
@@ -637,6 +638,6 @@ if __name__ == '__main__':
                 logger.error("Failed to send message")
                 raise err
 
-    logging.info(f'Finished build for version ${imgt_release}')
+    logging.info(f'Finished build for version {imgt_release}')
     end = time.time()
     logging.info(f'****** Build finished in {round(end - start, 2)} seconds ******')
