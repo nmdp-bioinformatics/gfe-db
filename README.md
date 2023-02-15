@@ -534,6 +534,7 @@ jupyter kernelspec uninstall gfe-db
  * [feature.nmdp-bioinformatics.org](https://feature.nmdp-bioinformatics.org)
  * [gfe.b12x.org](http://gfe.b12x.org)
  * [Neo4j Cloud Virtual Machines](https://neo4j.com/developer/neo4j-cloud-vms/)
+ * [Getting Certificates for Neo4j with LetsEncrypt](https://medium.com/neo4j/getting-certificates-for-neo4j-with-letsencrypt-a8d05c415bbd)
 
 -----------------
 <br>

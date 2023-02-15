@@ -1,5 +1,4 @@
-pandas>=1.2.3
-py-ard==0.7.6
+py-ard==0.9.1
 py-gfe==1.1.5
 lxml==4.6.3
 Pympler==0.9

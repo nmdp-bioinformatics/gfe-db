@@ -22,12 +22,10 @@ CALL apoc.periodic.iterate(
     ','
     MERGE (seq:Sequence { name: row.gfe_name }) 
     ON CREATE SET 
-        seq.seq_id = row.seq_id,
         seq.locus = row.locus,
         seq.sequence = row.sequence,
         seq.length = row.length
     ON MATCH SET 
-        seq.seq_id = row.seq_id,
         seq.locus = row.locus,
         seq.sequence = row.sequence,
         seq.length = row.length
@@ -43,7 +41,8 @@ CALL apoc.periodic.iterate(
         locus: row.locus,
         rank: row.rank,
         term: row.term,
-        accession: row.accession
+        accession: row.accession,
+        sequence: row.sequence
         })
     ',
     {batchSize:500, parallel:true});
@@ -94,7 +93,7 @@ CALL apoc.periodic.iterate(
     MERGE (gfe)-[rel:HAS_IPD_ALLELE]->(ipd)
     ON CREATE SET rel.releases = [replace(row.imgt_release, ".", "")]
     ON MATCH SET rel.releases = rel.releases + [replace(row.imgt_release, ".", "")]
-    MERGE (acc)-[acc_rel:HAS_IPD_ALLELE]->(ipd)
+    MERGE (gfe)-[acc_rel:HAS_IPD_ACCESSION]->(acc)
     ON CREATE SET acc_rel.release = row.imgt_release
     ',
     {batchSize:500, parallel:true});

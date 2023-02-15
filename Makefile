@@ -128,6 +128,9 @@ database.deploy:
 pipeline.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ deploy
 
+pipeline.jobs.deploy:
+	$(MAKE) -C ${APP_NAME}/pipeline/jobs/ deploy
+
 config.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ config.deploy
 	$(MAKE) -C ${APP_NAME}/database/ config.deploy
@@ -189,6 +192,9 @@ database.delete:
 
 pipeline.delete:
 	$(MAKE) -C ${APP_NAME}/pipeline/ delete
+
+pipeline.jobs.delete:
+	$(MAKE) -C ${APP_NAME}/pipeline/jobs/ delete
 
 # Administrative functions
 get.data: #=> Download the build data locally
