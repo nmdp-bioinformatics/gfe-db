@@ -167,9 +167,17 @@ database.stop:
 	echo "Previous state: $$(echo "$$response" | jq -r '.StoppingInstances[] | select(.InstanceId | contains("${INSTANCE_ID}")).PreviousState.Name')" && \
 	echo "Current state: $$(echo "$$response" | jq -r '.StoppingInstances[] | select(.InstanceId | contains("${INSTANCE_ID}")).CurrentState.Name')"
 
+# TODO make sure database is running before syncing
+database.sync:
+	$(MAKE) -C ${APP_NAME}/database/ service.config.scripts.sync
+
+# database.backup:
+# 	@echo "Backing up $${APP_NAME} server..."
+# 	$(MAKE) -C ${APP_NAME}/database/ service.backup
+
 # TODO account for http or https and whether or not EIP or DNS is being used
 database.get-endpoint:
-	@echo "http://$${NEO4J_ENDPOINT}:7473/browser/"
+	@echo "https://$${NEO4J_ENDPOINT}:7473/browser/"
 
 database.get-credentials:
 	@secret_string=$$(aws secretsmanager get-secret-value --secret-id ${APP_NAME}-${STAGE}-Neo4jCredentials | jq -r '.SecretString') && \
