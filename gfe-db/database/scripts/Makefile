@@ -70,7 +70,7 @@ bootstrap:
 	$(MAKE) ssl.create-cert
 
 neo4j: bootstrap
-	$(MAKE) neo4j.publish-credentials
+	$(MAKE) neo4j.update-credentials
 	$(MAKE) neo4j.config.update
 	$(MAKE) neo4j.plugins.install-apoc
 	$(MAKE) neo4j.plugins.install-gds
@@ -113,13 +113,30 @@ neo4j: bootstrap
 eip.waiter:
 	@bash ${ROOT_DIR}/init/eip_assoc_waiter.sh
 
-# secretsmanager
-neo4j.publish-credentials:
+# neo4j
+neo4j.update-credentials:
 	@aws --region ${AWS_REGION} secretsmanager update-secret \
 		--secret-id ${NEO4J_CREDENTIALS_SECRET_ARN} \
 		--secret-string "{\"NEO4J_USERNAME\":\"${NEO4J_USERNAME}\",\"NEO4J_PASSWORD\":\"${NEO4J_PASSWORD}\"}"
 
-# neo4j
+# TODO update database env variables using SSM
+# neo4j.update-env:
+# 	@echo "STAGE=${Stage}" >> ${BITNAMI_HOME}/env.sh
+# 	@echo "APP_NAME=${AppName}" >> ${BITNAMI_HOME}/env.sh
+# 	@echo "AWS_REGION=${AWS::Region}" >> ${BITNAMI_HOME}/env.sh
+# 	@echo "DATA_BUCKET_NAME=${DataBucketName}" >> ${BITNAMI_HOME}/env.sh
+# 	@echo "HOST_DOMAIN=${HostDomain}" >> ${BITNAMI_HOME}/env.sh
+# 	@echo "SUBDOMAIN=${Subdomain}" >> ${BITNAMI_HOME}/env.sh
+# 	@echo "ADMIN_EMAIL=${AdminEmail}" >> ${BITNAMI_HOME}/env.sh
+# 	@echo "APOC_VERSION=${APOCVersion}" >> ${BITNAMI_HOME}/env.sh
+# 	@echo "GDS_VERSION=${GDSVersion}" >> ${BITNAMI_HOME}/env.sh
+# 	@echo "BITNAMI_HOME=/home/bitnami" >> ${BITNAMI_HOME}/env.sh
+# 	@echo "NEO4J_HOME=/opt/bitnami/neo4j" >> ${BITNAMI_HOME}/env.sh
+# 	@echo "BITNAMI_NEO4J=/bitnami/neo4j" >> ${BITNAMI_HOME}/env.sh
+# 	@echo "NEO4J_CREDENTIALS_SECRET_ARN=${Neo4jCredentialsSecret}" >> ${BITNAMI_HOME}/env.sh
+# 	@echo "# Make application variables available" >> ${BITNAMI_HOME}/.bashrc
+# 	@echo "set -a && source /home/bitnami/env.sh && set +a" >> ${BITNAMI_HOME}/.bashrc
+
 neo4j.status:
 	@/opt/bitnami/ctlscript.sh status
 
@@ -184,7 +201,13 @@ neo4j.backup:
 	@rm ${BITNAMI_HOME}/gfedb.zip
 	$(MAKE) neo4j.start
 
-neo4j.restore: #from_date=YYYY/MM/DD/HH
+
+# TODO add server-side validation before running restore
+	# @echo "test: $$from_date"
+	# @[ "$$from_date" != "" ] || (echo "from_date is required" && exit 1) && \
+	# [ "$$(echo "$$from_date" | grep -E '^[0-9]{4}/[0-9]{2}/[0-9]{2}/[0-9]{2}$$')" ] || (echo "from_date must be in the format YYYY/MM/DD/HH" && exit 1) && \
+	# echo "running restore for $$from_date"
+neo4j.restore: #from_date=<YYYY/MM/DD/HH>
 	$(MAKE) neo4j.stop
 	@aws s3 cp s3://${DATA_BUCKET_NAME}/backups/neo4j/$$from_date/gfedb.zip ${BITNAMI_HOME}/gfedb.zip
 	@unzip -o ${BITNAMI_HOME}/gfedb.zip

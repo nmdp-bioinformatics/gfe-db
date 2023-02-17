@@ -53,6 +53,17 @@ Resources:
         - Key: AppName 
           Value: !Ref AppName
 
+  Neo4jCredentialsSecretArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn'
+      Description: "ARN for Neo4jCredentialsSecret"
+      Value: !Ref Neo4jCredentialsSecret
+      Tags:
+        Stage: !Ref Stage
+        AppName: !Ref AppName
+
   Neo4jDatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:

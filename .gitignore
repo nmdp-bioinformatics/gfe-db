@@ -110,3 +110,4 @@ response.json
 neo4j.conf
 ___*
 gfedb.zip
+env.sh
