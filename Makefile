@@ -38,9 +38,9 @@ export PIPELINE_PARAMS_PATH ?= config/pipeline-input.json
 export FUNCTIONS_PATH ?= ${APP_NAME}/pipeline/functions
 
 # App state values
-export INSTANCE_STATE ?= $(shell aws ec2 describe-instance-status | jq -r '.InstanceStatuses[] | select(.InstanceId | contains("i-0ea29a765388720a8")).InstanceState.Name')
-export NEO4J_ENDPOINT ?= $(shell aws ssm get-parameters \
-	--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseEndpoint" \
+export INSTANCE_STATE ?= $(shell aws ec2 describe-instance-status | jq -r '.InstanceStatuses[] | select(.InstanceId | contains("${INSTANCE_ID}")).InstanceState.Name')
+export NEO4J_EIP ?= $(shell aws ssm get-parameters \
+	--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseEndpoint" \
 	| jq -r '.Parameters[0].Value')
 
 target:
@@ -152,8 +152,6 @@ database.load: # args: align, kir, limit, releases
 		--payload file://payload.json \
 		response.json 2>&1
 
-database.status:
-	@echo "Current state: $$INSTANCE_STATE"
 	 
 database.start:
 	@echo "Starting $${APP_NAME} server..."
@@ -175,14 +173,20 @@ database.sync:
 # 	@echo "Backing up $${APP_NAME} server..."
 # 	$(MAKE) -C ${APP_NAME}/database/ service.backup
 
+database.status:
+	@echo "Current state: ${INSTANCE_STATE}"
+	
 # TODO account for http or https and whether or not EIP or DNS is being used
 database.get-endpoint:
-	@echo "https://$${NEO4J_ENDPOINT}:7473/browser/"
+	@echo "https://${SUBDOMAIN}.${HOST_DOMAIN}:7473/browser/"
 
 database.get-credentials:
 	@secret_string=$$(aws secretsmanager get-secret-value --secret-id ${APP_NAME}-${STAGE}-Neo4jCredentials | jq -r '.SecretString') && \
 	echo "Username: $$(echo $$secret_string | jq -r '.NEO4J_USERNAME')" && \
 	echo "Password: $$(echo $$secret_string | jq -r '.NEO4J_PASSWORD')"
+
+database.get-instance-id:
+	@echo "${INSTANCE_ID}"
 
 delete: # data=true/false ##=> Delete services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${APP_NAME} in ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
