@@ -175,17 +175,17 @@ database.sync:
 
 database.status:
 	@echo "Current state: ${INSTANCE_STATE}"
-	
+
 # TODO account for http or https and whether or not EIP or DNS is being used
-database.get-endpoint:
+database.get.endpoint:
 	@echo "https://${SUBDOMAIN}.${HOST_DOMAIN}:7473/browser/"
 
-database.get-credentials:
+database.get.credentials:
 	@secret_string=$$(aws secretsmanager get-secret-value --secret-id ${APP_NAME}-${STAGE}-Neo4jCredentials | jq -r '.SecretString') && \
 	echo "Username: $$(echo $$secret_string | jq -r '.NEO4J_USERNAME')" && \
 	echo "Password: $$(echo $$secret_string | jq -r '.NEO4J_PASSWORD')"
 
-database.get-instance-id:
+database.get.instance-id:
 	@echo "${INSTANCE_ID}"
 
 delete: # data=true/false ##=> Delete services
