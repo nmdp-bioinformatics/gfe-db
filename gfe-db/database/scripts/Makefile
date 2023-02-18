@@ -5,10 +5,12 @@
 include env.sh
 export
 
-export ROOT_DIR=/home/bitnami
-export NEO4J_HOME=/opt/bitnami/neo4j
-export NEO4J_USERNAME=$(shell cat ${ROOT_DIR}/bitnami_credentials | sed 's/ /\n/g' | grep -E "'([a-zA-Z0-9]+)'" | sed "s/'//g" | sed "s/\.//g" | head -n 1)
-export NEO4J_PASSWORD=$(shell cat ${ROOT_DIR}/bitnami_credentials | sed 's/ /\n/g' | grep -E "'([a-zA-Z0-9]+)'" | sed "s/'//g" | sed "s/\.//g" | tail -n 1)
+export BITNAMI_HOME ?= /home/bitnami
+export LOGS_DIR := /tmp/logs
+export NEO4J_HOME := /opt/bitnami/neo4j
+export NEO4J_USERNAME := $(shell cat ${BITNAMI_HOME}/bitnami_credentials | sed 's/ /\n/g' | grep -E "'([a-zA-Z0-9]+)'" | sed "s/'//g" | sed "s/\.//g" | head -n 1)
+export NEO4J_PASSWORD := $(shell cat ${BITNAMI_HOME}/bitnami_credentials | sed 's/ /\n/g' | grep -E "'([a-zA-Z0-9]+)'" | sed "s/'//g" | sed "s/\.//g" | tail -n 1)
+export INSTANCE_ID := $(shell curl -sS http://169.254.169.254/latest/meta-data/instance-id)
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -111,7 +113,7 @@ neo4j: bootstrap
 
 # eip
 eip.waiter:
-	@bash ${ROOT_DIR}/init/eip_assoc_waiter.sh
+	@bash ${BITNAMI_HOME}/init/eip_assoc_waiter.sh
 
 # neo4j
 neo4j.update-credentials:
@@ -201,7 +203,6 @@ neo4j.backup:
 	@rm ${BITNAMI_HOME}/gfedb.zip
 	$(MAKE) neo4j.start
 
-
 # TODO add server-side validation before running restore
 	# @echo "test: $$from_date"
 	# @[ "$$from_date" != "" ] || (echo "from_date is required" && exit 1) && \
@@ -240,19 +241,23 @@ ssl.create-cert:
 	@bash init/create_cert.sh "${SUBDOMAIN}.${HOST_DOMAIN}" ${ADMIN_EMAIL}
 
 copy-logs:
-	@echo "Copying logs to S3..."
-	@mkdir -p /tmp/logs
-	@export instance_id=$$(curl http://169.254.169.254/latest/meta-data/instance-id) && \
-	journalctl -b > /tmp/logs/$$instance_id-boot.log
-	@echo "Copying Neo4j logs to S3..."
-	@journalctl -e -u neo4j > /tmp/logs/neo4j.log
-	@aws s3 cp --recursive /tmp/logs/ s3://${DATA_BUCKET_NAME}/logs/database/bootstrap/$$(date +'%Y/%m/%d/%H')/
+	@mkdir -p ${LOGS_DIR}/neo4j
+	$(MAKE) logs.bootstrap
+	$(MAKE) logs.neo4j
+	@echo "Copying logs to S3..." && \
+	aws s3 cp --recursive /tmp/logs/ s3://${DATA_BUCKET_NAME}/logs/database/${INSTANCE_ID}/$$(date +'%Y/%m/%d/%H')/
+
+logs.bootstrap:
+	@journalctl -b > ${LOGS_DIR}/bootstrap.log
+
+logs.neo4j:
+	@cp -r ${NEO4J_HOME}/logs/* ${LOGS_DIR}/neo4j/
 
 define HELP_MESSAGE
 
 	Environment variables:
 
-	ROOT_DIR: "${ROOT_DIR}"
+	BITNAMI_HOME: "${BITNAMI_HOME}"
 		Description: Root directory where the Makefile resides
 	
 	NEO4J_HOME: "${NEO4J_HOME}"
