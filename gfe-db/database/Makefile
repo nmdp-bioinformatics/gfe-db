@@ -93,7 +93,6 @@ service.backup:
 # TODO move validation to the database/Makefile
 # TODO database restore: validate that the backup exists
 service.restore: #from_date=<YYYY/MM/DD/HH>
-	@echo "test: $$from_date"
 	@[ "$$from_date" != "" ] || (echo "from_date is required" && exit 1) && \
 	[ "$$(echo "$$from_date" | grep -E '^[0-9]{4}/[0-9]{2}/[0-9]{2}/[0-9]{2}$$')" ] || (echo "from_date must be in the format YYYY/MM/DD/HH" && exit 1) && \
 	echo "Restore $${APP_NAME} from date $$from_date? [y/N] \c " && read ans && [ $${ans:-N} = y ]

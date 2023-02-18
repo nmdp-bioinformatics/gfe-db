@@ -26,7 +26,6 @@ export DATABASE_VOLUME_SIZE ?= 50
 export DATA_BUCKET_NAME ?= ${STAGE}-${APP_NAME}-${AWS_ACCOUNT}-${AWS_REGION}
 export ECR_BASE_URI ?= ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com
 export BUILD_REPOSITORY ?= ${STAGE}-${APP_NAME}-build-service
-# export SUBDOMAIN ?= ${STAGE}-${APP_NAME}
 export INSTANCE_ID ?= $(shell aws ssm get-parameters \
 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseInstanceId" \
 		--output json \
@@ -36,12 +35,6 @@ export INSTANCE_ID ?= $(shell aws ssm get-parameters \
 export PIPELINE_STATE_PATH ?= config/IMGTHLA-repository-state.json
 export PIPELINE_PARAMS_PATH ?= config/pipeline-input.json
 export FUNCTIONS_PATH ?= ${APP_NAME}/pipeline/functions
-
-# App state values
-export INSTANCE_STATE ?= $(shell aws ec2 describe-instance-status | jq -r '.InstanceStatuses[] | select(.InstanceId | contains("${INSTANCE_ID}")).InstanceState.Name')
-export NEO4J_EIP ?= $(shell aws ssm get-parameters \
-	--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseEndpoint" \
-	| jq -r '.Parameters[0].Value')
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -209,7 +202,10 @@ database.restore: #from_date=<YYYY/MM/DD/HH>
 	$(MAKE) -C ${APP_NAME}/database/ service.restore from_date=$$from_date
 
 database.status:
-	@echo "Current state: ${INSTANCE_STATE}"
+	@aws ec2 describe-instances | \
+		jq --arg iid "${INSTANCE_ID}" '.Reservations[].Instances[] | \
+		select(.InstanceId == $$iid) | \
+		{InstanceId, InstanceType, "Status": .State.Name, StateTransitionReason, ImageId}'
 
 # TODO account for http or https and whether or not EIP or DNS is being used
 database.get.endpoint:
