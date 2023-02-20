@@ -36,6 +36,15 @@ service.config.update-dns:
 	cat neo4j/neo4j.template | \
 	sed s"/# dbms.default_advertised_address=.*/dbms.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > neo4j/neo4j.conf
 
+# service.config.enable-ssh: #cidr=<value>
+# 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Enabling SSH access to EC2 instance" 2>&1 | tee -a $$CFN_LOG_PATH
+# 	@aws ec2 authorize-security-group-ingress \
+# 		--group-id "$$(aws ssm get-parameter \
+# 			--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseSecurityGroupName" | jq -r '.Parameter.Value')" \
+# 		--protocol tcp \
+# 		--port 22 \
+# 		--cidr "$$cidr" || true
+
 service.config.scripts.deploy:
 	@script_s3_path=s3://$$DATA_BUCKET_NAME/config/scripts/ && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying backup script to $$script_s3_path" 2>&1 \
@@ -113,7 +122,9 @@ service.delete:
 	aws cloudformation wait stack-delete-complete \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
 	aws ec2 delete-key-pair --key-name "${EC2_KEY_PAIR_NAME}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
-	aws ssm delete-parameter --name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/EC2KeyPairName" 2>&1 | tee -a $$CFN_LOG_PATH || true
+	aws ssm delete-parameter --name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/EC2KeyPairName" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
+	mv ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem ${ROOT_DIR}/deprecated-key-$${INSTANCE_ID}-$$(gdate -u +'%Y-%m-%d-%H-%M').pem || true
+
 
 #############
 #  Helpers  #

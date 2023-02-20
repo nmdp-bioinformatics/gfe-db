@@ -241,14 +241,18 @@ ssl.create-cert:
 	@bash init/create_cert.sh "${SUBDOMAIN}.${HOST_DOMAIN}" ${ADMIN_EMAIL}
 
 copy-logs:
-	@mkdir -p ${LOGS_DIR}/neo4j
+	@mkdir -p ${LOGS_DIR}/neo4j ${LOGS_DIR}/system
 	$(MAKE) logs.bootstrap
+	$(MAKE) logs.system
 	$(MAKE) logs.neo4j
 	@echo "Copying logs to S3..." && \
 	aws s3 cp --recursive /tmp/logs/ s3://${DATA_BUCKET_NAME}/logs/database/${INSTANCE_ID}/$$(date +'%Y/%m/%d/%H')/
 
 logs.bootstrap:
 	@journalctl -b > ${LOGS_DIR}/bootstrap.log
+
+logs.system:
+	@cp -r /var/log/* ${LOGS_DIR}/system
 
 logs.neo4j:
 	@cp -r ${NEO4J_HOME}/logs/* ${LOGS_DIR}/neo4j/
