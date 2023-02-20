@@ -197,7 +197,7 @@ neo4j.waiter:
 
 neo4j.backup:
 	$(MAKE) neo4j.stop
-	@cd ${BITNAMI_NEO4J}/data/ && zip -r ${BITNAMI_HOME}/gfedb.zip databases/
+	@cd ${BITNAMI_NEO4J}/ && zip -r ${BITNAMI_HOME}/gfedb.zip data
 	@result=$$(aws s3 cp ${BITNAMI_HOME}/gfedb.zip s3://${DATA_BUCKET_NAME}/backups/neo4j/$$(date +'%Y/%m/%d/%H')/gfedb.zip) && \
 		echo $$result
 	@rm ${BITNAMI_HOME}/gfedb.zip
@@ -212,10 +212,10 @@ neo4j.restore: #from_date=<YYYY/MM/DD/HH>
 	$(MAKE) neo4j.stop
 	@aws s3 cp s3://${DATA_BUCKET_NAME}/backups/neo4j/$$from_date/gfedb.zip ${BITNAMI_HOME}/gfedb.zip
 	@unzip -o ${BITNAMI_HOME}/gfedb.zip
-	@cp -r databases/* ${BITNAMI_NEO4J}/data/databases/
-	@chown -R neo4j:neo4j ${BITNAMI_NEO4J}/data/databases/
+	@cp -r data/* ${BITNAMI_NEO4J}/data/
+	@chown -R neo4j:neo4j ${BITNAMI_NEO4J}/data/
 	@rm ${BITNAMI_HOME}/gfedb.zip
-	@rm -r ${BITNAMI_HOME}/databases/
+	# @rm -r ${BITNAMI_HOME}/data/
 	$(MAKE) neo4j.start
 
 # # TODO test

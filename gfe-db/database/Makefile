@@ -109,7 +109,7 @@ service.restore: #from_date=<YYYY/MM/DD/HH>
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/bitnami && sudo make neo4j.restore from_date=$$from_date]" \
 		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
-		--comment "${STAGE}=${APP_NAME} backup service"
+		--comment "${STAGE}=${APP_NAME} restore service"
 
 delete: ##=> Delete resources
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
