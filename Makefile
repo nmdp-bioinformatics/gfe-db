@@ -10,11 +10,11 @@ export
 export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity --query Account --output text)
 
 # TODO: Application Configuration, can move to JSON
-export ROOT_DIR ?= $(shell pwd)
-export DATABASE_DIR ?= ${ROOT_DIR}/${APP_NAME}/database
-export LOGS_DIR ?= $(shell echo "${ROOT_DIR}/logs")
-export CFN_LOG_PATH ?= $(shell echo "${LOGS_DIR}/cfn/logs.txt")
-export PURGE_LOGS ?= false
+export ROOT_DIR := $(shell pwd)
+export DATABASE_DIR := ${ROOT_DIR}/${APP_NAME}/database
+export LOGS_DIR := $(shell echo "${ROOT_DIR}/logs")
+export CFN_LOG_PATH := $(shell echo "${LOGS_DIR}/cfn/logs.txt")
+export PURGE_LOGS := false
 
 # TODO move these to a config file
 export NEO4J_AMI_ID ?= ami-04aa5da301f99bf58 # Bitnami Neo4j, requires subscription through AWS Marketplace
@@ -24,17 +24,17 @@ export DATABASE_VOLUME_SIZE ?= 50
 
 # Resource identifiers
 export DATA_BUCKET_NAME ?= ${STAGE}-${APP_NAME}-${AWS_ACCOUNT}-${AWS_REGION}
-export ECR_BASE_URI ?= ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com
+export ECR_BASE_URI := ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com
 export BUILD_REPOSITORY ?= ${STAGE}-${APP_NAME}-build-service
-export INSTANCE_ID ?= $(shell aws ssm get-parameters \
+export INSTANCE_ID := $(shell aws ssm get-parameters \
 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseInstanceId" \
 		--output json \
 		| jq -r '.Parameters[0].Value')
 
 # S3 paths
-export PIPELINE_STATE_PATH ?= config/IMGTHLA-repository-state.json
-export PIPELINE_PARAMS_PATH ?= config/pipeline-input.json
-export FUNCTIONS_PATH ?= ${APP_NAME}/pipeline/functions
+export PIPELINE_STATE_PATH := config/IMGTHLA-repository-state.json
+export PIPELINE_PARAMS_PATH := config/pipeline-input.json
+export FUNCTIONS_PATH := ${APP_NAME}/pipeline/functions
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -154,7 +154,8 @@ config.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ config.deploy
 	$(MAKE) -C ${APP_NAME}/database/ config.deploy
 
-database.load: # args: align, kir, limit, releases
+# TODO fix output & error handling
+database.load.run: # args: align, kir, limit, releases
 	@echo "Confirm payload:" && \
 	[ "$$align" ] && align="$$align" || align="False" && \
 	[ "$$kir" ] && kir="$$kir" || kir="False" && \
@@ -171,7 +172,10 @@ database.load: # args: align, kir, limit, releases
 		--payload file://payload.json \
 		response.json 2>&1
 
-	 
+# TODO database.load.status
+# TODO database.load.abort
+# TODO database.load.report
+
 database.start:
 	@echo "Starting $${APP_NAME} server..."
 	@response=$$(aws ec2 start-instances --instance-ids ${INSTANCE_ID}) && \
@@ -180,13 +184,18 @@ database.start:
 
 database.stop:
 	@echo "Stopping $${APP_NAME} server..."
+	@echo Instance ID: ${INSTANCE_ID}
 	@response=$$(aws ec2 stop-instances --instance-ids ${INSTANCE_ID}) && \
 	echo "Previous state: $$(echo "$$response" | jq -r '.StoppingInstances[] | select(.InstanceId | contains("${INSTANCE_ID}")).PreviousState.Name')" && \
 	echo "Current state: $$(echo "$$response" | jq -r '.StoppingInstances[] | select(.InstanceId | contains("${INSTANCE_ID}")).CurrentState.Name')"
 
 # TODO make sure database is running before syncing
-database.sync:
+database.sync-scripts:
 	$(MAKE) -C ${APP_NAME}/database/ service.config.scripts.sync
+
+# TODO enable ssh
+# database.enable-ssh:
+# 	$(MAKE) -C ${APP_NAME}/database/ service.config.enable-ssh
 
 database.backup:
 	@echo "Backing up $${APP_NAME} server..."
@@ -203,9 +212,7 @@ database.restore: #from_date=<YYYY/MM/DD/HH>
 
 database.status:
 	@aws ec2 describe-instances | \
-		jq --arg iid "${INSTANCE_ID}" '.Reservations[].Instances[] | \
-		select(.InstanceId == $$iid) | \
-		{InstanceId, InstanceType, "Status": .State.Name, StateTransitionReason, ImageId}'
+		jq --arg iid "${INSTANCE_ID}" '.Reservations[].Instances[] | select(.InstanceId == $$iid) | {InstanceId, InstanceType, "Status": .State.Name, StateTransitionReason, ImageId}'
 
 # TODO account for http or https and whether or not EIP or DNS is being used
 database.get.endpoint:

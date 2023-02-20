@@ -134,7 +134,7 @@ for release in ${RELEASES}; do
 		$ALIGNFLAG \
 		$MEM_PROFILE_FLAG \
 		-v \
-		-l "$LIMIT"
+		-l $LIMIT
 	[ $? -ne 0 ] && exit 1;
 
 	# TODO: Use this S3 hierarchy: root/release/csv | logs
