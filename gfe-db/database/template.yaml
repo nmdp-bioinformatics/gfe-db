@@ -45,7 +45,7 @@ Resources:
     Type: AWS::SecretsManager::Secret
     Properties:
       Name: !Sub "${AppName}-${Stage}-Neo4jCredentials"
-      Description: Must match the username/password specified in the Neo4j Dockerfile
+      Description: Must match the username/password specified in the Neo4j Dockerfile. Empty until the database is created.
       SecretString: '{"NEO4J_USERNAME":"","NEO4J_PASSWORD":""}'
       Tags:
         - Key: Stage
@@ -96,11 +96,11 @@ Resources:
           IpProtocol: tcp
           ToPort: 7687
           Description: Neo4j Bolt driver access (required)
-        - CidrIp: 0.0.0.0/0
-          FromPort: 22
-          IpProtocol: tcp
-          ToPort: 22
-          Description: Update IP to use MyIP
+        # - CidrIp: 0.0.0.0/0
+        #   FromPort: 22
+        #   IpProtocol: tcp
+        #   ToPort: 22
+        #   Description: Update IP to use MyIP
       Tags:
         - Key: Name
           Value: !Sub '${Stage}-${AppName}-neo4j-sg'

@@ -189,6 +189,12 @@ database.stop:
 	echo "Previous state: $$(echo "$$response" | jq -r '.StoppingInstances[] | select(.InstanceId | contains("${INSTANCE_ID}")).PreviousState.Name')" && \
 	echo "Current state: $$(echo "$$response" | jq -r '.StoppingInstances[] | select(.InstanceId | contains("${INSTANCE_ID}")).CurrentState.Name')"
 
+database.reboot:
+	@echo "Rebooting $${APP_NAME} server..."
+	@echo Instance ID: ${INSTANCE_ID}
+	@response=$$(aws ec2 reboot-instances --instance-ids ${INSTANCE_ID}) && echo "$$response"
+	$(MAKE) database.status
+
 # TODO make sure database is running before syncing
 database.sync-scripts:
 	$(MAKE) -C ${APP_NAME}/database/ service.config.scripts.sync
