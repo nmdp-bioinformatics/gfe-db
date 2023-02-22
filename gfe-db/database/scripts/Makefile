@@ -153,10 +153,25 @@ neo4j.restart:
 	@/opt/bitnami/ctlscript.sh restart
 	$(MAKE) neo4j.waiter
 
-neo4j.config.update:
-	@mv ${NEO4J_HOME}/conf/neo4j.conf ${NEO4J_HOME}/conf/neo4j.conf.bkp
+neo4j.config.update: neo4j.config.backup
 	@echo "Downloading Neo4j configuration from ${DATA_BUCKET_NAME}"
 	@aws s3 cp s3://${DATA_BUCKET_NAME}/config/neo4j/neo4j.conf ${NEO4J_HOME}/conf/neo4j.conf
+
+# TODO testing this as part of restore procedure
+neo4j.config.reset-auth: neo4j.config.backup
+	@echo "Resetting Neo4j authentication"
+	$(MAKE) neo4j.stop
+	@sed -i 's/#dbms.security.auth_enabled=false/dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
+	$(MAKE) neo4j.start
+	# TODO retrieve password from secrets manager and add as parameter
+	@echo "ALTER USER neo4j SET PASSWORD 'er3fXUQbk278'" | /opt/bitnami/neo4j/bin/cypher-shell -u neo4j -p neo4j -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687 -d system
+	$(MAKE) neo4j.stop
+	@sed -i 's/dbms.security.auth_enabled=false/#dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
+	$(MAKE) neo4j.start
+
+neo4j.config.backup:
+	@echo "Backing up Neo4j configuration to ${NEO4J_HOME}/conf/$$(gdate -u +'%Y-%m-%d-%H-%M')-neo4j.conf.bkp"
+	@mv ${NEO4J_HOME}/conf/neo4j.conf ${NEO4J_HOME}/conf/$$(gdate -u +'%Y-%m-%d-%H-%M')-neo4j.conf.bkp"
 
 neo4j.plugins.install-apoc:
 	@echo "Downloading APOC Full plugin..."
@@ -216,6 +231,7 @@ neo4j.restore: #from_date=<YYYY/MM/DD/HH>
 	@chown -R neo4j:neo4j ${BITNAMI_NEO4J}/data/
 	@rm ${BITNAMI_HOME}/gfedb.zip
 	# @rm -r ${BITNAMI_HOME}/data/
+	# TODO reset auth
 	$(MAKE) neo4j.start
 
 # # TODO test
