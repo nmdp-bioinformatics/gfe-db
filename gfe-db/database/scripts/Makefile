@@ -7,6 +7,7 @@ export
 
 export BITNAMI_HOME ?= /home/bitnami
 export LOGS_DIR := /tmp/logs
+export REPORTS_DIR := ${BITNAMI_HOME}/reports
 export NEO4J_HOME := /opt/bitnami/neo4j
 export NEO4J_USERNAME := $(shell cat ${BITNAMI_HOME}/bitnami_credentials | sed 's/ /\n/g' | grep -E "'([a-zA-Z0-9]+)'" | sed "s/'//g" | sed "s/\.//g" | head -n 1)
 export NEO4J_PASSWORD := $(shell cat ${BITNAMI_HOME}/bitnami_credentials | sed 's/ /\n/g' | grep -E "'([a-zA-Z0-9]+)'" | sed "s/'//g" | sed "s/\.//g" | tail -n 1)
@@ -52,7 +53,7 @@ endif
 ifndef GDS_VERSION
 $(error GDS_VERSION is not set.)
 endif
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1
+	@echo "$$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1
 
 # # TODO add dependency checks
 # deps.check:
@@ -157,21 +158,19 @@ neo4j.config.update: neo4j.config.backup
 	@echo "Downloading Neo4j configuration from ${DATA_BUCKET_NAME}"
 	@aws s3 cp s3://${DATA_BUCKET_NAME}/config/neo4j/neo4j.conf ${NEO4J_HOME}/conf/neo4j.conf
 
-# TODO testing this as part of restore procedure
 neo4j.config.reset-auth: neo4j.config.backup
 	@echo "Resetting Neo4j authentication"
 	$(MAKE) neo4j.stop
 	@sed -i 's/#dbms.security.auth_enabled=false/dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
 	$(MAKE) neo4j.start
-	# TODO retrieve password from secrets manager and add as parameter
-	@echo "ALTER USER neo4j SET PASSWORD 'er3fXUQbk278'" | /opt/bitnami/neo4j/bin/cypher-shell -u neo4j -p neo4j -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687 -d system
+	@echo "ALTER USER neo4j SET PASSWORD '${NEO4J_PASSWORD}'" | /opt/bitnami/neo4j/bin/cypher-shell -u neo4j -p neo4j -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687 -d system
 	$(MAKE) neo4j.stop
 	@sed -i 's/dbms.security.auth_enabled=false/#dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
 	$(MAKE) neo4j.start
 
 neo4j.config.backup:
-	@echo "Backing up Neo4j configuration to ${NEO4J_HOME}/conf/$$(gdate -u +'%Y-%m-%d-%H-%M')-neo4j.conf.bkp"
-	@mv ${NEO4J_HOME}/conf/neo4j.conf ${NEO4J_HOME}/conf/$$(gdate -u +'%Y-%m-%d-%H-%M')-neo4j.conf.bkp"
+	@echo "Backing up Neo4j configuration to ${NEO4J_HOME}/conf/$$(date -u +'%Y-%m-%d-%H-%M')-neo4j.conf.bkp"
+	@cp "${NEO4J_HOME}/conf/neo4j.conf" "${NEO4J_HOME}/conf/$$(date -u +'%Y-%m-%d-%H-%M')-neo4j.conf.bkp"
 
 neo4j.plugins.install-apoc:
 	@echo "Downloading APOC Full plugin..."
@@ -218,21 +217,19 @@ neo4j.backup:
 	@rm ${BITNAMI_HOME}/gfedb.zip
 	$(MAKE) neo4j.start
 
-# TODO add server-side validation before running restore
-	# @echo "test: $$from_date"
-	# @[ "$$from_date" != "" ] || (echo "from_date is required" && exit 1) && \
-	# [ "$$(echo "$$from_date" | grep -E '^[0-9]{4}/[0-9]{2}/[0-9]{2}/[0-9]{2}$$')" ] || (echo "from_date must be in the format YYYY/MM/DD/HH" && exit 1) && \
-	# echo "running restore for $$from_date"
 neo4j.restore: #from_date=<YYYY/MM/DD/HH>
+	@echo "Received data restore request for date $$from_date"
+	@[ "$$from_date" != "" ] || (echo "from_date is required" && exit 1) && \
+	[ "$$(echo "$$from_date" | grep -E '^[0-9]{4}/[0-9]{2}/[0-9]{2}/[0-9]{2}$$')" ] || (echo "from_date must be in the format YYYY/MM/DD/HH" && exit 1) && \
+	echo "Running restore for $$from_date"
 	$(MAKE) neo4j.stop
 	@aws s3 cp s3://${DATA_BUCKET_NAME}/backups/neo4j/$$from_date/gfedb.zip ${BITNAMI_HOME}/gfedb.zip
 	@unzip -o ${BITNAMI_HOME}/gfedb.zip
 	@cp -r data/* ${BITNAMI_NEO4J}/data/
 	@chown -R neo4j:neo4j ${BITNAMI_NEO4J}/data/
 	@rm ${BITNAMI_HOME}/gfedb.zip
-	# @rm -r ${BITNAMI_HOME}/data/
-	# TODO reset auth
-	$(MAKE) neo4j.start
+	@rm -r ${BITNAMI_HOME}/data/
+	$(MAKE) neo4j.config.reset-auth
 
 # # TODO test
 # neo4j.import:
@@ -252,6 +249,11 @@ neo4j.drop-constraints:
 	@echo "Fetching cypher scripts from S3..."
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
 	@cat ${NEO4J_HOME}/cypher/drop_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
+
+# TODO integrate reporting, copy to S3 with logs
+neo4j.create-report:
+	@mkdir -p ${REPORTS_DIR}
+	@neo4j-admin check-consistency --database=neo4j --verbose=true --report-dir=reports > reports/consistency_check.txt
 
 ssl.create-cert:
 	@bash init/create_cert.sh "${SUBDOMAIN}.${HOST_DOMAIN}" ${ADMIN_EMAIL}
