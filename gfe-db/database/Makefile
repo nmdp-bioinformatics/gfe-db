@@ -1,8 +1,6 @@
 SERVICE := database
 EC2_KEY_PAIR_NAME := $${STAGE}-$${APP_NAME}-$${AWS_REGION}-neo4j-key
 
-# TODO: add brackets to environment variables passed from root Makefile
-
 target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
@@ -40,22 +38,12 @@ service.config.update-dns:
 	cat neo4j/neo4j.template | \
 	sed s"/# dbms.default_advertised_address=.*/dbms.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > neo4j/neo4j.conf
 
-# service.config.enable-ssh: #cidr=<value>
-# 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Enabling SSH access to EC2 instance" 2>&1 | tee -a $$CFN_LOG_PATH
-# 	@aws ec2 authorize-security-group-ingress \
-# 		--group-id "$$(aws ssm get-parameter \
-# 			--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseSecurityGroupName" | jq -r '.Parameter.Value')" \
-# 		--protocol tcp \
-# 		--port 22 \
-# 		--cidr "$$cidr" || true
-
 service.config.scripts.deploy:
 	@script_s3_path=s3://$$DATA_BUCKET_NAME/config/scripts/ && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying backup script to $$script_s3_path" 2>&1 \
 		| tee -a $$CFN_LOG_PATH && \
 	aws s3 cp --recursive scripts/ $$script_s3_path
 
-# TODO fetch from parameter store
 service.config.scripts.sync: service.config.scripts.deploy
 	@document_name="$$(aws ssm get-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/DatabaseSyncScriptsDocumentName" | jq -r '.Parameter.Value')" && \
@@ -99,11 +87,11 @@ service.backup:
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/bitnami && sudo make neo4j.backup]" \
 		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
-		--comment "${STAGE}=${APP_NAME} backup service"
+		--comment "${STAGE}=${APP_NAME} backup service" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
-# TODO add confirmation with prequisites (warnings to avoid losing data, make sure scripts are synced etc.)
+# TODO add confirmation with prequisites (warnings to avoid losing data, make sure scripts are synced etc.) ✅
 # TODO database restore: validate date parameter is given ✅ and in the correct format ✅
-# TODO move validation to the database/Makefile
+# TODO move validation to the database/Makefile ✅
 # TODO database restore: validate that the backup exists
 service.restore: #from_date=<YYYY/MM/DD/HH>
 	@[ "$$from_date" != "" ] || (echo "from_date is required" && exit 1) && \
@@ -113,7 +101,7 @@ service.restore: #from_date=<YYYY/MM/DD/HH>
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/bitnami && sudo make neo4j.restore from_date=$$from_date]" \
 		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
-		--comment "${STAGE}=${APP_NAME} restore service"
+		--comment "${STAGE}=${APP_NAME} restore service" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 delete: ##=> Delete resources
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH

@@ -9,7 +9,6 @@ export
 # Base settings, these should almost never change
 export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity --query Account --output text)
 
-# TODO: Application Configuration, can move to JSON
 export ROOT_DIR := $(shell pwd)
 export DATABASE_DIR := ${ROOT_DIR}/${APP_NAME}/database
 export LOGS_DIR := $(shell echo "${ROOT_DIR}/logs")
@@ -40,33 +39,6 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-# # TODO testing update env on database instance
-# export BITNAMI_HOME ?= ${DATABASE_DIR}/scripts
-# export NEO4J_CREDENTIALS_SECRET_ARN ?= $(shell aws ssm get-parameters \
-# 	--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentialsSecretArn" \
-# 	--output json \
-# 	| jq -r '.Parameters[0].Value')
-
-# test:
-# 	@echo "#!/bin/bash -x" >> ${BITNAMI_HOME}/env.sh
-# 	@echo "STAGE=${STAGE}" >> ${BITNAMI_HOME}/env.sh
-# 	@echo "APP_NAME=${APP_NAME}" >> ${BITNAMI_HOME}/env.sh
-# 	@echo "AWS_REGION=${AWS_REGION}" >> ${BITNAMI_HOME}/env.sh
-# 	@echo "DATA_BUCKET_NAME=${DATA_BUCKET_NAME}" >> ${BITNAMI_HOME}/env.sh
-# 	@echo "HOST_DOMAIN=${HOST_DOMAIN}" >> ${BITNAMI_HOME}/env.sh
-# 	@echo "SUBDOMAIN=${SUBDOMAIN}" >> ${BITNAMI_HOME}/env.sh
-# 	@echo "ADMIN_EMAIL=${ADMIN_EMAIL}" >> ${BITNAMI_HOME}/env.sh
-# 	@echo "APOC_VERSION=${APOC_VERSION}" >> ${BITNAMI_HOME}/env.sh
-# 	@echo "GDS_VERSION=${GDS_VERSION}" >> ${BITNAMI_HOME}/env.sh
-# 	@echo "BITNAMI_HOME=/home/bitnami" >> ${BITNAMI_HOME}/env.sh
-# 	@echo "NEO4J_HOME=/opt/bitnami/neo4j" >> ${BITNAMI_HOME}/env.sh
-# 	@echo "BITNAMI_NEO4J=/bitnami/neo4j" >> ${BITNAMI_HOME}/env.sh
-# 	@echo "NEO4J_CREDENTIALS_SECRET_ARN=${NEO4J_CREDENTIALS_SECRET_ARN}" >> ${BITNAMI_HOME}/env.sh
-# 	# @echo "# Make application variables available" >> ${BITNAMI_HOME}/.bashrc
-# 	# @echo "set -a && source /home/bitnami/env.sh && set +a" >> ${BITNAMI_HOME}/.bashrc
-
-
-# TODO: Update email and name for Submitter node
 deploy: logs.purge check.env ##=> Deploy services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) infrastructure.deploy
@@ -199,17 +171,9 @@ database.reboot:
 database.sync-scripts:
 	$(MAKE) -C ${APP_NAME}/database/ service.config.scripts.sync
 
-# TODO enable ssh
-# database.enable-ssh:
-# 	$(MAKE) -C ${APP_NAME}/database/ service.config.enable-ssh
-
 database.backup:
 	@echo "Backing up $${APP_NAME} server..."
 	$(MAKE) -C ${APP_NAME}/database/ service.backup
-
-# TODO List the available backups in the YYYY/MM/DD/HH format in ascending order
-# database.get.backups:
-# 	# List the available backups in the YYYY/MM/DD/HH format in ascending order
 
 # TODO call database.get.backups to list the available backups and prompt the user to select one
 database.restore: #from_date=<YYYY/MM/DD/HH>
