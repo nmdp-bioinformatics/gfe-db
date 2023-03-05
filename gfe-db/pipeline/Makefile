@@ -45,9 +45,6 @@ deploy.pipeline:
 deploy.jobs:
 	$(MAKE) -C jobs/ deploy
 
-# deploy.functions:
-# 	$(MAKE) -C functions/ deploy
-
 # TODO parameterize S3 config path and export as environment variable to recall in database shell scripts
 config.deploy:
 	@config_s3_path=s3://$$DATA_BUCKET_NAME/config/ && \

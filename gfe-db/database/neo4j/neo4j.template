@@ -245,7 +245,7 @@ dbms.security.allow_csv_import_from_file_urls=true
 #dbms.security.http_strict_transport_security=
 
 # Retention policy for transaction logs needed to perform recovery and backups.
-dbms.tx_log.rotation.retention_policy=1 days
+dbms.tx_log.rotation.retention_policy=keep_none
 
 # Only allow read operations from this Neo4j instance. This mode still requires
 # write access to the directory for lock purposes.

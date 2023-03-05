@@ -12,8 +12,6 @@ Parameters:
   GitHubPersonalAccessToken:
     Type: String
     NoEcho: true
-  HostedZoneId:
-    Type: String
     
 Mappings:
   # AvailabilityZoneMap defines availability zones where an m5d.xlarge instance is available (used for Neo4j server).
@@ -68,6 +66,9 @@ Resources:
   
   Route:
     Type: AWS::EC2::Route
+    DependsOn:
+      - InternetGateway
+      - VpcGatewayAttachment
     Properties:
       RouteTableId: !Ref RouteTable
       DestinationCidrBlock: 0.0.0.0/0

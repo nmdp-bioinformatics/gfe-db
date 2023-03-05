@@ -119,7 +119,7 @@ This list outlines the basic steps for deployment. For more details please see t
 2. [Set environment variables](#environment-variables)
 3. Check the [config JSONs](#data-pipeline-config) (parameters and state) and edit the values as desired
 4. Run `make deploy` to deploy the stacks to AWS
-5. Run `make database.load release=<version>` to load the Neo4j, or `make database.load release=<version> limit=<limit>` to run with a limited number of alleles
+5. Run `make database.load releases=<version>` to load the Neo4j, or `make database.load releases=<version> limit=<limit>` to run with a limited number of alleles
 6. Run `make database.get-credentials` to get the username and password for Neo4j
 7. Navigate to the Neo4j browser at the subdomain and host domain, for example `https://gfe-db.cloudftl.com:7473/browser/`
 
@@ -208,7 +208,7 @@ make delete
 ## Managing Configuration
 Configuring is managed using JSON files, SSM Parameter Store, Secrets Manager, and shell variables. To deploy changes in these files, run the command.
 ```bash
-make deploy.config
+make config.deploy
 ```
 
 ### Database Config
@@ -520,6 +520,7 @@ jupyter kernelspec uninstall gfe-db
 * Check your AWS credentials in `~/.aws/credentials`
 * Check that the environment variables have been exported
 * Check that Python 3.8 is being used
+* Make sure you are accessing Neo4j Browser using HTTPS, not HTTP (some browsers like Chrome will not show `https://` in the URL making it hard to tell)
 
 ## Authors
 **Primary Contact:** Gregory Lindsey ([@abk7777](https://github.com/abk7777))

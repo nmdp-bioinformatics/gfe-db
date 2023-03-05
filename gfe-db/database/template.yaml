@@ -22,8 +22,6 @@ Parameters:
     AllowedPattern: '((^[a-z0-9-]{1,}\.[a-z]{1,}$)|^$)'
   Subdomain:
     Type: String
-  HostedZoneId:
-    Type: String
   AdminEmail:
     Type: String
   APOCVersion:
@@ -47,13 +45,24 @@ Resources:
     Type: AWS::SecretsManager::Secret
     Properties:
       Name: !Sub "${AppName}-${Stage}-Neo4jCredentials"
-      Description: Must match the username/password specified in the Neo4j Dockerfile
+      Description: Must match the username/password specified in the Neo4j Dockerfile. Empty until the database is created.
       SecretString: '{"NEO4J_USERNAME":"","NEO4J_PASSWORD":""}'
       Tags:
         - Key: Stage
           Value: !Ref Stage
         - Key: AppName 
           Value: !Ref AppName
+
+  Neo4jCredentialsSecretArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn'
+      Description: "ARN for Neo4jCredentialsSecret"
+      Value: !Ref Neo4jCredentialsSecret
+      Tags:
+        Stage: !Ref Stage
+        AppName: !Ref AppName
 
   Neo4jDatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -87,14 +96,25 @@ Resources:
           IpProtocol: tcp
           ToPort: 7687
           Description: Neo4j Bolt driver access (required)
-        # - CidrIp: 0.0.0.0/0
-        #   FromPort: 22
-        #   IpProtocol: tcp
-        #   ToPort: 22
-        #   Description: Update IP to use MyIP
+        - CidrIp: 0.0.0.0/0
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
+          Description: Update IP to use MyIP
       Tags:
         - Key: Name
           Value: !Sub '${Stage}-${AppName}-neo4j-sg'
+
+  Neo4jDatabaseSecurityGroupNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupName'
+      Description: "Name of the Neo4jDatabaseSecurityGroup"
+      Value: !Ref Neo4jDatabaseSecurityGroup
+      Tags:
+        Stage: !Ref Stage
+        AppName: !Ref AppName
   
   Neo4jDatabaseInstance:
     Type: AWS::EC2::Instance
@@ -138,7 +158,8 @@ Resources:
           collectd \
           python3-setuptools \
           certbot \
-          git
+          git \
+          python3-pip
           export BITNAMI_HOME=/home/bitnami
           # CloudWatch Logs Agent
           mkdir -p /tmp/amazon-cloudwatch-agent
@@ -157,7 +178,7 @@ Resources:
           dpkg -i /tmp/ssm/amazon-ssm-agent.deb
           systemctl enable amazon-ssm-agent
           systemctl start amazon-ssm-agent
-          # Permanently set application environment variables (these should never change for the duration of the deployment)
+          # Permanently set application environment variables (these should never change for the duration of the deployment) # TODO: Move to Makefile target
           echo "STAGE=${Stage}" >> $BITNAMI_HOME/env.sh
           echo "APP_NAME=${AppName}" >> $BITNAMI_HOME/env.sh
           echo "AWS_REGION=${AWS::Region}" >> $BITNAMI_HOME/env.sh
@@ -167,8 +188,15 @@ Resources:
           echo "ADMIN_EMAIL=${AdminEmail}" >> $BITNAMI_HOME/env.sh
           echo "APOC_VERSION=${APOCVersion}" >> $BITNAMI_HOME/env.sh
           echo "GDS_VERSION=${GDSVersion}" >> $BITNAMI_HOME/env.sh
+          echo "BITNAMI_HOME=/home/bitnami" >> $BITNAMI_HOME/env.sh
           echo "NEO4J_HOME=/opt/bitnami/neo4j" >> $BITNAMI_HOME/env.sh
+          echo "BITNAMI_NEO4J=/bitnami/neo4j" >> $BITNAMI_HOME/env.sh
           echo "NEO4J_CREDENTIALS_SECRET_ARN=${Neo4jCredentialsSecret}" >> $BITNAMI_HOME/env.sh
+          echo "# Make application variables available" >> $BITNAMI_HOME/.bashrc
+          echo "set -a && source /home/bitnami/env.sh && set +a" >> $BITNAMI_HOME/.bashrc
+          # disable disruptive autoescaping in shells
+          echo "shopt -s direxpand" >> $BITNAMI_HOME/.bashrc
+          source $BITNAMI_HOME/.bashrc
           # Download Makefile from data bucket
           aws s3 cp --recursive s3://${DataBucketName}/config/scripts/ $BITNAMI_HOME/
           # cfn-signal
@@ -264,90 +292,68 @@ Resources:
       Description: "Instance ID for gfe-db Neo4j database instance"
       Value: !Ref Neo4jDatabaseInstance
 
-  # TODO add logs group and specify in command invocation
-  Neo4jBackupDocument: 
-    Type: AWS::SSM::Document
-    Properties:
-      DocumentType: "Command"
-      DocumentFormat: "YAML"
-      TargetType: "/AWS::EC2::Instance"
-      Content:
-        schemaVersion: "2.2"
-        description: "Neo4j to S3 backup"
-        parameters:
-          sourceType:
-            type: "String"
-            description: "(Required) Specify the source type."
-            default: "S3"
-          sourceInfo:
-            type: "StringMap"
-            description: "(Required) Specify the information required to access the resource from the source. If source type is GitHub, then you can specify any of the following: 'owner', 'repository', 'path', 'getOptions', 'tokenInfo'. If source type is S3, then you can specify 'path'."
-            default:
-              path: !Sub 'https://${DataBucketName}.s3.amazonaws.com/config/scripts/backup.sh'
-          commandLine:
-            type: "String"
-            description: "(Required) Specify the command line to be executed. The following formats of commands can be run: 'pythonMainFile.py argument1 argument2', 'ansible-playbook -i \"localhost,\" -c local example.yml'"
-            default: "backup.sh"
-          workingDirectory:
-            type: "String"
-            description: "Working directory"
-            default: "/home/ubuntu"
-          executionTimeout:
-            type: "String"
-            description: "(Optional) The time in seconds for a command to complete before it is considered to have failed. Default is 3600 (1 hour). Maximum is 28800 (8 hours)."
-            default: "86400"
-        mainSteps:
-          - action: "aws:downloadContent"
-            name: "downloadContent"
-            inputs:
-              sourceType: "{{ sourceType }}"
-              sourceInfo: "{{ sourceInfo }}"
-              destinationPath: "{{ workingDirectory }}"
-          - action: "aws:runShellScript"
-            name: "runShellScript"
-            inputs: 
-              runCommand:
-                - ""
-                - "directory=$(pwd)"
-                - "export PATH=$PATH:$directory"
-                - " {{ commandLine }} " 
-                - ""
-              workingDirectory: "{{ workingDirectory }}"
-              timeoutSeconds: "{{ executionTimeout }}"
+  # # TODO add logs group and specify in command invocation
+  # Neo4jBackupDocument: 
+  #   Type: AWS::SSM::Document
+  #   Properties:
+  #     DocumentType: "Command"
+  #     DocumentFormat: "YAML"
+  #     TargetType: "/AWS::EC2::Instance"
+  #     UpdateMethod: Replace
+  #     Content:
+  #       schemaVersion: "2.2"
+  #       description: "Neo4j to S3 backup"
+  #       parameters:
+  #         commandLine:
+  #           type: "String"
+  #           description: "(Required) Specify the command line to be executed. The following formats of commands can be run: 'pythonMainFile.py argument1 argument2', 'ansible-playbook -i \"localhost,\" -c local example.yml'"
+  #           default: "make neo4j.backup"
+  #         workingDirectory:
+  #           type: "String"
+  #           description: "Working directory"
+  #           default: "/home/bitnami"
+  #       mainSteps:
+  #         - action: "aws:runShellScript"
+  #           name: "runShellScript"
+  #           inputs: 
+  #             runCommand:
+  #               - "directory=$(pwd)"
+  #               - "export PATH=$PATH:$directory"
+  #               - "cd {{ workingDirectory }} && {{ commandLine }}"
 
-  Neo4jBackupMaintenanceWindow:
-    Type: AWS::SSM::MaintenanceWindow
-    Properties:
-      AllowUnassociatedTargets: false
-      Cutoff: 1
-      Description: !Sub "${AppName} Neo4j backup maintenance window"
-      Duration: 2
-      Name: BackupNeo4jMaintenanceWindow
-      Schedule: cron(0 0 ? * * *)
-      ScheduleTimezone: US/Eastern
+  # Neo4jBackupMaintenanceWindow:
+  #   Type: AWS::SSM::MaintenanceWindow
+  #   Properties:
+  #     AllowUnassociatedTargets: false
+  #     Cutoff: 1
+  #     Description: !Sub "${AppName} Neo4j backup maintenance window"
+  #     Duration: 2
+  #     Name: BackupNeo4jMaintenanceWindow
+  #     Schedule: cron(0 0 ? * * *)
+  #     ScheduleTimezone: US/Eastern
 
-  Neo4jBackupMaintenanceWindowTask:
-    Type: AWS::SSM::MaintenanceWindowTask
-    Properties:
-      Description: Backup a Neo4j instance
-      CutoffBehavior: CONTINUE_TASK
-      MaxConcurrency: 1
-      MaxErrors: 1
-      Priority: 0
-      TaskType: RUN_COMMAND
-      WindowId: !Ref Neo4jBackupMaintenanceWindow
-      TaskArn: !Ref Neo4jBackupDocument
-      Targets:
-        - Key: WindowTargetIds
-          Values:
-            - !Ref Neo4jBackupMaintenanceWindowTarget
+  # Neo4jBackupMaintenanceWindowTask:
+  #   Type: AWS::SSM::MaintenanceWindowTask
+  #   Properties:
+  #     Description: Backup a Neo4j instance
+  #     CutoffBehavior: CONTINUE_TASK
+  #     MaxConcurrency: 1
+  #     MaxErrors: 1
+  #     Priority: 0
+  #     TaskType: RUN_COMMAND
+  #     WindowId: !Ref Neo4jBackupMaintenanceWindow
+  #     TaskArn: !Ref Neo4jBackupDocument
+  #     Targets:
+  #       - Key: WindowTargetIds
+  #         Values:
+  #           - !Ref Neo4jBackupMaintenanceWindowTarget
 
-  Neo4jBackupMaintenanceWindowTarget:
-    Type: AWS::SSM::MaintenanceWindowTarget
-    Properties:
-      ResourceType: INSTANCE
-      Targets:
-        - Key: InstanceIds
-          Values:
-            - !Ref Neo4jDatabaseInstance
-      WindowId: !Ref Neo4jBackupMaintenanceWindow
+  # Neo4jBackupMaintenanceWindowTarget:
+  #   Type: AWS::SSM::MaintenanceWindowTarget
+  #   Properties:
+  #     ResourceType: INSTANCE
+  #     Targets:
+  #       - Key: InstanceIds
+  #         Values:
+  #           - !Ref Neo4jDatabaseInstance
+  #     WindowId: !Ref Neo4jBackupMaintenanceWindow
