@@ -230,6 +230,12 @@ get.logs: #=> Download all logs locally
 # # TODO get pipeline execution status
 # pipeline.status:
 
+docs.build:
+	@cd docs/ && make html
+
+docs.url:
+	@echo "$$(pwd)/docs/build/html/index.html"
+
 define HELP_MESSAGE
 
 	Environment variables:
