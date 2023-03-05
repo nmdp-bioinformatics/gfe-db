@@ -89,6 +89,9 @@ service.backup:
 		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
 		--comment "${STAGE}=${APP_NAME} backup service" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
+service.backup.list:
+	@aws s3 ls --recursive s3://${DATA_BUCKET_NAME}/backups/neo4j/ | cut -d' ' -f7 | cut -d'/' -f3-6 | sort -r
+
 # TODO add confirmation with prequisites (warnings to avoid losing data, make sure scripts are synced etc.) ✅
 # TODO database restore: validate date parameter is given ✅ and in the correct format ✅
 # TODO move validation to the database/Makefile ✅
