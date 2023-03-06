@@ -175,6 +175,9 @@ database.backup:
 	@echo "Backing up $${APP_NAME} server..."
 	$(MAKE) -C ${APP_NAME}/database/ service.backup
 
+database.backup.list:
+	$(MAKE) -C ${APP_NAME}/database/ service.backup.list
+
 # TODO call database.get.backups to list the available backups and prompt the user to select one
 database.restore: #from_date=<YYYY/MM/DD/HH>
 	@echo "Restoring $${APP_NAME} data to server..."
@@ -226,6 +229,12 @@ get.logs: #=> Download all logs locally
 
 # # TODO get pipeline execution status
 # pipeline.status:
+
+docs.build:
+	@cd docs/ && make html
+
+docs.url:
+	@echo "$$(pwd)/docs/build/html/index.html"
 
 define HELP_MESSAGE
 
