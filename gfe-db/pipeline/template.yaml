@@ -149,8 +149,11 @@ Resources:
       ContainerProperties:
         Image: !Sub '${ECRBaseUri}/${BuildServiceRepositoryName}:latest'
         Vcpus: 8
-        # TODO: Move Memory param to ResourceRequirements
-        Memory: 8000 # Keep this around half the available RAM to avoid getting stuck in RUNNABLE status 
+        # TODO: Memory param is deprecated, move to ResourceRequirements
+        Memory: 8000 # Keep this around half the available RAM to avoid getting stuck in RUNNABLE status
+        # ResourceRequirements:
+        #   Type: MEMORY
+        #   Value: 8000
         Command:
           - bash
           - run.sh

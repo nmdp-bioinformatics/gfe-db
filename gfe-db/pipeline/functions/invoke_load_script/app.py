@@ -6,7 +6,6 @@ import boto3
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# TODO: Environment variables
 neo4j_load_query_document_name = os.environ["NEO4J_LOAD_QUERY_DOCUMENT_NAME"]
 neo4j_database_instance_id_param = os.environ["NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM"]
 load_neo4j_activity = os.environ["LOAD_NEO4J_ACTIVITY"]

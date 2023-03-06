@@ -292,8 +292,6 @@ Resources:
       Description: "Instance ID for gfe-db Neo4j database instance"
       Value: !Ref Neo4jDatabaseInstance
 
-  # TODO implement backup
-  # TODO add logs group and specify in command invocation
   Neo4jBackupDocument: 
     Type: AWS::SSM::Document
     Properties:
@@ -322,7 +320,6 @@ Resources:
                 - "export PATH=$PATH:$directory"
                 - "cd {{ workingDirectory }} && {{ commandLine }}"
 
-  # TODO add maintenance window
   Neo4jBackupMaintenanceWindow:
     Type: AWS::SSM::MaintenanceWindow
     Properties:
