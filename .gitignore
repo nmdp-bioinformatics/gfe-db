@@ -96,8 +96,6 @@ data/
 logs/
 *.bak
 _*.*
-_reference/
-_deprecated/
 .github/_*
 payload.json
 response.json
