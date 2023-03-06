@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Introduction &mdash; gfe-db 1.0 documentation</title>
@@ -12,10 +12,10 @@
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
         <script src="_static/clipboard.min.js"></script>
         <script src="_static/copybutton.js"></script>
     <script src="_static/js/theme.js"></script>
@@ -30,11 +30,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> gfe-db
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            gfe-db
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -73,8 +77,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>Introduction</li>
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Introduction</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/introduction.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -85,9 +89,9 @@
            <div itemprop="articleBody">
              
   <section id="introduction">
-<h1>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline"></a></h1>
+<h1>Introduction<a class="headerlink" href="#introduction" title="Permalink to this heading"></a></h1>
 <section id="gene-feature-enumeration">
-<h2>Gene Feature Enumeration<a class="headerlink" href="#gene-feature-enumeration" title="Permalink to this headline"></a></h2>
+<h2>Gene Feature Enumeration<a class="headerlink" href="#gene-feature-enumeration" title="Permalink to this heading"></a></h2>
 <p>HLA genotyping via next generation sequencing (NGS) poses challenges for
 the use of HLA allele names to analyze and discuss sequence
 polymorphism. NGS will identify many new synonymous and non-coding HLA
@@ -104,7 +108,7 @@ enumeration notation that allows both more granular dissection of
 allele-level HLA polymorphism and the discussion and analysis of GFs in
 the absence of ARD-encoding exon sequences.</p>
 <section id="approach">
-<h3>Approach<a class="headerlink" href="#approach" title="Permalink to this headline"></a></h3>
+<h3>Approach<a class="headerlink" href="#approach" title="Permalink to this heading"></a></h3>
 <p>The unique sequences in each gene feature of a given HLA gene can be
 sequentially numbered, and applied to construct a new name for that
 allele consisting of one field for each GF, containing the unique number
@@ -119,14 +123,14 @@ string <code class="docutils literal notranslate"><span class="pre">HLA-Aw2-1-1-
 enumeration (GFE).</p>
 </section>
 <section id="references">
-<h3>References<a class="headerlink" href="#references" title="Permalink to this headline"></a></h3>
+<h3>References<a class="headerlink" href="#references" title="Permalink to this heading"></a></h3>
 <p><a class="reference external" href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4674356/">Mack SJ., Human Immunology,
 2015</a></p>
 </section>
 </section>
 <section id="architecture">
-<span id="id1"></span><h2>Architecture<a class="headerlink" href="#architecture" title="Permalink to this headline"></a></h2>
-<a class="reference internal image-reference" href="_images/arch-v220417.png"><img alt="_images/arch-v220417.png" class="align-center" src="_images/arch-v220417.png" style="width: 635.5px; height: 442.5px;" /></a>
+<span id="id1"></span><h2>Architecture<a class="headerlink" href="#architecture" title="Permalink to this heading"></a></h2>
+<a class="reference internal image-reference" href="_images/arch-v230305.png"><img alt="_images/arch-v230305.png" class="align-center" src="_images/arch-v230305.png" style="width: 635.0px; height: 442.5px;" /></a>
 <p>The AWS architecture for <code class="docutils literal notranslate"><span class="pre">gfe-db</span></code> is organized into 3 layers.</p>
 <ol class="arabic simple">
 <li><p><a class="reference internal" href="#infrastructure">Base Infrastructure</a></p></li>
@@ -137,32 +141,20 @@ enumeration (GFE).</p>
 configuration parameters are shared between resources using environment
 variables, JSON files, AWS SSM Parameter Store and Secrets Manager.</p>
 <section id="base-infrastructure">
-<span id="infrastructure"></span><h3>Base Infrastructure<a class="headerlink" href="#base-infrastructure" title="Permalink to this headline"></a></h3>
+<span id="infrastructure"></span><h3>Base Infrastructure<a class="headerlink" href="#base-infrastructure" title="Permalink to this heading"></a></h3>
 <p>The base infrastructure layer deploys a VPC, public subnet, S3 bucket,
 Elastic IP and common SSM parameters and secrets for the other services
 to use.</p>
 </section>
 <section id="database">
-<span id="id2"></span><h3>Database<a class="headerlink" href="#database" title="Permalink to this headline"></a></h3>
-<p>The database layer deploys an EC2 instance running the Neo4j Community
-Edition into a public subnet. During initialization,
-Cypher queries are run to create constraints and indexes, which help
-speed up loading and ensure data integrity. Neo4j is ready to be
-accessed through a browser once the instance has booted sucessfully.</p>
+<span id="id2"></span><h3>Database<a class="headerlink" href="#database" title="Permalink to this heading"></a></h3>
+<p>The database layer deploys an EC2 instance running the Bitnai Neo4j AMI (Ubuntu 18.04) into a public subnet. CloudFormation also creates an A record for a Route53 domain which is used for SSL. During initialization, an SSL certificate is created and Cypher queries are run to create constraints and indexes, which help speed up loading and ensure data integrity. Neo4j is ready to be accessed through a browser once the instance has booted sucessfully.</p>
+<p>During loading, the <code class="docutils literal notranslate"><span class="pre">invoke_load_script</span></code> Lambda function uses SSM Run Command to execute bash scripts on the daatabase instance. These scripts communicate with the Step Functions API to retrieve the job parameters, fetch the CSVs from S3 and load the alleles into Neo4j.</p>
+<p>It is also possible to backup &amp; restore to and from S3 by specific date checkpoints.</p>
 </section>
 <section id="data-pipeline">
-<span id="datapipeline"></span><h3>Data Pipeline<a class="headerlink" href="#data-pipeline" title="Permalink to this headline"></a></h3>
-<p>The data pipeline layer automates integration of newly released IMGT/HLA
-data into Neo4j using a scheduled Lambda which watches the source data
-repository and invokes the build and load processes when it detects a
-new IMGT/HLA version. The pipeline consists of a Step Functions state
-machine which orchestrates two basic processes: build and load. The
-build process employs a Batch job which produces an intermediate set of
-CSV files. The load process leverages SSM Run Command to copy the CSV
-files to the Neo4j server and execute Cypher statements directly on the
-server (server-side loading). When loading the full dataset of 35,000+
-alleles, the build step will generally take around 15 minutes, however
-the load step can take an hour or more.</p>
+<span id="datapipeline"></span><h3>Data Pipeline<a class="headerlink" href="#data-pipeline" title="Permalink to this heading"></a></h3>
+<p>The data pipeline layer automates integration of newly released IMGT/HLA data into Neo4j using a scheduled Lambda which watches the source data repository and invokes the build and load processes when it detects a new IMGT/HLA version. The pipeline consists of a Step Functions state machine which orchestrates two basic processes: build and load. The build process employs a Batch job which produces an intermediate set of CSV files. The load process leverages SSM Run Command to copy the CSV files to the Neo4j server and execute Cypher statements directly on the server (server-side loading). When loading the full dataset of 35,000+ alleles, the build step will generally take around 15 minutes, however the load step can take an hour or more.</p>
 </section>
 </section>
 </section>

@@ -8,7 +8,7 @@ gfe-db
 
 Graph database representing IPD-IMGT/HLA sequence data as GFE.
 
-.. image:: /_static/img/schema-alpha-v220511.png
+.. image:: /_static/img/schema-alpha-v230305.png
    :scale: 50%
    :align: center
 
