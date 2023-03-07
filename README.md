@@ -390,7 +390,7 @@ make pipeline.delete
 
 ### Backups
 
-Backups are orchestrated by Systems Manager. To create a backup, run the command.
+Backups are orchestrated by Systems Manager and automated everyday at midnight US/Central time by default. To create a backup, run the command.
 
 ```bash
 make database.backup
@@ -398,15 +398,15 @@ make database.backup
 
 This will create a backup of the Neo4j database and store it in S3 under the path `s3://<data bucket name>/backups/neo4j/YYYY/MM/DD/HH/gfedb.zip`.
 
+### Restore
+
 To see a list of available backup dates that can be restored, run the command.
 
 ```bash
 make database.backup.list
 ```
 
-### Restore
-
-To restore from a backup, run the command and pass the date of the backup you wish to restore using the format YYYY/MM/DD/HH.
+To restore from a backup, pass the date of the backup you wish to restore using the format YYYY/MM/DD/HH.
 
 ```bash
 make database.restore from_date=<YYYY/MM/DD/HH>

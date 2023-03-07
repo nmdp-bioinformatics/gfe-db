@@ -138,11 +138,19 @@ database.load.run: # args: align, kir, limit, releases
 	echo "$$payload" | jq > payload.json
 	@echo "Run pipeline with this payload? [y/N] \c " && read ans && [ $${ans:-N} = y ]
 	@function_name="${STAGE}"-"${APP_NAME}"-"$$(cat ${FUNCTIONS_PATH}/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.FunctionName')" && \
+	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Invoking $$function_name..." 2>&1 | tee -a ${CFN_LOG_PATH} && \
+	echo "Payload:" >> ${CFN_LOG_PATH} && \
+	cat payload.json >> ${CFN_LOG_PATH} && \
 	aws lambda invoke \
 		--cli-binary-format raw-in-base64-out \
 		--function-name "$$function_name" \
 		--payload file://payload.json \
-		response.json 2>&1
+		response.json \
+		--output json  >/dev/null 2>&1 && \
+	echo "Response:" >> ${CFN_LOG_PATH} && \
+	cat response.json | jq -r >> ${CFN_LOG_PATH} && \
+	rm payload.json response.json
+	
 
 # TODO database.load.status
 # TODO database.load.abort
