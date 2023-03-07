@@ -98,12 +98,12 @@ neo4j.config.update: neo4j.config.backup
 	@echo "Downloading Neo4j configuration from ${DATA_BUCKET_NAME}"
 	@aws s3 cp s3://${DATA_BUCKET_NAME}/config/neo4j/neo4j.conf ${NEO4J_HOME}/conf/neo4j.conf
 
-neo4j.config.reset-auth: neo4j.config.backup
+neo4j.config.reset-auth:
 	@echo "Resetting Neo4j authentication"
 	$(MAKE) neo4j.stop
 	@sed -i 's/#dbms.security.auth_enabled=false/dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
 	$(MAKE) neo4j.start
-	@echo "ALTER USER neo4j SET PASSWORD '${NEO4J_PASSWORD}'" | /opt/bitnami/neo4j/bin/cypher-shell -u neo4j -p neo4j -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687 -d system
+	@-echo "ALTER USER neo4j SET PASSWORD '${NEO4J_PASSWORD}'" | /opt/bitnami/neo4j/bin/cypher-shell -u neo4j -p neo4j -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687 -d system
 	$(MAKE) neo4j.stop
 	@sed -i 's/dbms.security.auth_enabled=false/#dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
 	$(MAKE) neo4j.start

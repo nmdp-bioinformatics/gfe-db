@@ -292,68 +292,67 @@ Resources:
       Description: "Instance ID for gfe-db Neo4j database instance"
       Value: !Ref Neo4jDatabaseInstance
 
-  # # TODO add logs group and specify in command invocation
-  # Neo4jBackupDocument: 
-  #   Type: AWS::SSM::Document
-  #   Properties:
-  #     DocumentType: "Command"
-  #     DocumentFormat: "YAML"
-  #     TargetType: "/AWS::EC2::Instance"
-  #     UpdateMethod: Replace
-  #     Content:
-  #       schemaVersion: "2.2"
-  #       description: "Neo4j to S3 backup"
-  #       parameters:
-  #         commandLine:
-  #           type: "String"
-  #           description: "(Required) Specify the command line to be executed. The following formats of commands can be run: 'pythonMainFile.py argument1 argument2', 'ansible-playbook -i \"localhost,\" -c local example.yml'"
-  #           default: "make neo4j.backup"
-  #         workingDirectory:
-  #           type: "String"
-  #           description: "Working directory"
-  #           default: "/home/bitnami"
-  #       mainSteps:
-  #         - action: "aws:runShellScript"
-  #           name: "runShellScript"
-  #           inputs: 
-  #             runCommand:
-  #               - "directory=$(pwd)"
-  #               - "export PATH=$PATH:$directory"
-  #               - "cd {{ workingDirectory }} && {{ commandLine }}"
+  Neo4jBackupDocument: 
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: "Command"
+      DocumentFormat: "YAML"
+      TargetType: "/AWS::EC2::Instance"
+      UpdateMethod: Replace
+      Content:
+        schemaVersion: "2.2"
+        description: "Neo4j to S3 backup"
+        parameters:
+          commandLine:
+            type: "String"
+            description: "(Required) Specify the command line to be executed. The following formats of commands can be run: 'pythonMainFile.py argument1 argument2', 'ansible-playbook -i \"localhost,\" -c local example.yml'"
+            default: "make neo4j.backup"
+          workingDirectory:
+            type: "String"
+            description: "Working directory"
+            default: "/home/bitnami"
+        mainSteps:
+          - action: "aws:runShellScript"
+            name: "runShellScript"
+            inputs: 
+              runCommand:
+                - "directory=$(pwd)"
+                - "export PATH=$PATH:$directory"
+                - "cd {{ workingDirectory }} && {{ commandLine }}"
 
-  # Neo4jBackupMaintenanceWindow:
-  #   Type: AWS::SSM::MaintenanceWindow
-  #   Properties:
-  #     AllowUnassociatedTargets: false
-  #     Cutoff: 1
-  #     Description: !Sub "${AppName} Neo4j backup maintenance window"
-  #     Duration: 2
-  #     Name: BackupNeo4jMaintenanceWindow
-  #     Schedule: cron(0 0 ? * * *)
-  #     ScheduleTimezone: US/Eastern
+  Neo4jBackupMaintenanceWindow:
+    Type: AWS::SSM::MaintenanceWindow
+    Properties:
+      AllowUnassociatedTargets: false
+      Cutoff: 0
+      Description: !Sub "${AppName} Neo4j backup maintenance window"
+      Duration: 1
+      Name: BackupNeo4jMaintenanceWindow
+      Schedule: cron(0 0 ? * * *)
+      ScheduleTimezone: US/Central
 
-  # Neo4jBackupMaintenanceWindowTask:
-  #   Type: AWS::SSM::MaintenanceWindowTask
-  #   Properties:
-  #     Description: Backup a Neo4j instance
-  #     CutoffBehavior: CONTINUE_TASK
-  #     MaxConcurrency: 1
-  #     MaxErrors: 1
-  #     Priority: 0
-  #     TaskType: RUN_COMMAND
-  #     WindowId: !Ref Neo4jBackupMaintenanceWindow
-  #     TaskArn: !Ref Neo4jBackupDocument
-  #     Targets:
-  #       - Key: WindowTargetIds
-  #         Values:
-  #           - !Ref Neo4jBackupMaintenanceWindowTarget
+  Neo4jBackupMaintenanceWindowTask:
+    Type: AWS::SSM::MaintenanceWindowTask
+    Properties:
+      Description: Backup a Neo4j instance
+      CutoffBehavior: CONTINUE_TASK
+      MaxConcurrency: 1
+      MaxErrors: 1
+      Priority: 0
+      TaskType: RUN_COMMAND
+      WindowId: !Ref Neo4jBackupMaintenanceWindow
+      TaskArn: !Ref Neo4jBackupDocument
+      Targets:
+        - Key: WindowTargetIds
+          Values:
+            - !Ref Neo4jBackupMaintenanceWindowTarget
 
-  # Neo4jBackupMaintenanceWindowTarget:
-  #   Type: AWS::SSM::MaintenanceWindowTarget
-  #   Properties:
-  #     ResourceType: INSTANCE
-  #     Targets:
-  #       - Key: InstanceIds
-  #         Values:
-  #           - !Ref Neo4jDatabaseInstance
-  #     WindowId: !Ref Neo4jBackupMaintenanceWindow
+  Neo4jBackupMaintenanceWindowTarget:
+    Type: AWS::SSM::MaintenanceWindowTarget
+    Properties:
+      ResourceType: INSTANCE
+      Targets:
+        - Key: InstanceIds
+          Values:
+            - !Ref Neo4jDatabaseInstance
+      WindowId: !Ref Neo4jBackupMaintenanceWindow

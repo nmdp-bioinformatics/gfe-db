@@ -6,7 +6,6 @@ import boto3
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# TODO: Environment variables
 neo4j_load_query_document_name = os.environ["NEO4J_LOAD_QUERY_DOCUMENT_NAME"]
 neo4j_database_instance_id_param = os.environ["NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM"]
 load_neo4j_activity = os.environ["LOAD_NEO4J_ACTIVITY"]
@@ -34,7 +33,7 @@ def lambda_handler(event, context):
         --document-name "dev-gfe-db-database-Neo4jLoadQueryDocument-UgYcOg48yiQB" \
         --document-version "1" \
         --targets '[{"Key":"InstanceIds","Values":["i-0f8ec07e314226283"]}]' \
-        --parameters '{"executionTimeout":["3600"],"sourceInfo":["{\"path\":\"https://dev-gfe-db-531868584498-us-east-1.s3.amazonaws.com/config/scripts/load_db.sh\"}"],"sourceType":["S3"],"workingDirectory":["/home/ubuntu"],"commandLine":["bash load_db.sh"]}' \
+        --parameters '{"executionTimeout":["3600"],"sourceInfo":["{\"path\":\"https://<data bucket name>.s3.amazonaws.com/config/scripts/load_db.sh\"}"],"sourceType":["S3"],"workingDirectory":["/home/ubuntu"],"commandLine":["bash load_db.sh"]}' \
         --timeout-seconds 600 \
         --max-concurrency "50" \
         --max-errors "0" \

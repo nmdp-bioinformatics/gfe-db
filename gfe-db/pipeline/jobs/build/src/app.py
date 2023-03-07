@@ -38,7 +38,6 @@ region = os.environ["AWS_REGION"]
 failed_alleles_queue = os.environ["FAILED_ALLELES_QUEUE"]
 failed_alleles_queue_name = failed_alleles_queue.split("/")[-1]
 
-# TODO: BOOKMARK 2/8/22 - add region, debug script
 sqs = boto3.client('sqs', region_name=region)
 
 # Outputs memory of objects during execution to check for memory leaks
@@ -614,7 +613,6 @@ if __name__ == '__main__':
                 logger.warn(f'Skipping allele {hla_name} for locus {locus}')
         except:
             try:
-                # TODO: send failed allele to queue for reprocessing
                 logger.info(f'Sending message to {failed_alleles_queue_name}')
                 response = sqs.send_message(
                     QueueUrl=failed_alleles_queue,

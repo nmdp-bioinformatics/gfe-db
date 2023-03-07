@@ -94,7 +94,6 @@ fi
     # load alignments
 
 # TODO: if $? == 0 for all queries, send TaskSuccess to StepFunctions API
-# TODO: remove CSV files
 echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Cleaning up"
 rm -r $NEO4J_IMPORT_PATH/*
 

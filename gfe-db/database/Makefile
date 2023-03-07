@@ -50,7 +50,7 @@ service.config.scripts.sync: service.config.scripts.deploy
 	aws ssm send-command \
 		--document-name "$$document_name" \
 		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
-		--comment "${STAGE}=${APP_NAME} backup service"
+		--comment "${STAGE}=${APP_NAME} backup service" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 service.config.cloudwatch-agent.deploy:
 	@mkdir -p amazon-cloudwatch-agent/tmp/ 
