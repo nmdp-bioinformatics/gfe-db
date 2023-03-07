@@ -100,11 +100,19 @@ service.restore: #from_date=<YYYY/MM/DD/HH>
 	@[ "$$from_date" != "" ] || (echo "from_date is required" && exit 1) && \
 	[ "$$(echo "$$from_date" | grep -E '^[0-9]{4}/[0-9]{2}/[0-9]{2}/[0-9]{2}$$')" ] || (echo "from_date must be in the format YYYY/MM/DD/HH" && exit 1) && \
 	echo "Restore $${APP_NAME} from date $$from_date? [y/N] \c " && read ans && [ $${ans:-N} = y ]
+	$(MAKE) service.restore.pre-validate from_date=$$from_date
 	@aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/bitnami && sudo make neo4j.restore from_date=$$from_date]" \
 		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
 		--comment "${STAGE}=${APP_NAME} restore service" 2>&1 | tee -a $$CFN_LOG_PATH || true
+
+service.restore.pre-validate:
+	@echo "Validating restore pre-conditions"
+	@echo "Checking if backup exists"
+	@backup_object=$$(aws s3 ls --recursive s3://${DATA_BUCKET_NAME}/backups/neo4j/$$from_date/ | cut -d' ' -f7 | cut -d'/' -f3-6) && \
+	[ "$$backup_object" != "" ] || (echo "ERROR: Backup does not exist" && exit 1) && \
+	echo "Found backup for $$backup_object"
 
 delete: ##=> Delete resources
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
