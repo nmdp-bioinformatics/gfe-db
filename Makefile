@@ -119,11 +119,14 @@ database.deploy:
 pipeline.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ deploy
 
+pipeline.functions.deploy:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.functions.deploy
+
 pipeline.jobs.deploy:
-	$(MAKE) -C ${APP_NAME}/pipeline/jobs/ deploy
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.jobs.deploy
 
 config.deploy:
-	$(MAKE) -C ${APP_NAME}/pipeline/ config.deploy
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.config.deploy
 	$(MAKE) -C ${APP_NAME}/database/ config.deploy
 
 monitoring.subscribe:
@@ -227,8 +230,11 @@ database.delete:
 pipeline.delete:
 	$(MAKE) -C ${APP_NAME}/pipeline/ delete
 
+pipeline.functions.delete:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.functions.delete
+
 pipeline.jobs.delete:
-	$(MAKE) -C ${APP_NAME}/pipeline/jobs/ delete
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.jobs.delete
 
 # Administrative functions
 get.data: #=> Download the build data locally
