@@ -126,6 +126,9 @@ config.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ config.deploy
 	$(MAKE) -C ${APP_NAME}/database/ config.deploy
 
+monitoring.subscribe:
+	$(MAKE) -C ${APP_NAME}/infrastructure service.monitoring.subscribe
+
 # TODO fix output & error handling
 database.load.run: # args: align, kir, limit, releases
 	@echo "Confirm payload:" && \
