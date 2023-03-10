@@ -165,6 +165,7 @@ For more information visit the documentation page:
 #### Shell Variables
 These variables must be defined before running Make. The best way to set these variables is with a `.env` file following this structure.
 ```bash
+# .env
 STAGE=<dev or prod>
 APP_NAME=gfe-db
 AWS_REGION=<AWS region>
@@ -172,10 +173,25 @@ GITHUB_PERSONAL_ACCESS_TOKEN=<secret>
 HOST_DOMAIN=<fully qualified domain name>
 SUBDOMAIN=<subdomain>
 ADMIN_EMAIL=<email>
+SUBSCRIBE_EMAILS=<email>,<email>,<email>,...
 APOC_VERSION=4.4.0.3
 GDS_VERSION=2.0.1
 NEO4J_AMI_ID=<ami ID>
 ```
+
+| Variable Name                | Example Value                      | Type   | Description                                      |
+| ---------------------------- | ---------------------------------- | ------ | ------------------------------------------------ |
+| STAGE                        | dev                                | string | The stage of the application.                    |
+| APP_NAME                     | gfe-db                             | string | The name of the application.                     |
+| AWS_REGION                   | us-east-1                          | string | The AWS region to deploy to.                     |
+| GITHUB_PERSONAL_ACCESS_TOKEN | <secret value>                     | string | GitHub PAT for repository access                 |
+| HOST_DOMAIN                  | mydomain.com                       | string | The domain to deploy to.                         |
+| SUBDOMAIN                    | gfe-db                             | string | The subdomain to deploy to.                      |
+| ADMIN_EMAIL                  | user@company.com                   | string | Admin's email required for SSL certificate       |
+| SUBSCRIBE_EMAILS             | user@company.com,user2@company.com | string | Comma-separated list of emails for notifications |
+| APOC_VERSION                 | 4.4.0.3                            | string | APOC version for Neo4j                           |
+| GDS_VERSION                  | 2.0.1                              | string | GDS version for Neo4j                            |
+| NEO4J_AMI_ID                 | ami-0b9a2b6b1c5b8b5b9              | string | Bitnami Neo4j AMI ID                             |
 
 ***Important**:* *Always use a `.env` file or AWS SSM Parameter Store or Secrets Manager for sensitive variables like credentials and API keys. Never hard-code them, including when developing. AWS will quarantine an account if any credentials get accidentally exposed and this will cause problems. Make sure to update `.gitignore` to avoid pushing sensitive data to public repositories.*
 
@@ -289,12 +305,12 @@ Base input parameters (excluding the `releases` value) are passed to the Step Fu
 }
 
 ```
-| Variable       | Example Value                    | Type             | Description                                                                                                               |
-|----------------|----------------------------------|------------------|---------------------------------------------------------------------------------------------------------------------------|
-| LIMIT          | 1000                             | string           | Number of alleles to build. Leave blank ("") to build all alleles.                                                        |
-| ALIGN          | False                            | string           | Include or exclude alignments in the build                                                                                |
-| KIR            | False                            | string           | Include or exclude KIR data alignments in the build                                                                        |
-| MEM_PROFILE    | False                            | string           | Enable memory profiling (for catching memory leaks during build)                                                          |
+| Variable    | Example Value | Type   | Description                                                        |
+| ----------- | ------------- | ------ | ------------------------------------------------------------------ |
+| LIMIT       | 1000          | string | Number of alleles to build. Leave blank ("") to build all alleles. |
+| ALIGN       | False         | string | Include or exclude alignments in the build                         |
+| KIR         | False         | string | Include or exclude KIR data alignments in the build                |
+| MEM_PROFILE | False         | string | Enable memory profiling (for catching memory leaks during build)   |
 
 The data pipeline can also be invoked from the command line:
 ```bash
@@ -319,7 +335,7 @@ The application's state tracks which releases have been processed and added to t
 ```
 
 | Variable       | Example Value                    | Type             | Description                                                                                                               |
-|----------------|----------------------------------|------------------|---------------------------------------------------------------------------------------------------------------------------|
+| -------------- | -------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | repository_url | https://github.com/ANHIG/IMGTHLA | string           | The repository the trigger is watching                                                                                    |
 | releases       | ["3100", ..., "3510"]            | array of strings | List of available releases. Any release added to the repository that is not in this list will trigger the pipeline build. |
 

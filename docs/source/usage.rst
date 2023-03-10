@@ -73,6 +73,7 @@ following these steps.
 
 .. code:: bash
 
+    # .env
     STAGE=<dev or prod>
     APP_NAME=gfe-db
     AWS_REGION=<AWS region>
@@ -80,9 +81,38 @@ following these steps.
     HOST_DOMAIN=<Fully qualified domain name>
     SUBDOMAIN=<subdomain>
     ADMIN_EMAIL=<email>
+    SUBSCRIBE_EMAILS=<email>,<email>,<email>,...
     APOC_VERSION=4.4.0.3
     GDS_VERSION=2.0.1
     NEO4J_AMI_ID=ami-04aa5da301f99bf58 # Bitnami Neo4j image available through AWS Marketplace
+
+
++-----------------------------+----------------------------------+--------+--------------------------------------------------+
+| Variable Name               | Example Value                    | Type   | Description                                      |
++=============================+==================================+========+==================================================+
+| STAGE                       | dev                              | string | The stage of the application                     |
++-----------------------------+----------------------------------+--------+--------------------------------------------------+
+| APP_NAME                    | gfe-db                           | string | The name of the application                      |
++-----------------------------+----------------------------------+--------+--------------------------------------------------+
+| AWS_REGION                  | us-east-1                        | string | The AWS region to deploy to                      |
++-----------------------------+----------------------------------+--------+--------------------------------------------------+
+| GITHUB_PERSONAL_ACCESS_TOKEN| <secret value>                   | string | GitHub PAT for repository access                 |
++-----------------------------+----------------------------------+--------+--------------------------------------------------+
+| HOST_DOMAIN                 | cloudftl.com                     | string | The domain to deploy to                          |
++-----------------------------+----------------------------------+--------+--------------------------------------------------+
+| SUBDOMAIN                   | gfe-db                           | string | The subdomain to deploy to                       |
++-----------------------------+----------------------------------+--------+--------------------------------------------------+
+| ADMIN_EMAIL                 | user@company.com                 | string | Admin's email required for SSL certificate       |
++-----------------------------+----------------------------------+--------+--------------------------------------------------+
+| SUBSCRIBE_EMAILS            | user@abc.com,user2@abc.com       | string | Comma-separated list of emails for notifications |
++-----------------------------+----------------------------------+--------+--------------------------------------------------+
+| APOC_VERSION                | 4.4.0.3                          | string | APOC version for Neo4j                           |
++-----------------------------+----------------------------------+--------+--------------------------------------------------+
+| GDS_VERSION                 | 2.0.1                            | string | GDS version for Neo4j                            |
++-----------------------------+----------------------------------+--------+--------------------------------------------------+
+| NEO4J_AMI_ID                | ami-0b9a2b6b1c5b8b5b9            | string | Bitnami Neo4j AMI ID                             |
++-----------------------------+----------------------------------+--------+--------------------------------------------------+
+
 
 .. important::
 

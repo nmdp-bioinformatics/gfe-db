@@ -7,7 +7,7 @@ target:
 deploy: 
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $${CFN_LOG_PATH}
 	$(MAKE) service.deploy
-	$(MAKE) service.monitoring.subscribe
+	$(MAKE) service.monitoring.create-subscriptions
 
 # TODO test AWSCLI output and validate the stack was created successfully
 service.deploy:
@@ -23,7 +23,7 @@ service.deploy:
 			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN" \
 			HostedZoneId="$${HOSTED_ZONE_ID}" 2>&1 | tee -a $${CFN_LOG_PATH} || true
 
-service.monitoring.subscribe:
+service.monitoring.create-subscriptions:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Creating SNS topic subscriptions" 2>&1 | tee -a $${CFN_LOG_PATH}
 	@topic_arn=$$(aws ssm get-parameters \
 		--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/DataPipelineErrorsTopicArn" \

@@ -129,8 +129,8 @@ config.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.config.deploy
 	$(MAKE) -C ${APP_NAME}/database/ config.deploy
 
-monitoring.subscribe:
-	$(MAKE) -C ${APP_NAME}/infrastructure service.monitoring.subscribe
+monitoring.create-subscriptions:
+	$(MAKE) -C ${APP_NAME}/infrastructure service.monitoring.create-subscriptions
 
 # TODO fix output & error handling
 database.load.run: # args: align, kir, limit, releases
@@ -213,6 +213,7 @@ database.get.credentials:
 database.get.instance-id:
 	@echo "${INSTANCE_ID}"
 
+# TODO add confirmation to proceed
 delete: # data=true/false ##=> Delete services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${APP_NAME} in ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) pipeline.delete
@@ -228,7 +229,7 @@ database.delete:
 	$(MAKE) -C ${APP_NAME}/database/ delete
 
 pipeline.delete:
-	$(MAKE) -C ${APP_NAME}/pipeline/ delete
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.delete
 
 pipeline.functions.delete:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.functions.delete
