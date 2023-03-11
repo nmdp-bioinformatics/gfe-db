@@ -683,6 +683,14 @@ Delete specific stacks (may cause issues due to missing or stale dependencies):
 
    make pipeline.delete
 
+Notification Subscriptions
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+Unsubscribe using console.
+
+.. code:: bash
+
+    make monitoring.subscribe-email email=<email>
+
 Build documentation
 ~~~~~~~~~~~~~~~~~~~
 

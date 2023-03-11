@@ -158,18 +158,86 @@ following these steps.</p>
 <ol class="arabic simple">
 <li><p>Create a <code class="docutils literal notranslate"><span class="pre">.env</span></code> file in the project root and add the values.</p></li>
 </ol>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">STAGE</span><span class="o">=</span>&lt;dev<span class="w"> </span>or<span class="w"> </span>prod&gt;
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># .env</span>
+<span class="nv">STAGE</span><span class="o">=</span>&lt;dev<span class="w"> </span>or<span class="w"> </span>prod&gt;
 <span class="nv">APP_NAME</span><span class="o">=</span>gfe-db
 <span class="nv">AWS_REGION</span><span class="o">=</span>&lt;AWS<span class="w"> </span>region&gt;
 <span class="nv">GITHUB_PERSONAL_ACCESS_TOKEN</span><span class="o">=</span>&lt;secret&gt;
 <span class="nv">HOST_DOMAIN</span><span class="o">=</span>&lt;Fully<span class="w"> </span>qualified<span class="w"> </span>domain<span class="w"> </span>name&gt;
 <span class="nv">SUBDOMAIN</span><span class="o">=</span>&lt;subdomain&gt;
 <span class="nv">ADMIN_EMAIL</span><span class="o">=</span>&lt;email&gt;
+<span class="nv">SUBSCRIBE_EMAILS</span><span class="o">=</span>&lt;email&gt;,&lt;email&gt;,&lt;email&gt;,...
 <span class="nv">APOC_VERSION</span><span class="o">=</span><span class="m">4</span>.4.0.3
 <span class="nv">GDS_VERSION</span><span class="o">=</span><span class="m">2</span>.0.1
 <span class="nv">NEO4J_AMI_ID</span><span class="o">=</span>ami-04aa5da301f99bf58<span class="w"> </span><span class="c1"># Bitnami Neo4j image available through AWS Marketplace</span>
 </pre></div>
 </div>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Variable Name</p></th>
+<th class="head"><p>Example Value</p></th>
+<th class="head"><p>Type</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>STAGE</p></td>
+<td><p>dev</p></td>
+<td><p>string</p></td>
+<td><p>The stage of the application</p></td>
+</tr>
+<tr class="row-odd"><td><p>APP_NAME</p></td>
+<td><p>gfe-db</p></td>
+<td><p>string</p></td>
+<td><p>The name of the application</p></td>
+</tr>
+<tr class="row-even"><td><p>AWS_REGION</p></td>
+<td><p>us-east-1</p></td>
+<td><p>string</p></td>
+<td><p>The AWS region to deploy to</p></td>
+</tr>
+<tr class="row-odd"><td><p>GITHUB_PERSONAL_ACCESS_TOKEN</p></td>
+<td><p>&lt;secret value&gt;</p></td>
+<td><p>string</p></td>
+<td><p>GitHub PAT for repository access</p></td>
+</tr>
+<tr class="row-even"><td><p>HOST_DOMAIN</p></td>
+<td><p>cloudftl.com</p></td>
+<td><p>string</p></td>
+<td><p>The domain to deploy to</p></td>
+</tr>
+<tr class="row-odd"><td><p>SUBDOMAIN</p></td>
+<td><p>gfe-db</p></td>
+<td><p>string</p></td>
+<td><p>The subdomain to deploy to</p></td>
+</tr>
+<tr class="row-even"><td><p>ADMIN_EMAIL</p></td>
+<td><p><a class="reference external" href="mailto:user&#37;&#52;&#48;company&#46;com">user<span>&#64;</span>company<span>&#46;</span>com</a></p></td>
+<td><p>string</p></td>
+<td><p>Admin’s email required for SSL certificate</p></td>
+</tr>
+<tr class="row-odd"><td><p>SUBSCRIBE_EMAILS</p></td>
+<td><p><a class="reference external" href="mailto:user&#37;&#52;&#48;abc&#46;com">user<span>&#64;</span>abc<span>&#46;</span>com</a>,user2&#64;abc.com</p></td>
+<td><p>string</p></td>
+<td><p>Comma-separated list of emails for notifications</p></td>
+</tr>
+<tr class="row-even"><td><p>APOC_VERSION</p></td>
+<td><p>4.4.0.3</p></td>
+<td><p>string</p></td>
+<td><p>APOC version for Neo4j</p></td>
+</tr>
+<tr class="row-odd"><td><p>GDS_VERSION</p></td>
+<td><p>2.0.1</p></td>
+<td><p>string</p></td>
+<td><p>GDS version for Neo4j</p></td>
+</tr>
+<tr class="row-even"><td><p>NEO4J_AMI_ID</p></td>
+<td><p>ami-0b9a2b6b1c5b8b5b9</p></td>
+<td><p>string</p></td>
+<td><p>Bitnami Neo4j AMI ID</p></td>
+</tr>
+</tbody>
+</table>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
 <p>Always use a <code class="docutils literal notranslate"><span class="pre">.env</span></code> file, AWS SSM Parameter Store, or

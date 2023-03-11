@@ -5,12 +5,13 @@ target:
 	@exit 0
 
 deploy: 
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
-	$(MAKE) deploy.cfn
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $${CFN_LOG_PATH}
+	$(MAKE) service.deploy
+	$(MAKE) service.monitoring.create-subscriptions
 
 # TODO test AWSCLI output and validate the stack was created successfully
-deploy.cfn:
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying CloudFormation" 2>&1 | tee -a $$CFN_LOG_PATH
+service.deploy:
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying CloudFormation" 2>&1 | tee -a $${CFN_LOG_PATH}
 	@aws cloudformation deploy \
 		--region $${AWS_REGION} \
 		--template-file template.yaml \
@@ -20,22 +21,48 @@ deploy.cfn:
 			AppName="$${APP_NAME}" \
 			DataBucketName="$$DATA_BUCKET_NAME" \
 			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN" \
-			HostedZoneId="$${HOSTED_ZONE_ID}" 2>&1 | tee -a $$CFN_LOG_PATH || true
+			HostedZoneId="$${HOSTED_ZONE_ID}" 2>&1 | tee -a $${CFN_LOG_PATH} || true
+
+service.monitoring.create-subscriptions:
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Creating SNS topic subscriptions" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@topic_arn=$$(aws ssm get-parameters \
+		--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/DataPipelineErrorsTopicArn" \
+		--with-decryption \
+		--query "Parameters[0].Value" \
+		--output text) && \
+	for EMAIL in $$(echo $${SUBSCRIBE_EMAILS} | sed 's/,/ /g'); do \
+		aws sns subscribe \
+			--topic-arn "$$topic_arn" \
+			--protocol email \
+			--notification-endpoint "$$EMAIL" 2>&1 | tee -a $${CFN_LOG_PATH} || true; \
+	done
+
+service.monitoring.subscribe-email: #email=<string>
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Creating SNS topic subscription" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@topic_arn=$$(aws ssm get-parameters \
+		--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/DataPipelineErrorsTopicArn" \
+		--with-decryption \
+		--query "Parameters[0].Value" \
+		--output text) && \
+	aws sns subscribe \
+		--topic-arn "$$topic_arn" \
+		--protocol email \
+		--notification-endpoint "$$email" 2>&1 | tee -a $${CFN_LOG_PATH} || true;
 
 delete: ##=> Delete resources
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $${CFN_LOG_PATH}
 ifeq ($(data),true)
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting data in $$DATA_BUCKET_NAME" 2>&1 | tee -a $$CFN_LOG_PATH
-	@aws s3 rm --recursive s3://$$DATA_BUCKET_NAME/
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting data in $$DATA_BUCKET_NAME" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@aws s3 rm --recursive s3://$${DATA_BUCKET_NAME}/
 endif
-	$(MAKE) delete.cfn
+	$(MAKE) service.delete
 
-delete.cfn:
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting CloudFormation" 2>&1 | tee -a $$CFN_LOG_PATH
+service.delete:
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting CloudFormation" 2>&1 | tee -a $${CFN_LOG_PATH}
 	@aws cloudformation delete-stack \
-		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
+		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $${CFN_LOG_PATH} || true && \
 	aws cloudformation wait stack-delete-complete \
-		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH || true
+		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $${CFN_LOG_PATH} || true
 
 #############
 #  Helpers  #

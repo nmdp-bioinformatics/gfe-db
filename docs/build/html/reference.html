@@ -129,6 +129,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#backup-restore">Backup &amp; restore</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sync-and-retrieve-logs-data-and-configuration-values">Sync and retrieve logs, data and configuration values</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#tear-down-infrastructure">Tear down infrastructure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#notification-subscriptions">Notification Subscriptions</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#build-documentation">Build documentation</a></li>
 </ul>
 </li>
@@ -864,6 +865,13 @@ command line.</p>
 </pre></div>
 </div>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make<span class="w"> </span>pipeline.delete
+</pre></div>
+</div>
+</section>
+<section id="notification-subscriptions">
+<h3>Notification Subscriptions<a class="headerlink" href="#notification-subscriptions" title="Permalink to this heading"></a></h3>
+<p>Unsubscribe using console.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make<span class="w"> </span>monitoring.subscribe-email<span class="w"> </span><span class="nv">email</span><span class="o">=</span>&lt;email&gt;
 </pre></div>
 </div>
 </section>
