@@ -37,6 +37,18 @@ service.monitoring.create-subscriptions:
 			--notification-endpoint "$$EMAIL" 2>&1 | tee -a $${CFN_LOG_PATH} || true; \
 	done
 
+service.monitoring.subscribe-email: #email=<string>
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Creating SNS topic subscription" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@topic_arn=$$(aws ssm get-parameters \
+		--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/DataPipelineErrorsTopicArn" \
+		--with-decryption \
+		--query "Parameters[0].Value" \
+		--output text) && \
+	aws sns subscribe \
+		--topic-arn "$$topic_arn" \
+		--protocol email \
+		--notification-endpoint "$$email" 2>&1 | tee -a $${CFN_LOG_PATH} || true;
+
 delete: ##=> Delete resources
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $${CFN_LOG_PATH}
 ifeq ($(data),true)

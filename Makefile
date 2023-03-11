@@ -132,6 +132,9 @@ config.deploy:
 monitoring.create-subscriptions:
 	$(MAKE) -C ${APP_NAME}/infrastructure service.monitoring.create-subscriptions
 
+monitoring.subscribe-email:
+	$(MAKE) -C ${APP_NAME}/infrastructure service.monitoring.subscribe-email
+
 # TODO fix output & error handling
 database.load.run: # args: align, kir, limit, releases
 	@echo "Confirm payload:" && \
