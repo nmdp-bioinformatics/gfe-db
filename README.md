@@ -239,6 +239,9 @@ make delete
 
 # Delete a specific layer
 make pipeline.delete
+
+# Subscribe an email for notifications (unsubscribe using console)
+make monitoring.subscribe-email email=<email>
 ```
 
 ## Managing Configuration
