@@ -63,8 +63,8 @@ bootstrap:
 neo4j: bootstrap
 	$(MAKE) neo4j.update-credentials
 	$(MAKE) neo4j.config.update
-	$(MAKE) neo4j.plugins.install-apoc
-	$(MAKE) neo4j.plugins.install-gds
+	# $(MAKE) neo4j.plugins.install-apoc # TODO already installed
+	# $(MAKE) neo4j.plugins.install-gds # TODO enable
 	$(MAKE) neo4j.restart
 	$(MAKE) neo4j.init
 	$(MAKE) neo4j.restart
