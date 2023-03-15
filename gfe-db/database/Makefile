@@ -90,12 +90,9 @@ service.backup:
 		--comment "${STAGE}=${APP_NAME} backup service" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 service.backup.list:
-	@aws s3 ls --recursive s3://${DATA_BUCKET_NAME}/backups/neo4j/ | cut -d' ' -f7 | cut -d'/' -f3-6
+	@echo "Select a backup using the format YYYY/MM/DD/HH:"
+	@aws s3 ls --recursive --human-readable s3://${DATA_BUCKET_NAME}/backups/neo4j/
 
-# TODO add confirmation with prequisites (warnings to avoid losing data, make sure scripts are synced etc.) ✅
-# TODO database restore: validate date parameter is given ✅ and in the correct format ✅
-# TODO move validation to the database/Makefile ✅
-# TODO database restore: validate that the backup exists ✅
 service.restore: #from_date=<YYYY/MM/DD/HH>
 	@[ "$$from_date" != "" ] || (echo "from_date is required" && exit 1) && \
 	[ "$$(echo "$$from_date" | grep -E '^[0-9]{4}/[0-9]{2}/[0-9]{2}/[0-9]{2}$$')" ] || (echo "from_date must be in the format YYYY/MM/DD/HH" && exit 1) && \
