@@ -42,11 +42,6 @@ NEO4J_USERNAME=$(echo $NEO4J_CREDENTIALS | jq -r '.NEO4J_USERNAME')
 NEO4J_PASSWORD=$(echo $NEO4J_CREDENTIALS | jq -r '.NEO4J_PASSWORD')
 
 # Get data bucket name
-DATA_BUCKET_NAME=$(aws ssm get-parameters \
-    --region $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/\(.*\)[a-z]/\1/') \
-    --names "/${APP_NAME}/${STAGE}/${AWS_REGION}/DataBucketName" \
-    | jq -r '.Parameters[0].Value')
-
 if [[ -z $DATA_BUCKET_NAME ]]; then
     echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - S3 bucket not found."
     exit 1
@@ -71,6 +66,8 @@ echo "****** Begin Cypher ******"
 printf "$(cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp)\n"
 echo "****** End Cypher ******"
 
+# TODO fix error caused by Java version:
+# Unsupported Java 11.0.18 detected. Please use Oracle(R) Java(TM) 17, OpenJDK(TM) 17 to run Cypher Shell.
 # Run Cypher load query
 echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Loading data for release $RELEASE into Neo4j..."
 cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp | \
