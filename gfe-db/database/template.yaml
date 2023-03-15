@@ -159,7 +159,12 @@ Resources:
           python3-setuptools \
           certbot \
           git \
-          python3-pip
+          python3-pip \
+          openjdk-17-jdk \
+          openjdk-17-jre
+          # Update system Java for Neo4j cypher-shell
+          update-java-alternatives --set /usr/lib/jvm/java-1.17.0-openjdk-amd64
+          /usr/bin/java -version
           export BITNAMI_HOME=/home/bitnami
           # CloudWatch Logs Agent
           mkdir -p /tmp/amazon-cloudwatch-agent
