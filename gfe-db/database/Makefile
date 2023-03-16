@@ -87,7 +87,7 @@ service.backup:
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/bitnami && sudo make neo4j.backup]" \
 		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
-		--comment "${STAGE}=${APP_NAME} backup service" 2>&1 | tee -a $$CFN_LOG_PATH || true
+		--comment "Backup Neo4j" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 service.backup.list:
 	@echo "Select a backup using the format YYYY/MM/DD/HH:"
@@ -102,7 +102,14 @@ service.restore: #from_date=<YYYY/MM/DD/HH>
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/bitnami && sudo make neo4j.restore from_date=$$from_date]" \
 		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
-		--comment "${STAGE}=${APP_NAME} restore service" 2>&1 | tee -a $$CFN_LOG_PATH || true
+		--comment "Restore backup from $$from_date" 2>&1 | tee -a $$CFN_LOG_PATH || true
+
+service.check-consistency:
+	@aws ssm send-command \
+		--document-name "AWS-RunShellScript" \
+		--parameters "commands=[cd /home/bitnami && sudo make neo4j.report.check-consistency && sudo make neo4j.copy-reports]" \
+		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
+		--comment "Check Neo4j data consistency" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 service.restore.pre-validate:
 	@echo "Validating restore pre-conditions"

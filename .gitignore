@@ -87,13 +87,16 @@ env.sh
 packaged.yaml
 samconfig.toml
 
+# gfe-db application data
+data/
+logs/
+reports/
+
 # Project files
 tags
-data/
 *.pem
 *.msf
 *.dat
-logs/
 *.bak
 _*.*
 .github/_*
