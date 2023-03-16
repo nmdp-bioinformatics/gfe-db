@@ -10,7 +10,6 @@ export
 export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity --query Account --output text)
 
 export ROOT_DIR := $(shell pwd)
-export DATABASE_DIR := ${ROOT_DIR}/${APP_NAME}/database
 export LOGS_DIR := $(shell echo "${ROOT_DIR}/logs")
 export CFN_LOG_PATH := $(shell echo "${LOGS_DIR}/cfn/logs.txt")
 export PURGE_LOGS := false
@@ -200,6 +199,9 @@ database.restore: #from_date=<YYYY/MM/DD/HH>
 	@echo "Restoring $${APP_NAME} data to server..."
 	$(MAKE) -C ${APP_NAME}/database/ service.restore from_date=$$from_date
 
+database.check-consistency:
+	$(MAKE) -C ${APP_NAME}/database/ service.check-consistency
+
 database.status:
 	@aws ec2 describe-instances | \
 		jq --arg iid "${INSTANCE_ID}" '.Reservations[].Instances[] | select(.InstanceId == $$iid) | {InstanceId, InstanceType, "Status": .State.Name, StateTransitionReason, ImageId}'
@@ -247,6 +249,9 @@ get.data: #=> Download the build data locally
 
 get.logs: #=> Download all logs locally
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/logs/ ${LOGS_DIR}/
+
+get.reports: #=> Download application reports locally
+	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/reports/ ${ROOT_DIR}/reports/
 
 # # TODO get pipeline execution status
 # pipeline.status:

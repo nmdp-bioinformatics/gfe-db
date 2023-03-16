@@ -179,10 +179,16 @@ neo4j.drop-constraints:
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
 	@cat ${NEO4J_HOME}/cypher/drop_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 
-# TODO integrate reporting, copy to S3 with logs
-neo4j.create-report:
-	@mkdir -p ${REPORTS_DIR}
-	@neo4j-admin check-consistency --database=neo4j --verbose=true --report-dir=reports > reports/consistency_check.txt
+neo4j.report.check-consistency:
+	$(MAKE) neo4j.stop
+	@-echo "Removing previous reports..." && \
+	rm -r reports/check-consistency/*.report
+	@neo4j-admin database check neo4j --verbose --report-path reports/check-consistency/
+	$(MAKE) neo4j.start
+
+neo4j.copy-reports:
+	@echo "Copying reports to S3..."
+	@aws s3 cp --recursive reports/ s3://${DATA_BUCKET_NAME}/reports/database/${INSTANCE_ID}/$$(date +'%Y/%m/%d/%H')/
 
 ssl.create-cert:
 	@bash init/create_cert.sh "${SUBDOMAIN}.${HOST_DOMAIN}" ${ADMIN_EMAIL}
