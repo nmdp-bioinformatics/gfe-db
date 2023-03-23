@@ -39,6 +39,7 @@ target:
 	@exit 0
 
 deploy: logs.purge check.env ##=> Deploy services
+	$(MAKE) env.confirm
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) infrastructure.deploy
 	$(MAKE) database.deploy
@@ -107,6 +108,12 @@ check.dependencies.jq:
 		echo "**** Please refer to the documentation for a list of prerequisistes. ****" && \
 		exit 1; \
 	fi
+
+env.confirm:
+	@printf "\n************ Deployment Configuration ************\n"
+	@[ -f ./.env ] && cat ./.env || exit 1
+	@printf "\n**************************************************"
+	@printf "\n\nDo you wish to deploy with this configuration to account $${AWS_ACCOUNT}? [y/N] " && read ans && [ $${ans:-N} = y ]
 
 # Deploy specific stacks
 infrastructure.deploy:
