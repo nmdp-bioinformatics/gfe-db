@@ -81,7 +81,7 @@ def parse_dat(data_dir, dbversion):
         logging.error(f'Could not parse file: {dat_file}: {err}')
         # raise err
 
-
+# TODO remove since sequence hashes are no longer being used
 def seq_hasher(seq, n=32):
     """Takes a nucleotide or amino acid sequence and returns a reproducible
     integer UUID. Used to create shorter unique IDs since Neo4j cannot index 
@@ -232,7 +232,7 @@ def build_GFE(allele):
             "locus": locus,
             "hla_name": hla_name,
             #"a_name": hla_name.split("-")[1],
-            "seq_id": seq_hasher(_seq.encode('utf-8')),
+            "seq_id": seq_hasher(_seq.encode('utf-8')), # TODO remove since sequence hashes are no longer being used
             "sequence": _seq,
             "length": len(_seq),
             "imgt_release": imgt_release
@@ -287,7 +287,7 @@ def build_alignment(allele, alignments, align_type="genomic"):
 
             row = {
                 "label": label,
-                "seq_id": seq_hasher(alignment.encode('utf-8')),
+                "seq_id": seq_hasher(alignment.encode('utf-8')), # TODO remove since sequence hashes are no longer being used
                 "gfe_name": gfe_name,
                 "hla_name": hla_name,
                 #"a_name": hla_name.split("-")[1],
@@ -352,9 +352,9 @@ def build_cds(allele):
             # "gfe_sequence": str(allele.seq),
             # "allele_id": allele.id,
             # "hla_name": hla_name,
-            "bp_seq_id": seq_hasher(bp_seq.encode('utf-8')),
+            "bp_seq_id": seq_hasher(bp_seq.encode('utf-8')), # TODO remove since sequence hashes are no longer being used
             "bp_sequence": bp_seq,
-            "aa_seq_id": seq_hasher(aa_seq.encode('utf-8')),
+            "aa_seq_id": seq_hasher(aa_seq.encode('utf-8')), # TODO remove since sequence hashes are no longer being used
             "aa_sequence": aa_seq,
             # "imgt_release": imgt_release
         }
@@ -378,7 +378,7 @@ def gfe_from_allele(allele, gfe_maker):
 
     # This process takes a long time
     logging.info(f"Getting GFE data for allele {allele.id}...")
-    features, gfe = gfe_maker.get_gfe(ann, locus)
+    features, gfe = gfe_maker.get_gfe(ann, locus)  # TODO pending fix of feature API
         
     return { 
         "name": gfe,

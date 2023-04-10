@@ -127,7 +127,7 @@ for release in ${RELEASES}; do
 	fi
 	
 	# Builds CSV files
-	python "$SRC_DIR"/app.py \
+	python3 "$SRC_DIR"/app.py \
 		-o "$DATA_DIR/$release/csv" \
 		-r "$release" \
 		$KIRFLAG \

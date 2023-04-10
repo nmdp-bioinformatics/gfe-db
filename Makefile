@@ -6,7 +6,7 @@
 include .env
 export
 
-# Base settings, these should almost never change
+# Base settings, these should almost never change.
 export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity --query Account --output text)
 
 export ROOT_DIR := $(shell pwd)
