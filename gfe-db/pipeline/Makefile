@@ -11,6 +11,7 @@ deploy:
 	$(MAKE) service.jobs.deploy
 	$(MAKE) service.config.deploy
 
+# TODO update S3 config parameters GitHubRepositoryOwner, GitHubRepositoryName, PipelineStatePath, PipelineParamsPath
 service.functions.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} - functions" 2>&1 | tee -a $$CFN_LOG_PATH
 	@sam build \
@@ -47,7 +48,7 @@ service.jobs.deploy:
 
 # TODO parameterize S3 config path and export as environment variable to recall in database shell scripts
 service.config.deploy:
-	@config_s3_path=s3://$$DATA_BUCKET_NAME/config/ && \
+	@config_s3_path=s3://$${DATA_BUCKET_NAME}/$${CONFIG_S3_PATH}/${SERVICE} && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying config to $$config_s3_path" 2>&1 | tee -a $$CFN_LOG_PATH && \
 	aws s3 cp --recursive config/ $$config_s3_path 2>&1 | tee -a $$CFN_LOG_PATH
 

@@ -1,0 +1,33 @@
+{
+    "repositories": {
+        "ANHIG/IMGTHLA": {
+            "owner": "ANHIG",
+            "name": "IMGTHLA",
+            "url": "",
+            "tracked_assets": [
+                "hla.dat",
+                "msf/"
+            ],
+            "default_input_parameters": {
+                "align": "False",
+                "kir": "False",
+                "mem_profile": "False",
+                "limit": "1000"
+            },
+            "execution_history": [
+                {
+                    "version": 3510,
+                    "commit_sha": "ecd63776c6225af0cf8bcc9fa9c6998d3129fb14",
+                    "date": "2022-04-14T11:00:42Z",
+                    "status": "SUCCESS",
+                    "input_parameters": {
+                        "align": "False",
+                        "kir": "False",
+                        "mem_profile": "False",
+                        "limit": "1000"
+                    }
+                }
+            ]
+        }
+    }
+}

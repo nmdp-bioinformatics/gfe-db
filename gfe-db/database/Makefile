@@ -30,19 +30,14 @@ service.check-key-pair: ##=> Checks if the key pair already exists and creates i
 service.config.deploy: service.config.neo4j.deploy service.config.scripts.deploy service.config.cloudwatch-agent.deploy
 
 service.config.neo4j.deploy: service.config.update-dns
-	@aws s3 cp neo4j/neo4j.conf s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
-	@aws s3 cp --recursive neo4j/cypher/ s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
-
-service.config.update-dns:
-	@[ "${HOST_DOMAIN}" != "" ] && \
-	cat neo4j/neo4j.template | \
-	sed s"/# dbms.default_advertised_address=.*/dbms.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > neo4j/neo4j.conf
+	# @aws s3 cp config/neo4j/neo4j.conf s3://$$DATA_BUCKET_NAME/$${CONFIG_S3_PATH}/${SERVICE}/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
+	@aws s3 cp --recursive config/neo4j/cypher/ s3://$$DATA_BUCKET_NAME/$${CONFIG_S3_PATH}/${SERVICE}/neo4j/ 2>&1 | tee -a $$CFN_LOG_PATH
 
 service.config.scripts.deploy:
-	@script_s3_path=s3://$$DATA_BUCKET_NAME/config/scripts/ && \
+	@script_s3_path=s3://$$DATA_BUCKET_NAME/$${CONFIG_S3_PATH}/${SERVICE}/scripts/ && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying backup script to $$script_s3_path" 2>&1 \
 		| tee -a $$CFN_LOG_PATH && \
-	aws s3 cp --recursive scripts/ $$script_s3_path
+	aws s3 cp --recursive config/scripts/ $$script_s3_path
 
 service.config.scripts.sync: service.config.scripts.deploy
 	@document_name="$$(aws ssm get-parameter \
@@ -53,13 +48,18 @@ service.config.scripts.sync: service.config.scripts.deploy
 		--comment "${STAGE}=${APP_NAME} backup service" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 service.config.cloudwatch-agent.deploy:
-	@mkdir -p amazon-cloudwatch-agent/tmp/ 
-	@cat amazon-cloudwatch-agent/amazon-cloudwatch-agent.json | sed "s/STAGE/$${STAGE}/g" | sed "s/APP_NAME/$${APP_NAME}/g" > amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json
-	@config_s3_path=s3://$$DATA_BUCKET_NAME/config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json && \
+	@mkdir -p config/amazon-cloudwatch-agent/tmp/ 
+	@cat config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json | sed "s/STAGE/$${STAGE}/g" | sed "s/APP_NAME/$${APP_NAME}/g" > config/amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json
+	@config_s3_path=s3://$$DATA_BUCKET_NAME/$${CONFIG_S3_PATH}/${SERVICE}/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying amazon-cloudwatch-agent config to $$config_s3_path" 2>&1 \
 		| tee -a $$CFN_LOG_PATH && \
-	aws s3 cp amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json $$config_s3_path
-	@rm -rf amazon-cloudwatch-agent/tmp/
+	aws s3 cp config/amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json $$config_s3_path
+	@rm -rf config/amazon-cloudwatch-agent/tmp/
+
+service.config.update-dns:
+	@[ "${HOST_DOMAIN}" != "" ] && \
+	cat config/neo4j/neo4j.template | \
+	sed s"/# dbms.default_advertised_address=.*/dbms.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > config/neo4j/neo4j.conf
 
 service.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Neo4j to EC2 with ${NEO4J_AMI_ID}" 2>&1 | tee -a $$CFN_LOG_PATH
@@ -71,7 +71,9 @@ service.deploy:
 		--parameter-overrides \
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
+			ServiceName="${SERVICE}" \
 			DataBucketName="$${DATA_BUCKET_NAME}" \
+			ConfigS3Path="$${CONFIG_S3_PATH}" \
 			Neo4jAmiId="$${NEO4J_AMI_ID}" \
 			Neo4jPassword="$${NEO4J_PASSWORD}" \
 			DatabaseVolumeSize="$${DATABASE_VOLUME_SIZE}" \

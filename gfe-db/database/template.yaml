@@ -9,7 +9,12 @@ Parameters:
   AppName:
     Type: String
     Description: Application name
+  ServiceName:
+    Type: String
+    Description: Service name
   DataBucketName:
+    Type: String
+  ConfigS3Path:
     Type: String
   Neo4jAmiId:
     Type: String #AWS::EC2::Image::Id
@@ -165,7 +170,7 @@ Resources:
           mkdir -p /tmp/amazon-cloudwatch-agent
           wget -q -O /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb https://s3.amazonaws.com/amazoncloudwatch-agent/debian/amd64/latest/amazon-cloudwatch-agent.deb
           dpkg -i -E /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb
-          aws s3 cp s3://${DataBucketName}/config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+          aws s3 cp s3://${DataBucketName}/${ConfigS3Path}/${ServiceName}/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
           systemctl enable amazon-cloudwatch-agent.service
           service amazon-cloudwatch-agent start
           # CloudFormation Helpers
@@ -181,8 +186,10 @@ Resources:
           # Permanently set application environment variables (these should never change for the duration of the deployment) # TODO: Move to Makefile target
           echo "STAGE=${Stage}" >> $BITNAMI_HOME/env.sh
           echo "APP_NAME=${AppName}" >> $BITNAMI_HOME/env.sh
+          echo "SERVICE_NAME=${ServiceName}" >> $BITNAMI_HOME/env.sh
           echo "AWS_REGION=${AWS::Region}" >> $BITNAMI_HOME/env.sh
           echo "DATA_BUCKET_NAME=${DataBucketName}" >> $BITNAMI_HOME/env.sh
+          echo "CONFIG_S3_PATH=${ConfigS3Path}" >> $BITNAMI_HOME/env.sh
           echo "HOST_DOMAIN=${HostDomain}" >> $BITNAMI_HOME/env.sh
           echo "SUBDOMAIN=${Subdomain}" >> $BITNAMI_HOME/env.sh
           echo "ADMIN_EMAIL=${AdminEmail}" >> $BITNAMI_HOME/env.sh
@@ -198,8 +205,10 @@ Resources:
           echo "shopt -s direxpand" >> $BITNAMI_HOME/.bashrc
           source $BITNAMI_HOME/.bashrc
           # Download Makefile from data bucket
-          aws s3 cp --recursive s3://${DataBucketName}/config/scripts/ $BITNAMI_HOME/
+          # TODO switch cfn params for environment variables once .bashrc is sourced
+          aws s3 cp --recursive s3://${DataBucketName}/${ConfigS3Path}/${ServiceName}/scripts/ $BITNAMI_HOME/
           # cfn-signal
+          # TODO switch cfn params for environment variables once .bashrc is sourced
           /opt/aws/bin/cfn-signal \
             --exit-code $? \
             --stack  ${Stage}-${AppName}-database \

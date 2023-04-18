@@ -1,5 +1,6 @@
 # This Makefile only orchestrates process that are run on the EC2 database instance, it is deployed and called on the server
 # Must be run as sudo
+SERVICE := database
 
 # Application specific environment variables
 include env.sh
@@ -96,7 +97,7 @@ neo4j.restart:
 
 neo4j.config.update: neo4j.config.backup
 	@echo "Downloading Neo4j configuration from ${DATA_BUCKET_NAME}"
-	@aws s3 cp s3://${DATA_BUCKET_NAME}/config/neo4j/neo4j.conf ${NEO4J_HOME}/conf/neo4j.conf
+	@aws s3 cp s3://${DATA_BUCKET_NAME}/config/${SERVICE}/neo4j/neo4j.conf ${NEO4J_HOME}/conf/neo4j.conf
 
 neo4j.config.reset-auth:
 	@echo "Resetting Neo4j authentication"
@@ -128,7 +129,7 @@ neo4j.plugins.install-gds:
 neo4j.init:
 	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
 	@echo "Fetching Cypher scripts from S3..."
-	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
+	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/${SERVICE}/neo4j/cypher/ ${NEO4J_HOME}/cypher/
 	@echo "Executing initialization queries..."
 	@cat ${NEO4J_HOME}/cypher/init.cyp | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 
@@ -170,13 +171,13 @@ neo4j.restore: #from_date=<YYYY/MM/DD/HH>
 neo4j.create-constraints:
 	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
 	@echo "Fetching cypher scripts from S3..."
-	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
+	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/${SERVICE}/neo4j/cypher/ ${NEO4J_HOME}/cypher/
 	@cat ${NEO4J_HOME}/cypher/create_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 
 neo4j.drop-constraints:
 	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
 	@echo "Fetching cypher scripts from S3..."
-	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
+	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/${SERVICE}/neo4j/cypher/ ${NEO4J_HOME}/cypher/
 	@cat ${NEO4J_HOME}/cypher/drop_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 
 # TODO integrate reporting, copy to S3 with logs

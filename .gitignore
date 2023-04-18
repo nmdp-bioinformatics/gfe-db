@@ -95,10 +95,12 @@ data/
 *.dat
 logs/
 *.bak
-_*.*
+_*.md
+___*/
+___*.json
 .github/_*
 payload.json
 response.json
 neo4j.conf
-___*
 gfedb.zip
+reports/
