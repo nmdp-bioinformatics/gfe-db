@@ -1,5 +1,12 @@
 import re
+from typing import List, Optional, Dict
 from pydantic import BaseModel, validator
+
+# validate that date field is ISO 8601 format with timezone
+def date_is_iso_8601_with_timezone(v):
+    if not re.match(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$', v):
+        raise ValueError('date must be in ISO 8601 format with timezone')
+    return v
 
 ### Source Config Models ###
 class InputParameterConfig(BaseModel):
@@ -15,10 +22,13 @@ class InputParameterConfig(BaseModel):
             raise ValueError('limit must be an integer')
         return v
 
-class ExecutionHistoryConfig(BaseModel):
+# TODO add commit_date, execution_date, commit_url
+class ExecutionHistoryItem(BaseModel):
     version: int
     commit_sha: str
-    date: str
+    commit_date_utc: str
+    commit_url: str
+    execution_date_utc: str
     status: str
     input_parameters: InputParameterConfig
 
@@ -36,18 +46,13 @@ class ExecutionHistoryConfig(BaseModel):
             raise ValueError('commit_sha must be a 40 character hex string')
         return v
 
-    # validate that date field is ISO 8601 format with timezone
-    @validator('date')
-    def date_is_iso_8601_with_timezone(cls, v):
-        if not re.match(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$', v):
-            raise ValueError('date must be in ISO 8601 format with timezone')
-        return v
+    _date_is_iso_8601_with_timezone = validator('commit_date_utc', 'execution_date_utc', allow_reuse=True)(date_is_iso_8601_with_timezone)
     
     # validate the status is on of 'SUCCESS', 'FAILURE', or 'IN_PROGRESS'
     @validator('status')
     def status_is_valid(cls, v):
-        if v not in ['SUCCESS', 'FAILURE', 'IN_PROGRESS']:
-            raise ValueError('status must be one of "SUCCESS", "FAILURE", or "IN_PROGRESS"')
+        if v not in ["SUCCESS", "PENDING", "SKIPPED", "FAILED", "IN_PROGRESS"]:
+            raise ValueError('status must be one of "SUCCESS", "PENDING", "SKIPPED", "FAILED", or "IN_PROGRESS"')
         return v
 
 class RepositoryConfig(BaseModel):
@@ -56,7 +61,7 @@ class RepositoryConfig(BaseModel):
     url: str
     tracked_assets: list[str]
     default_input_parameters: InputParameterConfig
-    execution_history: list[ExecutionHistoryConfig]
+    execution_history: list[ExecutionHistoryItem]
 
     # validate that the url is a valid URL
     @validator('url')

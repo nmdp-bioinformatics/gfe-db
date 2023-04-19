@@ -1,0 +1,132 @@
+{
+    "app": "gfe-db",
+    "updated_at_utc": "2021-09-14T12:00:00Z",
+    "updated_from_resource": "",
+    "repositories": {
+        "ANHIG/IMGTHLA": {
+            "owner": "ANHIG",
+            "name": "IMGTHLA",
+            "url": "https://github.com/ANHIG/IMGTHLA",
+            "tracked_assets": [
+                "hla.dat",
+                "msf/"
+            ],
+            "default_input_parameters": {
+                "align": false,
+                "kir": false,
+                "mem_profile": false,
+                "limit": "1000"
+            },
+            "execution_history": [
+                {
+                    "version": 3520,
+                    "commit_sha": "def376dc6955b339b17f0a4b840e80eb6b9c744b",
+                    "date": "2023-04-17T16:01:01Z",
+                    "status": "PENDING",
+                    "input_parameters": {
+                        "align": false,
+                        "kir": false,
+                        "mem_profile": false,
+                        "limit": "1000"
+                    }
+                },
+                {
+                    "version": 3510,
+                    "commit_sha": "4486f5c623705c6a14d9eeaba7d155cff30cdb43",
+                    "date": "2023-01-12T14:36:43Z",
+                    "status": "PENDING",
+                    "input_parameters": {
+                        "align": false,
+                        "kir": false,
+                        "mem_profile": false,
+                        "limit": "1000"
+                    }
+                },
+                {
+                    "version": 3500,
+                    "commit_sha": "2d38d3313229fdc5f8aa00052a2db21b35be3d2d",
+                    "date": "2022-10-14T08:46:01Z",
+                    "status": "PENDING",
+                    "input_parameters": {
+                        "align": false,
+                        "kir": false,
+                        "mem_profile": false,
+                        "limit": "1000"
+                    }
+                },
+                {
+                    "version": 3500,
+                    "commit_sha": "2c631a4b61d529ff1c0635750888f6f6d79c2703",
+                    "date": "2022-10-13T12:58:37Z",
+                    "status": "SKIPPED",
+                    "input_parameters": {
+                        "align": false,
+                        "kir": false,
+                        "mem_profile": false,
+                        "limit": "1000"
+                    }
+                },
+                {
+                    "version": 3490,
+                    "commit_sha": "8f80f24d49797595d8a18b8d4d1f59846fbf3fe1",
+                    "date": "2022-08-25T15:43:12Z",
+                    "status": "PENDING",
+                    "input_parameters": {
+                        "align": false,
+                        "kir": false,
+                        "mem_profile": false,
+                        "limit": "1000"
+                    }
+                },
+                {
+                    "version": 3490,
+                    "commit_sha": "1a3be9a5d01a414854ff3bfacd5257c14adeefa2",
+                    "date": "2022-07-14T13:40:17Z",
+                    "status": "SKIPPED",
+                    "input_parameters": {
+                        "align": false,
+                        "kir": false,
+                        "mem_profile": false,
+                        "limit": "1000"
+                    }
+                },
+                {
+                    "version": 3480,
+                    "commit_sha": "72a9e28a52c9629dd63dfad5f215cdc562e2fd7e",
+                    "date": "2022-07-14T12:28:41Z",
+                    "status": "PENDING",
+                    "input_parameters": {
+                        "align": false,
+                        "kir": false,
+                        "mem_profile": false,
+                        "limit": "1000"
+                    }
+                },
+                {
+                    "version": 3480,
+                    "commit_sha": "ecd63776c6225af0cf8bcc9fa9c6998d3129fb14",
+                    "date": "2022-04-14T11:00:42Z",
+                    "status": "SUCCESS",
+                    "input_parameters": {
+                        "align": false,
+                        "kir": false,
+                        "mem_profile": false,
+                        "limit": "1000"
+                    }
+                },
+                {
+                    "version": 3470,
+                    "commit_sha": "06ceff14b2db920d458dc337b1100dced992e627",
+                    "date": "2022-01-13T16:52:15Z",
+                    "status": "SUCCESS",
+                    "input_parameters": {
+                        "align": false,
+                        "kir": false,
+                        "mem_profile": false,
+                        "limit": "1000"
+                    }
+                }
+            ]
+        }
+    }
+}
