@@ -17,14 +17,14 @@ logger.setLevel(logging.INFO)
 GITHUB_PERSONAL_ACCESS_TOKEN = os.environ["GITHUB_PERSONAL_ACCESS_TOKEN"]
 GITHUB_REPOSITORY_OWNER = os.environ["GITHUB_REPOSITORY_OWNER"]
 GITHUB_REPOSITORY_NAME = os.environ["GITHUB_REPOSITORY_NAME"]
-GFE_BUCKET = os.environ["GFE_BUCKET"]
+DATA_BUCKET_NAME = os.environ["DATA_BUCKET_NAME"]
 # TODO: add to Makefile
 PIPELINE_STATE_PATH = os.environ["PIPELINE_STATE_PATH"]
 PIPELINE_PARAMS_PATH = os.environ["PIPELINE_PARAMS_PATH"]
 UPDATE_PIPELINE_STATE_MACHINE_ARN = os.environ["UPDATE_PIPELINE_STATE_MACHINE_ARN"]
 
-branches_state_path = f"s3://{GFE_BUCKET}/{PIPELINE_STATE_PATH}"
-pipeline_params_path = f"s3://{GFE_BUCKET}/{PIPELINE_PARAMS_PATH}"
+branches_state_path = f"s3://{DATA_BUCKET_NAME}/{PIPELINE_STATE_PATH}"
+pipeline_params_path = f"s3://{DATA_BUCKET_NAME}/{PIPELINE_PARAMS_PATH}"
 
 s3 = boto3.client('s3')
 sfn = boto3.client('stepfunctions')
@@ -150,7 +150,7 @@ def write_config(path):
     try:
         response = s3.put_object(
              Body=json.dumps(branches_config),
-             Bucket=GFE_BUCKET,
+             Bucket=DATA_BUCKET_NAME,
              Key="/".join(path.split("/")[3:]))
         
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
@@ -170,7 +170,7 @@ def read_config(path):
     
     try:
         response = s3.get_object(
-            Bucket=GFE_BUCKET, 
+            Bucket=DATA_BUCKET_NAME, 
             Key="/".join(path.split("/")[3:]))
         
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:

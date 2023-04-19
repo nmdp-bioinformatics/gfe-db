@@ -180,9 +180,6 @@ Resources:
     Type: AWS::SNS::Topic
     Properties:
       DisplayName: !Sub "${AppName} Data Pipeline Errors"
-      Subscription:
-        - Endpoint: gclindsey@gmail.com
-          Protocol: email
       Tags:
         - Key: Stage
           Value: !Ref Stage

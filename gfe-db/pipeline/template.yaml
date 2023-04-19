@@ -9,6 +9,9 @@ Parameters:
   AppName:
     Type: String
     Description: Application name
+  ServiceName:
+    Type: String
+    Description: Service name
   InvokePipelineFunctionName:
     Type: String
   InvokePipelineFunctionMemorySize:
@@ -18,14 +21,6 @@ Parameters:
   InvokePipelineFunctionTimeout:
     Type: Number
   InvokePipelineFunctionSchedule:
-    Type: String
-  GitHubRepositoryOwner: 
-    Type: String
-  GitHubRepositoryName:
-    Type: String
-  PipelineStatePath:
-    Type: String
-  PipelineParamsPath:
     Type: String
   InvokeLoadScriptFunctionName:
     Type: String
@@ -325,12 +320,9 @@ Resources:
       Environment:
         Variables:
           GITHUB_PERSONAL_ACCESS_TOKEN: !Sub '{{resolve:secretsmanager:${AppName}-${Stage}-GitHubPersonalAccessToken:SecretString:personal_access_token:AWSCURRENT}}'
-          GITHUB_REPOSITORY_OWNER: !Ref GitHubRepositoryOwner
-          GITHUB_REPOSITORY_NAME: !Ref GitHubRepositoryName
-          GFE_BUCKET: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
+          DATA_BUCKET_NAME: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
+          PIPELINE_CONFIG_S3_PATH: !Sub '${ConfigS3Path}/${ServiceName}/source-config.json'
           UPDATE_PIPELINE_STATE_MACHINE_ARN: !GetAtt UpdatePipelineStateMachine.Arn
-          PIPELINE_STATE_PATH: !Ref PipelineStatePath
-          PIPELINE_PARAMS_PATH: !Ref PipelineParamsPath
       Events:
         Trigger:
           Type: Schedule

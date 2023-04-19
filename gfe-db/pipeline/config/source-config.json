@@ -3,7 +3,7 @@
         "ANHIG/IMGTHLA": {
             "owner": "ANHIG",
             "name": "IMGTHLA",
-            "url": "",
+            "url": "https://github.com/ANHIG/IMGTHLA",
             "tracked_assets": [
                 "hla.dat",
                 "msf/"
@@ -16,9 +16,21 @@
             },
             "execution_history": [
                 {
-                    "version": 3510,
+                    "version": 3480,
                     "commit_sha": "ecd63776c6225af0cf8bcc9fa9c6998d3129fb14",
                     "date": "2022-04-14T11:00:42Z",
+                    "status": "SUCCESS",
+                    "input_parameters": {
+                        "align": "False",
+                        "kir": "False",
+                        "mem_profile": "False",
+                        "limit": "1000"
+                    }
+                },
+                {
+                    "version": 3470,
+                    "commit_sha": "06ceff14b2db920d458dc337b1100dced992e627",
+                    "date": "2022-01-13T16:52:15Z",
                     "status": "SUCCESS",
                     "input_parameters": {
                         "align": "False",
