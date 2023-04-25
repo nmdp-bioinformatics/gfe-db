@@ -88,6 +88,11 @@ packaged.yaml
 samconfig.toml
 
 # Project files
+
+## Script outputs
+_cache/
+
+## Miscellaneous
 tags
 data/
 *.pem
