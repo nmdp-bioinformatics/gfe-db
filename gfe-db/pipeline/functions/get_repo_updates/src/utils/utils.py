@@ -4,6 +4,7 @@ from datetime import datetime
 import json
 import requests
 import boto3
+from botocore.exceptions import ClientError
 from .types import SourceConfig
 from .constants import AWS_REGION, GITHUB_PERSONAL_ACCESS_TOKEN
 
@@ -59,8 +60,8 @@ def read_s3_json(bucket, key):
             Key=key)
         return json.loads(response["Body"].read().decode())
         
-    except Exception as err:
-        logger.error(f'Failed to read config file to s3://{bucket}/{key}. HTTPStatusCode: {response["ResponseMetadata"]["HTTPStatusCode"]}')
+    except ClientError as err:
+        logger.error(f'Failed to read config file to s3://{bucket}/{key}')
         raise err
 
 
@@ -88,15 +89,20 @@ def write_source_config(bucket, key, source_config: SourceConfig):
     write_s3_json(bucket, key, source_config.dict())
 
 
-def get_commits(owner, repo, per_page=100):
+def list_commits(owner, repo, **kwargs):
     """Return a list of GitHub commits for the specified repository"""
 
     base_url = 'https://api.github.com'
 
     # Endpoint
-    endpoint = f'/repos/{owner}/{repo}/commits?per_page={per_page}'
+    endpoint = f'/repos/{owner}/{repo}/commits'
 
     url = base_url + endpoint
+
+    params = {
+        'per_page': kwargs.get('per_page'),
+        'page': kwargs.get('page'),
+    }
 
     # Headers
     headers = {
@@ -106,9 +112,27 @@ def get_commits(owner, repo, per_page=100):
         'X-GitHub-Api-Version': '2022-11-28'
     }
 
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, params=params)
 
     return response.json()
+
+
+def paginate_commits(owner, repo, start_page=1, per_page=100, **kwargs):
+
+    page = start_page
+    commits = []
+    while True:
+        response = list_commits(owner, repo, page=page, per_page=per_page, **kwargs)
+        if len(response) == 0:
+            break
+        logger.debug(f"Page {page}: {len(response)} commits")
+        commits.extend(response)
+        page += 1
+        
+    if len(commits) == 0:
+        raise ValueError("No commits found")
+    
+    return commits
 
 
 def get_commit(owner, repo, commit_sha):
