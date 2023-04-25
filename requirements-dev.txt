@@ -2,7 +2,7 @@ requests
 numpy
 py-ard==0.9.1
 py-gfe==1.1.5
-lxml==4.6.3
+lxml==4.9.2
 Pympler==0.9
 awscli==1.18.159
 boto3==1.15.3
