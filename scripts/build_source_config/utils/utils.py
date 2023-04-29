@@ -4,6 +4,7 @@ from pathlib import Path
 from itertools import chain, starmap
 from datetime import datetime
 import json
+import pickle
 import requests
 import boto3
 from botocore.exceptions import ClientError
@@ -24,31 +25,60 @@ s3 = session.client('s3')
 output_dir = Path(f"{APP_NAME}/pipeline/config")
 cache_dir = Path(__file__).parent / "_cache"
 
-def save_to_cache(data, var_name):
+def save_json_to_cache(data, var_name):
     """Saves data to cache directory"""
     if not cache_dir.exists():
         cache_dir.mkdir()
     with open(cache_dir / var_name, "w") as f:
         json.dump(data, f, indent=4)
 
-def load_from_cache(var_name):
+def save_pickle_to_cache(data, var_name):
+    """Saves data to cache directory"""
+    if not cache_dir.exists():
+        cache_dir.mkdir()
+    with open(cache_dir / var_name, "wb") as f:
+        pickle.dump(data, f)
+
+def load_json_from_cache(var_name):
     """Loads data from cache directory"""
     with open(cache_dir / var_name, "r") as f:
         data = json.load(f)
     return data
 
-# implement a @cache decorator to cache the results of the function in a file or load from cache if it exists
-def cache(func):
+def load_pickle_from_cache(var_name):
+    """Loads data from cache directory"""
+    with open(cache_dir / var_name, "rb") as f:
+        data = pickle.load(f)
+    return data
+
+# implement a @cache_json decorator to cache the results of the function in a file or load from cache if it exists
+def cache_json(func):
     """Decorator to cache function results"""
     def wrapper(*args, **kwargs):
         var_name = func.__name__
         if (cache_dir / var_name).exists():
             logger.info(f"Loading {var_name} from cache")
-            return load_from_cache(var_name)
+            return load_json_from_cache(var_name)
         else:
             logger.info(f"Saving {var_name} to cache")
             data = func(*args, **kwargs)
-            save_to_cache(data, var_name)
+            save_json_to_cache(data, var_name)
+            return data
+    return wrapper
+
+
+# rewrite the cache_json decorator to work for pickle files
+def cache_pickle(func):
+    """Decorator to cache function results"""
+    def wrapper(*args, **kwargs):
+        var_name = func.__name__
+        if (cache_dir / var_name).exists():
+            logger.info(f"Loading {var_name} from cache")
+            return load_pickle_from_cache(var_name)
+        else:
+            logger.info(f"Saving {var_name} to cache")
+            data = func(*args, **kwargs)
+            save_pickle_to_cache(data, var_name)
             return data
     return wrapper
 
@@ -153,7 +183,7 @@ def list_commits(owner, repo, **kwargs):
 
     return response.json()
 
-@cache
+@cache_json
 def paginate_commits(owner, repo, start_page=1, per_page=100, **kwargs):
 
     page = start_page
