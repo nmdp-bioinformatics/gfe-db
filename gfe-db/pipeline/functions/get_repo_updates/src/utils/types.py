@@ -1,9 +1,13 @@
 import re
+from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, validator
 
 
 valid_statuses = ["SUCCESS", "PENDING", "SKIPPED", "FAILED", "IN_PROGRESS", None]
+
+def to_datetime(v, fmt="%Y-%m-%dT%H:%M:%SZ"):
+    return datetime.strptime(v, fmt)
 
 # validate that date field is ISO 8601 format with timezone
 def date_is_iso_8601_with_timezone(v):
@@ -85,13 +89,32 @@ class RepositoryConfig(BaseModel):
     def url_is_valid(cls, v):
         return url_is_valid(v)
     
-    # validate that execution_history is sorted by date descending
+    # validate that execution_history is sorted by commit.date_utc descending
     @validator('execution_history')
-    def execution_history_is_sorted_by_execution_date_descending(cls, v):
-        for i in range(0, len(v) - 1):
-            if v[i].commit.date_utc < v[i+1].commit.date_utc:
-                raise ValueError("'execution_history' array must be sorted by 'execution_date_utc' descending")
+    def execution_history_is_sorted(cls, v):
+        if not all(v[i].commit.date_utc >= v[i+1].commit.date_utc for i in range(len(v)-1)):
+            raise ValueError("Execution history must be sorted by commit.date_utc descending")
         return v
+    
+    # Releases are formatted as a 4 digit integer incrementing by 10 with a lower bound of 3170
+    # Based on the formatting described, validate that no releases are missing from execution_history
+    # Remember that the execution_history is sorted by commit.date_utc descending, so release versions will decrement by 10
+    @validator('execution_history')
+    def execution_history_has_no_missing_releases(cls, v):
+
+        unique_release_versions = sorted(list(set([item.version for item in v])), reverse=True)
+
+        first_version = 3170 
+        expected_version = v[0].version
+        for version in unique_release_versions:
+            if version != expected_version:
+                raise ValueError(f"Execution history is missing version {expected_version}")
+            expected_version -= 10
+
+            if version == first_version:
+                break
+
+        return v 
 
 class SourceConfig(BaseModel):
     created_at_utc: str
