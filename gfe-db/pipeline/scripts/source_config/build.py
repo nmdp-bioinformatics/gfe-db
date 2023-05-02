@@ -19,7 +19,7 @@ import json
 # these libraries are shared from the check_source_update function
 from src.utils.types import (
     InputParameters,
-    ExecutionHistoryItem,
+    ExecutionStateItem,
     RepositoryConfig,
     SourceConfig,
 )
@@ -29,7 +29,7 @@ from src.utils import (
     flatten_json_records,
     select_keys,
     rename_fields,
-    process_execution_history_items,
+    process_execution_state_items,
 )
 
 # Environment variables
@@ -100,8 +100,8 @@ if __name__ == "__main__":
     ]
     commits = [commit for commit in commits if commit["sha"] not in excluded_commit_shas]
 
-    # Build ExecutionHistoryItem list using thread pooling    
-    execution_history_items = process_execution_history_items(
+    # Build ExecutionStateItem list using thread pooling    
+    execution_state_items = process_execution_state_items(
         commits=commits,
         asset_configs=asset_configs,
         limit=limit,
@@ -132,9 +132,9 @@ if __name__ == "__main__":
                                 "limit": os.environ.get("LIMIT", None),
                             }
                         ),
-                        "execution_history": [
-                            ExecutionHistoryItem(**item)
-                            for item in execution_history_items
+                        "execution_state": [
+                            ExecutionStateItem(**item)
+                            for item in execution_state_items
                         ],
                     }
                 )

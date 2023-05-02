@@ -53,7 +53,7 @@ class InputParameters(BaseModel):
     mem_profile: bool
     limit: Optional[int]
 
-class ExecutionHistoryItem(BaseModel):
+class ExecutionStateItem(BaseModel):
     version: int
     execution_date_utc: Optional[str]
     commit: Commit
@@ -79,25 +79,25 @@ class RepositoryConfig(BaseModel):
     url: str
     tracked_assets: list[str]
     default_input_parameters: InputParameters
-    execution_history: list[ExecutionHistoryItem]
+    execution_state: list[ExecutionStateItem]
 
     # validate that the url is a valid URL
     @validator('url')
     def url_is_valid(cls, v):
         return url_is_valid(v)
     
-    # validate that execution_history is sorted by commit.date_utc descending
-    @validator('execution_history')
-    def execution_history_is_sorted(cls, v):
+    # validate that execution_state is sorted by commit.date_utc descending
+    @validator('execution_state')
+    def execution_state_is_sorted(cls, v):
         if not all(v[i].commit.date_utc >= v[i+1].commit.date_utc for i in range(len(v)-1)):
             raise ValueError("Execution history must be sorted by commit.date_utc descending")
         return v
     
     # Releases are formatted as a 4 digit integer incrementing by 10 with a lower bound of 3170
-    # Based on the formatting described, validate that no releases are missing from execution_history
-    # Remember that the execution_history is sorted by commit.date_utc descending, so release versions will decrement by 10
-    @validator('execution_history')
-    def execution_history_has_no_missing_releases(cls, v):
+    # Based on the formatting described, validate that no releases are missing from execution_state
+    # Remember that the execution_state is sorted by commit.date_utc descending, so release versions will decrement by 10
+    @validator('execution_state')
+    def execution_state_has_no_missing_releases(cls, v):
 
         unique_release_versions = sorted(list(set([item.version for item in v])), reverse=True)
 

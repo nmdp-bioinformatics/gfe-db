@@ -109,3 +109,4 @@ response.json
 neo4j.conf
 gfedb.zip
 reports/
+source-config-v*.json

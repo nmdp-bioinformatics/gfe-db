@@ -24,14 +24,10 @@ from .constants import (
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-
-APP_NAME = os.environ["APP_NAME"]
-
 # boto3 session
 session = boto3.Session(region_name=AWS_REGION)
 s3 = session.client('s3')
 
-output_dir = Path(f"{APP_NAME}/pipeline/config")
 cache_dir = Path(__file__).parent / "_cache"
 
 def save_json_to_cache(data, var_name):
@@ -446,11 +442,11 @@ def filter_nulls(items: List[Dict[str, str]]) -> List[Dict[str, str]]:
     return [x for x in items if x is not None]
 
 
-def sort_execution_history_items(execution_history_items: List[Dict[str, str]], ascending=False) -> List[Dict[str, str]]:
-    return sorted(execution_history_items, key=lambda x: x['commit'].date_utc, reverse=(not ascending))
+def sort_execution_state_items(execution_state_items: List[Dict[str, str]], ascending=False) -> List[Dict[str, str]]:
+    return sorted(execution_state_items, key=lambda x: x['commit'].date_utc, reverse=(not ascending))
 
 
-def process_execution_history_item(commit: Dict[str, str], asset_configs: Dict[str, str], limit: int = None) -> Dict[str, str]:
+def process_execution_state_item(commit: Dict[str, str], asset_configs: Dict[str, str], limit: int = None) -> Dict[str, str]:
     errors = 0
     sha = commit['sha']
 
@@ -482,8 +478,8 @@ def process_execution_history_item(commit: Dict[str, str], asset_configs: Dict[s
         return result
 
 
-def parallel_process_execution_history_items(commits: List[Dict[str, str]], asset_configs: List[Dict[str, str]], limit: int = None):
-    execution_history_items = []
+def parallel_process_execution_state_items(commits: List[Dict[str, str]], asset_configs: List[Dict[str, str]], limit: int = None):
+    execution_state_items = []
     num_cores = multiprocessing.cpu_count()
     num_threads = max(1, num_cores - 1)  # Reserve one core for other processes
     num_threads = min(6, num_cores) # limit threads to avoid GitHub API rate limit
@@ -493,26 +489,26 @@ def parallel_process_execution_history_items(commits: List[Dict[str, str]], asse
 
         # Submit the process_commit function for each commit to the executor
         futures = [
-            executor.submit(process_execution_history_item, commit, asset_configs)
+            executor.submit(process_execution_state_item, commit, asset_configs)
             for commit in commits[:limit]
         ]
 
         # Collect the results as they complete
-        execution_history_items = [future.result() for future in as_completed(futures)]
+        execution_state_items = [future.result() for future in as_completed(futures)]
 
-    return sort_execution_history_items(filter_nulls(execution_history_items))
+    return sort_execution_state_items(filter_nulls(execution_state_items))
 
 # limit is int or None
 # @cache_pickle
-def process_execution_history_items(commits: List[Dict[str, str]], asset_configs: List[Dict[str, str]], limit: None, parallel: str = False) -> List[Dict[str, str]]:
+def process_execution_state_items(commits: List[Dict[str, str]], asset_configs: List[Dict[str, str]], limit: None, parallel: str = False) -> List[Dict[str, str]]:
 
     if parallel == True:
         if limit:
             logger.warning("'limit' will not work if parallel processing is enabled")
-        return parallel_process_execution_history_items(commits, asset_configs, limit)
+        return parallel_process_execution_state_items(commits, asset_configs, limit)
     else:
-        execution_history_items = []
+        execution_state_items = []
         for commit in commits[:limit]:
-            execution_history_items.append(process_execution_history_item(commit, asset_configs, limit))
+            execution_state_items.append(process_execution_state_item(commit, asset_configs, limit))
 
-        return sort_execution_history_items(filter_nulls(execution_history_items))
+        return sort_execution_state_items(filter_nulls(execution_state_items))
