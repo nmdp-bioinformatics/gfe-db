@@ -198,6 +198,14 @@ Resources:
         - Order: 1
           ComputeEnvironment: !Ref BuildComputeEnvironment
 
+  # SSM Parameter for the BuildJobQueue ARN
+  BuildJobQueueArn:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/BuildJobQueueArn'
+      Type: String
+      Value: !GetAtt BuildJobQueue.JobQueueArn
+
   BuildComputeEnvironment:
     Type: AWS::Batch::ComputeEnvironment
     Properties:
