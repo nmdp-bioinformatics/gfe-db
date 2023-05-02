@@ -90,7 +90,7 @@ if __name__ == "__main__":
         },
     ]
 
-    # Filtering out very old commits with no useful information
+    # Excluding old commits with no useful information
     excluded_commit_shas = [
         "08e0ef9f5c6aade40df681821a0b9caef439fe3a",
         "6ad21b61dee3689c5ae68370d635c5ede483c851",
@@ -127,10 +127,10 @@ if __name__ == "__main__":
                         # TODO fetch default input parameters from S3 so they are easy to update
                         "default_input_parameters": InputParameters(
                             **{
-                                "align": "False",
-                                "kir": "False",
-                                "mem_profile": "False",
-                                "limit": "1000",
+                                "align": os.environ.get("ALIGN", False),
+                                "kir": os.environ.get("KIR", False),
+                                "mem_profile": os.environ.get("MEM_PROFILE", False),
+                                "limit": os.environ.get("LIMIT", None),
                             }
                         ),
                         "execution_history": [
@@ -143,13 +143,14 @@ if __name__ == "__main__":
         }
     )
 
-    # convert utc_now string to datetime object using YYYYMMDDHHMM format
-    utc_now_version = datetime.strptime(utc_now, "%Y-%m-%dT%H:%M:%SZ").strftime(
-        "%Y%m%d-%H%M"
-    )
+    # # convert utc_now string to datetime object using YYYYMMDDHHMM format
+    # utc_now_version = datetime.strptime(utc_now, "%Y-%m-%dT%H:%M:%SZ").strftime(
+    #     "%Y%m%d-%H%M"
+    # )
 
+    # TODO get from argparse
     # write SourceConfig locally
-    with open(output_dir / f"source-config-v{utc_now_version}.json", "w") as f:
+    with open(output_dir / f"source-config.json", "w") as f:
         json.dump(source_config.dict(), f, indent=4)
 
 exit(0)

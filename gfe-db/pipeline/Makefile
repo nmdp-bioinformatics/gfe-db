@@ -28,6 +28,8 @@ service.functions.deploy:
 		--parameter-overrides \
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
+			ServiceName="${SERVICE}" \
+			ConfigS3Path="$${CONFIG_S3_PATH}" \
 			InvokePipelineFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.FunctionName')" \
 			InvokePipelineFunctionMemorySize="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.MemorySize')" \
 			InvokePipelineFunctionTimeout="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Timeout')" \
@@ -43,6 +45,11 @@ service.functions.deploy:
 
 service.jobs.deploy:
 	$(MAKE) -C jobs/ deploy
+
+# TODO handle virtual environment creation
+# TODO pass output directory as argument
+service.config.build-source-config:
+	@python3 scripts/source_config/build.py
 
 # TODO parameterize S3 config path and export as environment variable to recall in database shell scripts
 service.config.deploy:
