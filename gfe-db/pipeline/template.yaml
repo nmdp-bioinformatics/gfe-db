@@ -50,6 +50,13 @@ Resources:
         ReadCapacityUnits: 1
         WriteCapacityUnits: 1
 
+  ExecutionStateTableName:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/ExecutionStateTableName'
+      Type: String
+      Value: !Ref ExecutionStateTable
+
   BuildServerSG:
     Type: AWS::EC2::SecurityGroup
     Properties:

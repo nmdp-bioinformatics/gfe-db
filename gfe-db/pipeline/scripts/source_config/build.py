@@ -3,9 +3,8 @@ Builds the source config file for the given repository source.
 """
 import os
 import sys
-
 sys.path.append(
-    "/Users/ammon/Projects/nmdp-bioinformatics/02-Repositories/gfe-db/gfe-db/pipeline/functions/get_repo_updates"
+    "/Users/ammon/Projects/nmdp-bioinformatics/02-Repositories/gfe-db/gfe-db/pipeline/functions/check_source_update"
 )
 from pathlib import Path
 import logging
@@ -17,7 +16,7 @@ from datetime import datetime
 utc_now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 import json
 
-# these libraries are shared from the get_repo_updates function
+# these libraries are shared from the check_source_update function
 from src.utils.types import (
     InputParameters,
     ExecutionHistoryItem,
