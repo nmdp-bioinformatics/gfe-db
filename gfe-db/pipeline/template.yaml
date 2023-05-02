@@ -12,6 +12,9 @@ Parameters:
   ServiceName:
     Type: String
     Description: Service name
+  ConfigS3Path:
+    Type: String
+    Description: S3 path to config file
   InvokePipelineFunctionName:
     Type: String
   InvokePipelineFunctionMemorySize:
@@ -30,6 +33,23 @@ Parameters:
     Type: String
 
 Resources:
+  ExecutionStateTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: version
+          AttributeType: N
+        - AttributeName: 'commit.sha'
+          AttributeType: S
+      KeySchema:
+        - AttributeName: version
+          KeyType: HASH
+        - AttributeName: 'commit.sha'
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+
   BuildServerSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
