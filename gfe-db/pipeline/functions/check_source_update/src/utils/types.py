@@ -3,8 +3,13 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, validator
 
-
-valid_statuses = ["SUCCESS", "PENDING", "SKIPPED", "FAILED", "IN_PROGRESS", None]
+# EventBridge Rules trigger UpdateStatus Lambda
+# SKIPPED: state machine execution started and skipped 
+# PENDING: state machine execution started
+# IN_PROGRESS: batch build job triggered 
+# SUCCESS: state machine execution succeeded
+# FAILED: state machine execution failed
+valid_statuses = ["SKIPPED", "PENDING", "IN_PROGRESS", "SUCCESS", "FAILED", None]
 
 def to_datetime(v, fmt="%Y-%m-%dT%H:%M:%SZ"):
     return datetime.strptime(v, fmt)
@@ -46,15 +51,7 @@ class InputParameters(BaseModel):
     align: bool
     kir: bool
     mem_profile: bool
-    limit: str
-
-    # validate that limit is an integer
-    @validator('limit')
-    def limit_is_integer(cls, v):
-        if not v.isnumeric():
-            raise ValueError("Limit must be an integer")
-        return v
-    
+    limit: Optional[int]
 
 class ExecutionHistoryItem(BaseModel):
     version: int
