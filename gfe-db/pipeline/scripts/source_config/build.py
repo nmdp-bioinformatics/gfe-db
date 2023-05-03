@@ -70,6 +70,8 @@ if __name__ == "__main__":
     # Get the release version for each commit
     max_errors = 5
     limit = None
+
+    # TODO move to source config so this is accessible to other services
     asset_configs = [
         {
             "asset_name": "alignments/V_nuc.txt",  # commits from 3a71348 to current

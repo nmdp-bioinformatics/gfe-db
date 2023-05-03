@@ -475,6 +475,8 @@ def process_execution_state_item(commit: Dict[str, str], asset_configs: Dict[str
                 continue
 
         # return error count and increment outside this function
+
+        # TODO deserialize to ExecutionStateItem
         return result
 
 
@@ -500,7 +502,7 @@ def parallel_process_execution_state_items(commits: List[Dict[str, str]], asset_
 
 # limit is int or None
 # @cache_pickle
-def process_execution_state_items(commits: List[Dict[str, str]], asset_configs: List[Dict[str, str]], limit: None, parallel: str = False) -> List[Dict[str, str]]:
+def process_execution_state_items(commits: List[Dict[str, str]], asset_configs: List[Dict[str, str]], limit: None = None, parallel: str = False) -> List[Dict[str, str]]:
 
     if parallel == True:
         if limit:

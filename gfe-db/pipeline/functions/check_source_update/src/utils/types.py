@@ -81,6 +81,9 @@ class RepositoryConfig(BaseModel):
     default_input_parameters: InputParameters
     execution_state: list[ExecutionStateItem]
 
+    # TODO include asset_config with target assets descriptors
+    # asset_config: dict[str, str]
+
     # validate that the url is a valid URL
     @validator('url')
     def url_is_valid(cls, v):
