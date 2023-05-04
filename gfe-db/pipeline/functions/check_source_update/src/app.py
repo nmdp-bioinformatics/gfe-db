@@ -1,5 +1,6 @@
 """
-Checks a GitHub repository for new commits and triggers data ingestion
+Checks a GitHub repository for new commits and triggers data ingestion. This function processes
+only the releases that it finds. To process specific releases, use a different method.
 """
 import os
 import logging
@@ -97,6 +98,7 @@ def lambda_handler(event, context):
     # TODO All commits from state should be be processed if status is null, because this indicates they have not been handled yet
     # if there are new commits, get the release version for each commit and deserialize
     if len(new_commits) > 0:
+        # TODO fetch from 
         asset_configs = [
             {
                 "asset_name": "alignments/V_nuc.txt",  # commits from 3a71348 to current
@@ -124,7 +126,7 @@ def lambda_handler(event, context):
             parallel=False,
         )
 
-        # TODO move inside new_execution_state_items
+        # TODO move inside process_execution_state_items
         new_execution_state_items = [
             ExecutionStateItem(**item) for item in new_execution_state_items
         ]
@@ -151,8 +153,6 @@ def lambda_handler(event, context):
 
         # update execution state status as PENDING for commits that are the most recent release data,
         # and SKIPPED for commits that are not the most recent release data
-        # ⚠️ see TODOs above regarding all commits from state being marked. This logic should process all commits 
-        # that have null status, and mark them as PENDING or SKIPPED accordingly
         for item in new_execution_state_items:
 
             # mark item processing status
@@ -161,7 +161,7 @@ def lambda_handler(event, context):
             else:
                 item.status = "SKIPPED"
 
-            # set  execution_date_utc
+            # TODO set execution_date_utc using Lambda context
 
         
 

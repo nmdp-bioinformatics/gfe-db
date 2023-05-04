@@ -68,10 +68,9 @@ if __name__ == "__main__":
     commits = rename_fields(all_commits_flat, commit_key_names_map)
 
     # Get the release version for each commit
-    max_errors = 5
     limit = None
 
-    # TODO move to source config so this is accessible to other services
+    # TODO move to external config store
     asset_configs = [
         {
             "asset_name": "alignments/V_nuc.txt",  # commits from 3a71348 to current
@@ -114,6 +113,8 @@ if __name__ == "__main__":
     repository_path = f"{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}"
     tracked_assets = ["hla.dat", "msf/"]
 
+    # TODO split up source config and execution stae
+    # TODO add asset_config item to source config
     source_config = SourceConfig(
         **{
             "created_at_utc": utc_now,
