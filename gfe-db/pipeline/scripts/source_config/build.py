@@ -22,8 +22,10 @@ from src.utils.types import (
     ExecutionStateItem,
     RepositoryConfig,
     SourceConfig,
+    # SourceConfigBase
 )
 from src.utils import (
+    read_source_config_base,
     paginate_commits,
     select_fields,
     flatten_json_records,
@@ -37,10 +39,14 @@ APP_NAME = os.environ["APP_NAME"]
 GITHUB_REPOSITORY_OWNER = "ANHIG"  # os.environ["GITHUB_REPOSITORY_OWNER"]
 GITHUB_REPOSITORY_NAME = "IMGTHLA"  # os.environ["GITHUB_REPOSITORY_NAME"]
 DATA_BUCKET_NAME = os.environ["DATA_BUCKET_NAME"]
-PIPELINE_CONFIG_S3_PATH = os.environ["PIPELINE_CONFIG_S3_PATH"]
+PIPELINE_SOURCE_CONFIG_BASE_S3_PATH = os.environ["PIPELINE_SOURCE_CONFIG_BASE_S3_PATH"]
 
 
 if __name__ == "__main__":
+
+    # Get base source config
+    source_config_base = read_source_config_base(DATA_BUCKET_NAME, PIPELINE_SOURCE_CONFIG_BASE_S3_PATH)
+
     # Paths
     # TODO arg
     output_dir = Path(f"{APP_NAME}/pipeline/config")
@@ -68,81 +74,15 @@ if __name__ == "__main__":
     commits = rename_fields(all_commits_flat, commit_key_names_map)
 
     # Get the release version for each commit
-    limit = None
-
-    # TODO move to external config store
-    asset_configs = [
-        {
-            "asset_name": "alignments/V_nuc.txt",  # commits from 3a71348 to current
-            "release_version_regex": r"[1-9]\d{0,1}\.[1-9]\d{0,2}\.0(?:\.\d{1,2})?(?=\s|$)",
-        },
-        {
-            "asset_name": "aligments/V_nuc.txt",  # commits from 8632b0d to 3645f26
-            "release_version_regex": r"[1-9]\d{0,1}\.[1-9]\d{0,2}\.0(?:\.\d{1,2})?(?=\s|$)",
-        },
-        {
-            "asset_name": "Alignments/V_nuc.txt",  # commits from af54d28 to 9d8f585
-            "release_version_regex": r"[1-9]\d{0,1}\.[1-9]\d{0,2}\.0(?:\.\d{1,2})?(?=\s|$)",
-        },
-        {
-            "asset_name": "V_nuc.txt",  # all commits before 08e0ef9
-            "release_version_regex": r"[1-9]\d{0,1}\.[1-9]\d{0,2}\.0(?:\.\d{1,2})?(?=\s|$)",
-        },
-    ]
-
-    # Excluding old commits with no useful information
-    excluded_commit_shas = [
-        "08e0ef9f5c6aade40df681821a0b9caef439fe3a",
-        "6ad21b61dee3689c5ae68370d635c5ede483c851",
-        "79d13ceb388eb9dacc9e166be18cce9373f7fd1d",
-        "9f35f8fe8a2e25bb076e588e65389cac16a8ed2f",
-        "785c913f2d42abd68bcdf630ce2f58ee9b9c2579",
-        "efc06e88b56d1e6e44661ec45f192dc1186a30ad",
-    ]
+    target_metadata_config = source_config_base.repositories[GITHUB_REPOSITORY_OWNER+"/"+GITHUB_REPOSITORY_NAME].target_metadata_config.values
+    excluded_commit_shas = source_config_base.repositories[GITHUB_REPOSITORY_OWNER+"/"+GITHUB_REPOSITORY_NAME].excluded_commit_shas.values
     commits = [commit for commit in commits if commit["sha"] not in excluded_commit_shas]
 
     # Build ExecutionStateItem list using thread pooling    
     execution_state_items = process_execution_state_items(
         commits=commits,
-        asset_configs=asset_configs,
-        limit=limit,
-        parallel=True,
-    )
-
-    # Build RepositoryConfig
-    repository_path = f"{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}"
-    tracked_assets = ["hla.dat", "msf/"]
-
-    # TODO split up source config and execution stae
-    # TODO add asset_config item to source config
-    source_config = SourceConfig(
-        **{
-            "created_at_utc": utc_now,
-            "updated_at_utc": utc_now,
-            "repositories": {
-                repository_path: RepositoryConfig(
-                    **{
-                        "owner": GITHUB_REPOSITORY_OWNER,
-                        "name": GITHUB_REPOSITORY_NAME,
-                        "url": f"https://github.com/{repository_path}",
-                        "tracked_assets": tracked_assets,
-                        # TODO fetch default input parameters from S3 so they are easy to update
-                        "default_input_parameters": InputParameters(
-                            **{
-                                "align": os.environ.get("ALIGN", False),
-                                "kir": os.environ.get("KIR", False),
-                                "mem_profile": os.environ.get("MEM_PROFILE", False),
-                                "limit": os.environ.get("LIMIT", None),
-                            }
-                        ),
-                        "execution_state": [
-                            ExecutionStateItem(**item)
-                            for item in execution_state_items
-                        ],
-                    }
-                )
-            },
-        }
+        target_metadata_config=target_metadata_config,
+        parallel=False,
     )
 
     # # convert utc_now string to datetime object using YYYYMMDDHHMM format
@@ -150,9 +90,9 @@ if __name__ == "__main__":
     #     "%Y%m%d-%H%M"
     # )
 
-    # TODO get from argparse
-    # write SourceConfig locally
-    with open(output_dir / f"source-config.json", "w") as f:
-        json.dump(source_config.dict(), f, indent=4)
+    # # TODO get from argparse
+    # # write SourceConfig locally
+    # with open(output_dir / f"source-config.json", "w") as f:
+    #     json.dump(source_config.dict(), f, indent=4)
 
 exit(0)

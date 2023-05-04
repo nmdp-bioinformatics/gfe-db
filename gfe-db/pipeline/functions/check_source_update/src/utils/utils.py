@@ -12,7 +12,12 @@ import multiprocessing
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import boto3
 from botocore.exceptions import ClientError
-from .types import SourceConfig, Commit
+from .types import (
+    SourceConfigBase, 
+    SourceConfig, 
+    TargetMetadataConfigItem,
+    Commit
+)
 from .constants import (
     AWS_REGION, 
     GITHUB_PERSONAL_ACCESS_TOKEN,
@@ -152,9 +157,9 @@ def write_s3_json(bucket, key, data):
         raise err
 
 
-def read_source_config(bucket, key):
+def read_source_config_base(bucket, key):
     data = read_s3_json(bucket, key)
-    return SourceConfig(**data)
+    return SourceConfigBase(**data)
 
 
 def write_source_config(bucket, key, source_config: SourceConfig):
@@ -429,9 +434,9 @@ def find_text(pattern, input_str):
 
 def get_release_version_for_commit(commit: dict, **kwargs) -> int:
         sha = commit['sha']
-        asset_name = kwargs['asset_name']
-        release_version_regex = kwargs['release_version_regex']
-        allele_list = get_repo_asset(GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY_NAME, asset_name, sha)
+        asset_path = kwargs['asset_path']
+        release_version_regex = kwargs['metadata_regex']
+        allele_list = get_repo_asset(GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY_NAME, asset_path, sha)
         release_version = find_text(release_version_regex, allele_list)
         if release_version is None:
             raise Exception(f"Release version not found for commit {sha}")
@@ -446,14 +451,14 @@ def sort_execution_state_items(execution_state_items: List[Dict[str, str]], asce
     return sorted(execution_state_items, key=lambda x: x['commit'].date_utc, reverse=(not ascending))
 
 
-def process_execution_state_item(commit: Dict[str, str], asset_configs: Dict[str, str], limit: int = None) -> Dict[str, str]:
+def process_execution_state_item(commit: Dict[str, str], target_metadata_config: list[TargetMetadataConfigItem], limit: int = None) -> Dict[str, str]:
     errors = 0
     sha = commit['sha']
 
-    for idx, asset_config in enumerate(asset_configs):
+    for idx, config in enumerate(target_metadata_config):
         try:
-            logger.info(f"Getting release version for sha {sha} from {asset_config['asset_name']}")
-            release_version = get_release_version_for_commit(commit, **asset_config)
+            logger.info(f"Getting release version for sha {sha} from {config.asset_path}")
+            release_version = get_release_version_for_commit(commit, **config.dict())
             logger.info(f"Found release version {release_version} ({sha})")
 
             result = {
@@ -468,7 +473,7 @@ def process_execution_state_item(commit: Dict[str, str], asset_configs: Dict[str
             # Need to find another file that indicates the release version should be small
             errors += 1
             logger.error(f"Error processing commit {sha}: {e}")
-            if errors == len(asset_configs):
+            if errors == len(target_metadata_config.values):
                 # logger.error(f"Max errors reached. Exiting loop.")
                 raise Exception(f"No assets found for commit {sha}")
             else:
@@ -480,7 +485,7 @@ def process_execution_state_item(commit: Dict[str, str], asset_configs: Dict[str
         return result
 
 
-def parallel_process_execution_state_items(commits: List[Dict[str, str]], asset_configs: List[Dict[str, str]], limit: int = None):
+def parallel_process_execution_state_items(commits: List[Dict[str, str]], target_metadata_config: list[TargetMetadataConfigItem], limit: int = None):
     execution_state_items = []
     num_cores = multiprocessing.cpu_count()
     num_threads = max(1, num_cores - 1)  # Reserve one core for other processes
@@ -491,7 +496,7 @@ def parallel_process_execution_state_items(commits: List[Dict[str, str]], asset_
 
         # Submit the process_commit function for each commit to the executor
         futures = [
-            executor.submit(process_execution_state_item, commit, asset_configs)
+            executor.submit(process_execution_state_item, commit, target_metadata_config)
             for commit in commits[:limit]
         ]
 
@@ -502,15 +507,15 @@ def parallel_process_execution_state_items(commits: List[Dict[str, str]], asset_
 
 # limit is int or None
 # @cache_pickle
-def process_execution_state_items(commits: List[Dict[str, str]], asset_configs: List[Dict[str, str]], limit: None = None, parallel: str = False) -> List[Dict[str, str]]:
+def process_execution_state_items(commits: List[Dict[str, str]], target_metadata_config: list[TargetMetadataConfigItem], limit: None = None, parallel: str = False) -> List[Dict[str, str]]:
 
     if parallel == True:
         if limit:
             logger.warning("'limit' will not work if parallel processing is enabled")
-        return parallel_process_execution_state_items(commits, asset_configs, limit)
+        return parallel_process_execution_state_items(commits, target_metadata_config, limit)
     else:
         execution_state_items = []
         for commit in commits[:limit]:
-            execution_state_items.append(process_execution_state_item(commit, asset_configs, limit))
+            execution_state_items.append(process_execution_state_item(commit, target_metadata_config, limit))
 
         return sort_execution_state_items(filter_nulls(execution_state_items))
