@@ -53,7 +53,52 @@ class InputParameters(BaseModel):
     mem_profile: bool
     limit: Optional[int]
 
+class ExcludedCommitShas(BaseModel):
+    description: Optional[str]
+    values: list[str]
+
+    # TODO validate that values are hex strings
+
+class TrackedAssetsConfig(BaseModel):
+    description: Optional[str]
+    values: list[str]
+
+class TargetMetadataConfigItem(BaseModel):
+    description: Optional[str]
+    asset_path: str
+    metadata_regex: str
+
+class TargetMetadataConfig(BaseModel):
+    description: Optional[str]
+    items: list[TargetMetadataConfigItem]
+
+class RepositoryConfig(BaseModel):
+    owner: str
+    name: str
+    description: Optional[str]
+    url: str
+    tracked_assets: Optional[TrackedAssetsConfig]  
+    target_metadata_config: Optional[TargetMetadataConfig]
+    excluded_commit_shas: Optional[ExcludedCommitShas]
+    default_input_parameters: InputParameters
+
+    # validate that the url is a valid URL
+    @validator('url')
+    def url_is_valid(cls, v):
+        return url_is_valid(v)
+
+class SourceConfig(BaseModel):
+    created_utc: Optional[str]
+    updated_utc: Optional[str]
+    repositories: dict[str, RepositoryConfig]
+
+    # validate dates are ISO 8601 format with timezone for created_utc, updated_utc
+    @validator('created_utc', 'updated_utc')
+    def date_utc_is_iso_8601_with_timezone(cls, v):
+        return date_is_iso_8601_with_timezone(v)
+
 class ExecutionStateItem(BaseModel):
+    repository: RepositoryConfig
     version: int
     execution_date_utc: Optional[str]
     commit: Commit
@@ -72,79 +117,35 @@ class ExecutionStateItem(BaseModel):
         if not re.match(r'^[1-9][0-9]{2}0$', str(v)):
             raise ValueError("Version must match '^[1-9][0-9]{2}0$'")
         return v
-
-class ExcludedCommitShas(BaseModel):
-    description: str
-    values: list[str]
-
-    # TODO validate that values are hex strings
-
-class TrackedAssetsConfig(BaseModel):
-    description: str
-    values: list[str]
-
-class TargetMetadataConfigItem(BaseModel):
-    description: str
-    asset_path: str
-    metadata_regex: str
-
-class TargetMetadataConfig(BaseModel):
-    description: str
-    values: list[TargetMetadataConfigItem]
-
-class RepositoryConfig(BaseModel):
-    owner: str
-    name: str
-    description: str
-    url: str
-    tracked_assets: Optional[TrackedAssetsConfig]  
-    target_metadata_config: Optional[TargetMetadataConfig]
-    excluded_commit_shas: Optional[ExcludedCommitShas]
-    default_input_parameters: InputParameters
-    # execution_state: list[ExecutionStateItem]
-
-    # validate that the url is a valid URL
-    @validator('url')
-    def url_is_valid(cls, v):
-        return url_is_valid(v)
     
-    # # validate that execution_state is sorted by commit.date_utc descending
-    # @validator('execution_state')
-    # def execution_state_is_sorted(cls, v):
-    #     if not all(v[i].commit.date_utc >= v[i+1].commit.date_utc for i in range(len(v)-1)):
-    #         raise ValueError("Execution history must be sorted by commit.date_utc descending")
-    #     return v
+class ExecutionState(BaseModel):
+    created_utc: str
+    updated_utc: str
+    items: list[ExecutionStateItem]
+
+    # validate that items is sorted by commit.date_utc descending
+    @validator('items')
+    def execution_state_is_sorted(cls, v):
+        if not all(v[i].commit.date_utc >= v[i+1].commit.date_utc for i in range(len(v)-1)):
+            raise ValueError("Execution history must be sorted by commit.date_utc descending")
+        return v
     
-    # # Releases are formatted as a 4 digit integer incrementing by 10 with a lower bound of 3170
-    # # Based on the formatting described, validate that no releases are missing from execution_state
-    # # Remember that the execution_state is sorted by commit.date_utc descending, so release versions will decrement by 10
-    # @validator('execution_state')
-    # def execution_state_has_no_missing_releases(cls, v):
+    # Releases are formatted as a 4 digit integer incrementing by 10 with a lower bound of 3170
+    # Based on the formatting described, validate that no releases are missing from items
+    # Remember that the items is sorted by commit.date_utc descending, so release versions will decrement by 10
+    @validator('items')
+    def execution_state_has_no_missing_releases(cls, v):
 
-    #     unique_release_versions = sorted(list(set([item.version for item in v])), reverse=True)
+        unique_release_versions = sorted(list(set([item.version for item in v])), reverse=True)
 
-    #     first_version = 3170 
-    #     expected_version = v[0].version
-    #     for version in unique_release_versions:
-    #         if version != expected_version:
-    #             raise ValueError(f"Execution history is missing version {expected_version}")
-    #         expected_version -= 10
+        first_version = 3170 
+        expected_version = v[0].version
+        for version in unique_release_versions:
+            if version != expected_version:
+                raise ValueError(f"Execution history is missing version {expected_version}")
+            expected_version -= 10
 
-    #         if version == first_version:
-    #             break
+            if version == first_version:
+                break
 
-    #     return v 
-
-class SourceConfigBase(BaseModel):
-    repositories: dict[str, RepositoryConfig]
-
-class SourceConfig(SourceConfigBase):
-    created_at_utc: str
-    updated_at_utc: str
-
-    # validate dates are ISO 8601 format with timezone for created_at_utc, updated_at_utc
-    @validator('created_at_utc', 'updated_at_utc')
-    def date_utc_is_iso_8601_with_timezone(cls, v):
-        return date_is_iso_8601_with_timezone(v)
-    
-
+        return v 

@@ -18,14 +18,12 @@ import json
 
 # these libraries are shared from the check_source_update function
 from src.utils.types import (
-    InputParameters,
-    ExecutionStateItem,
-    RepositoryConfig,
     SourceConfig,
-    # SourceConfigBase
+    RepositoryConfig,
+    ExecutionState
 )
 from src.utils import (
-    read_source_config_base,
+    read_s3_json,
     paginate_commits,
     select_fields,
     flatten_json_records,
@@ -36,22 +34,29 @@ from src.utils import (
 
 # Environment variables
 APP_NAME = os.environ["APP_NAME"]
-GITHUB_REPOSITORY_OWNER = "ANHIG"  # os.environ["GITHUB_REPOSITORY_OWNER"]
-GITHUB_REPOSITORY_NAME = "IMGTHLA"  # os.environ["GITHUB_REPOSITORY_NAME"]
+GITHUB_REPOSITORY_OWNER = os.environ["GITHUB_REPOSITORY_OWNER"]
+GITHUB_REPOSITORY_NAME = os.environ["GITHUB_REPOSITORY_NAME"]
 DATA_BUCKET_NAME = os.environ["DATA_BUCKET_NAME"]
-PIPELINE_SOURCE_CONFIG_BASE_S3_PATH = os.environ["PIPELINE_SOURCE_CONFIG_BASE_S3_PATH"]
+# PIPELINE_SOURCE_CONFIG_S3_PATH = os.environ["PIPELINE_SOURCE_CONFIG_S3_PATH"]
 
 
 if __name__ == "__main__":
-
-    # Get base source config
-    source_config_base = read_source_config_base(DATA_BUCKET_NAME, PIPELINE_SOURCE_CONFIG_BASE_S3_PATH)
 
     # Paths
     # TODO arg
     output_dir = Path(f"{APP_NAME}/pipeline/config")
 
+    # Get base source config
+    # try:
+    #     source_config = SourceConfig(**read_s3_json(DATA_BUCKET_NAME, PIPELINE_SOURCE_CONFIG_S3_PATH))
+    # except Exception as e:
+    #     logger.error(f"Error loading source config from {PIPELINE_SOURCE_CONFIG_S3_PATH}")
+    #     logger.info("Trying local source config")
+    with open(output_dir / "source-config.json", "r") as f:
+        source_config = SourceConfig(**json.load(f))
+
     # Fetch all commits from repo using GitHub API, will be cached
+    logger.info("Fetching all commits from repo using GitHub API")
     all_commits = paginate_commits(GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY_NAME)
 
     # filter by chosen commit keys
@@ -74,25 +79,40 @@ if __name__ == "__main__":
     commits = rename_fields(all_commits_flat, commit_key_names_map)
 
     # Get the release version for each commit
-    target_metadata_config = source_config_base.repositories[GITHUB_REPOSITORY_OWNER+"/"+GITHUB_REPOSITORY_NAME].target_metadata_config.values
-    excluded_commit_shas = source_config_base.repositories[GITHUB_REPOSITORY_OWNER+"/"+GITHUB_REPOSITORY_NAME].excluded_commit_shas.values
+    target_metadata_config = source_config.repositories[GITHUB_REPOSITORY_OWNER+"/"+GITHUB_REPOSITORY_NAME].target_metadata_config
+    excluded_commit_shas = source_config.repositories[GITHUB_REPOSITORY_OWNER+"/"+GITHUB_REPOSITORY_NAME].excluded_commit_shas.values
     commits = [commit for commit in commits if commit["sha"] not in excluded_commit_shas]
 
     # Build ExecutionStateItem list using thread pooling    
+    logger.info("Building execution state")
     execution_state_items = process_execution_state_items(
         commits=commits,
+        repository_config=RepositoryConfig(
+            **select_keys(
+                source_config.repositories[GITHUB_REPOSITORY_OWNER+"/"+GITHUB_REPOSITORY_NAME].dict(), 
+                ["owner", "name", "url", "default_input_parameters"]
+            )
+        ),
         target_metadata_config=target_metadata_config,
-        parallel=False,
+        parallel=True,
     )
 
-    # # convert utc_now string to datetime object using YYYYMMDDHHMM format
-    # utc_now_version = datetime.strptime(utc_now, "%Y-%m-%dT%H:%M:%SZ").strftime(
-    #     "%Y%m%d-%H%M"
-    # )
+    execution_state = ExecutionState(**{
+        "created_utc": utc_now,
+        "updated_utc": utc_now,
+        "items": execution_state_items,
+    })
 
-    # # TODO get from argparse
-    # # write SourceConfig locally
-    # with open(output_dir / f"source-config.json", "w") as f:
-    #     json.dump(source_config.dict(), f, indent=4)
+    source_config.created_utc, source_config.updated_utc = utc_now, utc_now
 
-exit(0)
+    logger.info("Writing execution state to local file system")
+    # TODO get output_dir from argparse
+    # write ExecutionState locally
+    with open(output_dir / f"execution-state.json", "w") as f:
+        json.dump(execution_state.dict(), f, indent=4)
+
+    logger.info("Writing source config to local file system")
+    # TODO get output_dir from argparse
+    # write SourceConfig locally
+    with open(output_dir / f"source-config.json", "w") as f:
+        json.dump(source_config.dict(), f, indent=4)

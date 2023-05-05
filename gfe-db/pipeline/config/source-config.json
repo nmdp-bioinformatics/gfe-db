@@ -1,4 +1,6 @@
 {
+    "created_utc": "2023-05-05T03:51:33Z",
+    "updated_utc": "2023-05-05T03:51:33Z",
     "repositories": {
         "ANHIG/IMGTHLA": {
             "owner": "ANHIG",
@@ -14,7 +16,7 @@
             },
             "target_metadata_config": {
                 "description": "Regex patterns to extract the release version metadata from the text content of the asset",
-                "values": [
+                "items": [
                     {
                         "description": "Extract release version metadata for commits from 3a71348 to current",
                         "asset_path": "alignments/V_nuc.txt",
