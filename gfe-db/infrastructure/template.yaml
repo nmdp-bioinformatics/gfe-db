@@ -12,8 +12,6 @@ Parameters:
   GitHubPersonalAccessToken:
     Type: String
     NoEcho: true
-  HostedZoneId:
-    Type: String
     
 Mappings:
   # AvailabilityZoneMap defines availability zones where an m5d.xlarge instance is available (used for Neo4j server).
@@ -68,6 +66,9 @@ Resources:
   
   Route:
     Type: AWS::EC2::Route
+    DependsOn:
+      - InternetGateway
+      - VpcGatewayAttachment
     Properties:
       RouteTableId: !Ref RouteTable
       DestinationCidrBlock: 0.0.0.0/0
@@ -157,6 +158,44 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId'
       Description: !Sub 'AllocationId for ${AppName} Neo4j server static IP'
       Value: !GetAtt Neo4jDatabaseElasticIp.AllocationId
+
+  DataPipelineErrorsTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref DataPipelineErrorsTopic
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudwatch.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref DataPipelineErrorsTopic
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  DataPipelineErrorsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Sub "${AppName} Data Pipeline Errors"
+      Subscription:
+        - Endpoint: gclindsey@gmail.com
+          Protocol: email
+      Tags:
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: AppName 
+          Value: !Ref AppName
+
+  DataPipelineErrorsTopicArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn'
+      Description: !Sub 'ARN for ${AppName} Data Pipeline Errors SNS topic'
+      Value: !Ref DataPipelineErrorsTopic
 
 Outputs:
   Neo4jDatabaseElasticIp:

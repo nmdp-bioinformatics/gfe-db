@@ -9,7 +9,6 @@ deploy:
 	# $(MAKE) ecr.login
 	$(MAKE) deploy.ecr.jobs.build
 
-# TODO: use a for loop for build/load targets
 deploy.ecr.jobs.build:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Pushing Build Service Docker image to ECR" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws ecr get-login-password \
@@ -27,7 +26,6 @@ delete:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH
 	$(MAKE) delete.ecr.jobs.build
 
-# TODO: use a for loop for build/load targets
 delete.ecr.jobs.build:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting Build Service Docker images" 2>&1 | tee -a $$CFN_LOG_PATH
 	@ecr_images="$$(aws ecr list-images \

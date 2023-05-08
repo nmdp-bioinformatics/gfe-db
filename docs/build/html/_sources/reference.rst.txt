@@ -9,334 +9,9 @@ features, sequences and other types of data. The new schema is centered
 around the GFE node and makes the curation and database versioning of
 WHO designations or WHO labels an optional annotation of GFEs.
 
-.. image:: /_static/img/schema-alpha-v220511.png
+.. image:: /_static/img/schema-alpha-v230305.png
    :scale: 50%
    :align: center
-
-GFE nodes
-~~~~~~~~~~~~~
-
-Description
-^^^^^^^^^^^
-
-Each node represents a distinct GFE object. For example, a GFE with
-``gfe_name="HLA-Aw2-1-1-1-1-4-1-1-1-2-1-1-1-1-1-1-4"`` corresponds to a full
-sequence and also 17 features: - FIVE_PRIME_UTR - EXON (1-8) - INTRON
-(1-7) - THREE_PRIME_UTR
-
-Properties
-^^^^^^^^^^
-
-.. code:: json
-
-   {
-     "gfe_name": "HLA-Aw99-8-363-912-781-2901-128-581-151-324-198-9-316-80-508-43-30",
-     "locus": "HLA-A"
-   }
-
-
-+--------------+--------------------------------------------------------------------+-----------+----------------------------------------+
-| Property     | Example                                                            | Data Type | Description                            |
-+==============+====================================================================+===========+========================================+
-| ``gfe_name`` | HLA-Aw99-8-363-912-781-2901-128-581-151-324-198-9-316-80-508-43-30 | string    | GFE name                               |
-+--------------+--------------------------------------------------------------------+-----------+----------------------------------------+
-| ``locus``    | HLA-A                                                              | string    | Position of the gene on the chromosome |
-+--------------+--------------------------------------------------------------------+-----------+----------------------------------------+
-
-Feature nodes
-~~~~~~~~~~~~~~~~~
-
-.. _description-1:
-
-Description
-^^^^^^^^^^^
-
-A feature is a tuple of: locus, term and rank. A locus is "anything in
-`HUGO <https://www.genenames.org/>`__", and a term is "anything in
-`sequence ontology <http://www.sequenceontology.org/>`__".
-
-.. _properties-1:
-
-Properties
-^^^^^^^^^^
-
-.. code:: json
-
-   {
-     "accession": 99,
-     "locus": "HLA-A",
-     "rank": 1,
-     "term": "FIVE_PRIME_UTR"
-   }
-
-+-------------+----------------+-----------+--------------------------------------------------------------------------------------------+
-| Property    | Example        | Data Type | Description                                                                                |
-+=============+================+===========+============================================================================================+
-|``accession``| 2901           | string    | Relatively stable unique record identifier for a sequence                                  |
-+-------------+----------------+-----------+--------------------------------------------------------------------------------------------+
-|``locus``    | HLA-A          | string    | Position of the gene on the chromosome                                                     |
-+-------------+----------------+-----------+--------------------------------------------------------------------------------------------+
-|``rank``     | 7              | string    | Ordinal number describing the position of the Feature sequence on the allele               |
-+-------------+----------------+-----------+--------------------------------------------------------------------------------------------+
-|``term``     | FIVE_PRIME_UTR | string    | Label describing the type of Feature; One of FIVE_PRIME_UTR, EXON, INTRON, THREE_PRIME_UTR |
-+-------------+----------------+-----------+--------------------------------------------------------------------------------------------+
-
-Sequence nodes
-~~~~~~~~~~~~~~~~~~
-
-.. _description-2:
-
-Description
-^^^^^^^^^^^
-
-The nucleotide sequence corresponding to the GFE.
-
-.. _properties-2:
-
-Properties
-^^^^^^^^^^
-
-.. code:: json
-
-   {
-     "gfe_name": "HLA-Cw393-14-261-132-1610-454-45-532-107-272-205-3-264-71-398-4-621",
-     "length": 3918,
-     "locus": "HLA-C",
-     "seq_id": 27670532806245477286153332635897,
-     "sequence": "TTATTTTGCTGGATGTAGTTTAATATTACCTGAGGTGAGGTAAGGTA..."
-   }
-
-+------------+---------------------------------------------------------------------+-----------+--------------------------------------------------------------------------+
-| Property   | Example                                                             | Data Type | Description                                                              |
-+============+=====================================================================+===========+==========================================================================+
-|``gfe_name``| HLA-Cw393-14-261-132-1610-454-45-532-107-272-205-3-264-71-398-4-621 | string    | Gene Feature Enumeration name                                            |
-+------------+---------------------------------------------------------------------+-----------+--------------------------------------------------------------------------+
-|``length``  | 3918                                                                | integer   | Length of nucleotide sequence                                            |
-+------------+---------------------------------------------------------------------+-----------+--------------------------------------------------------------------------+
-|``locus``   | HLA-C                                                               | string    | Position of the gene on the chromosome                                   |
-+------------+---------------------------------------------------------------------+-----------+--------------------------------------------------------------------------+
-|``seq_id``  | 27670532806245477286153332635897                                    | integer   | Compressed UUID based on MD5 hash of sequence (used for faster indexing) |
-+------------+---------------------------------------------------------------------+-----------+--------------------------------------------------------------------------+
-|``sequence``| TTATTTTGCTGGATGTAGTTTAATATTACCTGAGGTGAGGTAAGGTA...                  | string    | Full nucleotide sequence                                                 |
-+------------+---------------------------------------------------------------------+-----------+--------------------------------------------------------------------------+
-
-IPD_Allele nodes
-~~~~~~~~~~~~~~~~
-
-.. note::
-   ``IPD_Allele`` and ``IPD_ACC`` nodes replace the previous ``WHO`` nodes. Documentation
-   is in progress.
-
-.. _description-3a:
-
-Description
-^^^^^^^^^^^
-
-*Documentation in progress*
-
-.. _properties-3a:
-
-Properties
-^^^^^^^^^^
-
-.. code:: json
-
-   {
-     // Documentation in progress
-   }
-
-+----------+-------------------+-----------+------------------------+
-| Property | Example           | Data Type | Description            |
-+==========+===================+===========+========================+
-|          |                   |           |                        |
-+----------+-------------------+-----------+------------------------+
-
-IPD_ACC nodes
-~~~~~~~~~~~~~
-
-.. note::
-   ``IPD_Allele`` and ``IPD_ACC`` nodes replace the previous ``WHO`` nodes. Documentation
-   is in progress.
-
-.. _description-3b:
-
-Description
-^^^^^^^^^^^
-
-*Documentation in progress*
-
-.. _properties-3b:
-
-Properties
-^^^^^^^^^^
-
-.. code:: json
-
-   {
-     // Documentation in progress
-   }
-
-+----------+-------------------+-----------+------------------------+
-| Property | Example           | Data Type | Description            |
-+==========+===================+===========+========================+
-|          |                   |           |                        |
-+----------+-------------------+-----------+------------------------+
-
-Submitter nodes
-~~~~~~~~~~~~~~~~~~~
-
-.. _description-4:
-
-Description
-^^^^^^^^^^^
-
-Describes the submitter of a GFE node.
-
-.. _properties-4:
-
-Properties
-^^^^^^^^^^
-
-.. code:: json
-
-   {
-     "email": "<email>",
-     "institution": "<institution name>",
-     "name": "<name>"
-   }
-
-+---------------+----------------------+-----------+-------------------------+
-| Property      | Example              | Data Type | Description             |
-+===============+======================+===========+=========================+
-|``email``      | user@cibmtr.org      | string    | Submitter's email       |
-+---------------+----------------------+-----------+-------------------------+
-|``institution``| CIBMTR               | integer   | Submitter's institution |
-+---------------+----------------------+-----------+-------------------------+
-|``name``       | first name last name | string    | Submitter's full name   |
-+---------------+----------------------+-----------+-------------------------+
-
-HAS_FEATURE edges
-~~~~~~~~~~~~~~~~~~~~
-
-.. _description-5:
-
-Description
-^^^^^^^^^^^
-
-Links a GFE node to a Feature node.
-
-.. _properties-5:
-
-Properties
-^^^^^^^^^^
-
-.. code:: json
-
-   {
-     // No properties
-   }
-
-HAS_SEQUENCE edges
-~~~~~~~~~~~~~~~~~~~~~
-
-.. _description-6:
-
-Description
-^^^^^^^^^^^
-
-Links a GFE node to the full Sequence node.
-
-.. _properties-6:
-
-Properties
-^^^^^^^^^^
-
-.. code:: json
-
-   {
-     // No properties
-   }
-
-HAS_IPD_Allele edges
-~~~~~~~~~~~~~~~~~~~~
-
-.. _description-7a:
-
-Description
-^^^^^^^^^^^
-
-Links a GFE node to the IPD_Allele node.
-
-.. _properties-7a:
-
-Properties
-^^^^^^^^^^
-
-.. code:: json
-
-   {
-     "releases": [3470, 3460]
-   }
-
-+------------+--------------+----------------+----------------------------------------------+
-| Property   | Example      | Data Type      | Description                                  |
-+============+==============+================+==============================================+
-|``releases``| [3470, 3460] | array[integer] | Release versions containing the relationship |
-+------------+--------------+----------------+----------------------------------------------+
-
-HAS_IPD_Allele edges
-~~~~~~~~~~~~~~~~~~~~
-
-.. _description-7b:
-
-Description
-^^^^^^^^^^^
-
-Links an IPD_Allele node to the IPD_ACC node.
-
-.. _properties-7b:
-
-Properties
-^^^^^^^^^^
-
-.. code:: json
-
-   {
-     "releases": 3470
-   }
-
-+------------+--------------+----------------+----------------------------------------------+
-| Property   | Example      | Data Type      | Description                                  |
-+============+==============+================+==============================================+
-|``releases``|  3470        |        integer | Release versions containing the relationship |
-+------------+--------------+----------------+----------------------------------------------+
-
-SUBMITTED edges
-~~~~~~~~~~~~~~~~~~
-
-.. _description-8:
-
-Description
-^^^^^^^^^^^
-
-Links the Submitter node to the GFE node.
-
-.. _properties-8:
-
-Properties
-^^^^^^^^^^
-
-.. code:: json
-
-   {
-     "submit_date": "2022-02-17"
-   }
-
-+---------------+------------+-----------------+--------------------+
-| Property      | Example    | Data Type       | Description        |
-+===============+============+=================+====================+
-|``submit_date``| 2022-02-17 | datetime string | Date of submission |
-+---------------+------------+-----------------+--------------------+
 
 Breaking down a GFE
 ~~~~~~~~~~~~~~~~~~~
@@ -420,6 +95,334 @@ Here is a older example of a relationship between a WHO/IMGT_HLA allele
 In this example, the GFE associated with this allele changed between
 3.42.0 and 3.43.0
 
+GFE nodes
+~~~~~~~~~~~~~
+
+Description
+^^^^^^^^^^^
+
+Each node represents a distinct GFE object. For example, a GFE with
+``name="HLA-Aw2-1-1-1-1-4-1-1-1-2-1-1-1-1-1-1-4"`` corresponds to a full
+sequence and also 17 features: - FIVE_PRIME_UTR - EXON (1-8) - INTRON
+(1-7) - THREE_PRIME_UTR
+
+Properties
+^^^^^^^^^^
+
+.. code:: json
+
+   {
+     "name": "HLA-Aw99-8-363-912-781-2901-128-581-151-324-198-9-316-80-508-43-30",
+     "locus": "HLA-A"
+   }
+
+
++--------------+--------------------------------------------------------------------+-----------+----------------------------------------+
+| Property     | Example                                                            | Data Type | Description                            |
++==============+====================================================================+===========+========================================+
+| ``name``     | HLA-Aw99-8-363-912-781-2901-128-581-151-324-198-9-316-80-508-43-30 | string    | GFE name                               |
++--------------+--------------------------------------------------------------------+-----------+----------------------------------------+
+| ``locus``    | HLA-A                                                              | string    | Position of the gene on the chromosome |
++--------------+--------------------------------------------------------------------+-----------+----------------------------------------+
+
+Feature nodes
+~~~~~~~~~~~~~~~~~
+
+.. _description-1:
+
+Description
+^^^^^^^^^^^
+
+A feature is a tuple of: locus, term and rank. A locus is "anything in
+`HUGO <https://www.genenames.org/>`__", and a term is "anything in
+`sequence ontology <http://www.sequenceontology.org/>`__".
+
+.. _properties-1:
+
+Properties
+^^^^^^^^^^
+
+.. code:: json
+
+   {
+     "accession": 99,
+     "locus": "HLA-A",
+     "rank": 1,
+     "sequence": "CAGGAGCAGAG...",
+     "term": "FIVE_PRIME_UTR"
+   }
+
+
++-------------+----------------+-----------+--------------------------------------------------------------------------------------------+
+| Property    | Example        | Data Type | Description                                                                                |
++=============+================+===========+============================================================================================+
+|``accession``| 2901           | string    | Relatively stable unique record identifier for a sequence                                  |
++-------------+----------------+-----------+--------------------------------------------------------------------------------------------+
+|``locus``    | HLA-A          | string    | Position of the gene on the chromosome                                                     |
++-------------+----------------+-----------+--------------------------------------------------------------------------------------------+
+|``rank``     | 7              | string    | Ordinal number describing the position of the Feature sequence on the allele               |
++-------------+----------------+-----------+--------------------------------------------------------------------------------------------+
+|``sequence`` | CAGGAGCAGAG... | string    | Nucleotide sequence of the Feature                                                         |
++-------------+----------------+-----------+--------------------------------------------------------------------------------------------+
+|``term``     | FIVE_PRIME_UTR | string    | Label describing the type of Feature; One of FIVE_PRIME_UTR, EXON, INTRON, THREE_PRIME_UTR |
++-------------+----------------+-----------+--------------------------------------------------------------------------------------------+
+
+Sequence nodes
+~~~~~~~~~~~~~~~~~~
+
+.. _description-2:
+
+Description
+^^^^^^^^^^^
+
+The nucleotide sequence corresponding to the GFE.
+
+.. _properties-2:
+
+Properties
+^^^^^^^^^^
+
+.. code:: json
+
+   {
+     "name": "HLA-Cw393-14-261-132-1610-454-45-532-107-272-205-3-264-71-398-4-621",
+     "length": 3918,
+     "locus": "HLA-C",
+     "sequence": "TTATTTTGCTGGATGTAGTTTAATATTACCTGAGGTGAGGTAAGGTA..."
+   }
+
++------------+---------------------------------------------------------------------+-----------+--------------------------------------------------------------------------+
+| Property   | Example                                                             | Data Type | Description                                                              |
++============+=====================================================================+===========+==========================================================================+
+|``name``    | HLA-Cw393-14-261-132-1610-454-45-532-107-272-205-3-264-71-398-4-621 | string    | Gene Feature Enumeration name                                            |
++------------+---------------------------------------------------------------------+-----------+--------------------------------------------------------------------------+
+|``length``  | 3918                                                                | integer   | Length of nucleotide sequence                                            |
++------------+---------------------------------------------------------------------+-----------+--------------------------------------------------------------------------+
+|``locus``   | HLA-C                                                               | string    | Position of the gene on the chromosome                                   |
++------------+---------------------------------------------------------------------+-----------+--------------------------------------------------------------------------+
+|``sequence``| TTATTTTGCTGGATGTAGTTTAATATTACCTGAGGTGAGGTAAGGTA...                  | string    | Full nucleotide sequence                                                 |
++------------+---------------------------------------------------------------------+-----------+--------------------------------------------------------------------------+
+
+IPD_Allele nodes
+~~~~~~~~~~~~~~~~
+
+.. _description-3a:
+
+Description
+^^^^^^^^^^^
+
+Represents the IPD-IMGT/HLA designation for the allele.
+
+.. _properties-3a:
+
+Properties
+^^^^^^^^^^
+
+.. code:: json
+
+   {
+     "gene": "HLA-A",
+     "lg": "HLA-A*01:242g",
+     "name": "HLA-A*01:242" 
+   }
+
+
++----------+-------------------+-----------+------------------------+
+| Property | Example           | Data Type | Description            |
++==========+===================+===========+========================+
+|``gene``  | HLA-A             |string     | Name of gene           |
++----------+-------------------+-----------+------------------------+
+|``lg``    | HLA-A*01:242g     |string     | Locus group            |
++----------+-------------------+-----------+------------------------+
+|``name``  | HLA-A*01:242      |string     | Name of allele         |
++----------+-------------------+-----------+------------------------+
+
+IPD_Accession nodes
+~~~~~~~~~~~~~~~~~~~
+
+.. _description-3b:
+
+Description
+^^^^^^^^^^^
+
+Represents the IPD-IMGT/HLA accession number for the allele.
+
+.. _properties-3b:
+
+Properties
+^^^^^^^^^^
+
+.. code:: json
+
+   {
+     "name": "HLA17766"
+   }
+
+
++----------+-------------------+-----------+------------------------+
+| Property | Example           | Data Type | Description            |
++==========+===================+===========+========================+
+|``name``  | HLA17766          |string     | Name of allele         |
++----------+-------------------+-----------+------------------------+
+
+
+Submitter nodes
+~~~~~~~~~~~~~~~~~~~
+
+.. _description-4:
+
+Description
+^^^^^^^^^^^
+
+Describes the submitter of a GFE node and their contact and organization information.
+
+.. _properties-4:
+
+Properties
+^^^^^^^^^^
+
+.. code:: json
+
+   {
+     "email": "<email>",
+     "institution": "<institution name>",
+     "name": "<name>",
+     "url": "<url>"
+   }
+
+
++---------------+------------------------------------+-----------+---------------------------+
+| Property      | Example                            | Data Type | Description               |
++===============+====================================+===========+===========================+
+|``email``      | <email>                            | string    | Submitter's email         |
++---------------+------------------------------------+-----------+---------------------------+
+|``institution``| IPD                                | integer   | Submitter's institution   |
++---------------+------------------------------------+-----------+---------------------------+
+|``name``       | IPD-IMGT                           | string    | Submitter's full name     |
++---------------+------------------------------------+-----------+---------------------------+
+|``url``        | https://www.ebi.ac.uk/ipd/imgt/hla/| string    | Submitter's website       |
++---------------+------------------------------------+-----------+---------------------------+
+
+
+HAS_FEATURE edges
+~~~~~~~~~~~~~~~~~~~~
+
+.. _description-5:
+
+Description
+^^^^^^^^^^^
+
+Links a GFE node to a Feature node.
+
+.. _properties-5:
+
+Properties
+^^^^^^^^^^
+
+No properties.
+
+HAS_SEQUENCE edges
+~~~~~~~~~~~~~~~~~~~~~
+
+.. _description-6:
+
+Description
+^^^^^^^^^^^
+
+Links a GFE node to the full Sequence node.
+
+.. _properties-6:
+
+Properties
+^^^^^^^^^^
+
+No properties.
+
+HAS_IPD_Allele edges
+~~~~~~~~~~~~~~~~~~~~
+
+.. _description-7a:
+
+Description
+^^^^^^^^^^^
+
+Links a GFE node to the IPD_Allele node.
+
+.. _properties-7a:
+
+Properties
+^^^^^^^^^^
+
+.. code:: json
+
+   {
+     "releases": [3500, 3510]
+   }
+
+
++------------+-------------------+----------------+----------------------------------------------+
+| Property   | Example           | Data Type      | Description                                  |
++============+===================+================+==============================================+
+|``releases``| [..., 3500, 3510] | array[integer] | Release versions containing the relationship |
++------------+-------------------+----------------+----------------------------------------------+
+
+HAS_IPD_ALLELE edges
+~~~~~~~~~~~~~~~~~~~~
+
+.. _description-7b:
+
+Description
+^^^^^^^^^^^
+
+Links an IPD_Allele node to the IPD_Accession node.
+
+.. _properties-7b:
+
+Properties
+^^^^^^^^^^
+
+.. code:: json
+
+   {
+     "releases": [3500, 3510]
+   }
+
+
++------------+-------------------+----------------+----------------------------------------------+
+| Property   | Example           | Data Type      | Description                                  |
++============+===================+================+==============================================+
+|``releases``| [..., 3500, 3510] | array[integer] | Release versions containing the relationship |
++------------+-------------------+----------------+----------------------------------------------+
+
+
+SUBMITTED edges
+~~~~~~~~~~~~~~~~~~
+
+.. _description-8:
+
+Description
+^^^^^^^^^^^
+
+Links the Submitter node to the GFE node.
+
+.. _properties-8:
+
+Properties
+^^^^^^^^^^
+
+.. code:: json
+
+   {
+     "submit_date": "2022-02-17"
+   }
+
+
++---------------+------------+-----------------+--------------------+
+| Property      | Example    | Data Type       | Description        |
++===============+============+=================+====================+
+|``submit_date``| 2022-02-17 | datetime string | Date of submission |
++---------------+------------+-----------------+--------------------+
+
 Service Configurations
 ----------------------
 
@@ -429,7 +432,7 @@ command.
 
 .. code:: bash
 
-   make deploy.config
+   make config.deploy
 
 Graph Database
 ~~~~~~~~~~~~~~
@@ -455,6 +458,16 @@ Shell Scripts
 Bash scripts are used for automating Neo4j configuration, loading and
 backup. These are stored in S3 and executed on the database instance using 
 SSM Run Command. These are found in ``gfe-db/gfe-db/database/scripts/``.
+
+To update shell scripts on the Neo4j instance, run the following commands in sequence.
+
+.. code:: bash
+
+    # sync the scripts to S3
+    make config.deploy
+
+    # sync the scripts from S3 to the instance
+    make database.sync-scripts
 
 Cypher Scripts
 ^^^^^^^^^^^^^^
@@ -540,21 +553,15 @@ Deploy specific stacks.
 
 .. code:: bash
 
-   make deploy.infrastructure
+   make infrastructure.deploy
 
 .. code:: bash
 
-   make deploy.database
+   make database.deploy
 
 .. code:: bash
 
-   make deploy.pipeline
-
-Deploy config files and scripts to S3:
-
-.. code:: bash
-
-   make deploy.config
+   make pipeline.deploy
 
 Load releases
 ~~~~~~~~~~~~~
@@ -563,14 +570,67 @@ Run the StepFunctions State Machine to load Neo4j:
 
 .. code:: bash
 
-   make load.database releases=<version> align=<boolean> kir=<boolean> limit=<int>
+   make database.load.run releases=<version> align=<boolean> kir=<boolean> limit=<int>
 
 .. _makefilerefretrieve:
 
-Retrieve logs, data and configuration values
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Manage Services
+~~~~~~~~~~~~~~~
 
-Download CSV data from S3 to ``./data``:
+.. code:: bash
+
+   make database.start
+
+.. code:: bash
+
+   make database.stop
+
+.. code:: bash
+
+   make database.status
+
+.. code:: bash
+
+   make database.reboot
+
+Backup & restore
+~~~~~~~~~~~~~~~~
+
+Backup the database to S3:
+
+.. code:: bash
+
+   make database.backup
+
+List the available backups:
+
+.. code:: bash
+
+   make database.backup.list
+
+Restore from a backup:
+
+.. code:: bash
+
+   make database.restore from_date=<YYYY/MM/DD/HH>
+
+
+Sync and retrieve logs, data and configuration values
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Deploy config files and scripts to S3:
+
+.. code:: bash
+
+   make config.deploy
+
+Sync the Neo4j database scripts to S3:
+
+.. code:: bash
+
+   make database.sync-scripts
+
+Download CSV data from builds to S3 to ``./data``:
 
 .. code:: bash
 
@@ -586,7 +646,19 @@ Display the Neo4j Browser endpoint URL:
 
 .. code:: bash
 
-   make get.neo4j
+   make database.get.endpoint
+
+Fetch the database credentials:
+
+.. code:: bash
+
+   make database.get.credentials
+
+Fetch the instance ID:
+
+.. code:: bash
+
+   make database.get.instance-id
 
 Tear down infrastructure
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -597,16 +669,68 @@ Delete all CloudFormation based services and data:
 
    make delete
 
-Delete specific stacks (may cause issues):
+Delete specific stacks (may cause issues due to missing or stale dependencies):
 
 .. code:: bash
 
-   make delete.infrastructure
+   make infrastructure.delete
 
 .. code:: bash
 
-   make delete.database
+   make database.delete
 
 .. code:: bash
 
-   make delete.pipeline
+   make pipeline.delete
+
+Notification Subscriptions
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+Unsubscribe using console.
+
+.. code:: bash
+
+    make monitoring.subscribe-email email=<email>
+
+Build documentation
+~~~~~~~~~~~~~~~~~~~
+
+.. code:: bash
+
+   make docs.build
+
+View the docs in a web browser:
+
+.. code:: bash
+
+   make docs.url
+
+Backup & Restore
+----------------
+
+Backups
+~~~~~~~
+
+Backups are orchestrated by Systems Manager. To create a backup, run the command.
+
+.. code:: bash
+
+   make database.backup
+
+This will create a backup of the Neo4j database and store it in S3 under the path
+``s3://<data bucket name>/backups/neo4j/YYYY/MM/DD/HH/gfedb.zip``.
+
+To see a list of available backup dates that can be restored, run the command.
+
+.. code:: bash
+
+   make database.backup.list
+
+Restore
+~~~~~~~
+
+To restore from a backup, run the command and pass the date of the backup you wish to restore
+using the format YYYY/MM/DD/HH.
+
+.. code:: bash
+
+   make database.restore from_date=<YYYY/MM/DD/HH>

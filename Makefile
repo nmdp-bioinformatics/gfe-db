@@ -9,12 +9,11 @@ export
 # Base settings, these should almost never change
 export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity --query Account --output text)
 
-# TODO: Application Configuration, can move to JSON
-export ROOT_DIR ?= $(shell pwd)
-export DATABASE_DIR ?= ${ROOT_DIR}/${APP_NAME}/database
-export LOGS_DIR ?= $(shell echo "${ROOT_DIR}/logs")
-export CFN_LOG_PATH ?= $(shell echo "${LOGS_DIR}/cfn/logs.txt")
-export PURGE_LOGS ?= false
+export ROOT_DIR := $(shell pwd)
+export DATABASE_DIR := ${ROOT_DIR}/${APP_NAME}/database
+export LOGS_DIR := $(shell echo "${ROOT_DIR}/logs")
+export CFN_LOG_PATH := $(shell echo "${LOGS_DIR}/cfn/logs.txt")
+export PURGE_LOGS := false
 
 # TODO move these to a config file
 export NEO4J_AMI_ID ?= ami-04aa5da301f99bf58 # Bitnami Neo4j, requires subscription through AWS Marketplace
@@ -24,30 +23,22 @@ export DATABASE_VOLUME_SIZE ?= 50
 
 # Resource identifiers
 export DATA_BUCKET_NAME ?= ${STAGE}-${APP_NAME}-${AWS_ACCOUNT}-${AWS_REGION}
-export ECR_BASE_URI ?= ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com
+export ECR_BASE_URI := ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com
 export BUILD_REPOSITORY ?= ${STAGE}-${APP_NAME}-build-service
-# export SUBDOMAIN ?= ${STAGE}-${APP_NAME}
-export INSTANCE_ID ?= $(shell aws ssm get-parameters \
+export INSTANCE_ID := $(shell aws ssm get-parameters \
 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseInstanceId" \
 		--output json \
-		| jq -r '.Parameters | map(select(.Version == 1))[0].Value')
+		| jq -r '.Parameters[0].Value')
 
 # S3 paths
-export PIPELINE_STATE_PATH ?= config/IMGTHLA-repository-state.json
-export PIPELINE_PARAMS_PATH ?= config/pipeline-input.json
-export FUNCTIONS_PATH ?= ${APP_NAME}/pipeline/functions
-
-# App state values
-export INSTANCE_STATE ?= $(shell aws ec2 describe-instance-status | jq -r '.InstanceStatuses[] | select(.InstanceId | contains("i-0ea29a765388720a8")).InstanceState.Name')
-export NEO4J_ENDPOINT ?= $(shell aws ssm get-parameters \
-	--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseEndpoint" \
-	| jq -r '.Parameters | map(select(.Version == 1))[0].Value')
+export PIPELINE_STATE_PATH := config/IMGTHLA-repository-state.json
+export PIPELINE_PARAMS_PATH := config/pipeline-input.json
+export FUNCTIONS_PATH := ${APP_NAME}/pipeline/functions
 
 target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-# TODO: Update email and name for Submitter node
 deploy: logs.purge check.env ##=> Deploy services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) infrastructure.deploy
@@ -128,14 +119,24 @@ database.deploy:
 pipeline.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ deploy
 
+pipeline.functions.deploy:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.functions.deploy
+
 pipeline.jobs.deploy:
-	$(MAKE) -C ${APP_NAME}/pipeline/jobs/ deploy
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.jobs.deploy
 
 config.deploy:
-	$(MAKE) -C ${APP_NAME}/pipeline/ config.deploy
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.config.deploy
 	$(MAKE) -C ${APP_NAME}/database/ config.deploy
 
-database.load:
+monitoring.create-subscriptions:
+	$(MAKE) -C ${APP_NAME}/infrastructure service.monitoring.create-subscriptions
+
+monitoring.subscribe-email:
+	$(MAKE) -C ${APP_NAME}/infrastructure service.monitoring.subscribe-email
+
+# TODO fix output & error handling
+database.load.run: # args: align, kir, limit, releases
 	@echo "Confirm payload:" && \
 	[ "$$align" ] && align="$$align" || align="False" && \
 	[ "$$kir" ] && kir="$$kir" || kir="False" && \
@@ -146,15 +147,24 @@ database.load:
 	echo "$$payload" | jq > payload.json
 	@echo "Run pipeline with this payload? [y/N] \c " && read ans && [ $${ans:-N} = y ]
 	@function_name="${STAGE}"-"${APP_NAME}"-"$$(cat ${FUNCTIONS_PATH}/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.FunctionName')" && \
+	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Invoking $$function_name..." 2>&1 | tee -a ${CFN_LOG_PATH} && \
+	echo "Payload:" >> ${CFN_LOG_PATH} && \
+	cat payload.json >> ${CFN_LOG_PATH} && \
 	aws lambda invoke \
 		--cli-binary-format raw-in-base64-out \
 		--function-name "$$function_name" \
 		--payload file://payload.json \
-		response.json 2>&1
+		response.json \
+		--output json  >/dev/null 2>&1 && \
+	echo "Response:" >> ${CFN_LOG_PATH} && \
+	cat response.json | jq -r >> ${CFN_LOG_PATH} && \
+	rm payload.json response.json
+	
 
-database.status:
-	@echo "Current state: $$INSTANCE_STATE"
-	 
+# TODO database.load.status
+# TODO database.load.abort
+# TODO database.load.report
+
 database.start:
 	@echo "Starting $${APP_NAME} server..."
 	@response=$$(aws ec2 start-instances --instance-ids ${INSTANCE_ID}) && \
@@ -163,19 +173,50 @@ database.start:
 
 database.stop:
 	@echo "Stopping $${APP_NAME} server..."
+	@echo Instance ID: ${INSTANCE_ID}
 	@response=$$(aws ec2 stop-instances --instance-ids ${INSTANCE_ID}) && \
 	echo "Previous state: $$(echo "$$response" | jq -r '.StoppingInstances[] | select(.InstanceId | contains("${INSTANCE_ID}")).PreviousState.Name')" && \
 	echo "Current state: $$(echo "$$response" | jq -r '.StoppingInstances[] | select(.InstanceId | contains("${INSTANCE_ID}")).CurrentState.Name')"
 
-# TODO account for http or https and whether or not EIP or DNS is being used
-database.get-endpoint:
-	@echo "http://$${NEO4J_ENDPOINT}:7473/browser/"
+database.reboot:
+	@echo "Rebooting $${APP_NAME} server..."
+	@echo Instance ID: ${INSTANCE_ID}
+	@response=$$(aws ec2 reboot-instances --instance-ids ${INSTANCE_ID}) && echo "$$response"
+	$(MAKE) database.status
 
-database.get-credentials:
+# TODO make sure database is running before syncing
+database.sync-scripts:
+	$(MAKE) -C ${APP_NAME}/database/ service.config.scripts.sync
+
+database.backup:
+	@echo "Backing up $${APP_NAME} server..."
+	$(MAKE) -C ${APP_NAME}/database/ service.backup
+
+database.backup.list:
+	$(MAKE) -C ${APP_NAME}/database/ service.backup.list
+
+# TODO call database.get.backups to list the available backups and prompt the user to select one
+database.restore: #from_date=<YYYY/MM/DD/HH>
+	@echo "Restoring $${APP_NAME} data to server..."
+	$(MAKE) -C ${APP_NAME}/database/ service.restore from_date=$$from_date
+
+database.status:
+	@aws ec2 describe-instances | \
+		jq --arg iid "${INSTANCE_ID}" '.Reservations[].Instances[] | select(.InstanceId == $$iid) | {InstanceId, InstanceType, "Status": .State.Name, StateTransitionReason, ImageId}'
+
+# TODO account for http or https and whether or not EIP or DNS is being used
+database.get.endpoint:
+	@echo "https://${SUBDOMAIN}.${HOST_DOMAIN}:7473/browser/"
+
+database.get.credentials:
 	@secret_string=$$(aws secretsmanager get-secret-value --secret-id ${APP_NAME}-${STAGE}-Neo4jCredentials | jq -r '.SecretString') && \
 	echo "Username: $$(echo $$secret_string | jq -r '.NEO4J_USERNAME')" && \
 	echo "Password: $$(echo $$secret_string | jq -r '.NEO4J_PASSWORD')"
 
+database.get.instance-id:
+	@echo "${INSTANCE_ID}"
+
+# TODO add confirmation to proceed
 delete: # data=true/false ##=> Delete services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${APP_NAME} in ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) pipeline.delete
@@ -191,10 +232,13 @@ database.delete:
 	$(MAKE) -C ${APP_NAME}/database/ delete
 
 pipeline.delete:
-	$(MAKE) -C ${APP_NAME}/pipeline/ delete
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.delete
+
+pipeline.functions.delete:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.functions.delete
 
 pipeline.jobs.delete:
-	$(MAKE) -C ${APP_NAME}/pipeline/jobs/ delete
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.jobs.delete
 
 # Administrative functions
 get.data: #=> Download the build data locally
@@ -206,6 +250,12 @@ get.logs: #=> Download all logs locally
 
 # # TODO get pipeline execution status
 # pipeline.status:
+
+docs.build:
+	@cd docs/ && make html
+
+docs.url:
+	@echo "$$(pwd)/docs/build/html/index.html"
 
 define HELP_MESSAGE
 

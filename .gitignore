@@ -77,34 +77,28 @@ summary_*
 
 # Environment variables
 .env
+env.sh
 
-# Project files
-tags
+# PyCharm
 .idea/
-data/
-output/
-numeric.v3.zip
-*.pem
-*.msf
-*.dat
-nodes-*.txt
-logs.txt
-logs/
-0.1-gfe-sandbox.ipynb 
-0.1-dev-build-graph.ipynb
-0.1-gfe-eda.ipynb
-*.bak
-cicd.yml
+
+# AWS SAM/CloudFormation
 .aws-sam
 packaged.yaml
 samconfig.toml
+
+# Project files
+tags
+data/
+*.pem
+*.msf
+*.dat
+logs/
+*.bak
 _*.*
-_reference/
-_deprecated/
-_docs/
-_debug*/
-_dev*
 .github/_*
 payload.json
 response.json
 neo4j.conf
+___*
+gfedb.zip

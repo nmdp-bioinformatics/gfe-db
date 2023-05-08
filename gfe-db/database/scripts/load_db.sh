@@ -45,7 +45,7 @@ NEO4J_PASSWORD=$(echo $NEO4J_CREDENTIALS | jq -r '.NEO4J_PASSWORD')
 DATA_BUCKET_NAME=$(aws ssm get-parameters \
     --region $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/\(.*\)[a-z]/\1/') \
     --names "/${APP_NAME}/${STAGE}/${AWS_REGION}/DataBucketName" \
-    | jq -r '.Parameters | map(select(.Version == 1))[0].Value')
+    | jq -r '.Parameters[0].Value')
 
 if [[ -z $DATA_BUCKET_NAME ]]; then
     echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - S3 bucket not found."
@@ -94,7 +94,6 @@ fi
     # load alignments
 
 # TODO: if $? == 0 for all queries, send TaskSuccess to StepFunctions API
-# TODO: remove CSV files
 echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Cleaning up"
 rm -r $NEO4J_IMPORT_PATH/*
 
