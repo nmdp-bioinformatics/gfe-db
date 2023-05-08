@@ -451,6 +451,10 @@ def filter_nulls(items: List[Dict[str, str]]) -> List[Dict[str, str]]:
     return [x for x in items if x is not None]
 
 
+def filter_null_fields(items: dict) -> dict:
+    return { k: v for k, v in items.items() if v is not None }
+
+
 def sort_execution_state_items(
     execution_state_items: List[Dict[str, str]], ascending=False
 ) -> List[Dict[str, str]]:

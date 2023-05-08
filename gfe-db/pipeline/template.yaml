@@ -33,29 +33,32 @@ Parameters:
     Type: String
 
 Resources:
-  ExecutionStateTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      AttributeDefinitions:
-        - AttributeName: version
-          AttributeType: N
-        - AttributeName: 'commit.sha'
-          AttributeType: S
-      KeySchema:
-        - AttributeName: version
-          KeyType: HASH
-        - AttributeName: 'commit.sha'
-          KeyType: RANGE
-      ProvisionedThroughput:
-        ReadCapacityUnits: 1
-        WriteCapacityUnits: 1
 
-  ExecutionStateTableName:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/ExecutionStateTableName'
-      Type: String
-      Value: !Ref ExecutionStateTable
+  # TODO BOOKMARK redeploy execution state table
+  # ExecutionStateTable:
+  #   Type: AWS::DynamoDB::Table
+  #   Properties:
+  #     AttributeDefinitions:
+  #       - AttributeName: 'commit.sha'
+  #         AttributeType: S
+  #       - AttributeName: version
+  #         AttributeType: N
+  #     KeySchema:
+  #       - AttributeName: 'commit.sha'
+  #         KeyType: HASH
+  #       - AttributeName: version
+  #         KeyType: RANGE
+  #     BillingMode: PAY_PER_REQUEST
+  #     # ProvisionedThroughput:
+  #     #   ReadCapacityUnits: 2
+  #     #   WriteCapacityUnits: 2
+
+  # ExecutionStateTableName:
+  #   Type: AWS::SSM::Parameter
+  #   Properties:
+  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/ExecutionStateTableName'
+  #     Type: String
+  #     Value: !Ref ExecutionStateTable
 
   BuildServerSG:
     Type: AWS::EC2::SecurityGroup
