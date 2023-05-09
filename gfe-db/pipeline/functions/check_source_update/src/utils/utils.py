@@ -13,11 +13,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import boto3
 from botocore.exceptions import ClientError
 from .types import (
-    SourceConfig,
     RepositoryConfig,
     TargetMetadataConfig,
     Commit,
     ExecutionStateItem,
+    ExecutionDetailsConfig
 )
 from .constants import (
     AWS_REGION,
@@ -134,7 +134,10 @@ def flatten_json(dictionary, sep=".", skip_fields=[]):
         ) and not any(isinstance(value, list) for value in dictionary.values()):
             break
 
-    return dictionary
+    if len(skip_fields) > 0:
+        return {k: v for k, v in dictionary.items() if k not in skip_fields}
+    else:
+        return dictionary
 
 
 def read_s3_json(bucket, key):
@@ -402,9 +405,9 @@ def get_pull_requests(owner, repo):
 #     return merged_data
 
 
-def flatten_json_records(records):
+def flatten_json_records(records, skip_fields=[]):
     """Flatten a list of JSON records."""
-    return [flatten_json(record) for record in records]
+    return [flatten_json(record, skip_fields=skip_fields) for record in records]
 
 
 def select_keys(d, keys):
@@ -483,13 +486,16 @@ def process_execution_state_item(
             logger.info(f"Found release version {release_version} ({sha})")
 
             result = {
-                "repository": repository_config.dict(),
-                "version": release_version,
-                "execution_date_utc": None,
+                "repository": repository_config,
                 "commit": Commit(**commit),
-                "input_parameters": None,
-                "status": None,
+                "execution": ExecutionDetailsConfig(
+                    version=release_version,
+                    status="NOT_PROCESSED",
+                    date_utc=None,
+                    input_parameters=None,
+                )
             }
+
         except Exception as e:
             # This is because Allelelist.txt for certain commits doesn't contain the release version or name
             # Need to find another file that indicates the release version should be small
@@ -497,7 +503,7 @@ def process_execution_state_item(
             logger.error(f"Error processing commit {sha}: {e}")
             if errors == len(target_metadata_config.items):
                 # logger.error(f"Max errors reached. Exiting loop.")
-                raise Exception(f"No assets found for commit {sha}")
+                raise e
             else:
                 continue
 
@@ -560,7 +566,7 @@ def process_execution_state_items(
         for commit in commits[:limit]:
             execution_state_items.append(
                 process_execution_state_item(
-                    commits=commits,
+                    commit=commit,
                     repository_config=repository_config,
                     target_metadata_config=target_metadata_config,
                     limit=limit,

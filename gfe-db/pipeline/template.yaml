@@ -41,12 +41,12 @@ Resources:
       AttributeDefinitions:
         - AttributeName: 'commit.sha'
           AttributeType: S
-        - AttributeName: version
+        - AttributeName: 'execution.version'
           AttributeType: N
       KeySchema:
         - AttributeName: 'commit.sha'
           KeyType: HASH
-        - AttributeName: version
+        - AttributeName: 'execution.version'
           KeyType: RANGE
       BillingMode: PAY_PER_REQUEST
       # ProvisionedThroughput:

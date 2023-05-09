@@ -1,5 +1,5 @@
 """
-Loads gfe-db execution state to DynamoDB table.
+Loads the initial gfe-db execution state to DynamoDB table.
 """
 import os
 import sys
@@ -17,7 +17,7 @@ from src.utils.utils import (
     flatten_json_records
 )
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 ssm = boto3.client('ssm')
@@ -37,21 +37,35 @@ execution_state_table_name = ssm.get_parameter(
 
 if __name__ == "__main__":
 
+    # TODO scan table for existing items and throw error if not empty
+
     # Paths
-    # TODO arg
-    output_dir = Path(f"{APP_NAME}/pipeline/config")
+    # output_dir = Path(f"{APP_NAME}/pipeline/config")
+    output_dir = Path(sys.argv[1])
 
     # read in source config JSON file from local
     with open(output_dir / "execution-state.json", "r") as f:
         execution_state = ExecutionState(**json.load(f))
 
-    # TODO BOOKMARK redeploy execution state table
+    # execution_state_json = [
+    #     {
+    #         "commit.sha": item.commit.sha,
+    #         "version": item.execution.version,
+    #         "execution": item.execution.json(),
+    #         "commit": item.commit.json(),
+    #         "repository": item.repository.json(),
+    #     } for item in execution_state.items
+    # ]
+
     # flatten JSON records and filter nulls
-    execution_state_flat = [
-        {
-            k: v for k, v in item.items() if v is not None
-        } for item in flatten_json_records([item.dict() for item in execution_state.items])
+    skip_fields = [
+        "repository.description",
+        "repository.excluded_commit_shas",
+        "repository.target_metadata_config",
+        "repository.tracked_assets"
+
     ]
+    execution_state_flat = flatten_json_records(execution_state.dict()["items"], skip_fields)
 
     # load to dynamodb table named execution_state_table_name using batch put
     table = dynamodb.Table(execution_state_table_name)
@@ -60,4 +74,4 @@ if __name__ == "__main__":
         for item in execution_state_flat:
             batch.put_item(Item=item)
 
-    logger.info(f"Success")
+    logger.info(f"Loaded {len(execution_state_flat)} items to {execution_state_table_name}")

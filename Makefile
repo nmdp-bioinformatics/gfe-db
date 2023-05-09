@@ -116,8 +116,11 @@ pipeline.functions.deploy:
 pipeline.jobs.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.jobs.deploy
 
-config.build-source-config:
+config.build-source-config: 
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.config.build-source-config
+
+config.load-source-config: 
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.config.load-source-config
 
 config.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.config.deploy

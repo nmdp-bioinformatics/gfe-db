@@ -49,7 +49,10 @@ service.jobs.deploy:
 # TODO handle virtual environment creation
 # TODO pass output directory as argument
 service.config.build-source-config:
-	@python3 scripts/source_config/build.py
+	@python3 scripts/source_config/build.py ${ROOT_DIR}/${APP_NAME}/${SERVICE}/config/
+
+service.config.load-source-config:
+	@python3 scripts/source_config/load.py ${ROOT_DIR}/${APP_NAME}/${SERVICE}/config/
 
 # TODO parameterize S3 config path and export as environment variable to recall in database shell scripts
 service.config.deploy:

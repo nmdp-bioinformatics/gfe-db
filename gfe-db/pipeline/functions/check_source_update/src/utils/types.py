@@ -4,12 +4,12 @@ from typing import Optional
 from pydantic import BaseModel, validator
 
 # EventBridge Rules trigger UpdateStatus Lambda
-# SKIPPED: state machine execution started and skipped 
+# SKIPPED: never processed 
 # PENDING: state machine execution started
 # IN_PROGRESS: batch build job triggered 
 # SUCCESS: state machine execution succeeded
 # FAILED: state machine execution failed
-valid_statuses = ["SKIPPED", "PENDING", "IN_PROGRESS", "SUCCESS", "FAILED", None]
+valid_statuses = ["NOT_PROCESSED", "SKIPPED", "PENDING", "IN_PROGRESS", "SUCCESS", "FAILED", None]
 
 def to_datetime(v, fmt="%Y-%m-%dT%H:%M:%SZ"):
     return datetime.strptime(v, fmt)
@@ -87,23 +87,11 @@ class RepositoryConfig(BaseModel):
     def url_is_valid(cls, v):
         return url_is_valid(v)
 
-class SourceConfig(BaseModel):
-    created_utc: Optional[str]
-    updated_utc: Optional[str]
-    repositories: dict[str, RepositoryConfig]
-
-    # validate dates are ISO 8601 format with timezone for created_utc, updated_utc
-    @validator('created_utc', 'updated_utc')
-    def date_utc_is_iso_8601_with_timezone(cls, v):
-        return date_is_iso_8601_with_timezone(v)
-
-class ExecutionStateItem(BaseModel):
-    repository: RepositoryConfig
+class ExecutionDetailsConfig(BaseModel):
     version: int
-    execution_date_utc: Optional[str]
-    commit: Commit
+    status: str
+    date_utc: Optional[str]
     input_parameters: Optional[InputParameters]
-    status: Optional[str]
 
     @validator('status')
     def status_is_valid(cls, v):
@@ -117,6 +105,21 @@ class ExecutionStateItem(BaseModel):
         if not re.match(r'^[1-9][0-9]{2}0$', str(v)):
             raise ValueError("Version must match '^[1-9][0-9]{2}0$'")
         return v
+
+class SourceConfig(BaseModel):
+    created_utc: Optional[str]
+    updated_utc: Optional[str]
+    repositories: dict[str, RepositoryConfig]
+
+    # validate dates are ISO 8601 format with timezone for created_utc, updated_utc
+    @validator('created_utc', 'updated_utc')
+    def date_utc_is_iso_8601_with_timezone(cls, v):
+        return date_is_iso_8601_with_timezone(v)
+
+class ExecutionStateItem(BaseModel):
+    repository: RepositoryConfig
+    commit: Commit
+    execution: ExecutionDetailsConfig
     
 class ExecutionState(BaseModel):
     created_utc: str
@@ -136,10 +139,10 @@ class ExecutionState(BaseModel):
     @validator('items')
     def execution_state_has_no_missing_releases(cls, v):
 
-        unique_release_versions = sorted(list(set([item.version for item in v])), reverse=True)
+        unique_release_versions = sorted(list(set([item.execution.version for item in v])), reverse=True)
 
         first_version = 3170 
-        expected_version = v[0].version
+        expected_version = v[0].execution.version
         for version in unique_release_versions:
             if version != expected_version:
                 raise ValueError(f"Execution history is missing version {expected_version}")
