@@ -23,7 +23,6 @@ from src.utils.types import (
     ExecutionState
 )
 from src.utils import (
-    read_s3_json,
     paginate_commits,
     select_fields,
     flatten_json_records,
