@@ -1,6 +1,7 @@
 import os
 import logging
-from typing import List, Dict
+from typing import List, Dict, Union
+from pydantic import BaseModel
 from pathlib import Path
 from itertools import chain, starmap
 from datetime import datetime
@@ -13,6 +14,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import boto3
 from botocore.exceptions import ClientError
 from .types import (
+    SourceConfig,
     RepositoryConfig,
     TargetMetadataConfig,
     Commit,
@@ -36,14 +38,27 @@ s3 = session.client("s3")
 
 cache_dir = Path(__file__).parent / "_cache"
 
-
 def save_json_to_cache(data, var_name):
     """Saves data to cache directory"""
     if not cache_dir.exists():
         cache_dir.mkdir()
-    with open(cache_dir / var_name, "w") as f:
-        json.dump(data, f, indent=4)
 
+    # Handles different types of JSON representations, if it fails to serialize, remove the file
+    try:
+        if isinstance(data, dict) or isinstance(data, List):
+            try:
+                with open(cache_dir / var_name, "w") as f:
+                    json.dump(data, f, indent=4)
+            except:
+                # assume it's a list of pydantic models
+                with open(cache_dir / var_name, "w") as f:
+                    json.dump([item.dict() for item in data], f, indent=4)
+    except Exception as e:
+        logger.error(f"Failed to serialize {var_name} to JSON: {e}")
+        # remove the file if it exists
+        if (cache_dir / var_name).exists():
+            (cache_dir / var_name).unlink()
+    
 
 def save_pickle_to_cache(data, var_name):
     """Saves data to cache directory"""
@@ -103,7 +118,7 @@ def cache_pickle(func):
     return wrapper
 
 
-def flatten_json(dictionary, sep=".", skip_fields=[]):
+def flatten_json(data, sep=".", skip_fields=[], select_fields=[]):
     """Flatten a nested json file. For a list of dictionaries, use this
     inside a for loop before converting to pandas DataFrame."""
 
@@ -126,18 +141,32 @@ def flatten_json(dictionary, sep=".", skip_fields=[]):
 
     # Keep iterating until the termination condition is satisfied
     while True:
-        # Keep unpacking the json file until all values are atomic elements (not dictionary or list)
-        dictionary = dict(chain.from_iterable(starmap(unpack, dictionary.items())))
-        # Terminate condition: not any value in the json file is dictionary or list
+        # Keep unpacking the json file until all values are atomic elements (not data or list)
+        data = dict(chain.from_iterable(starmap(unpack, data.items())))
+        # Terminate condition: not any value in the json file is data or list
         if not any(
-            isinstance(value, dict) for value in dictionary.values()
-        ) and not any(isinstance(value, list) for value in dictionary.values()):
+            isinstance(value, dict) for value in data.values()
+        ) and not any(isinstance(value, list) for value in data.values()):
             break
 
     if len(skip_fields) > 0:
-        return {k: v for k, v in dictionary.items() if k not in skip_fields}
-    else:
-        return dictionary
+        data = {k: v for k, v in data.items() if k not in skip_fields}
+
+    if len(select_fields) > 0:
+        data = {k: v for k, v in data.items() if k in select_fields}
+
+    return data
+
+
+def flatten_json_records(data, skip_fields=[], select_fields=[]):
+    """Flatten a list of JSON records."""
+    return [
+        flatten_json(
+        data=record, 
+        skip_fields=skip_fields, 
+        select_fields=select_fields) \
+            for record in data
+    ]
 
 
 def read_s3_json(bucket, key):
@@ -167,16 +196,16 @@ def write_s3_json(bucket, key, data):
         raise err
 
 
-# def read_source_config(bucket, key):
-#     data = read_s3_json(bucket, key)
-#     return SourceConfig(**data)
+def read_source_config(bucket, key):
+    data = read_s3_json(bucket, key)
+    return SourceConfig(**data)
 
 
 # def write_source_config(bucket, key, source_config: SourceConfig):
 #     write_s3_json(bucket, key, source_config.dict())
 
-
-def list_commits(owner, repo, **kwargs):
+@cache_json
+def list_commits(owner, repo, **params):
     """Return a list of GitHub commits for the specified repository"""
 
     base_url = "https://api.github.com"
@@ -186,10 +215,10 @@ def list_commits(owner, repo, **kwargs):
 
     url = base_url + endpoint
 
-    params = {
-        "per_page": kwargs.get("per_page"),
-        "page": kwargs.get("page"),
-    }
+    # params = {
+    #     "per_page": kwargs.get("per_page"),
+    #     "page": kwargs.get("page"),
+    # }
 
     # Headers
     headers = {
@@ -202,7 +231,6 @@ def list_commits(owner, repo, **kwargs):
     response = requests.get(url, headers=headers, params=params)
 
     return response.json()
-
 
 # @cache_json
 def paginate_commits(owner, repo, start_page=1, per_page=100, **kwargs):
@@ -405,11 +433,6 @@ def get_pull_requests(owner, repo):
 #     return merged_data
 
 
-def flatten_json_records(records, skip_fields=[]):
-    """Flatten a list of JSON records."""
-    return [flatten_json(record, skip_fields=skip_fields) for record in records]
-
-
 def select_keys(d, keys):
     """Selects keys from a dictionary"""
     return {k: v for k, v in d.items() if k in keys}
@@ -430,6 +453,27 @@ def rename_fields(dataset: List[dict], key_names_map: dict[str, str]):
     return [rename_keys(x, key_names_map) for x in dataset]
 
 
+def restore_nested_json(data: dict):
+    """Restores a previously flattened JSON object into a nested JSON object.
+
+    Args:
+        data (dict): A flattened JSON object.
+
+    Returns:
+        _type_: _description_
+    """
+    result = {}
+    for key, value in data.items():
+        parts = key.split(".")
+        current = result
+        for part in parts[:-1]:
+            if part not in current:
+                current[part] = {}
+            current = current[part]
+        current[parts[-1]] = value
+    return result
+
+
 def find_text(pattern, input_str):
     match = re.search(pattern, input_str)
     if match:
@@ -437,8 +481,11 @@ def find_text(pattern, input_str):
         return text
 
 
-def get_release_version_for_commit(commit: dict, **kwargs) -> int:
-    sha = commit["sha"]
+def get_release_version_for_commit(commit: Union[Commit, dict], **kwargs) -> int:
+    try:
+        sha = commit["sha"]
+    except:
+        sha = commit.sha
     asset_path = kwargs["asset_path"]
     release_version_regex = kwargs["metadata_regex"]
     allele_list = get_repo_asset(

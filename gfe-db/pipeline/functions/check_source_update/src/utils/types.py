@@ -2,6 +2,7 @@ import re
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, validator
+import jmespath
 
 # EventBridge Rules trigger UpdateStatus Lambda
 # SKIPPED: never processed 
@@ -11,8 +12,11 @@ from pydantic import BaseModel, validator
 # FAILED: state machine execution failed
 valid_statuses = ["NOT_PROCESSED", "SKIPPED", "PENDING", "IN_PROGRESS", "SUCCESS", "FAILED", None]
 
-def to_datetime(v, fmt="%Y-%m-%dT%H:%M:%SZ"):
+def str_to_datetime(v, fmt="%Y-%m-%dT%H:%M:%SZ"):
     return datetime.strptime(v, fmt)
+
+def str_from_datetime(v, fmt="%Y-%m-%dT%H:%M:%SZ"):
+    return v.strftime(fmt)
 
 # validate that date field is ISO 8601 format with timezone
 def date_is_iso_8601_with_timezone(v):
@@ -26,6 +30,17 @@ def url_is_valid(v):
         raise ValueError("Url must be a valid URL")
     return v
 
+def version_is_valid(v):
+    if not re.match(r'^[1-9][0-9]{2}0$', str(v)):
+        raise ValueError("Version must match '^[1-9][0-9]{2}0$'")
+    return v
+
+# validate that commit sha is a 40 character hex string
+def commit_sha_is_hex(v):
+    if not re.match(r'^[0-9a-f]{40}$', v):
+        raise ValueError("Commit sha must be a 40 character hex string")
+    return v
+
 ### Source Config Models ###
 class Commit(BaseModel):
     sha: str
@@ -33,12 +48,19 @@ class Commit(BaseModel):
     message: Optional[str]
     html_url: str
 
-    # validate that commit_sha is a 40 character hex string
     @validator('sha')
-    def commit_sha_is_hex(cls, v):
-        if not re.match(r'^[0-9a-f]{40}$', v):
-            raise ValueError("Commit sha must be a 40 character hex string")
-        return v
+    def _commit_sha_is_hex(cls, v):
+        return commit_sha_is_hex(v)
+    
+    # implement jmespath mapping to create the commit Class
+    @classmethod
+    def from_response_json(cls, response_json):
+        return cls(
+            sha=jmespath.search("sha", response_json),
+            date_utc=jmespath.search("commit.committer.date", response_json),
+            message=jmespath.search("commit.message", response_json),
+            html_url=jmespath.search("html_url", response_json)
+        )
 
     # validate that date is ISO 8601 format with timezone
     @validator('date_utc')
@@ -58,6 +80,11 @@ class ExcludedCommitShas(BaseModel):
     values: list[str]
 
     # TODO validate that values are hex strings
+    @validator('values')
+    def _commit_shas_are_hex(cls, v):
+        for sha in v:
+            sha = commit_sha_is_hex(sha)
+        return v
 
 class TrackedAssetsConfig(BaseModel):
     description: Optional[str]
@@ -101,10 +128,8 @@ class ExecutionDetailsConfig(BaseModel):
 
     # validate that version is a 4 digit number, position 0 is a number between 1 and 9, and position 1:2 is a number between 0 and 99 and position 3 is 0
     @validator('version')
-    def version_is_valid(cls, v):
-        if not re.match(r'^[1-9][0-9]{2}0$', str(v)):
-            raise ValueError("Version must match '^[1-9][0-9]{2}0$'")
-        return v
+    def _version_is_valid(cls, v):
+        return version_is_valid(v)
 
 class SourceConfig(BaseModel):
     created_utc: Optional[str]
@@ -117,6 +142,8 @@ class SourceConfig(BaseModel):
         return date_is_iso_8601_with_timezone(v)
 
 class ExecutionStateItem(BaseModel):
+    created_utc: Optional[str] # TODO make required once fully implemented
+    updated_utc: Optional[str] # TODO make required once fully implemented
     repository: RepositoryConfig
     commit: Commit
     execution: ExecutionDetailsConfig
@@ -152,3 +179,23 @@ class ExecutionState(BaseModel):
                 break
 
         return v 
+    
+class ExecutionPayloadItem(BaseModel):
+    version: int
+    commit_sha: str
+
+    @validator('version')
+    def _version_is_valid(cls, v):
+        return version_is_valid(v)
+
+    @validator('commit_sha')
+    def _commit_sha_is_hex(cls, v):
+        return commit_sha_is_hex(v)
+
+    # create the ExecutionPayloadItem from ExecutionStateItem
+    @classmethod
+    def from_execution_state_item(cls, execution_state_item):
+        return cls(
+            version=execution_state_item.execution.version,
+            commit_sha=execution_state_item.commit.sha
+        )
