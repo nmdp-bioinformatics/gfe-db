@@ -183,6 +183,7 @@ class ExecutionState(BaseModel):
 class ExecutionPayloadItem(BaseModel):
     version: int
     commit_sha: str
+    input_parameters: InputParameters
 
     @validator('version')
     def _version_is_valid(cls, v):
@@ -197,5 +198,6 @@ class ExecutionPayloadItem(BaseModel):
     def from_execution_state_item(cls, execution_state_item):
         return cls(
             version=execution_state_item.execution.version,
-            commit_sha=execution_state_item.commit.sha
+            commit_sha=execution_state_item.commit.sha,
+            input_parameters=execution_state_item.execution.input_parameters
         )
