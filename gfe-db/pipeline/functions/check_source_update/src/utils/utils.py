@@ -204,7 +204,6 @@ def read_source_config(bucket, key):
 # def write_source_config(bucket, key, source_config: SourceConfig):
 #     write_s3_json(bucket, key, source_config.dict())
 
-@cache_json
 def list_commits(owner, repo, **params):
     """Return a list of GitHub commits for the specified repository"""
 

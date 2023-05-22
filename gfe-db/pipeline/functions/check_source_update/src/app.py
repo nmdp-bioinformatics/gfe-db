@@ -66,7 +66,7 @@ data_bucket_name = ssm.get_parameter(
 )["Parameter"]["Value"]
 
 # Get data source configuration
-repo_source_config = (
+source_repo_config = (
     read_source_config(data_bucket_name, PIPELINE_SOURCE_CONFIG_S3_PATH)
     .repositories[f"{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}"]
 )
@@ -80,13 +80,16 @@ def lambda_handler(event, context):
 
     execution_state = get_execution_state(table)
 
-    # ⬇ TESTING uncomment before deploying ⬇
+    # # ⬇ TESTING uncomment before deploying ⬇
     # test_items_to_delete = execution_state[:5]
-    # delete from table using commit.sha
-    # for item in test_items_to_delete:
-    #     table.delete_item(Key={"commit.sha": item.commit.sha})
+
+    # # # delete from table using commit.sha
+    # # # ValidationError
+    # # for item in test_items_to_delete:
+    # #     # table.delete_item(Key={"commit.sha": item.commit.sha})
+
     # del execution_state[:5]
-    # ⬆ TESTING uncomment before deploying ⬆
+    # # ⬆ TESTING uncomment before deploying ⬆
 
     # Get the most recent commits from github since the most recent commit date retrieved from DynamoDB
     commits = get_most_recent_commits(execution_state)
@@ -95,12 +98,11 @@ def lambda_handler(event, context):
         logger.info("No new commits found")
         return
 
-    # TODO Get the release version for each new commit
     # TODO Build a list of ExecutionStateItems using defaults for execution, repository and adding the commit BOOKMARK (1)
     commits_with_releases = []
     for commit in commits:
         sha = commit["sha"]
-        for asset_config in repo_source_config.target_metadata_config.items:
+        for asset_config in source_repo_config.target_metadata_config.items:
             try:
                 release_version = get_release_version_for_commit(commit, **asset_config.dict())
                 execution_detail = ExecutionDetailsConfig(**{"version": release_version, "status": "NOT_PROCESSED"})
@@ -108,7 +110,7 @@ def lambda_handler(event, context):
                     "owner": GITHUB_REPOSITORY_OWNER, 
                     "name": GITHUB_REPOSITORY_NAME,
                     "url": f"https://github.com/{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}",
-                    "default_input_parameters": repo_source_config.default_input_parameters,
+                    "default_input_parameters": source_repo_config.default_input_parameters,
 
                 })
                 commit = Commit.from_response_json(commit)
@@ -126,37 +128,43 @@ def lambda_handler(event, context):
 
     ### Trigger the build process for each release with the most recent commit for that version ###
     # 1) Mark the most recent commit for each release as PENDING
+    # TODO add input parameters, take into account that they will come from either the default or from user input through event
+    input_parameters = source_repo_config.default_input_parameters
     pending_commits = [ 
-        update_execution_state_item_status(commit, "PENDING") \
+        update_execution_state_item(commit, status="PENDING", input_parameters=input_parameters) \
             for item in select_most_recent_commit_for_release(commits_with_releases) \
                 for commit in item.values()
     ]
 
+
     # 2) Mark the older commits for each release as SKIPPED
-    skipped_commits = [ update_execution_state_item_status(commit, "SKIPPED") for commit in commits_with_releases if commit not in pending_commits ]
+    skipped_commits = [ update_execution_state_item(commit, "SKIPPED") for commit in commits_with_releases if commit not in pending_commits ]
 
     # 3) Update the state table with the new commits, order by commit.date_utc descending
     new_execution_state = pending_commits + skipped_commits
     new_execution_state = sorted(new_execution_state, key=lambda x: x.commit.date_utc, reverse=False)
 
-    # 4) Add the processed records to the state table
-    items = []
-    for item in new_execution_state:
-
-        # flatten the item and select only the fields in the table
-        items.append(flatten_json(
+    # 4) Flatten and load the processed records to the state table
+    items = [ 
+        flatten_json(
             data=item.dict(),
-            select_fields=execution_state_table_fields))
+            select_fields=execution_state_table_fields) \
+                for item in new_execution_state
+        ]
+    # for item in new_execution_state:
 
-        # table.put_item(Item=item)
+    #     # flatten the item and select only the fields in the table
+    #     items.append(flatten_json(
+    #         data=item.dict(),
+    #         select_fields=execution_state_table_fields))
 
     with table.batch_writer() as batch:
         logger.info(f"Loading {len(items)} items to {table_name}")
         for item in items:
             batch.put_item(Item=item)
 
-    # TODO add input parameters, take into account that they will come from either the default or from user input through event
     # 5) Return pending commits to the state machine for further processing
+    # TODO add input parameters
     execution_payload = [ ExecutionPayloadItem.from_execution_state_item(item).dict() for item in pending_commits ] 
     return execution_payload
 
@@ -172,7 +180,7 @@ def get_execution_state(table):
     # TODO Deserialize and repack the items
     return [ ExecutionStateItem(**restore_nested_json(item)) for item in items ]
 
-
+@cache_json
 def get_most_recent_commits(execution_state):
     # 1) Get the most recent commit date from DynamoDB using max(), add one second to it so the same commit is not returned
     last_commit_date = max([ str_to_datetime(item.commit.date_utc) for item in execution_state ])
@@ -200,8 +208,12 @@ def select_most_recent_commit_for_release(commits: list[ExecutionStateItem]):
         for version in unique_new_releases
     ]
 
-def update_execution_state_item_status(execution_state_item: ExecutionStateItem, status: str):
+def update_execution_state_item(execution_state_item: ExecutionStateItem, status: str, input_parameters: dict = None):
     execution_state_item.execution.status = status
+
+    if input_parameters is not None and status == "PENDING":
+        execution_state_item.execution.input_parameters = input_parameters
+
     execution_state_item.execution.date_utc = str_from_datetime(datetime.utcnow())
     return execution_state_item
 
