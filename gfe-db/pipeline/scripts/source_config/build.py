@@ -42,9 +42,6 @@ DATA_BUCKET_NAME = os.environ["DATA_BUCKET_NAME"]
 if __name__ == "__main__":
 
     # Paths
-    # TODO arg
-    # output_dir = Path(f"{APP_NAME}/pipeline/config")
-    # get the output_dir from the command line
     output_dir = Path(sys.argv[1])
 
     # Get base source config

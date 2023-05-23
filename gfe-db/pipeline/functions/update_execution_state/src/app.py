@@ -1,3 +1,10 @@
+"""
+Lambda with EventBridge event source
+* State Machine events trigger the function (State Change, Success, Failure etc.)
+* This function may need to have access to the names of states in the state machine so it can update the execution status
+  * Map state names to status updates
+"""
+
 import os
 import logging
 import json

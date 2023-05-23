@@ -4,12 +4,14 @@ from typing import Optional
 from pydantic import BaseModel, validator
 import jmespath
 
-# EventBridge Rules trigger UpdateStatus Lambda
-# SKIPPED: never processed 
-# PENDING: state machine execution started
-# IN_PROGRESS: batch build job triggered 
-# SUCCESS: state machine execution succeeded
-# FAILED: state machine execution failed
+# ExecutionState is changed using Step Functions DynamoDB states
+# SKIPPED: never processed (set by CheckSourceUpdate) ✅
+# PENDING: state machine execution started (set by CheckSourceUpdate) ✅
+# IN_PROGRESS: batch build job triggered (set by state machine)
+# SUCCESS: state machine execution succeeded (set by state machine)
+# FAILED: state machine execution failed (set by state machine)
+
+# TODO remove None, default is NOT_PROCESSED
 valid_statuses = ["NOT_PROCESSED", "SKIPPED", "PENDING", "IN_PROGRESS", "SUCCESS", "FAILED", None]
 
 def str_to_datetime(v, fmt="%Y-%m-%dT%H:%M:%SZ"):
@@ -79,7 +81,6 @@ class ExcludedCommitShas(BaseModel):
     description: Optional[str]
     values: list[str]
 
-    # TODO validate that values are hex strings
     @validator('values')
     def _commit_shas_are_hex(cls, v):
         for sha in v:
@@ -114,6 +115,7 @@ class RepositoryConfig(BaseModel):
     def url_is_valid(cls, v):
         return url_is_valid(v)
 
+# TODO add execution_id
 class ExecutionDetailsConfig(BaseModel):
     version: int
     status: str

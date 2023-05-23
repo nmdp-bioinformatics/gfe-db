@@ -11,6 +11,7 @@ deploy:
 	$(MAKE) service.config.deploy
 	$(MAKE) service.deploy
 
+# TODO Update this to filter the check-key-pair JSON response by the actual key pair name instead of list index
 service.check-key-pair: ##=> Checks if the key pair already exists and creates it if it does not
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Checking for key pair ${EC2_KEY_PAIR_NAME}" 2>&1 | tee -a $$CFN_LOG_PATH
 	@key_pair="$$(aws ec2 describe-key-pairs --key-name ${EC2_KEY_PAIR_NAME} | jq '.KeyPairs[0].KeyName' || true)" && \

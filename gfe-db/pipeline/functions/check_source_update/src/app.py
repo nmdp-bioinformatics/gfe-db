@@ -35,7 +35,6 @@ from utils.utils import (
     cache_pickle
 )
 
-# set up logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -98,7 +97,6 @@ def lambda_handler(event, context):
         logger.info("No new commits found")
         return
 
-    # TODO Build a list of ExecutionStateItems using defaults for execution, repository and adding the commit BOOKMARK (1)
     commits_with_releases = []
     for commit in commits:
         sha = commit["sha"]
@@ -128,14 +126,12 @@ def lambda_handler(event, context):
 
     ### Trigger the build process for each release with the most recent commit for that version ###
     # 1) Mark the most recent commit for each release as PENDING
-    # TODO add input parameters, take into account that they will come from either the default or from user input through event
     input_parameters = source_repo_config.default_input_parameters
     pending_commits = [ 
         update_execution_state_item(commit, status="PENDING", input_parameters=input_parameters) \
             for item in select_most_recent_commit_for_release(commits_with_releases) \
                 for commit in item.values()
     ]
-
 
     # 2) Mark the older commits for each release as SKIPPED
     skipped_commits = [ update_execution_state_item(commit, "SKIPPED") for commit in commits_with_releases if commit not in pending_commits ]
@@ -151,12 +147,6 @@ def lambda_handler(event, context):
             select_fields=execution_state_table_fields) \
                 for item in new_execution_state
         ]
-    # for item in new_execution_state:
-
-    #     # flatten the item and select only the fields in the table
-    #     items.append(flatten_json(
-    #         data=item.dict(),
-    #         select_fields=execution_state_table_fields))
 
     with table.batch_writer() as batch:
         logger.info(f"Loading {len(items)} items to {table_name}")
@@ -164,7 +154,6 @@ def lambda_handler(event, context):
             batch.put_item(Item=item)
 
     # 5) Return pending commits to the state machine for further processing
-    # TODO add input parameters
     execution_payload = [ ExecutionPayloadItem.from_execution_state_item(item).dict() for item in pending_commits ] 
     return execution_payload
 
@@ -172,8 +161,6 @@ def lambda_handler(event, context):
 def get_execution_state(table):
     # Retrieve execution state from table
     items = table.scan()["Items"]
-    # convert Decimal types to int
-    from decimal import Decimal
     items = [{k: int(v) if isinstance(v, Decimal) else v for k, v in item.items()} for item in items]
     items = sorted(items, key=lambda x: x["commit.date_utc"], reverse=True)
 

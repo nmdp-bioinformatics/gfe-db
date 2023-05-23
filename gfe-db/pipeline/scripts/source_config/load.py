@@ -8,6 +8,8 @@ sys.path.append(
 )
 from pathlib import Path
 import logging
+from datetime import datetime
+utc_now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 import json
 import boto3
 from src.utils.types import (
@@ -57,8 +59,10 @@ if __name__ == "__main__":
     #     } for item in execution_state.items
     # ]
 
+    # TODO use selected fields from constants
     # flatten JSON records and filter nulls
     skip_fields = [
+        "execution.input_parameters",
         "repository.description",
         "repository.excluded_commit_shas",
         "repository.target_metadata_config",
@@ -74,4 +78,4 @@ if __name__ == "__main__":
         for item in execution_state_flat:
             batch.put_item(Item=item)
 
-    logger.info(f"Loaded {len(execution_state_flat)} items to {execution_state_table_name}")
+    logger.info(f"Success")

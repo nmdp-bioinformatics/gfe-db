@@ -34,7 +34,6 @@ Parameters:
 
 Resources:
 
-  # TODO BOOKMARK redeploy execution state table
   ExecutionStateTable:
     Type: AWS::DynamoDB::Table
     Properties:
