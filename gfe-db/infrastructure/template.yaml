@@ -9,9 +9,6 @@ Parameters:
     Type: String
   DataBucketName:
     Type: String
-  GitHubPersonalAccessToken:
-    Type: String
-    NoEcho: true
     
 Mappings:
   # AvailabilityZoneMap defines availability zones where an m5d.xlarge instance is available (used for Neo4j server).
@@ -121,23 +118,11 @@ Resources:
   DataBucketRegionalDomainNameParameter:
     Type: AWS::SSM::Parameter
     Properties:
-      Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataBucketRegionalDomainName'
+      Type: String
       Description: "S3 Bucket Regional Domain name for application bucket"
       Value: !GetAtt DataBucket.RegionalDomainName
   
-  GitHubPersonalAccessTokenSecret:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      Name: !Sub "${AppName}-${Stage}-GitHubPersonalAccessToken"
-      Description: GitHub Personal Access Token for repository access
-      SecretString: !Sub '{"personal_access_token":"${GitHubPersonalAccessToken}"}'
-      Tags:
-        - Key: Stage
-          Value: !Ref Stage
-        - Key: AppName 
-          Value: !Ref AppName
-
   Neo4jDatabaseElasticIp:
     Type: AWS::EC2::EIP
     Properties:
