@@ -1,10 +1,10 @@
 {
     "Functions": {
-        "InvokePipeline": {
-            "InvokePipelineFunctionSchedule": "cron(0\\ 12\\ *\\ *\\ ?\\ *)",
+        "CheckSourceUpdate": {
+            "CheckSourceUpdateFunctionSchedule": "cron(0\\ 12\\ *\\ *\\ ?\\ *)",
             "FunctionConfiguration": {
-                "FunctionName": "invoke-pipeline",
-                "Timeout": 60,
+                "FunctionName": "check-source-update",
+                "Timeout": 300,
                 "MemorySize": 256
             }
         },

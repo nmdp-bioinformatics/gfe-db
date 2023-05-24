@@ -10,8 +10,12 @@ utc_now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 import json
 import boto3
 from utils.constants import (
+    dynamodb,
     GITHUB_REPOSITORY_OWNER,
     GITHUB_REPOSITORY_NAME,
+    table_name,
+    data_bucket_name,
+    gfedb_processing_queue_url,
     execution_state_table_fields
 )
 from utils.types import (
@@ -28,136 +32,125 @@ from utils.utils import (
     restore_nested_json, 
     list_commits, 
     get_release_version_for_commit,
-    flatten_json_records,
     flatten_json,
-
-    cache_json,
-    cache_pickle
 )
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # Environment
-AWS_REGION = os.environ["AWS_REGION"]
 APP_NAME = os.environ["APP_NAME"]
 STAGE = os.environ["STAGE"]
 PIPELINE_SOURCE_CONFIG_S3_PATH = os.environ["PIPELINE_SOURCE_CONFIG_S3_PATH"]
-GITHUB_REPOSITORY_OWNER = os.environ["GITHUB_REPOSITORY_OWNER"]
-GITHUB_REPOSITORY_NAME = os.environ["GITHUB_REPOSITORY_NAME"]
 
-# AWS clients
-session = boto3.Session(region_name=AWS_REGION)
-ssm = session.client("ssm")
-dynamodb = session.resource("dynamodb", region_name=AWS_REGION)
-
-# Get SSM Parameters
-table_name = ssm.get_parameter(
-    Name=f'/{os.environ["APP_NAME"]}/{os.environ["STAGE"]}/{os.environ["AWS_REGION"]}/ExecutionStateTableName'
-)["Parameter"]["Value"]
-
-state_machine_arn = ssm.get_parameter(
-    Name=f'/{os.environ["APP_NAME"]}/{os.environ["STAGE"]}/{os.environ["AWS_REGION"]}/UpdatePipelineArn'
-)["Parameter"]["Value"]
-
-data_bucket_name = ssm.get_parameter(
-    Name=f'/{os.environ["APP_NAME"]}/{os.environ["STAGE"]}/{os.environ["AWS_REGION"]}/DataBucketName'
-)["Parameter"]["Value"]
-
+logger.info(f"Fetching source config from {data_bucket_name}/{PIPELINE_SOURCE_CONFIG_S3_PATH}")
 # Get data source configuration
 source_repo_config = (
     read_source_config(data_bucket_name, PIPELINE_SOURCE_CONFIG_S3_PATH)
     .repositories[f"{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}"]
 )
 
+queue = boto3.resource("sqs")
+queue = queue.Queue(gfedb_processing_queue_url)
 
 def lambda_handler(event, context):
-    logger.info(json.dumps(event))
+    # logger.info(json.dumps(event))
 
-    # Get items from state table
-    table = dynamodb.Table(table_name)
+    try:
+        # Get items from state table
+        logger.info(f"Fetching execution state from {table_name}")
+        table = dynamodb.Table(table_name)
+        execution_state = get_execution_state(table)
 
-    execution_state = get_execution_state(table)
+        # Get the most recent commits from github since the most recent commit date retrieved from DynamoDB
+        commits = get_most_recent_commits(execution_state)
+        logger.info(f"Found {len(commits)} commit(s) not yet processed\n{json.dumps([commit['sha'] for commit in commits], indent=2)}")
 
-    # # ⬇ TESTING uncomment before deploying ⬇
-    # test_items_to_delete = execution_state[:5]
+        if not commits:
+            logger.info("No new commits found")
+            return
 
-    # # # delete from table using commit.sha
-    # # # ValidationError
-    # # for item in test_items_to_delete:
-    # #     # table.delete_item(Key={"commit.sha": item.commit.sha})
+        logger.info(f"Getting release versions")
+        commits_with_releases = []
+        for commit in commits:
+            sha = commit["sha"]
+            for asset_config in source_repo_config.target_metadata_config.items:
+                try:
+                    release_version = get_release_version_for_commit(commit, **asset_config.dict())
+                    logger.info(f"Found release version {release_version} for commit {sha}")
+                    execution_detail = ExecutionDetailsConfig(**{"version": release_version, "status": "NOT_PROCESSED"})
+                    repository_config = RepositoryConfig(**{
+                        "owner": GITHUB_REPOSITORY_OWNER, 
+                        "name": GITHUB_REPOSITORY_NAME,
+                        "url": f"https://github.com/{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}",
+                        "default_input_parameters": source_repo_config.default_input_parameters,
+                    })
+                    execution_state_item = ExecutionStateItem(
+                        updated_utc=utc_now,
+                        execution=execution_detail,
+                        repository=repository_config,
+                        commit=Commit.from_response_json(commit)
+                    )
+                    commits_with_releases.append(execution_state_item)
+                    # break the loop if successful
+                    break
+                except Exception as e:
+                    logger.info(f"Error getting release version for commit {sha}: {e}")
 
-    # del execution_state[:5]
-    # # ⬆ TESTING uncomment before deploying ⬆
-
-    # Get the most recent commits from github since the most recent commit date retrieved from DynamoDB
-    commits = get_most_recent_commits(execution_state)
-
-    if not commits:
-        logger.info("No new commits found")
-        return
-
-    commits_with_releases = []
-    for commit in commits:
-        sha = commit["sha"]
-        for asset_config in source_repo_config.target_metadata_config.items:
-            try:
-                release_version = get_release_version_for_commit(commit, **asset_config.dict())
-                execution_detail = ExecutionDetailsConfig(**{"version": release_version, "status": "NOT_PROCESSED"})
-                repository_config = RepositoryConfig(**{
-                    "owner": GITHUB_REPOSITORY_OWNER, 
-                    "name": GITHUB_REPOSITORY_NAME,
-                    "url": f"https://github.com/{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}",
-                    "default_input_parameters": source_repo_config.default_input_parameters,
-
-                })
-                commit = Commit.from_response_json(commit)
-                execution_state_item = ExecutionStateItem(
-                    updated_utc=utc_now,
-                    execution=execution_detail,
-                    repository=repository_config,
-                    commit=commit
-                )
-                commits_with_releases.append(execution_state_item)
-                # break the loop if successful
-                break
-            except Exception as e:
-                logger.info(f"Error getting release version for commit {sha}: {e}")
-
-    ### Trigger the build process for each release with the most recent commit for that version ###
-    # 1) Mark the most recent commit for each release as PENDING
-    input_parameters = source_repo_config.default_input_parameters
-    pending_commits = [ 
-        update_execution_state_item(commit, status="PENDING", input_parameters=input_parameters) \
-            for item in select_most_recent_commit_for_release(commits_with_releases) \
-                for commit in item.values()
-    ]
-
-    # 2) Mark the older commits for each release as SKIPPED
-    skipped_commits = [ update_execution_state_item(commit, "SKIPPED") for commit in commits_with_releases if commit not in pending_commits ]
-
-    # 3) Update the state table with the new commits, order by commit.date_utc descending
-    new_execution_state = pending_commits + skipped_commits
-    new_execution_state = sorted(new_execution_state, key=lambda x: x.commit.date_utc, reverse=False)
-
-    # 4) Flatten and load the processed records to the state table
-    items = [ 
-        flatten_json(
-            data=item.dict(),
-            select_fields=execution_state_table_fields) \
-                for item in new_execution_state
+        ### Trigger the build process for each release with the most recent commit for that version ###
+        logger.info("Updating execution state")
+        # 1) Mark the most recent commit for each release as PENDING
+        input_parameters = source_repo_config.default_input_parameters
+        pending_commits = [ 
+            update_execution_state_item(commit, status="PENDING", input_parameters=input_parameters) \
+                for item in select_most_recent_commit_for_release(commits_with_releases) \
+                    for commit in item.values()
         ]
 
-    with table.batch_writer() as batch:
-        logger.info(f"Loading {len(items)} items to {table_name}")
-        for item in items:
-            batch.put_item(Item=item)
+        # 2) Mark the older commits for each release as SKIPPED
+        skipped_commits = [ update_execution_state_item(commit, "SKIPPED") for commit in commits_with_releases if commit not in pending_commits ]
 
-    # 5) Return pending commits to the state machine for further processing
-    execution_payload = [ ExecutionPayloadItem.from_execution_state_item(item).dict() for item in pending_commits ] 
-    return execution_payload
+        # 3) Update the state table with the new commits, order by commit.date_utc descending
+        new_execution_state = pending_commits + skipped_commits
+        new_execution_state = sorted(new_execution_state, key=lambda x: x.commit.date_utc, reverse=False)
 
-@cache_pickle
+        # 4) Flatten and load the processed records to the state table
+        items = [ 
+            flatten_json(
+                data=item.dict(),
+                select_fields=execution_state_table_fields) \
+                    for item in new_execution_state
+            ]
+
+        with table.batch_writer() as batch:
+            logger.info(f"Loading {len(items)} items to {table_name}")
+            for item in items:
+                batch.put_item(Item=item)
+
+        logger.info(f"{len(items)} items loaded to {table_name}")   
+
+        # 5) Return pending commits to the state machine for further processing
+        execution_payload = [ ExecutionPayloadItem.from_execution_state_item(item).dict() for item in pending_commits ] 
+        for item in execution_payload:
+            queue.send_message(MessageBody=json.dumps(item))
+
+        return {
+            "statusCode": 200,
+            "body": json.dumps({
+                "message": f'Processed {len(execution_payload)} releases\n{json.dumps(execution_payload, indent=4)}'
+            }),
+        }
+    except Exception as e:
+        import traceback
+        logger.error(f'{e}\n{traceback.format_exc()}\n{json.dumps(event)}')
+        return {
+            "statusCode": 500,
+            "body": json.dumps({
+                "message": f'Error processing releases: {e}'
+            }),
+        }
+
+# @cache_pickle
 def get_execution_state(table):
     # Retrieve execution state from table
     items = table.scan()["Items"]
@@ -167,7 +160,7 @@ def get_execution_state(table):
     # TODO Deserialize and repack the items
     return [ ExecutionStateItem(**restore_nested_json(item)) for item in items ]
 
-@cache_json
+# @cache_json
 def get_most_recent_commits(execution_state):
     # 1) Get the most recent commit date from DynamoDB using max(), add one second to it so the same commit is not returned
     last_commit_date = max([ str_to_datetime(item.commit.date_utc) for item in execution_state ])

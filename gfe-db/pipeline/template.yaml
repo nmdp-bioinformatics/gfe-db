@@ -12,18 +12,25 @@ Parameters:
   ServiceName:
     Type: String
     Description: Service name
+  GithubRepositoryOwner:
+    Type: String
+  GithubRepositoryName:
+    Type: String
+  GitHubPersonalAccessToken:
+    Type: String
+    NoEcho: true
   ConfigS3Path:
     Type: String
     Description: S3 path to config file
-  InvokePipelineFunctionName:
+  CheckSourceUpdateFunctionName:
     Type: String
-  InvokePipelineFunctionMemorySize:
+  CheckSourceUpdateFunctionMemorySize:
     Type: Number
     MinValue: 128
     MaxValue: 512
-  InvokePipelineFunctionTimeout:
+  CheckSourceUpdateFunctionTimeout:
     Type: Number
-  InvokePipelineFunctionSchedule:
+  CheckSourceUpdateFunctionSchedule:
     Type: String
   InvokeLoadScriptFunctionName:
     Type: String
@@ -33,6 +40,26 @@ Parameters:
     Type: String
 
 Resources:
+
+  GitHubPersonalAccessTokenSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/GitHubPersonalAccessToken"
+      Description: GitHub Personal Access Token for repository access
+      SecretString: !Ref GitHubPersonalAccessToken
+      Tags:
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: AppName 
+          Value: !Ref AppName
+  
+  GitHubSourceRepositoryParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/GithubSourceRepository"
+      Type: String
+      Description: GitHub Personal Access Token for repository access
+      Value: !Sub '{"owner":"${GithubRepositoryOwner}", "name":"${GithubRepositoryName}"}'
 
   ExecutionStateTable:
     Type: AWS::DynamoDB::Table
@@ -342,65 +369,110 @@ Resources:
       Description: "Name of gfe-db build service repository"
       Value: !Ref BuildServiceRepositoryName
 
-  InvokePipelineFunction:
+  GfeDbProcessingQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 300
+      MessageRetentionPeriod: 43200
+      ReceiveMessageWaitTimeSeconds: 20
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt GfeDbProcessingDeadLetterQueue.Arn
+        maxReceiveCount: 3
+
+  GfeDbProcessingQueueUrlParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/GfeDbProcessingQueueUrl'
+      Description: "URL of gfe-db processing queue"
+      Value: !GetAtt GfeDbProcessingQueue.QueueUrl
+
+  GfeDbProcessingDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 300
+      MessageRetentionPeriod: 43200
+      ReceiveMessageWaitTimeSeconds: 20
+
+  CheckSourceUpdateFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Ref InvokePipelineFunctionName
+      FunctionName: !Ref CheckSourceUpdateFunctionName
       Description: !Sub '${AppName} update pipeline trigger: checks for new IMGT/HLA releases and starts the loading process'
-      CodeUri: functions/invoke_pipeline/src/
+      CodeUri: functions/check_source_update/src/
       Handler: app.lambda_handler
       Runtime: python3.9
-      MemorySize: !Ref InvokePipelineFunctionMemorySize
-      Timeout: !Ref InvokePipelineFunctionTimeout
+      MemorySize: !Ref CheckSourceUpdateFunctionMemorySize
+      Timeout: !Ref CheckSourceUpdateFunctionTimeout
       Architectures:
         - x86_64
       Environment:
         Variables:
-          GITHUB_PERSONAL_ACCESS_TOKEN: !Sub '{{resolve:secretsmanager:${AppName}-${Stage}-GitHubPersonalAccessToken:SecretString:personal_access_token:AWSCURRENT}}'
-          DATA_BUCKET_NAME: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
-          PIPELINE_CONFIG_S3_PATH: !Sub '${ConfigS3Path}/${ServiceName}/source-config.json'
-          UPDATE_PIPELINE_STATE_MACHINE_ARN: !GetAtt UpdatePipelineStateMachine.Arn
+          APP_NAME: !Ref AppName
+          STAGE: !Ref Stage
+          PIPELINE_SOURCE_CONFIG_S3_PATH: !Sub '${ConfigS3Path}/${ServiceName}/source-config.json'
       Events:
         Trigger:
           Type: Schedule
           Properties:
-            Schedule: !Ref InvokePipelineFunctionSchedule
+            Schedule: !Ref CheckSourceUpdateFunctionSchedule
       Policies:
         - AWSLambdaBasicExecutionRole
         - Version: "2012-10-17"
           Statement:
-            - Sid: "AllowS3Access"
+            - Sid: "AllowSecretsManagerAccess"
               Effect: "Allow"
               Action:
+                - "secretsmanager:GetSecretValue"
+              Resource: !Ref GitHubPersonalAccessTokenSecret
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: "AllowSSMParameterStoreAccess"
+              Effect: "Allow"
+              Action:
+                - "ssm:GetParameters"
+                - "ssm:GetParameter"
+              Resource: "*"
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: "AllowSQSAccess"
+              Effect: "Allow"
+              Action:
+                - "sqs:SendMessage"
+                - "sqs:GetQueueUrl"
+                - "sqs:GetQueueAttributes"
+                - "sqs:SendMessageBatch"
+              Resource: "*" # TODO: restrict to the queue
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: "AllowS3Access"
+              Effect: "Allow"
+              Action: 
                 - "s3:GetObject"
-                - "s3:PutObject"
                 - "s3:ListBucket"
+                - "s3:GetBucketLocation"
+                - "s3:GetObjectVersion"
               Resource:
                 - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
                 - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
-            - Sid: "AllowSFNStartExecution"
-              Effect: "Allow"
-              Action:
-                - "states:StartExecution"
-              Resource: !GetAtt UpdatePipelineStateMachine.Arn
 
-  InvokePipelineFunctionAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmDescription: !Sub 'Alarm for ${InvokePipelineFunction} function errors'
-      ActionsEnabled: true
-      AlarmActions:
-        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
-      MetricName: Errors
-      Namespace: AWS/Lambda
-      Statistic: Sum
-      Period: 86400
-      EvaluationPeriods: 1
-      Threshold: 1
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      Dimensions:
-        - Name: FunctionName
-          Value: !Ref InvokePipelineFunctionName
+  # CheckSourceUpdateFunctionAlarm:
+  #   Type: AWS::CloudWatch::Alarm
+  #   Properties:
+  #     AlarmDescription: !Sub 'Alarm for ${CheckSourceUpdateFunction} function errors'
+  #     ActionsEnabled: true
+  #     AlarmActions:
+  #       - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
+  #     MetricName: Errors
+  #     Namespace: AWS/Lambda
+  #     Statistic: Sum
+  #     Period: 86400
+  #     EvaluationPeriods: 1
+  #     Threshold: 1
+  #     ComparisonOperator: GreaterThanOrEqualToThreshold
+  #     Dimensions:
+  #       - Name: FunctionName
+  #         Value: !Ref CheckSourceUpdateFunctionName
 
   InvokeLoadScriptFunction:
     Type: AWS::Serverless::Function

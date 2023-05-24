@@ -30,15 +30,14 @@ service.functions.deploy:
 			AppName="$${APP_NAME}" \
 			ServiceName="${SERVICE}" \
 			ConfigS3Path="$${CONFIG_S3_PATH}" \
-			InvokePipelineFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.FunctionName')" \
-			InvokePipelineFunctionMemorySize="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.MemorySize')" \
-			InvokePipelineFunctionTimeout="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Timeout')" \
-			InvokePipelineFunctionSchedule="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.InvokePipelineFunctionSchedule')" \
-			DataBucketName="$${DATA_BUCKET_NAME}" \
-			ConfigS3Path="$${CONFIG_S3_PATH}" \
+			GithubRepositoryOwner="$$GITHUB_REPOSITORY_OWNER" \
+			GithubRepositoryName="$$GITHUB_REPOSITORY_NAME" \
+			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN" \
+			CheckSourceUpdateFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.CheckSourceUpdate.FunctionConfiguration.FunctionName')" \
+			CheckSourceUpdateFunctionMemorySize="$$(cat functions/environment.json | jq -r '.Functions.CheckSourceUpdate.FunctionConfiguration.MemorySize')" \
+			CheckSourceUpdateFunctionTimeout="$$(cat functions/environment.json | jq -r '.Functions.CheckSourceUpdate.FunctionConfiguration.Timeout')" \
+			CheckSourceUpdateFunctionSchedule="$$(cat functions/environment.json | jq -r '.Functions.CheckSourceUpdate.CheckSourceUpdateFunctionSchedule')" \
 			InvokeLoadScriptFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokeLoadScript.FunctionConfiguration.FunctionName')" \
-			Stage="$${STAGE}" \
-			AppName="$${APP_NAME}" \
 			ECRBaseUri="${ECR_BASE_URI}" \
 			BuildServiceRepositoryName="${BUILD_REPOSITORY}" \
 			2>&1 | tee -a $$CFN_LOG_PATH || true
