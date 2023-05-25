@@ -531,14 +531,14 @@ Resources:
   UpdatePipelineStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
-      DefinitionUri: statemachines/pipeline.asl.json
+      DefinitionUri: statemachines/mock-pipeline.asl.json
       DefinitionSubstitutions:
-        AppName: !Ref AppName
-        BuildJobDefinition: !Ref BuildJobDefinition
-        BuildJobName: !Sub '${Stage}-${AppName}-build-job'
-        BuildJobQueue: !Ref BuildJobQueue
-        InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
-        LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
+        ExecutionStateTable: !Ref ExecutionStateTable
+      #   BuildJobDefinition: !Ref BuildJobDefinition
+      #   BuildJobName: !Sub '${Stage}-${AppName}-build-job'
+      #   BuildJobQueue: !Ref BuildJobQueue
+      #   InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
+      #   LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref InvokeLoadScriptFunction
@@ -560,23 +560,80 @@ Resources:
           Statement:
             - Effect: "Allow"
               Action: 
-                - "batch:SubmitJob"
-                - "batch:DescribeJobs"
-                - "batch:TerminateJob"
-              Resource: "*"
-            - Effect: "Allow"
-              Action: 
-                - "events:PutTargets"
-                - "events:PutRule"
-                - "events:DescribeRule"
-              Resource: 
-                - !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule'
+                - "dynamodb:UpdateItem"
+              Resource: !GetAtt ExecutionStateTable.Arn
+      #   - Version: "2012-10-17"
+      #     Statement:
+      #       - Effect: "Allow"
+      #         Action: 
+      #           - "batch:SubmitJob"
+      #           - "batch:DescribeJobs"
+      #           - "batch:TerminateJob"
+      #         Resource: "*"
+      #       - Effect: "Allow"
+      #         Action: 
+      #           - "events:PutTargets"
+      #           - "events:PutRule"
+      #           - "events:DescribeRule"
+      #         Resource: 
+      #           - !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule'
       Logging:
         Destinations: 
           - CloudWatchLogsLogGroup: 
               LogGroupArn: !GetAtt UpdatePipelineLogGroup.Arn
         IncludeExecutionData: true
         Level: ALL
+
+  # # TODO Retain the original statemachine until the new one is working
+  # UpdatePipelineStateMachine:
+  #   Type: AWS::Serverless::StateMachine
+  #   Properties:
+  #     DefinitionUri: statemachines/pipeline.asl.json
+  #     DefinitionSubstitutions:
+  #       AppName: !Ref AppName
+  #       BuildJobDefinition: !Ref BuildJobDefinition
+  #       BuildJobName: !Sub '${Stage}-${AppName}-build-job'
+  #       BuildJobQueue: !Ref BuildJobQueue
+  #       InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
+  #       LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
+  #     Policies:
+  #       - LambdaInvokePolicy:
+  #           FunctionName: !Ref InvokeLoadScriptFunction
+  #       - Version: "2012-10-17"
+  #         Statement:
+  #           - Effect: "Allow"
+  #             Action:
+  #               - "logs:CreateLogDelivery"
+  #               - "logs:GetLogDelivery"
+  #               - "logs:UpdateLogDelivery"
+  #               - "logs:DeleteLogDelivery"
+  #               - "logs:ListLogDeliveries"
+  #               - "logs:PutResourcePolicy"
+  #               - "logs:DescribeResourcePolicies"
+  #               - "logs:DescribeLogGroups"
+  #             Resource: 
+  #               - "*"
+  #       - Version: "2012-10-17"
+  #         Statement:
+  #           - Effect: "Allow"
+  #             Action: 
+  #               - "batch:SubmitJob"
+  #               - "batch:DescribeJobs"
+  #               - "batch:TerminateJob"
+  #             Resource: "*"
+  #           - Effect: "Allow"
+  #             Action: 
+  #               - "events:PutTargets"
+  #               - "events:PutRule"
+  #               - "events:DescribeRule"
+  #             Resource: 
+  #               - !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule'
+  #     Logging:
+  #       Destinations: 
+  #         - CloudWatchLogsLogGroup: 
+  #             LogGroupArn: !GetAtt UpdatePipelineLogGroup.Arn
+  #       IncludeExecutionData: true
+  #       Level: ALL
 
   LoadNeo4jActivity:
     Type: AWS::StepFunctions::Activity
@@ -596,43 +653,43 @@ Resources:
       Description: "ARN of gfe-db update pipeline state machine"
       Value: !GetAtt UpdatePipelineStateMachine.Arn
 
-# CloudWatch Alarm for failed pipeline executions
-  UpdatePipelineStateMachineExecutionAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmDescription: !Sub '${UpdatePipelineStateMachine} state machine errors'
-      ActionsEnabled: true
-      AlarmActions:
-        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
-      MetricName: ExecutionsFailed
-      Namespace: AWS/States
-      Statistic: Sum
-      Period: 86400
-      EvaluationPeriods: 1
-      Threshold: 1
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      Dimensions:
-        - Name: StateMachineArn
-          Value: !GetAtt UpdatePipelineStateMachine.Arn
+# # CloudWatch Alarm for failed pipeline executions
+#   UpdatePipelineStateMachineExecutionAlarm:
+#     Type: AWS::CloudWatch::Alarm
+#     Properties:
+#       AlarmDescription: !Sub '${UpdatePipelineStateMachine} state machine errors'
+#       ActionsEnabled: true
+#       AlarmActions:
+#         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
+#       MetricName: ExecutionsFailed
+#       Namespace: AWS/States
+#       Statistic: Sum
+#       Period: 86400
+#       EvaluationPeriods: 1
+#       Threshold: 1
+#       ComparisonOperator: GreaterThanOrEqualToThreshold
+#       Dimensions:
+#         - Name: StateMachineArn
+#           Value: !GetAtt UpdatePipelineStateMachine.Arn
 
-# CloudWatch Alarm for failed pipeline integrations (Batch jobs)
-  UpdatePipelineStateMachineIntegrationAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmDescription: !Sub '${UpdatePipelineStateMachine} state machine errors'
-      ActionsEnabled: true
-      AlarmActions:
-        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
-      MetricName: ServiceIntegrationsFailed
-      Namespace: AWS/States
-      Statistic: Sum
-      Period: 86400
-      EvaluationPeriods: 1
-      Threshold: 1
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      Dimensions:
-        - Name: ServiceIntegrationResourceArn
-          Value: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:batch:submitJob.sync'
+# # CloudWatch Alarm for failed pipeline integrations (Batch jobs)
+#   UpdatePipelineStateMachineIntegrationAlarm:
+#     Type: AWS::CloudWatch::Alarm
+#     Properties:
+#       AlarmDescription: !Sub '${UpdatePipelineStateMachine} state machine errors'
+#       ActionsEnabled: true
+#       AlarmActions:
+#         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
+#       MetricName: ServiceIntegrationsFailed
+#       Namespace: AWS/States
+#       Statistic: Sum
+#       Period: 86400
+#       EvaluationPeriods: 1
+#       Threshold: 1
+#       ComparisonOperator: GreaterThanOrEqualToThreshold
+#       Dimensions:
+#         - Name: ServiceIntegrationResourceArn
+#           Value: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:batch:submitJob.sync'
 
   FailedAllelesQueue:
     Type: AWS::SQS::Queue

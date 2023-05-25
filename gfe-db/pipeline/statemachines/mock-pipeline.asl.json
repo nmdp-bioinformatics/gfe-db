@@ -1,0 +1,30 @@
+{
+    "StartAt": "UpdateExecutionStateInProgress",
+    "States": {
+        "UpdateExecutionStateInProgress": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::dynamodb:updateItem",
+            "Parameters": {
+                "TableName": "${ExecutionStateTable}",
+                "Key": {
+                    "commit.sha": {
+                        "S.$": "$.commit_sha"
+                    }
+                },
+                "UpdateExpression": "SET #status = :execution_status",
+                "ExpressionAttributeValues": {
+                    ":execution_status": {
+                        "S": "IN_PROGRESS"
+                    }
+                },
+                "ExpressionAttributeNames": {
+                    "#status": "execution.status"
+                }
+            },
+            "Next": "End"
+        },
+        "End": {
+            "Type": "Succeed"
+        }
+    }
+}
