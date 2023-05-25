@@ -12,6 +12,9 @@ from datetime import datetime
 utc_now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 import json
 import boto3
+from src.utils.constants import (
+    execution_state_table_fields
+)
 from src.utils.types import (
     ExecutionState,
 )
@@ -61,15 +64,15 @@ if __name__ == "__main__":
 
     # TODO use selected fields from constants
     # flatten JSON records and filter nulls
-    skip_fields = [
-        "execution.input_parameters",
-        "repository.description",
-        "repository.excluded_commit_shas",
-        "repository.target_metadata_config",
-        "repository.tracked_assets"
+    # skip_fields = [
+    #     "execution.input_parameters",
+    #     "repository.description",
+    #     "repository.excluded_commit_shas",
+    #     "repository.target_metadata_config",
+    #     "repository.tracked_assets"
 
-    ]
-    execution_state_flat = flatten_json_records(execution_state.dict()["items"], skip_fields)
+    # ]
+    execution_state_flat = flatten_json_records(execution_state.dict()["items"], sep="__", select_fields=[item.replace(".", "__") for item in execution_state_table_fields])
 
     # load to dynamodb table named execution_state_table_name using batch put
     table = dynamodb.Table(execution_state_table_name)

@@ -120,7 +120,14 @@ def cache_pickle(func):
 
 def flatten_json(data, sep=".", skip_fields=[], select_fields=[]):
     """Flatten a nested json file. For a list of dictionaries, use this
-    inside a for loop before converting to pandas DataFrame."""
+    inside a for loop before converting to pandas DataFrame.
+    
+    Args:
+        data (dict): nested json file
+        sep (str, optional): separator for flattened keys. Defaults to ".".
+        skip_fields (list, optional): list of fields to skip. Defaults to [].
+        select_fields (list, optional): list of output fields to select including the separator. Defaults to [].
+    """
 
     def unpack(parent_key, parent_value):
         """Unpack one level of nesting in json file"""
@@ -158,11 +165,12 @@ def flatten_json(data, sep=".", skip_fields=[], select_fields=[]):
     return data
 
 
-def flatten_json_records(data, skip_fields=[], select_fields=[]):
+def flatten_json_records(data, sep=".", skip_fields=[], select_fields=[]):
     """Flatten a list of JSON records."""
     return [
         flatten_json(
         data=record, 
+        sep=sep,
         skip_fields=skip_fields, 
         select_fields=select_fields) \
             for record in data
@@ -452,18 +460,18 @@ def rename_fields(dataset: List[dict], key_names_map: dict[str, str]):
     return [rename_keys(x, key_names_map) for x in dataset]
 
 
-def restore_nested_json(data: dict):
+def restore_nested_json(data: dict, split_on="."):
     """Restores a previously flattened JSON object into a nested JSON object.
 
     Args:
         data (dict): A flattened JSON object.
 
     Returns:
-        _type_: _description_
+        dict: A nested JSON object.
     """
     result = {}
     for key, value in data.items():
-        parts = key.split(".")
+        parts = key.split(split_on)
         current = result
         for part in parts[:-1]:
             if part not in current:

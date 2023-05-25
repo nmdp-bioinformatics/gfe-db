@@ -65,14 +65,14 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       AttributeDefinitions:
-        - AttributeName: 'commit.sha'
+        - AttributeName: 'commit__sha'
           AttributeType: S
-        - AttributeName: 'execution.version'
+        - AttributeName: 'execution__version'
           AttributeType: N
       KeySchema:
-        - AttributeName: 'commit.sha'
+        - AttributeName: 'commit__sha'
           KeyType: HASH
-        - AttributeName: 'execution.version'
+        - AttributeName: 'execution__version'
           KeyType: RANGE
       BillingMode: PAY_PER_REQUEST
       # ProvisionedThroughput:
@@ -456,6 +456,7 @@ Resources:
                 - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
                 - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
 
+  # # TODO redeploy
   # CheckSourceUpdateFunctionAlarm:
   #   Type: AWS::CloudWatch::Alarm
   #   Properties:
@@ -645,51 +646,51 @@ Resources:
     Properties:
       LogGroupName: !Sub "${Stage}-${AppName}-pipeline-execution-logs"
 
-  UpdatePipelineArnParameter:
+  UpdatePipelineStateMachineArnParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineArn'
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineStateMachineArn'
       Description: "ARN of gfe-db update pipeline state machine"
       Value: !GetAtt UpdatePipelineStateMachine.Arn
 
-# # CloudWatch Alarm for failed pipeline executions
-#   UpdatePipelineStateMachineExecutionAlarm:
-#     Type: AWS::CloudWatch::Alarm
-#     Properties:
-#       AlarmDescription: !Sub '${UpdatePipelineStateMachine} state machine errors'
-#       ActionsEnabled: true
-#       AlarmActions:
-#         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
-#       MetricName: ExecutionsFailed
-#       Namespace: AWS/States
-#       Statistic: Sum
-#       Period: 86400
-#       EvaluationPeriods: 1
-#       Threshold: 1
-#       ComparisonOperator: GreaterThanOrEqualToThreshold
-#       Dimensions:
-#         - Name: StateMachineArn
-#           Value: !GetAtt UpdatePipelineStateMachine.Arn
+# CloudWatch Alarm for failed pipeline executions
+  UpdatePipelineStateMachineExecutionAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub '${UpdatePipelineStateMachine} state machine errors'
+      ActionsEnabled: true
+      AlarmActions:
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
+      MetricName: ExecutionsFailed
+      Namespace: AWS/States
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: StateMachineArn
+          Value: !GetAtt UpdatePipelineStateMachine.Arn
 
-# # CloudWatch Alarm for failed pipeline integrations (Batch jobs)
-#   UpdatePipelineStateMachineIntegrationAlarm:
-#     Type: AWS::CloudWatch::Alarm
-#     Properties:
-#       AlarmDescription: !Sub '${UpdatePipelineStateMachine} state machine errors'
-#       ActionsEnabled: true
-#       AlarmActions:
-#         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
-#       MetricName: ServiceIntegrationsFailed
-#       Namespace: AWS/States
-#       Statistic: Sum
-#       Period: 86400
-#       EvaluationPeriods: 1
-#       Threshold: 1
-#       ComparisonOperator: GreaterThanOrEqualToThreshold
-#       Dimensions:
-#         - Name: ServiceIntegrationResourceArn
-#           Value: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:batch:submitJob.sync'
+# CloudWatch Alarm for failed pipeline integrations (Batch jobs)
+  UpdatePipelineStateMachineIntegrationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub '${UpdatePipelineStateMachine} state machine errors'
+      ActionsEnabled: true
+      AlarmActions:
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
+      MetricName: ServiceIntegrationsFailed
+      Namespace: AWS/States
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: ServiceIntegrationResourceArn
+          Value: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:batch:submitJob.sync'
 
   FailedAllelesQueue:
     Type: AWS::SQS::Queue

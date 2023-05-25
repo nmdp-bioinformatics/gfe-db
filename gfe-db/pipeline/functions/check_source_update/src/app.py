@@ -67,8 +67,14 @@ def lambda_handler(event, context):
         logger.info(f"Found {len(commits)} commit(s) not yet processed\n{json.dumps([commit['sha'] for commit in commits], indent=2)}")
 
         if not commits:
-            logger.info("No new commits found")
-            return
+            message = "No new commits found"
+            logger.info(message)
+            return {
+                "statusCode": 200,
+                "body": json.dumps({
+                    "message": message
+                }),
+            }
 
         logger.info(f"Getting release versions")
         commits_with_releases = []
@@ -118,7 +124,8 @@ def lambda_handler(event, context):
         items = [ 
             flatten_json(
                 data=item.dict(),
-                select_fields=execution_state_table_fields) \
+                sep="__",
+                select_fields=[item.replace(".", "__") for item in execution_state_table_fields]) \
                     for item in new_execution_state
             ]
 
@@ -134,31 +141,33 @@ def lambda_handler(event, context):
         for item in execution_payload:
             queue.send_message(MessageBody=json.dumps(item))
 
+        message = f'Processed {len(execution_payload)} releases\n{json.dumps(execution_payload, indent=4)}'
         return {
             "statusCode": 200,
             "body": json.dumps({
-                "message": f'Processed {len(execution_payload)} releases\n{json.dumps(execution_payload, indent=4)}'
+                "message": message
             }),
         }
     except Exception as e:
         import traceback
-        logger.error(f'{e}\n{traceback.format_exc()}\n{json.dumps(event)}')
+        message = f'Error processing releases: {e}\n{traceback.format_exc()}\n{json.dumps(event)}'
+        logger.error(message)
         return {
             "statusCode": 500,
             "body": json.dumps({
-                "message": f'Error processing releases: {e}'
+                "message": message
             }),
         }
 
 # @cache_pickle
-def get_execution_state(table):
+def get_execution_state(table, sort_column="commit__date_utc", reverse_sort=True):
     # Retrieve execution state from table
     items = table.scan()["Items"]
     items = [{k: int(v) if isinstance(v, Decimal) else v for k, v in item.items()} for item in items]
-    items = sorted(items, key=lambda x: x["commit.date_utc"], reverse=True)
+    items = sorted(items, key=lambda x: x[sort_column], reverse=reverse_sort)
 
     # TODO Deserialize and repack the items
-    return [ ExecutionStateItem(**restore_nested_json(item)) for item in items ]
+    return [ ExecutionStateItem(**restore_nested_json(item, split_on="__")) for item in items ]
 
 # @cache_json
 def get_most_recent_commits(execution_state):
