@@ -7,18 +7,18 @@
             "Parameters": {
                 "TableName": "${ExecutionStateTable}",
                 "Key": {
-                    "commit.sha": {
+                    "commit__sha": {
                         "S.$": "$.commit_sha"
+                    },
+                    "execution__version": {
+                        "N.$": "States.Format('{}', $.version)"
                     }
                 },
-                "UpdateExpression": "SET #status = :execution_status",
+                "UpdateExpression": "SET execution__status = :status",
                 "ExpressionAttributeValues": {
-                    ":execution_status": {
+                    ":status": {
                         "S": "IN_PROGRESS"
                     }
-                },
-                "ExpressionAttributeNames": {
-                    "#status": "execution.status"
                 }
             },
             "Next": "End"
