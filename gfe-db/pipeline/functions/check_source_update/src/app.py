@@ -51,7 +51,7 @@ source_repo_config = (
 )
 
 queue = boto3.resource("sqs")
-queue = queue.Queue(gfedb_processing_queue_url)
+gfedb_processing_queue = queue.Queue(gfedb_processing_queue_url)
 
 def lambda_handler(event, context):
     # logger.info(json.dumps(event))
@@ -139,7 +139,7 @@ def lambda_handler(event, context):
         # 5) Return pending commits to the state machine for further processing
         execution_payload = [ ExecutionPayloadItem.from_execution_state_item(item).dict() for item in pending_commits ] 
         for item in execution_payload:
-            queue.send_message(MessageBody=json.dumps(item))
+            gfedb_processing_queue.send_message(MessageBody=json.dumps(item))
 
         message = f'Processed {len(execution_payload)} releases\n{json.dumps(execution_payload, indent=4)}'
         return {

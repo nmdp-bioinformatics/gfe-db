@@ -14,10 +14,22 @@
                         "N.$": "States.Format('{}', $.version)"
                     }
                 },
-                "UpdateExpression": "SET execution__status = :status",
+                "UpdateExpression": "SET execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit",
                 "ExpressionAttributeValues": {
                     ":status": {
                         "S": "IN_PROGRESS"
+                    },
+                    ":align": {
+                        "S.$": "States.Format('{}', $.input_parameters.align)"
+                    },
+                    ":kir": {
+                        "S.$": "States.Format('{}', $.input_parameters.kir)"
+                    },
+                    ":mem_profile": {
+                        "S.$": "States.Format('{}', $.input_parameters.mem_profile)"
+                    },
+                    ":limit": {
+                        "N.$": "States.Format('{}', $.input_parameters.limit)"
                     }
                 }
             },

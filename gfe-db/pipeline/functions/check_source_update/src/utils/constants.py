@@ -52,7 +52,6 @@ execution_state_table_fields = [
     "commit.html_url",
     "commit.message",
     "execution.date_utc",
-    "execution.input_parameters",
     "execution.status",
     "execution.input_parameters.align",
     "execution.input_parameters.kir",

@@ -435,6 +435,14 @@ Resources:
               Resource: "*"
         - Version: "2012-10-17"
           Statement:
+            - Sid: "AllowDynamoDBReadAccess"
+              Effect: "Allow"
+              Action:
+                - "dynamodb:Scan"
+                - "dynamodb:BatchWriteItem"
+              Resource: !GetAtt ExecutionStateTable.Arn 
+        - Version: "2012-10-17"
+          Statement:
             - Sid: "AllowSQSAccess"
               Effect: "Allow"
               Action:
