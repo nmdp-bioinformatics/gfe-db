@@ -3,22 +3,56 @@
     "States": {
         "Build Stage": {
             "Type": "Map",
-            "Next": "Load Stage",
+            "Next": "GfeDbLoad",
             "MaxConcurrency": 0,
             "Iterator": {
-                "StartAt": "Generate CSV files",
+                "StartAt": "UpdateExecutionStateInProgress",
                 "States": {
-                    "Generate CSV files": {
+                    "UpdateExecutionStateInProgress": {
+                        "Type": "Task",
+                        "Resource": "arn:aws:states:::dynamodb:updateItem",
+                        "Next": "GfeDbBuildJob",
+                        "Parameters": {
+                            "TableName": "${ExecutionStateTable}",
+                            "Key": {
+                                "commit__sha": {
+                                    "S.$": "$.commit_sha"
+                                },
+                                "execution__version": {
+                                    "N.$": "States.Format('{}', $.version)"
+                                }
+                            },
+                            "UpdateExpression": "SET execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit",
+                            "ExpressionAttributeValues": {
+                                ":status": {
+                                    "S": "IN_PROGRESS"
+                                },
+                                ":align": {
+                                    "S.$": "States.Format('{}', $.input_parameters.align)"
+                                },
+                                ":kir": {
+                                    "S.$": "States.Format('{}', $.input_parameters.kir)"
+                                },
+                                ":mem_profile": {
+                                    "S.$": "States.Format('{}', $.input_parameters.mem_profile)"
+                                },
+                                ":limit": {
+                                    "N.$": "States.Format('{}', $.input_parameters.limit)"
+                                }
+                            }
+                        }
+                    },
+                    "GfeDbBuildJob": {
                         "Type": "Task",
                         "Resource": "arn:aws:states:::batch:submitJob.sync",
                         "ResultPath": null,
-                        "Next": "Build Success",
+                        "Next": "BuildSuccess",
                         "Catch": [
                             {
                                 "ErrorEquals": [
                                     "States.ALL"
                                 ],
-                                "Next": "Build Error"
+                                "Next": "BuildError"
                             }
                         ],
                         "Parameters": {
@@ -29,47 +63,47 @@
                                 "Environment": [
                                     {
                                         "Name": "RELEASES",
-                                        "Value.$": "$.RELEASES"
+                                        "Value.$": "$.version"
                                     },
                                     {
                                         "Name": "ALIGN",
-                                        "Value.$": "$.ALIGN"
+                                        "Value.$": "$.align"
                                     },
                                     {
                                         "Name": "KIR",
-                                        "Value.$": "$.KIR"
+                                        "Value.$": "$.kir"
                                     },
                                     {
                                         "Name": "MEM_PROFILE",
-                                        "Value.$": "$.MEM_PROFILE"
+                                        "Value.$": "$.mem_profile"
                                     },
                                     {
                                         "Name": "LIMIT",
-                                        "Value.$": "$.LIMIT"
+                                        "Value.$": "$.limit"
                                     }
                                 ]
                             }
                         }
                     },
-                    "Build Error": {
+                    "BuildError": {
                         "Type": "Pass",
                         "End": true
                     },
-                    "Build Success": {
+                    "BuildSuccess": {
                         "Type": "Pass",
                         "End": true
                     }
                 }
             }
         },
-        "Load Stage": {
+        "GfeDbLoad": {
             "Type": "Map",
             "End": true,
             "MaxConcurrency": 1,
             "Iterator": {
-                "StartAt": "Load Data",
+                "StartAt": "LoadGraph",
                 "States": {
-                    "Load Data": {
+                    "LoadGraph": {
                         "Type": "Parallel",
                         "Next": "Load Success",
                         "Catch": [
@@ -77,14 +111,14 @@
                                 "ErrorEquals": [
                                     "States.ALL"
                                 ],
-                                "Next": "Load Error"
+                                "Next": "LoadError"
                             }
                         ],
                         "Branches": [
                             {
-                                "StartAt": "Invoke Load Script",
+                                "StartAt": "InvokeLoadScript",
                                 "States": {
-                                    "Invoke Load Script": {
+                                    "InvokeLoadScript": {
                                         "Type": "Task",
                                         "Resource": "${InvokeLoadScriptFunctionArn}",
                                         "End": true
@@ -92,9 +126,9 @@
                                 }
                             },
                             {
-                                "StartAt": "Load GFEs",
+                                "StartAt": "LoadData",
                                 "States": {
-                                    "Load GFEs": {
+                                    "LoadData": {
                                         "Type": "Task",
                                         "Resource": "${LoadNeo4jActivityArn}",
                                         "HeartbeatSeconds": 60,
@@ -104,7 +138,7 @@
                             }
                         ]
                     },
-                    "Load Error": {
+                    "LoadError": {
                         "Type": "Pass",
                         "End": true
                     },

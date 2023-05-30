@@ -1,42 +1,148 @@
 {
-    "StartAt": "UpdateExecutionStateInProgress",
+    "StartAt": "GfeDbBuildJobMap",
     "States": {
-        "UpdateExecutionStateInProgress": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::dynamodb:updateItem",
-            "Parameters": {
-                "TableName": "${ExecutionStateTable}",
-                "Key": {
-                    "commit__sha": {
-                        "S.$": "$.commit_sha"
+        "GfeDbBuildJobMap": {
+            "Type": "Map",
+            "Next": "GfeDbLoadMap",
+            "MaxConcurrency": 0,
+            "Iterator": {
+                "StartAt": "UpdateExecutionStateInProgress",
+                "States": {
+                    "UpdateExecutionStateInProgress": {
+                        "Type": "Task",
+                        "Resource": "arn:aws:states:::dynamodb:updateItem",
+                        "ResultPath": null,
+                        "Next": "GfeDbBuildJobMock",
+                        "Parameters": {
+                            "TableName": "${ExecutionStateTable}",
+                            "Key": {
+                                "commit__sha": {
+                                    "S.$": "$.commit_sha"
+                                },
+                                "execution__version": {
+                                    "N.$": "States.Format('{}', $.version)"
+                                }
+                            },
+                            "UpdateExpression": "SET execution__status = :status",
+                            "ExpressionAttributeValues": {
+                                ":status": {
+                                    "S": "IN_PROGRESS"
+                                }
+                            }
+                        }
                     },
-                    "execution__version": {
-                        "N.$": "States.Format('{}', $.version)"
-                    }
-                },
-                "UpdateExpression": "SET execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit",
-                "ExpressionAttributeValues": {
-                    ":status": {
-                        "S": "IN_PROGRESS"
+                    "GfeDbBuildJobMock": {
+                        "Type": "Task",
+                        "Resource": "arn:aws:lambda:us-east-1:531868584498:function:GfeDbBuildJobMockFunction",
+                        "ResultPath": "$.s3_path",
+                        "End": true,
+                        "Catch": [
+                            {
+                                "ErrorEquals": [
+                                    "States.ALL"
+                                ],
+                                "Next": "UpdateExecutionStateBuildFailed",
+                                "ResultPath": "$.error"
+                            }
+                        ]
                     },
-                    ":align": {
-                        "S.$": "States.Format('{}', $.input_parameters.align)"
-                    },
-                    ":kir": {
-                        "S.$": "States.Format('{}', $.input_parameters.kir)"
-                    },
-                    ":mem_profile": {
-                        "S.$": "States.Format('{}', $.input_parameters.mem_profile)"
-                    },
-                    ":limit": {
-                        "N.$": "States.Format('{}', $.input_parameters.limit)"
+                    "UpdateExecutionStateBuildFailed": {
+                        "Type": "Task",
+                        "Resource": "arn:aws:states:::dynamodb:updateItem",
+                        "ResultPath": null,
+                        "End": true,
+                        "Parameters": {
+                            "TableName": "${ExecutionStateTable}",
+                            "Key": {
+                                "commit__sha": {
+                                    "S.$": "$.commit_sha"
+                                },
+                                "execution__version": {
+                                    "N.$": "States.Format('{}', $.version)"
+                                }
+                            },
+                            "UpdateExpression": "SET execution__status = :status",
+                            "ExpressionAttributeValues": {
+                                ":status": {
+                                    "S": "FAILED"
+                                }
+                            }
+                        }
                     }
                 }
-            },
-            "Next": "End"
+            }
         },
-        "End": {
-            "Type": "Succeed"
+        "GfeDbLoadMap": {
+            "Type": "Map",
+            "End": true,
+            "MaxConcurrency": 1,
+            "Iterator": {
+                "StartAt": "GfeDbLoadGraph",
+                "States": {
+                    "GfeDbLoadGraph": {
+                        "Type": "Task",
+                        "Resource": "arn:aws:lambda:us-east-1:531868584498:function:GfeDbLoadMockFunction",
+                        "InputPath": "$.s3_path",
+                        "ResultPath": null,
+                        "Catch": [
+                            {
+                                "ErrorEquals": [
+                                    "States.ALL"
+                                ],
+                                "Next": "UpdateExecutionStateLoadFailed",
+                                "ResultPath": "$.error"
+                            }
+                        ],
+                        "Next": "UpdateExecutionStateSuccess"
+                    },
+                    "UpdateExecutionStateSuccess": {
+                        "Type": "Task",
+                        "Resource": "arn:aws:states:::dynamodb:updateItem",
+                        "ResultPath": null,
+                        "End": true,
+                        "Parameters": {
+                            "TableName": "${ExecutionStateTable}",
+                            "Key": {
+                                "commit__sha": {
+                                    "S.$": "$.commit_sha"
+                                },
+                                "execution__version": {
+                                    "N.$": "States.Format('{}', $.version)"
+                                }
+                            },
+                            "UpdateExpression": "SET execution__status = :status",
+                            "ExpressionAttributeValues": {
+                                ":status": {
+                                    "S": "SUCCESS"
+                                }
+                            }
+                        }
+                    },
+                    "UpdateExecutionStateLoadFailed": {
+                        "Type": "Task",
+                        "Resource": "arn:aws:states:::dynamodb:updateItem",
+                        "ResultPath": null,
+                        "End": true,
+                        "Parameters": {
+                            "TableName": "${ExecutionStateTable}",
+                            "Key": {
+                                "commit__sha": {
+                                    "S.$": "$.commit_sha"
+                                },
+                                "execution__version": {
+                                    "N.$": "States.Format('{}', $.version)"
+                                }
+                            },
+                            "UpdateExpression": "SET execution__status = :status",
+                            "ExpressionAttributeValues": {
+                                ":status": {
+                                    "S": "FAILED"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -550,7 +550,9 @@ Resources:
       #   LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
       Policies:
         - LambdaInvokePolicy:
-            FunctionName: !Ref InvokeLoadScriptFunction
+            FunctionName: GfeDbBuildJobMockFunction
+        - LambdaInvokePolicy:
+            FunctionName: GfeDbLoadMockFunction
         - Version: "2012-10-17"
           Statement:
             - Effect: "Allow"
