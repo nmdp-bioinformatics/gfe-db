@@ -24,6 +24,7 @@ neo4j_load_query_document_parameters = neo4j_load_query_document_content["parame
 command_line_default = neo4j_load_query_document_parameters["commandLine"]["default"]
 source_info_default = neo4j_load_query_document_parameters["sourceInfo"]["default"]
 
+# TODO BOOKMARK 5/31/23: Check if Neo4jLoadQueryDocument is already running, if it is exit 0 
 def lambda_handler(event, context):
     """Invoke SSM Run Command for server side loading on Neo4j
 
