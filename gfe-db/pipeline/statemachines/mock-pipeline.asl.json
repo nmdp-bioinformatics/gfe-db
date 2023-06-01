@@ -118,7 +118,12 @@
                     "StartAt": "PublishSuccess",
                     "States": {
                         "PublishSuccess": {
-                            "Type": "Pass",
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::sns:publish",
+                            "Parameters": {
+                              "TopicArn": "${GfeDbExecutionResultTopicArn}",
+                              "Message.$": "$"
+                            },
                             "End": true
                         }
                     }

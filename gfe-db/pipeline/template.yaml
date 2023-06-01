@@ -543,7 +543,8 @@ Resources:
       DefinitionUri: statemachines/mock-pipeline.asl.json
       DefinitionSubstitutions:
         ExecutionStateTable: !Ref ExecutionStateTable
-        GfeDbLoadReleaseQueueUrl: !Ref GfeDbLoadReleaseQueue
+        GfeDbLoadReleaseQueueUrl: !GetAtt GfeDbLoadReleaseQueue.QueueUrl
+        GfeDbExecutionResultTopicArn: !GetAtt GfeDbExecutionResultTopic.TopicArn
       #   BuildJobDefinition: !Ref BuildJobDefinition
       #   BuildJobName: !Sub '${Stage}-${AppName}-build-job'
       #   BuildJobQueue: !Ref BuildJobQueue
@@ -558,6 +559,8 @@ Resources:
             QueueName: !GetAtt GfeDbLoadReleaseQueue.QueueName
         - DynamoDBWritePolicy:
             TableName: !Ref ExecutionStateTable
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt GfeDbExecutionResultTopic.TopicName 
         - Version: "2012-10-17"
           Statement:
             - Effect: "Allow"
@@ -675,6 +678,17 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadReleaseQueueUrl'
       Description: "URL of gfe-db processing queue"
       Value: !GetAtt GfeDbLoadReleaseQueue.QueueUrl
+
+  GfeDbExecutionResultTopic:
+    Type: AWS::SNS::Topic
+
+  GfeDbExecutionResultTopicArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/GfeDbExecutionResultTopicArn'
+      Description: !Sub 'ARN for ${AppName} Data Pipeline Errors SNS topic'
+      Value: !Ref GfeDbExecutionResultTopic
 
   # TODO replace with SQS integration and waitForTaskToken
   LoadNeo4jActivity:
