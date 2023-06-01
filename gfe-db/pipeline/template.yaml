@@ -543,6 +543,7 @@ Resources:
       DefinitionUri: statemachines/mock-pipeline.asl.json
       DefinitionSubstitutions:
         ExecutionStateTable: !Ref ExecutionStateTable
+        GfeDbLoadReleaseQueueUrl: !Ref GfeDbLoadReleaseQueue
       #   BuildJobDefinition: !Ref BuildJobDefinition
       #   BuildJobName: !Sub '${Stage}-${AppName}-build-job'
       #   BuildJobQueue: !Ref BuildJobQueue
@@ -553,6 +554,10 @@ Resources:
             FunctionName: GfeDbBuildJobMockFunction
         - LambdaInvokePolicy:
             FunctionName: GfeDbLoadMockFunction
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt GfeDbLoadReleaseQueue.QueueName
+        - DynamoDBWritePolicy:
+            TableName: !Ref ExecutionStateTable
         - Version: "2012-10-17"
           Statement:
             - Effect: "Allow"
@@ -567,12 +572,12 @@ Resources:
                 - "logs:DescribeLogGroups"
               Resource: 
                 - "*"
-        - Version: "2012-10-17"
-          Statement:
-            - Effect: "Allow"
-              Action: 
-                - "dynamodb:UpdateItem"
-              Resource: !GetAtt ExecutionStateTable.Arn
+        # - Version: "2012-10-17"
+        #   Statement:
+        #     - Effect: "Allow"
+        #       Action: 
+        #         - "dynamodb:UpdateItem"
+        #       Resource: !GetAtt ExecutionStateTable.Arn
       #   - Version: "2012-10-17"
       #     Statement:
       #       - Effect: "Allow"
@@ -646,6 +651,32 @@ Resources:
   #       IncludeExecutionData: true
   #       Level: ALL
 
+  GfeDbLoadReleaseQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 300
+      MessageRetentionPeriod: 43200
+      ReceiveMessageWaitTimeSeconds: 20
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt GfeDbProcessingDeadLetterQueue.Arn
+        maxReceiveCount: 3
+
+  GfeDbProcessingDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 300
+      MessageRetentionPeriod: 43200
+      ReceiveMessageWaitTimeSeconds: 20
+
+  GfeDbLoadReleaseQueueUrlParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadReleaseQueueUrl'
+      Description: "URL of gfe-db processing queue"
+      Value: !GetAtt GfeDbLoadReleaseQueue.QueueUrl
+
+  # TODO replace with SQS integration and waitForTaskToken
   LoadNeo4jActivity:
     Type: AWS::StepFunctions::Activity
     Properties: 

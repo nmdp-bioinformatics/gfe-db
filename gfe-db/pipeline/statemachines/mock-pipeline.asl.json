@@ -64,7 +64,13 @@
                     "StartAt": "QueueRelease",
                     "States": {
                         "QueueRelease": {
-                            "Type": "Pass",
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::sqs:sendMessage",
+                            "ResultPath": null,
+                            "Parameters": {
+                                "QueueUrl": "${GfeDbLoadReleaseQueueUrl}",
+                                "MessageBody.$": "$"
+                            },
                             "End": true
                         }
                     }
