@@ -5,6 +5,14 @@
             "Type": "Parallel",
             "Next": "LoadRelease",
             "OutputPath": "$.[1]",
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "Next": "ReportFailure"
+                }
+            ],
             "Branches": [
                 {
                     "StartAt": "UpdateExecutionStateInProgress",
@@ -51,6 +59,14 @@
             "Type": "Parallel",
             "OutputPath": "$.[1]",
             "Next": "ReportSuccess",
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "Next": "ReportFailure"
+                }
+            ],
             "Branches": [
                 {
                     "StartAt": "InvokeLoadScript",
@@ -81,10 +97,65 @@
                 }
             ]
         },
+        "ReportFailure": {
+            "Type": "Parallel",
+            "Next": "PipelineFailure",
+            "InputPath": "$$.Execution.Input",
+            "Branches": [
+                {
+                    "StartAt": "UpdateExecutionStateFailure",
+                    "States": {
+                        "UpdateExecutionStateFailure": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::dynamodb:updateItem",
+                            "ResultPath": null,
+                            "End": true,
+                            "Parameters": {
+                                "TableName": "${ExecutionStateTable}",
+                                "Key": {
+                                    "commit__sha": {
+                                        "S.$": "$.commit_sha"
+                                    },
+                                    "execution__version": {
+                                        "N.$": "States.Format('{}', $.version)"
+                                    }
+                                },
+                                "UpdateExpression": "SET execution__status = :status",
+                                "ExpressionAttributeValues": {
+                                    ":status": {
+                                        "S": "FAILED"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "StartAt": "PublishFailure",
+                    "States": {
+                        "PublishFailure": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::sns:publish",
+                            "Parameters": {
+                                "TopicArn": "${GfeDbExecutionResultTopicArn}",
+                                "Message": {
+                                    "result": "FAILED",
+                                    "input_parameters.$": "$"
+                                }
+                            },
+                            "End": true
+                        }
+                    }
+                }
+            ]
+        },
+        "PipelineFailure": {
+            "Type": "Fail"
+        },
         "ReportSuccess": {
             "Type": "Parallel",
-            "End": true,
-            "OutputPath": "$.[1]",
+            "Next": "PipelineSuccess",
+            "InputPath": "$$.Execution.Input",
             "Branches": [
                 {
                     "StartAt": "UpdateExecutionStateSuccess",
@@ -132,6 +203,9 @@
                     }
                 }
             ]
+        },
+        "PipelineSuccess": {
+            "Type": "Succeed"
         }
     }
 }
