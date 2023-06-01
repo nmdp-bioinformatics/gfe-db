@@ -50,7 +50,7 @@
         "LoadRelease": {
             "Type": "Parallel",
             "OutputPath": "$.[1]",
-            "End": true,
+            "Next": "ReportSuccess",
             "Branches": [
                 {
                     "StartAt": "InvokeLoadScript",
@@ -75,6 +75,50 @@
                                     "task_token.$": "$$.Task.Token"
                                 }
                             },
+                            "End": true
+                        }
+                    }
+                }
+            ]
+        },
+        "ReportSuccess": {
+            "Type": "Parallel",
+            "End": true,
+            "OutputPath": "$.[1]",
+            "Branches": [
+                {
+                    "StartAt": "UpdateExecutionStateSuccess",
+                    "States": {
+                        "UpdateExecutionStateSuccess": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::dynamodb:updateItem",
+                            "ResultPath": null,
+                            "End": true,
+                            "Parameters": {
+                                "TableName": "${ExecutionStateTable}",
+                                "Key": {
+                                    "commit__sha": {
+                                        "S.$": "$.commit_sha"
+                                    },
+                                    "execution__version": {
+                                        "N.$": "States.Format('{}', $.version)"
+                                    }
+                                },
+                                "UpdateExpression": "SET execution__status = :status",
+                                "ExpressionAttributeValues": {
+                                    ":status": {
+                                        "S": "SUCCESS"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "StartAt": "PublishSuccess",
+                    "States": {
+                        "PublishSuccess": {
+                            "Type": "Pass",
                             "End": true
                         }
                     }
