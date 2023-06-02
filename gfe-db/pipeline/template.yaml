@@ -657,19 +657,19 @@ Resources:
   GfeDbLoadReleaseQueue:
     Type: AWS::SQS::Queue
     Properties:
-      VisibilityTimeout: 300
-      MessageRetentionPeriod: 43200
-      ReceiveMessageWaitTimeSeconds: 20
+      VisibilityTimeout: 43200
+      MessageRetentionPeriod: 1209600
+      ReceiveMessageWaitTimeSeconds: 5
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt GfeDbProcessingDeadLetterQueue.Arn
-        maxReceiveCount: 3
+        maxReceiveCount: 1
 
   GfeDbProcessingDeadLetterQueue:
     Type: AWS::SQS::Queue
     Properties:
-      VisibilityTimeout: 300
-      MessageRetentionPeriod: 43200
-      ReceiveMessageWaitTimeSeconds: 20
+      VisibilityTimeout: 43200
+      MessageRetentionPeriod: 1209600
+      ReceiveMessageWaitTimeSeconds: 10
 
   GfeDbLoadReleaseQueueUrlParameter:
     Type: AWS::SSM::Parameter

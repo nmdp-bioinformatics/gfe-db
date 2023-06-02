@@ -1,4 +1,4 @@
-# #!/bin/bash -x
+#!/bin/bash -x
 
 export BITNAMI_HOME=/home/bitnami
 
@@ -19,6 +19,8 @@ fi
 NEO4J_CYPHER_PATH=$NEO4J_HOME/cypher
 NEO4J_IMPORT_PATH=/bitnami/neo4j/import
 S3_NEO4J_CYPHER_PATH=config/neo4j/cypher
+
+# TODO redundant, also available in state machine execution
 S3_CSV_PATH=data/$RELEASE/csv
 
 # exit 1

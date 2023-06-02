@@ -25,6 +25,7 @@ command_line_default = neo4j_load_query_document_parameters["commandLine"]["defa
 source_info_default = neo4j_load_query_document_parameters["sourceInfo"]["default"]
 
 # TODO BOOKMARK 5/31/23: Check if Neo4jLoadQueryDocument is already running, if it is exit 0 
+# TODO Remove `parameters` from `ssm.send_command` call
 def lambda_handler(event, context):
     """Invoke SSM Run Command for server side loading on Neo4j
 
@@ -45,6 +46,7 @@ def lambda_handler(event, context):
 
     logger.info(json.dumps(event))
 
+    # TODO DEPRECATED
     # Update params for this execution
     params = {
         "params": {
@@ -53,6 +55,8 @@ def lambda_handler(event, context):
         }
     }
 
+    # TODO DEPRECATED: remove params JSON argument, this function only needs to trigger the SSM document which
+    # will fetch params from SQS
     # Include params JSON as command line argument
     cmd = f"{command_line_default} \'{json.dumps(params)}\'"
 
