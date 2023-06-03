@@ -63,7 +63,7 @@ while true; do
             echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Starting load process for $RELEASE"
         fi
 
-        # TODO BOOKMARK
+        # TODO BOOKMARK: 1) copy test data to S3 path 2) run this script
         # Run task - invoke load script 
         # TODO get s3 path from message
         bash load_db.sh $RELEASE

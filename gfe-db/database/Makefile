@@ -36,7 +36,7 @@ service.config.neo4j.deploy: service.config.update-dns
 
 service.config.scripts.deploy:
 	@script_s3_path=s3://$$DATA_BUCKET_NAME/$${CONFIG_S3_PATH}/${SERVICE}/scripts/ && \
-	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying backup script to $$script_s3_path" 2>&1 \
+	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying scripts to $$script_s3_path" 2>&1 \
 		| tee -a $$CFN_LOG_PATH && \
 	aws s3 cp --recursive config/scripts/ $$script_s3_path
 
@@ -46,7 +46,7 @@ service.config.scripts.sync: service.config.scripts.deploy
 	aws ssm send-command \
 		--document-name "$$document_name" \
 		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
-		--comment "${STAGE}=${APP_NAME} backup service" 2>&1 | tee -a $$CFN_LOG_PATH || true
+		--comment "Sync scripts to database instance" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 service.config.cloudwatch-agent.deploy:
 	@mkdir -p config/amazon-cloudwatch-agent/tmp/ 

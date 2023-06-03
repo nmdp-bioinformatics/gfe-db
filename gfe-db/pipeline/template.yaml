@@ -775,7 +775,7 @@ Resources:
             type: "StringMap"
             description: !Sub "Downloads all files under the ${AppName} scripts prefix"
             default:
-              path: !Sub 'https://{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}.s3.amazonaws.com/config/scripts/'
+              path: !Sub 'https://{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}.s3.amazonaws.com/config/database/scripts/'
           commandLine:
             type: "String"
             description: "These commands are invoked by a Lambda script which sets the correct parameters (Refer to documentation)."
@@ -815,6 +815,7 @@ Resources:
       Description: "Name of SSM document for loading Neo4j"
       Value: !Ref Neo4jLoadQueryDocument
 
+  # TODO verify that this works, had problem with file's content not showing up in files on db instance
   DatabaseSyncScriptsDocument: 
     Type: AWS::SSM::Document
     Properties:
@@ -833,11 +834,11 @@ Resources:
             type: "StringMap"
             description: !Sub "Downloads all files under the ${AppName} scripts prefix"
             default:
-              path: !Sub 'https://{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}.s3.amazonaws.com/config/scripts/'
+              path: !Sub 'https://{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}.s3.amazonaws.com/config/database/scripts/'
           commandLine:
             type: "String"
             description: "Deletes ETag files created by SSM Agent."
-            default: 'rm *.etag && find . \( -name "*.sh" -o -name "Makefile" -o -name "init" \) -exec chown bitnami {} \; && find . \( -name "*.sh" -o -name "Makefile" -o -name "init" \) -exec chgrp bitnami {} \;'
+            default: 'rm -f *.etag && find . \( -name "*.sh" -o -name "Makefile" -o -name "init" \) -exec chown bitnami {} \; && find . \( -name "*.sh" -o -name "Makefile" -o -name "init" \) -exec chgrp bitnami {} \;'
           workingDirectory:
             type: "String"
             description: "Working directory"

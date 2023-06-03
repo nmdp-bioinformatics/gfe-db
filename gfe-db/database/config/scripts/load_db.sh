@@ -18,12 +18,10 @@ fi
 # Set paths
 NEO4J_CYPHER_PATH=$NEO4J_HOME/cypher
 NEO4J_IMPORT_PATH=/bitnami/neo4j/import
-S3_NEO4J_CYPHER_PATH=config/neo4j/cypher
+S3_NEO4J_CYPHER_PATH=config/database/neo4j/cypher # TODO use SERVICE variable (database)
 
 # TODO redundant, also available in state machine execution
 S3_CSV_PATH=data/$RELEASE/csv
-
-# exit 1
 
 if [[ -z $AWS_REGION ]]; then
     export AWS_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')
@@ -59,6 +57,12 @@ fi
 # Get most recent Cypher scripts
 echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Fetching most recent Cypher scripts"
 aws s3 cp --recursive s3://$DATA_BUCKET_NAME/$S3_NEO4J_CYPHER_PATH/ $NEO4J_CYPHER_PATH
+# TODO check error status of aws s3 cp and abort if not zero
+[ $? -eq 0 ] || exit 1
+# TODO validate file was downloaded, abort if not, so that a failure signal can be sent to Step Functions
+
+# # TODO DEBUG
+# exit 1
 
 # Download data to NEO4J_HOME/import
 echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Downloading CSV data for release $RELEASE"
@@ -67,6 +71,9 @@ aws s3 cp --recursive s3://$DATA_BUCKET_NAME/$S3_CSV_PATH/ $NEO4J_IMPORT_PATH/
 # Update Cypher load query for correct release
 mkdir -p $NEO4J_CYPHER_PATH/tmp/$RELEASE/
 cat $NEO4J_CYPHER_PATH/load.cyp | sed "s/RELEASE/$RELEASE/g" > $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp
+
+# check error status of sed and abort if not zero
+[ -f $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp ] || exit 1
 
 echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Executing query"
 echo "****** Begin Cypher ******"
@@ -84,6 +91,7 @@ cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp | \
         --format verbose
 
 LOAD_EXIT_STATUS=$?
+echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - cypher-shell returned status $LOAD_EXIT_STATUS"
 
 if [[ $LOAD_EXIT_STATUS -eq 0 ]]; then
     echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Load complete"

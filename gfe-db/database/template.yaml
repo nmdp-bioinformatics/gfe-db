@@ -101,14 +101,11 @@ Resources:
           IpProtocol: tcp
           ToPort: 7687
           Description: Neo4j Bolt driver access (required)
-        # - CidrIp: 0.0.0.0/0
-        #   FromPort: 22
-        #   IpProtocol: tcp
-        #   ToPort: 22
-        #   Description: Update IP to use MyIP
-      Tags:
-        - Key: Name
-          Value: !Sub '${Stage}-${AppName}-neo4j-sg'
+        - CidrIp: 0.0.0.0/0
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
+          Description: Update IP to use MyIP
 
   Neo4jDatabaseSecurityGroupNameParameter:
     Type: AWS::SSM::Parameter
@@ -183,7 +180,7 @@ Resources:
           dpkg -i /tmp/ssm/amazon-ssm-agent.deb
           systemctl enable amazon-ssm-agent
           systemctl start amazon-ssm-agent
-          # Permanently set application environment variables (these should never change for the duration of the deployment) # TODO: Move to Makefile target
+          # Permanently set application environment variables (these should never change for the duration of the deployment) # TODO: Move to Makefile target and use SSM parameters
           echo "STAGE=${Stage}" >> $BITNAMI_HOME/env.sh
           echo "APP_NAME=${AppName}" >> $BITNAMI_HOME/env.sh
           echo "SERVICE_NAME=${ServiceName}" >> $BITNAMI_HOME/env.sh
@@ -242,6 +239,7 @@ Resources:
         - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
       Path: /
+      # TODO parameterize resource ARNs
       Policies:
         - PolicyName: !Sub '${Stage}-${AppName}-Neo4jDatabasePolicy'
           PolicyDocument:
@@ -278,6 +276,13 @@ Resources:
                   - "states:SendTaskHeartbeat"
                   - "states:SendTaskSuccess"
                   - "states:SendTaskFailure"
+                Resource:
+                  - "*"
+              - Effect: "Allow"
+                Action: 
+                  - "sqs:ReceiveMessage"
+                  - "sqs:DeleteMessage"
+                  - "sqs:ChangeMessageVisibility"
                 Resource:
                   - "*"
   
