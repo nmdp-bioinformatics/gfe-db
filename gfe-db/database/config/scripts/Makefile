@@ -126,6 +126,7 @@ neo4j.plugins.install-gds:
 	@echo "Cleaning up"
 	@rm neo4j-graph-data-science-${GDS_VERSION}.zip
 
+# TODO separate copy action from cypher-shell action
 neo4j.init:
 	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
 	@echo "Fetching Cypher scripts from S3..."

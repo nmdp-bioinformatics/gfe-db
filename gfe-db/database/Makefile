@@ -30,9 +30,10 @@ service.check-key-pair: ##=> Checks if the key pair already exists and creates i
 
 service.config.deploy: service.config.neo4j.deploy service.config.scripts.deploy service.config.cloudwatch-agent.deploy
 
+# TODO consolidate all config files into one command, by service layer
 service.config.neo4j.deploy: service.config.update-dns
 	@aws s3 cp config/neo4j/neo4j.conf s3://$$DATA_BUCKET_NAME/$${CONFIG_S3_PATH}/${SERVICE}/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
-	@aws s3 cp --recursive config/neo4j/cypher/ s3://$$DATA_BUCKET_NAME/$${CONFIG_S3_PATH}/${SERVICE}/neo4j/ 2>&1 | tee -a $$CFN_LOG_PATH
+	@aws s3 cp --recursive config/neo4j/cypher/ s3://$$DATA_BUCKET_NAME/$${CONFIG_S3_PATH}/${SERVICE}/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
 
 service.config.scripts.deploy:
 	@script_s3_path=s3://$$DATA_BUCKET_NAME/$${CONFIG_S3_PATH}/${SERVICE}/scripts/ && \
