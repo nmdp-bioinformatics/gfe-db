@@ -8,7 +8,7 @@ logger.setLevel(logging.INFO)
 
 neo4j_load_query_document_name = os.environ["NEO4J_LOAD_QUERY_DOCUMENT_NAME"]
 neo4j_database_instance_id_param = os.environ["NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM"]
-load_neo4j_activity = os.environ["LOAD_NEO4J_ACTIVITY"]
+# load_neo4j_activity = os.environ["LOAD_NEO4J_ACTIVITY"] # TODO DEPRECATED, moved to SSM Parameter Store
 app_name = os.environ["APP_NAME"]
 
 # Get SSM Document Neo4jLoadQuery
@@ -51,7 +51,7 @@ def lambda_handler(event, context):
     params = {
         "params": {
             "app_name": app_name,
-            "activity_arn": load_neo4j_activity,
+            # "activity_arn": load_neo4j_activity,
         }
     }
 

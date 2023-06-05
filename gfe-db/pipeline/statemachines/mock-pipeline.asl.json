@@ -78,19 +78,12 @@
                     }
                 },
                 {
-                    "StartAt": "QueueRelease",
+                    "StartAt": "LoadReleaseActivity",
                     "States": {
-                        "QueueRelease": {
+                        "LoadReleaseActivity": {
                             "Type": "Task",
-                            "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
-                            "ResultPath": null,
-                            "Parameters": {
-                                "QueueUrl": "${GfeDbLoadReleaseQueueUrl}",
-                                "MessageBody": {
-                                    "input.$": "$",
-                                    "task_token.$": "$$.Task.Token"
-                                }
-                            },
+                            "Resource": "${LoadReleaseActivityArn}",
+                            "HeartbeatSeconds": 60,
                             "End": true
                         }
                     }

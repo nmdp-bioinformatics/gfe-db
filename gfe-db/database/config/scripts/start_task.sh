@@ -1,6 +1,26 @@
 #!/bin/bash -x
 
-set -e
+# check that APP_NAME and AWS_REGION are set from the environment
+if [[ -z $APP_NAME ]]; then
+    echo "APP_NAME environment variable not set"
+    exit 1
+fi
+
+if [[ -z $AWS_REGION ]]; then
+    echo "AWS_REGION environment variable not set"
+    exit 1
+fi
+
+ACTIVITY_ARN=$(aws ssm get-parameter \
+    --name "/${APP_NAME}/${STAGE}/${AWS_REGION}/LoadReleaseActivityArn" \
+    --query "Parameter.Value" \
+    --output text \
+    --region "$AWS_REGION")
+
+if [[ -z $ACTIVITY_ARN ]]; then
+    echo "ACTIVITY_ARN environment variable not set"
+    exit 1
+fi
 
 # Send task failure if script errors
 send_result () {
@@ -9,48 +29,37 @@ send_result () {
         aws stepfunctions send-task-success \
             --task-token "$TASK_TOKEN" \
             --task-output "{\"status\":\"$status\"}" \
-            --region $AWS_REGION
+            --region "$AWS_REGION"
     else
         echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Sending task failure"
         aws stepfunctions send-task-failure \
             --task-token "$TASK_TOKEN" \
             --cause "$cause" \
             --error "$error" \
-            --region $AWS_REGION
+            --region "$AWS_REGION"
     fi
 }
 
 trap 'cause="Error on line $LINENO" && error=$? && send_result && kill 0' ERR
-
-export AWS_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')
-
-# while loop using aws sqs receive-message to fetch a message from the queue, process it, and delete it
-QUEUE_URL="https://sqs.us-east-1.amazonaws.com/531868584498/dev-gfe-db-pipeline-GfeDbLoadReleaseQueue-Lauwwh5Y8Uir"
-
 while true; do
 
-    message=$(aws sqs receive-message \
-        --queue-url $QUEUE_URL \
-        --max-number-of-messages 1 \
-        --region us-east-1)
+    # Poll StepFunctions API for new activities
+    echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Polling for new activities..."
+    export ACTIVITY=$(aws stepfunctions get-activity-task \
+        --activity-arn "$ACTIVITY_ARN" \
+        --worker-name "$APP_NAME" \
+        --region "$AWS_REGION")
 
-    if [[ -z $message ]]; then
-        echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - No messages found"
+    if [[ -z $ACTIVITY ]]; then
+        echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - No activities found"
         break
 
     else
-        echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Message found"
-        echo "$message" | jq -r
+        echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Activity found"
+        echo "$ACTIVITY" | jq -r
 
-        export RECEIPT_HANDLE=$(echo "$message" | jq -r '.Messages[0].ReceiptHandle')
-        export PARAMS=$(echo "$message" | jq -r '.Messages[0].Body')
-        export TASK_TOKEN=$(echo "$PARAMS" | jq -r '.task_token')
-        export RELEASE=$(echo "$PARAMS" | jq -r '.input.version')
-
-        # Debug: create for loop to print RECEIPT_HANDLE, PARAMS, TASK_TOKEN, RELEASE
-        for var in RECEIPT_HANDLE PARAMS TASK_TOKEN RELEASE; do
-            echo "$var=${!var}"
-        done
+        export TASK_TOKEN=$(echo "$ACTIVITY" | jq -r '.taskToken')
+        export RELEASE=$(echo "$ACTIVITY" | jq -r '.input' | jq '.version')
 
         echo "TASK_TOKEN=$TASK_TOKEN"
         echo "RELEASE=$RELEASE"
@@ -63,9 +72,13 @@ while true; do
             echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Starting load process for $RELEASE"
         fi
 
-        # TODO BOOKMARK: 1) copy test data to S3 path 2) run this script
+        # TODO: parameterize heartbeat and set interval / 2
+        export HEARTBEAT_INTERVAL=30
+        bash send_heartbeat.sh &
+        send_heartbeat_pid=$!
+
         # Run task - invoke load script 
-        # TODO get s3 path from message
+        # TODO get s3 path from step functions payload
         bash load_db.sh $RELEASE
         TASK_EXIT_STATUS=$?
         echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Task exit status: $TASK_EXIT_STATUS"
@@ -76,29 +89,15 @@ while true; do
             error="$TASK_EXIT_STATUS"
             cause="Error on line $LINENO"
             send_result
-
-            # Return message to queue after failed processing
-            aws sqs change-message-visibility \
-                --queue-url $QUEUE_URL \
-                --receipt-handle $RECEIPT_HANDLE \
-                --visibility-timeout 0 \
-                --region us-east-1
-            echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Message returned to queue"
+            kill 0
 
         else
             status="SUCCESS"
             send_result
-
-            # Delete message from queue after successful processing
-            aws sqs delete-message \
-                --queue-url $QUEUE_URL \
-                --receipt-handle $RECEIPT_HANDLE \
-                --region us-east-1
-            echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Message deleted"
+            kill $send_heartbeat_pid
 
         fi
     fi
-
-### end while loop
 done
+
 exit 0

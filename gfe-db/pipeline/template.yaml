@@ -61,6 +61,7 @@ Resources:
       Description: GitHub Personal Access Token for repository access
       Value: !Sub '{"owner":"${GithubRepositoryOwner}", "name":"${GithubRepositoryName}"}'
 
+  # TODO change name to GfeDbExecutionStateTable
   ExecutionStateTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -113,11 +114,13 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole
+        
   BatchWorkerInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
         - !Ref BatchWorkerInstanceRole
+
   BatchWorkerInstanceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -499,7 +502,7 @@ Resources:
         Variables:
           NEO4J_LOAD_QUERY_DOCUMENT_NAME: !Ref Neo4jLoadQueryDocument # TODO fetch from parameter store
           NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId'
-          LOAD_NEO4J_ACTIVITY: !Ref LoadNeo4jActivity
+          # LOAD_NEO4J_ACTIVITY: !Ref LoadReleaseActivity # TODO fetch from parameter store
           APP_NAME: !Ref AppName
       Policies:
         - AWSLambdaBasicExecutionRole
@@ -549,7 +552,7 @@ Resources:
       #   BuildJobName: !Sub '${Stage}-${AppName}-build-job'
       #   BuildJobQueue: !Ref BuildJobQueue
       #   InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
-      #   LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
+        LoadReleaseActivityArn: !Ref LoadReleaseActivity
       Policies:
         - LambdaInvokePolicy:
             FunctionName: GfeDbBuildJobMockFunction
@@ -614,7 +617,7 @@ Resources:
   #       BuildJobName: !Sub '${Stage}-${AppName}-build-job'
   #       BuildJobQueue: !Ref BuildJobQueue
   #       InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
-  #       LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
+  #       LoadReleaseActivityArn: !Ref LoadReleaseActivity
   #     Policies:
   #       - LambdaInvokePolicy:
   #           FunctionName: !Ref InvokeLoadScriptFunction
@@ -690,11 +693,18 @@ Resources:
       Description: !Sub 'ARN for ${AppName} Data Pipeline Errors SNS topic'
       Value: !Ref GfeDbExecutionResultTopic
 
-  # TODO replace with SQS integration and waitForTaskToken
-  LoadNeo4jActivity:
+  LoadReleaseActivity:
     Type: AWS::StepFunctions::Activity
     Properties: 
-      Name: !Sub "${AppName}-${Stage}-load-Neo4j"
+      Name: !Sub "${AppName}-${Stage}-LoadReleaseActivity"
+
+  LoadReleaseActivityArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/LoadReleaseActivityArn'
+      Description: "ARN of gfe-db load release activity"
+      Value: !GetAtt LoadReleaseActivity.Arn
 
   UpdatePipelineLogGroup:
     Type: AWS::Logs::LogGroup
