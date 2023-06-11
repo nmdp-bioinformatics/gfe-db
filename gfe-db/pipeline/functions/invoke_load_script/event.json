@@ -1,7 +1,11 @@
 {
-  "ALIGN": "False",
-  "KIR": "False",
-  "MEM_PROFILE": "False",
-  "LIMIT": "100",
-  "RELEASES": "3470"
+    "version": 3470,
+    "commit_sha": "cada41a6bfac5a8bf88ed2107a0b856b9b9785a0",
+    "input_parameters": {
+        "align": false,
+        "kir": false,
+        "mem_profile": false,
+        "limit": -1
+    },
+    "s3_path": "s3://dev-gfe-db-531868584498-us-east-1/data/3470/csv"
 }

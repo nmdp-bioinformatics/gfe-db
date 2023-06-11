@@ -500,9 +500,9 @@ Resources:
         - x86_64
       Environment:
         Variables:
-          NEO4J_LOAD_QUERY_DOCUMENT_NAME: !Ref Neo4jLoadQueryDocument # TODO fetch from parameter store
+          NEO4J_LOAD_QUERY_DOCUMENT_NAME_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName'
           NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId'
-          # LOAD_NEO4J_ACTIVITY: !Ref LoadReleaseActivity # TODO fetch from parameter store
+          LOAD_RELEASE_ACTIVITY_ARN_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/LoadReleaseActivityArn'
           APP_NAME: !Ref AppName
       Policies:
         - AWSLambdaBasicExecutionRole
@@ -543,7 +543,7 @@ Resources:
   UpdatePipelineStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
-      DefinitionUri: statemachines/mock-pipeline.asl.json
+      DefinitionUri: statemachines/pipeline.asl.json
       DefinitionSubstitutions:
         ExecutionStateTable: !Ref ExecutionStateTable
         GfeDbLoadReleaseQueueUrl: !GetAtt GfeDbLoadReleaseQueue.QueueUrl
@@ -551,13 +551,15 @@ Resources:
       #   BuildJobDefinition: !Ref BuildJobDefinition
       #   BuildJobName: !Sub '${Stage}-${AppName}-build-job'
       #   BuildJobQueue: !Ref BuildJobQueue
-      #   InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
+        InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
         LoadReleaseActivityArn: !Ref LoadReleaseActivity
       Policies:
         - LambdaInvokePolicy:
             FunctionName: GfeDbBuildJobMockFunction
         - LambdaInvokePolicy:
             FunctionName: GfeDbLoadMockFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref InvokeLoadScriptFunction
         - SQSSendMessagePolicy:
             QueueName: !GetAtt GfeDbLoadReleaseQueue.QueueName
         - DynamoDBWritePolicy:
@@ -789,7 +791,7 @@ Resources:
           commandLine:
             type: "String"
             description: "These commands are invoked by a Lambda script which sets the correct parameters (Refer to documentation)."
-            default: 'bash start_task.sh'
+            default: !Sub 'bash start_task.sh ${AppName} ${Stage}'
           workingDirectory:
             type: "String"
             description: "Working directory"

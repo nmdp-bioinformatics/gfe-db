@@ -6,26 +6,32 @@ import boto3
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-neo4j_load_query_document_name = os.environ["NEO4J_LOAD_QUERY_DOCUMENT_NAME"]
-neo4j_database_instance_id_param = os.environ["NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM"]
-# load_neo4j_activity = os.environ["LOAD_NEO4J_ACTIVITY"] # TODO DEPRECATED, moved to SSM Parameter Store
 app_name = os.environ["APP_NAME"]
+neo4j_load_query_document_name_param = os.environ["NEO4J_LOAD_QUERY_DOCUMENT_NAME_SSM_PARAM"]
+neo4j_database_instance_id_param = os.environ["NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM"]
+load_release_activity_arn_param = os.environ["LOAD_RELEASE_ACTIVITY_ARN_SSM_PARAM"]
 
-# Get SSM Document Neo4jLoadQuery
+# SSM Parameters
 ssm = boto3.client('ssm', region_name=os.environ["AWS_REGION"])
-response = ssm.get_document(Name=neo4j_load_query_document_name)
-neo4j_load_query_document_content = json.loads(response["Content"])
+
+# LoadQueryDocumentName
+neo4j_load_query_document_name = ssm.get_parameter(Name=neo4j_load_query_document_name_param)["Parameter"]["Value"]
+
+# LoadReleaseActivityArn
+load_release_activity_arn = ssm.get_parameter(Name=load_release_activity_arn_param)["Parameter"]["Value"]
 
 # Get Instance ID
 neo4j_database_instance_id = ssm.get_parameter(Name=neo4j_database_instance_id_param)["Parameter"]["Value"]
+
+# Get SSM Document Neo4jLoadQuery
+response = ssm.get_document(Name=neo4j_load_query_document_name)
+neo4j_load_query_document_content = json.loads(response["Content"])
 
 # Extract document parameters
 neo4j_load_query_document_parameters = neo4j_load_query_document_content["parameters"]
 command_line_default = neo4j_load_query_document_parameters["commandLine"]["default"]
 source_info_default = neo4j_load_query_document_parameters["sourceInfo"]["default"]
 
-# TODO BOOKMARK 5/31/23: Check if Neo4jLoadQueryDocument is already running, if it is exit 0 
-# TODO Remove `parameters` from `ssm.send_command` call
 def lambda_handler(event, context):
     """Invoke SSM Run Command for server side loading on Neo4j
 
@@ -45,20 +51,10 @@ def lambda_handler(event, context):
     """
 
     logger.info(json.dumps(event))
+    
+    # TODO BOOKMARK 5/31/23: Check if Neo4jLoadQueryDocument is already running, if it is exit 0
 
-    # TODO DEPRECATED
-    # Update params for this execution
-    params = {
-        "params": {
-            "app_name": app_name,
-            # "activity_arn": load_neo4j_activity,
-        }
-    }
-
-    # TODO DEPRECATED: remove params JSON argument, this function only needs to trigger the SSM document which
-    # will fetch params from SQS
-    # Include params JSON as command line argument
-    cmd = f"{command_line_default} \'{json.dumps(params)}\'"
+    cmd = command_line_default
 
     try:
         response = ssm.send_command(
@@ -88,7 +84,7 @@ def lambda_handler(event, context):
     return
 
 
-# Needed to serialize datetime objects in JSON responses
+# Serializes datetime objects in JSON responses
 class DatetimeEncoder(json.JSONEncoder):
     """
     Helps convert datetime objects to pure strings in AWS service API responses. Does not
@@ -107,7 +103,7 @@ class DatetimeEncoder(json.JSONEncoder):
 
 if __name__ == "__main__":
 
-    path = '/Users/ammon/Documents/00-Projects/nmdp-bioinformatics/02-Repositories/gfe-db/gfe-db/pipeline/functions/invoke_load_script/event.json'
+    path = '/Users/ammon/Projects/nmdp-bioinformatics/02-Repositories/gfe-db/gfe-db/pipeline/functions/invoke_load_script/event.json'
 
     with open(path, "r") as file:
         event = json.load(file)
