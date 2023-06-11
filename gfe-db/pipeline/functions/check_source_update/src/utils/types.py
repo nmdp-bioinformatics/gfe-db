@@ -121,6 +121,7 @@ class ExecutionDetailsConfig(BaseModel):
     status: str
     date_utc: Optional[str]
     input_parameters: Optional[InputParameters]
+    s3_path: Optional[str]
 
     @validator('status')
     def status_is_valid(cls, v):
@@ -186,6 +187,7 @@ class ExecutionPayloadItem(BaseModel):
     version: int
     commit_sha: str
     input_parameters: InputParameters
+    s3_path: str
 
     @validator('version')
     def _version_is_valid(cls, v):
@@ -201,5 +203,6 @@ class ExecutionPayloadItem(BaseModel):
         return cls(
             version=execution_state_item.execution.version,
             commit_sha=execution_state_item.commit.sha,
-            input_parameters=execution_state_item.execution.input_parameters
+            input_parameters=execution_state_item.execution.input_parameters,
+            s3_path=execution_state_item.execution.s3_path
         )

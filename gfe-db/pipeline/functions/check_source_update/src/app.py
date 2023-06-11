@@ -1,6 +1,10 @@
 """
 Checks a GitHub repository for new commits and triggers data ingestion. This function processes
 only the releases that it finds. To process specific releases, use a different method.
+
+Note: this function is only responsible for checking and processing the most recent commits. It is not responsible for 
+syncing state. If old items are deleted on the Execution state table while the most recent commits remain, 
+this function will not reprocess the deleted items.
 """
 import os
 import logging
@@ -141,7 +145,7 @@ def lambda_handler(event, context):
         for item in execution_payload:
             gfedb_processing_queue.send_message(MessageBody=json.dumps(item))
 
-        message = f'Processed {len(execution_payload)} releases\n{json.dumps(execution_payload, indent=4)}'
+        message = f'Queued {len(execution_payload)} release(s) for processing\n{json.dumps(execution_payload, indent=4)}'
         return {
             "statusCode": 200,
             "body": json.dumps({
@@ -203,6 +207,7 @@ def update_execution_state_item(execution_state_item: ExecutionStateItem, status
 
     if input_parameters is not None and status == "PENDING":
         execution_state_item.execution.input_parameters = input_parameters
+        execution_state_item.execution.s3_path = f's3://{data_bucket_name}/data/{execution_state_item.execution.version}/csv/'
 
     execution_state_item.execution.date_utc = str_from_datetime(datetime.utcnow())
     return execution_state_item
