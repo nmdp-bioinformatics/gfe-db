@@ -170,6 +170,7 @@ def get_execution_state(table, sort_column="commit__date_utc", reverse_sort=True
     return [ ExecutionStateItem(**restore_nested_json(item, split_on="__")) for item in items ]
 
 # @cache_json
+# TODO return Commit class to make sure data is correct
 def get_most_recent_commits(execution_state):
     # 1) Get the most recent commit date from DynamoDB using max(), add one second to it so the same commit is not returned
     last_commit_date = max([ str_to_datetime(item.commit.date_utc) for item in execution_state ])
@@ -209,4 +210,8 @@ def update_execution_state_item(execution_state_item: ExecutionStateItem, status
 
 
 if __name__ == "__main__":
-    lambda_handler({}, None)
+    from pathlib import Path
+
+    event = json.loads((Path(__file__).parent.parent / "events" / "event.json").read_text())
+
+    lambda_handler(event, None)

@@ -236,6 +236,7 @@ def list_commits(owner, repo, **params):
     }
 
     response = requests.get(url, headers=headers, params=params)
+    response.raise_for_status()
 
     return response.json()
 
@@ -275,6 +276,7 @@ def get_commit(owner, repo, commit_sha):
     }
 
     response = requests.get(url, headers=headers)
+    response.raise_for_status()
 
     return response.json()
 
@@ -295,6 +297,7 @@ def get_file_contents(owner, repo, path):
     }
 
     response = requests.get(url, headers=headers)
+    response.raise_for_status()
 
     return response.json()
 
@@ -321,6 +324,7 @@ def get_commits_for_asset(owner, repo, path, since=None):
     }
 
     response = requests.get(url, headers=headers, params=params)
+    response.raise_for_status()
 
     return response.json()
 
@@ -343,26 +347,28 @@ def get_repo_contents(owner, repo, path, commit_sha=None):
     params = {"ref": commit_sha}
 
     response = requests.get(url, headers=headers, params=params)
+    response.raise_for_status()
 
-    # check status
-    if response.status_code != 200:
-        logger.debug(json.dumps(response.json()))
-        raise Exception(f"Asset not found at path '{path}'")
-    else:
-        return response.json()
+    # # check status
+    # if response.status_code != 200:
+    #     logger.debug(json.dumps(response.json()))
+    #     raise Exception(f"Asset not found at path '{path}'")
+    # else:
+    return response.json()
 
 
 def get_repo_asset(owner, repo, path, commit_sha=None):
     """Download a file from a GitHub repository"""
     repo_contents = get_repo_contents(owner, repo, path, commit_sha)
 
-    res = requests.get(repo_contents["download_url"])
+    response = requests.get(repo_contents["download_url"])
+    response.raise_for_status()
 
-    if res.status_code != 200:
-        logger.error(f"Status code {res.status_code} for {path}")
-        raise Exception(f"Error downloading {path}")
+    # if response.status_code != 200:
+    #     logger.error(f"Status code {response.status_code} for {path}")
+    #     raise Exception(f"Error downloading {path}")
 
-    return res.text
+    return response.text
 
 
 def get_branches(owner, repo):
@@ -383,6 +389,8 @@ def get_branches(owner, repo):
     }
 
     response = requests.get(url, headers=headers)
+    response.raise_for_status()
+
     return response.json()
 
 
@@ -404,6 +412,8 @@ def get_branch(owner, repo, branch_name):
     }
 
     response = requests.get(url, headers=headers)
+    response.raise_for_status()
+
     return response.json()
 
 

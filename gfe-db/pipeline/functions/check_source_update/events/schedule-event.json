@@ -1,13 +1,13 @@
 {
-  "version": "0",
-  "id": "7df1ca36-636f-8c8d-1c81-a086a8943121",
-  "detail-type": "Scheduled Event",
-  "source": "aws.events",
-  "account": "<AWS Account ID>",
-  "time": "2022-02-01T12:00:00Z",
-  "region": "us-east-1",
-  "resources": [
-    "arn:aws:events:us-east-1:<AWS Account ID>:rule/dev-gfe-db-pipeline-trigger-TriggerFunctionTrigger-1CY4K6DEN9QT5"
-  ],
-  "detail": {}
+    "version": "0",
+    "id": "7bbfa494-9a2d-630b-1f09-aa1079f18fc6",
+    "detail-type": "Scheduled Event",
+    "source": "aws.events",
+    "account": "<account_id",
+    "time": "2023-06-09T12:00:00Z",
+    "region": "us-east-1",
+    "resources": [
+        "arn:aws:events:us-east-1:<account_id>:rule/dev-gfe-db-pipeline-CheckSourceUpdateFunctionTrigg-1NIOIDD25B8MJ"
+    ],
+    "detail": {}
 }
