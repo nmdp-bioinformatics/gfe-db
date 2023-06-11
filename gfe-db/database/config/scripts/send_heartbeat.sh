@@ -2,7 +2,9 @@
 
 # This script sends heartbeats back to the StepFunctions API during the task execution.
 
-while [ 1 ]
+set -e
+
+while true
 do
     echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Sending task heartbeat"
     aws stepfunctions send-task-heartbeat \

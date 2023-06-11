@@ -1,5 +1,7 @@
 #!/bin/bash -x
 
+set -e
+
 export BITNAMI_HOME=/home/bitnami
 
 # Check for release argument
@@ -56,17 +58,14 @@ fi
 
 # Get most recent Cypher scripts
 echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Fetching most recent Cypher scripts"
-aws s3 cp --recursive s3://$DATA_BUCKET_NAME/$S3_NEO4J_CYPHER_PATH/ $NEO4J_CYPHER_PATH
-# TODO check error status of aws s3 cp and abort if not zero
+aws s3 cp --recursive s3://$DATA_BUCKET_NAME/$S3_NEO4J_CYPHER_PATH/ $NEO4J_CYPHER_PATH --quiet
+# check error status of aws s3 cp and abort if not zero
 [ $? -eq 0 ] || exit 1
 # TODO validate file was downloaded, abort if not, so that a failure signal can be sent to Step Functions
 
-# # TODO DEBUG
-# exit 1
-
 # Download data to NEO4J_HOME/import
 echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Downloading CSV data for release $RELEASE"
-aws s3 cp --recursive s3://$DATA_BUCKET_NAME/$S3_CSV_PATH/ $NEO4J_IMPORT_PATH/
+aws s3 cp --recursive s3://$DATA_BUCKET_NAME/$S3_CSV_PATH/ $NEO4J_IMPORT_PATH/ --quiet
 
 # Update Cypher load query for correct release
 mkdir -p $NEO4J_CYPHER_PATH/tmp/$RELEASE/

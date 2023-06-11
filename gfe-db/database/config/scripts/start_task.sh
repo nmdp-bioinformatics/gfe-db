@@ -1,14 +1,25 @@
 #!/bin/bash -x
 
-# check that APP_NAME and AWS_REGION are set from the environment
+# Exit immediately if a command exits with a non-zero status
+set -e
+
+# get APP_NAME and STAGE from arguments
+APP_NAME=$1
+STAGE=$2
+
 if [[ -z $APP_NAME ]]; then
     echo "APP_NAME environment variable not set"
     exit 1
 fi
 
-if [[ -z $AWS_REGION ]]; then
-    echo "AWS_REGION environment variable not set"
+if [[ -z $STAGE ]]; then
+    echo "STAGE environment variable not set"
     exit 1
+fi
+
+# check that AWS_REGION is set from the environment
+if [[ -z $AWS_REGION ]]; then
+    export AWS_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')
 fi
 
 ACTIVITY_ARN=$(aws ssm get-parameter \
@@ -40,7 +51,9 @@ send_result () {
     fi
 }
 
+# TODO this will send task failure if any error is encountered, but sometimes errors can occur that do not affect that actual loading process
 trap 'cause="Error on line $LINENO" && error=$? && send_result && kill 0' ERR
+
 while true; do
 
     # Poll StepFunctions API for new activities
@@ -56,6 +69,7 @@ while true; do
 
     else
         echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Activity found"
+        # TODO debug jq parsing error (see CW Logs)
         echo "$ACTIVITY" | jq -r
 
         export TASK_TOKEN=$(echo "$ACTIVITY" | jq -r '.taskToken')
