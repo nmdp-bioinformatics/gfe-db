@@ -70,13 +70,13 @@ while true; do
     else
         echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Activity found"
         # TODO debug jq parsing error (see CW Logs)
-        echo "$ACTIVITY" | jq -r
+        echo "$ACTIVITY"
 
         export TASK_TOKEN=$(echo "$ACTIVITY" | jq -r '.taskToken')
         export RELEASE=$(echo "$ACTIVITY" | jq -r '.input' | jq '.version')
 
-        echo "TASK_TOKEN=$TASK_TOKEN"
-        echo "RELEASE=$RELEASE"
+        echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - TASK_TOKEN=$TASK_TOKEN"
+        echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - RELEASE=$RELEASE"
 
         # Check for release argument
         if [[ -z $RELEASE ]]; then

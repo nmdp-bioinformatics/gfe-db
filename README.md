@@ -484,7 +484,7 @@ make docs.build
 ## Authors
 **Primary Contact:** Martin Maiers ([@mmaiers-nmdp](https://github.com/mmaiers-nmdp))\
 **Contact:** Pradeep Bashyal ([@pbashyal-nmdp](https://github.com/pbashyal-nmdp))\
-**Contact:** Gregory Lindsey ([@abk7777](https://github.com/abk7777))
+**Contact:** Gregory (Chris) Lindsey ([@chrisammon3000](https://github.com/chrisammon3000))
 
 <!-- TODO make sure these are up to date -->
 ## References & Links
