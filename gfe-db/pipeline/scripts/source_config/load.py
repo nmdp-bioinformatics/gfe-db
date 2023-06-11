@@ -1,12 +1,14 @@
 """
 Loads the initial gfe-db execution state to DynamoDB table.
+
+TODO solution to avoid overwriting data when running this script (regular DynamoDB backups to S3 etc, fetch file from S3 and compare)
 """
 import os
+from pathlib import Path
 import sys
 sys.path.append(
-    "/Users/ammon/Projects/nmdp-bioinformatics/02-Repositories/gfe-db/gfe-db/pipeline/functions/check_source_update"
+    str(Path(__file__).parent.parent.parent / "functions" / "check_source_update")
 )
-from pathlib import Path
 import logging
 from datetime import datetime
 utc_now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -35,22 +37,24 @@ DATA_BUCKET_NAME = os.environ["DATA_BUCKET_NAME"]
 GITHUB_REPOSITORY_OWNER = os.environ["GITHUB_REPOSITORY_OWNER"]
 GITHUB_REPOSITORY_NAME = os.environ["GITHUB_REPOSITORY_NAME"]
 
-# fetch '/${AppName}/${Stage}/${AWS::Region}/ExecutionStateTableName' value from Parameter Store
 execution_state_table_name = ssm.get_parameter(
     Name=f'/{APP_NAME}/{STAGE}/{AWS_REGION}/ExecutionStateTableName'
 )['Parameter']['Value']
 
 if __name__ == "__main__":
 
-    # TODO scan table for existing items and throw error if not empty
+    # TODO scan table for existing items and throw error if not empty, require --overwrite flag to proceed
 
     # Paths
-    # output_dir = Path(f"{APP_NAME}/pipeline/config")
-    output_dir = Path(sys.argv[1])
+    input_dir = Path(sys.argv[1])
 
     # read in source config JSON file from local
-    with open(output_dir / "execution-state.json", "r") as f:
+    with open(input_dir / "execution-state.json", "r") as f:
         execution_state = ExecutionState(**json.load(f))
+
+    # for item in execution_state.items:
+    #     item.execution.created_utc = utc_now
+    #     item.execution.updated_utc = utc_now
 
     # execution_state_json = [
     #     {
@@ -70,8 +74,8 @@ if __name__ == "__main__":
     #     "repository.excluded_commit_shas",
     #     "repository.target_metadata_config",
     #     "repository.tracked_assets"
-
     # ]
+
     execution_state_flat = flatten_json_records(execution_state.dict()["items"], sep="__", select_fields=[item.replace(".", "__") for item in execution_state_table_fields])
 
     # load to dynamodb table named execution_state_table_name using batch put

@@ -63,5 +63,7 @@ execution_state_table_fields = [
     "repository.default_input_parameters.mem_profile",
     "repository.name",
     "repository.owner",
-    "repository.url"
+    "repository.url",
+    "created_utc",
+    "updated_utc"
 ]

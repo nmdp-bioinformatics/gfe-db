@@ -1,7 +1,7 @@
 import re
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, validator, root_validator
 import jmespath
 
 # ExecutionState is changed using Step Functions DynamoDB states
@@ -145,7 +145,7 @@ class SourceConfig(BaseModel):
         return date_is_iso_8601_with_timezone(v)
 
 class ExecutionStateItem(BaseModel):
-    created_utc: Optional[str] # TODO make required once fully implemented
+    created_utc: str # TODO make required once fully implemented
     updated_utc: Optional[str] # TODO make required once fully implemented
     repository: RepositoryConfig
     commit: Commit
@@ -153,8 +153,20 @@ class ExecutionStateItem(BaseModel):
     
 class ExecutionState(BaseModel):
     created_utc: str
-    updated_utc: str
+    updated_utc: Optional[str] # TODO remove for this class, use in ExecutionStateItem
     items: list[ExecutionStateItem]
+
+    @root_validator(pre=True)
+    def set_items_created_utc(cls, values):
+        timestamp_utc = values.get('created_utc')
+        items = values.get('items', [])
+        try:
+            for item in items:
+                item.created_utc = timestamp_utc
+        except:
+            for item in items:
+                item['created_utc'] = timestamp_utc
+        return values
 
     # validate that items is sorted by commit.date_utc descending
     @validator('items')

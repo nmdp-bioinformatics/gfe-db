@@ -240,7 +240,7 @@ def list_commits(owner, repo, **params):
 
     return response.json()
 
-# @cache_json
+@cache_json
 def paginate_commits(owner, repo, start_page=1, per_page=100, **kwargs):
     page = start_page
     commits = []
@@ -522,6 +522,16 @@ def filter_null_fields(items: dict) -> dict:
     return { k: v for k, v in items.items() if v is not None }
 
 
+def filter_nested_nulls(data):
+    if isinstance(data, list):
+        return filter_nulls([filter_nested_nulls(i) for i in data])
+    elif isinstance(data, dict):
+        return filter_null_fields({k: filter_nested_nulls(v) for k, v in data.items()})
+    else:
+        return data
+
+
+
 def sort_execution_state_items(
     execution_state_items: List[Dict[str, str]], ascending=False
 ) -> List[Dict[str, str]]:
@@ -533,6 +543,7 @@ def sort_execution_state_items(
 
 
 def process_execution_state_item(
+    timestamp: str,
     commit: Dict[str, str],
     repository_config: RepositoryConfig,
     target_metadata_config: TargetMetadataConfig,
@@ -550,6 +561,7 @@ def process_execution_state_item(
             logger.info(f"Found release version {release_version} ({sha})")
 
             result = {
+                "created_utc": timestamp,
                 "repository": repository_config,
                 "commit": Commit(**commit),
                 "execution": ExecutionDetailsConfig(
@@ -578,6 +590,7 @@ def process_execution_state_item(
 
 
 def parallel_process_execution_state_items(
+    timestamp: str,
     commits: List[Dict[str, str]],
     repository_config: RepositoryConfig,
     target_metadata_config: TargetMetadataConfig,
@@ -593,7 +606,11 @@ def parallel_process_execution_state_items(
         # Submit the process_commit function for each commit to the executor
         futures = [
             executor.submit(
-                process_execution_state_item, commit, repository_config, target_metadata_config
+                process_execution_state_item,
+                timestamp,
+                commit, 
+                repository_config, 
+                target_metadata_config
             )
             for commit in commits[:limit]
         ]
@@ -608,8 +625,9 @@ def parallel_process_execution_state_items(
 
 
 # limit is int or None
-# @cache_pickle
+@cache_pickle
 def process_execution_state_items(
+    timestamp: str,
     commits: List[Dict[str, str]],
     repository_config: RepositoryConfig,
     target_metadata_config: TargetMetadataConfig,
@@ -620,6 +638,7 @@ def process_execution_state_items(
         if limit:
             logger.warning("'limit' will not work if parallel processing is enabled")
         return parallel_process_execution_state_items(
+            timestamp=timestamp,
             commits=commits,
             repository_config=repository_config,
             target_metadata_config=target_metadata_config,

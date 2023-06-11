@@ -29,6 +29,7 @@ from src.utils import (
     select_keys,
     rename_fields,
     process_execution_state_items,
+    filter_nested_nulls
 )
 
 # Environment variables
@@ -84,6 +85,7 @@ if __name__ == "__main__":
     # Build ExecutionStateItem list using thread pooling    
     logger.info("Building execution state")
     execution_state_items = process_execution_state_items(
+        timestamp=utc_now, # TODO
         commits=commits,
         repository_config=RepositoryConfig(
             **select_keys(
@@ -97,7 +99,7 @@ if __name__ == "__main__":
 
     execution_state = ExecutionState(**{
         "created_utc": utc_now,
-        "updated_utc": utc_now,
+        # "updated_utc": None,
         "items": execution_state_items,
     })
 
@@ -107,7 +109,7 @@ if __name__ == "__main__":
     # TODO get output_dir from argparse
     # write ExecutionState locally
     with open(output_dir / f"execution-state.json", "w") as f:
-        json.dump(execution_state.dict(), f, indent=4)
+        json.dump(filter_nested_nulls(execution_state.dict()), f, indent=4)
 
     logger.info("Writing source config to local file system")
     # TODO get output_dir from argparse
