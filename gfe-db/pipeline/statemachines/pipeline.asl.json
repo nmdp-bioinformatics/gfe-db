@@ -32,8 +32,11 @@
                                         "N.$": "States.Format('{}', $.version)"
                                     }
                                 },
-                                "UpdateExpression": "SET execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit",
+                                "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
                                 "ExpressionAttributeValues": {
+                                    ":execution_date_utc": {
+                                        "S.$": "$$.Execution.StartTime"
+                                    },
                                     ":status": {
                                         "S": "IN_PROGRESS"
                                     },
@@ -48,6 +51,9 @@
                                     },
                                     ":limit": {
                                         "N.$": "States.Format('{}', $.input_parameters.limit)"
+                                    },
+                                    ":updated_utc": {
+                                        "S.$": "$$.State.EnteredTime"
                                     }
                                 }
                             }
@@ -126,10 +132,13 @@
                                         "N.$": "States.Format('{}', $.version)"
                                     }
                                 },
-                                "UpdateExpression": "SET execution__status = :status",
+                                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc",
                                 "ExpressionAttributeValues": {
                                     ":status": {
                                         "S": "FAILED"
+                                    },
+                                    ":updated_utc": {
+                                        "S.$": "$$.State.EnteredTime"
                                     }
                                 }
                             }
@@ -181,10 +190,13 @@
                                         "N.$": "States.Format('{}', $.version)"
                                     }
                                 },
-                                "UpdateExpression": "SET execution__status = :status",
+                                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc",
                                 "ExpressionAttributeValues": {
                                     ":status": {
                                         "S": "SUCCESS"
+                                    },
+                                    ":updated_utc": {
+                                        "S.$": "$$.State.EnteredTime"
                                     }
                                 }
                             }
