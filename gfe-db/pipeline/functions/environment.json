@@ -14,6 +14,13 @@
                 "Timeout": 60,
                 "MemorySize": 256
             }
+        },
+        "InvokeUpdatePipeline": {
+            "FunctionConfiguration": {
+                "FunctionName": "invoke-update-pipeline",
+                "Timeout": 60,
+                "MemorySize": 256
+            }
         }
     }
 }

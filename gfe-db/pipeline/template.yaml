@@ -34,6 +34,8 @@ Parameters:
     Type: String
   InvokeLoadScriptFunctionName:
     Type: String
+  InvokeUpdatePipelineFunctionName:
+    Type: String
   ECRBaseUri:
     Type: String
   BuildServiceRepositoryName:
@@ -369,7 +371,7 @@ Resources:
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/BuildServiceRepositoryName'
-      Description: "Name of gfe-db build service repository"
+      Description: !Sub "Name of ${AppName} build service repository"
       Value: !Ref BuildServiceRepositoryName
 
   GfeDbProcessingQueue:
@@ -382,6 +384,13 @@ Resources:
         deadLetterTargetArn: !GetAtt GfeDbProcessingDeadLetterQueue.Arn
         maxReceiveCount: 3
 
+  GfeDbProcessingDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 43200
+      MessageRetentionPeriod: 1209600
+      ReceiveMessageWaitTimeSeconds: 10
+
   GfeDbProcessingQueueUrlParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -389,13 +398,6 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/GfeDbProcessingQueueUrl'
       Description: "URL of gfe-db processing queue"
       Value: !GetAtt GfeDbProcessingQueue.QueueUrl
-
-  GfeDbProcessingDeadLetterQueue:
-    Type: AWS::SQS::Queue
-    Properties:
-      VisibilityTimeout: 300
-      MessageRetentionPeriod: 43200
-      ReceiveMessageWaitTimeSeconds: 20
 
   CheckSourceUpdateFunction:
     Type: AWS::Serverless::Function
@@ -413,6 +415,7 @@ Resources:
         Variables:
           APP_NAME: !Ref AppName
           STAGE: !Ref Stage
+          # TODO PROCESSING_QUEUE_URL_PARAM: !Ref GfeDbProcessingQueueUrlParameter
           PIPELINE_SOURCE_CONFIG_S3_PATH: !Sub '${ConfigS3Path}/${ServiceName}/source-config.json'
       Events:
         Trigger:
@@ -486,59 +489,47 @@ Resources:
   #       - Name: FunctionName
   #         Value: !Ref CheckSourceUpdateFunctionName
 
-  InvokeLoadScriptFunction:
+  InvokeUpdatePipelineFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Ref InvokeLoadScriptFunctionName
-      Description: !Sub "Invoke server-side loading on Neo4j for ${AppName}"
-      CodeUri: functions/invoke_load_script/
+      FunctionName: !Ref InvokeUpdatePipelineFunctionName
+      Description: !Sub "Invoke the build and load processing pipeline for ${AppName}"
+      CodeUri: functions/invoke_update_pipeline/src/
       Handler: app.lambda_handler
       Runtime: python3.9
-      MemorySize: 256
+      MemorySize: 128
       Timeout: 60
       Architectures:
         - x86_64
       Environment:
         Variables:
-          NEO4J_LOAD_QUERY_DOCUMENT_NAME_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName'
           NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId'
-          LOAD_RELEASE_ACTIVITY_ARN_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/LoadReleaseActivityArn'
-          APP_NAME: !Ref AppName
+          UDPATE_PIPELINE_STATE_MACHINE_ARN_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineStateMachineArn'
       Policies:
         - AWSLambdaBasicExecutionRole
         - Version: "2012-10-17"
           Statement:
             - Effect: "Allow"
               Action: 
-                - "ssm:SendCommand"
-                - "ssm:GetDocument"
-              Resource:
-                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${Neo4jLoadQueryDocument}'
-                - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*'
-            - Effect: "Allow"
-              Action: 
                 - "ssm:GetParameters"
                 - "ssm:GetParameter"
               Resource: 
                 - "*"
-
-  InvokeLoadScriptFunctionAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmDescription: !Sub 'Alarm for ${InvokeLoadScriptFunction} function errors'
-      ActionsEnabled: true
-      AlarmActions:
-        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
-      MetricName: Errors
-      Namespace: AWS/Lambda
-      Statistic: Sum
-      Period: 86400
-      EvaluationPeriods: 1
-      Threshold: 1
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      Dimensions:
-        - Name: FunctionName
-          Value: !Ref InvokeLoadScriptFunctionName
+            - Effect: "Allow"
+              Action: 
+                - "ec2:DescribeInstances"
+              Resource: "*" # Has to be for all resources since Instance ID is not available when this stack is deployed
+            - Effect: "Allow"
+              Action: 
+                - "states:StartExecution"
+              Resource: 
+                - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineStateMachineArn}}'
+      Events:
+        InvokeUpdatePipeline:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt GfeDbProcessingQueue.Arn
+            BatchSize: 10
 
   UpdatePipelineStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -546,7 +537,6 @@ Resources:
       DefinitionUri: statemachines/pipeline.asl.json
       DefinitionSubstitutions:
         ExecutionStateTable: !Ref ExecutionStateTable
-        GfeDbLoadReleaseQueueUrl: !GetAtt GfeDbLoadReleaseQueue.QueueUrl
         GfeDbExecutionResultTopicArn: !GetAtt GfeDbExecutionResultTopic.TopicArn
       #   BuildJobDefinition: !Ref BuildJobDefinition
       #   BuildJobName: !Sub '${Stage}-${AppName}-build-job'
@@ -560,8 +550,6 @@ Resources:
             FunctionName: GfeDbLoadMockFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref InvokeLoadScriptFunction
-        - SQSSendMessagePolicy:
-            QueueName: !GetAtt GfeDbLoadReleaseQueue.QueueName
         - DynamoDBWritePolicy:
             TableName: !Ref ExecutionStateTable
         - SNSPublishMessagePolicy:
@@ -659,30 +647,59 @@ Resources:
   #       IncludeExecutionData: true
   #       Level: ALL
 
-  GfeDbLoadReleaseQueue:
-    Type: AWS::SQS::Queue
+  InvokeLoadScriptFunction:
+    Type: AWS::Serverless::Function
     Properties:
-      VisibilityTimeout: 43200
-      MessageRetentionPeriod: 1209600
-      ReceiveMessageWaitTimeSeconds: 5
-      RedrivePolicy:
-        deadLetterTargetArn: !GetAtt GfeDbProcessingDeadLetterQueue.Arn
-        maxReceiveCount: 1
+      FunctionName: !Ref InvokeLoadScriptFunctionName
+      Description: !Sub "Invoke server-side loading on Neo4j for ${AppName}"
+      CodeUri: functions/invoke_load_script/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      MemorySize: 256
+      Timeout: 60
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          NEO4J_LOAD_QUERY_DOCUMENT_NAME_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName'
+          NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId'
+          LOAD_RELEASE_ACTIVITY_ARN_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/LoadReleaseActivityArn'
+          APP_NAME: !Ref AppName
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action: 
+                - "ssm:SendCommand"
+                - "ssm:GetDocument"
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${Neo4jLoadQueryDocument}'
+                - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*'
+            - Effect: "Allow"
+              Action: 
+                - "ssm:GetParameters"
+                - "ssm:GetParameter"
+              Resource: 
+                - "*"
 
-  GfeDbProcessingDeadLetterQueue:
-    Type: AWS::SQS::Queue
+  InvokeLoadScriptFunctionAlarm:
+    Type: AWS::CloudWatch::Alarm
     Properties:
-      VisibilityTimeout: 43200
-      MessageRetentionPeriod: 1209600
-      ReceiveMessageWaitTimeSeconds: 10
-
-  GfeDbLoadReleaseQueueUrlParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadReleaseQueueUrl'
-      Description: "URL of gfe-db processing queue"
-      Value: !GetAtt GfeDbLoadReleaseQueue.QueueUrl
+      AlarmDescription: !Sub 'Alarm for ${InvokeLoadScriptFunction} function errors'
+      ActionsEnabled: true
+      AlarmActions:
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref InvokeLoadScriptFunctionName
 
   GfeDbExecutionResultTopic:
     Type: AWS::SNS::Topic

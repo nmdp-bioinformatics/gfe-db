@@ -38,6 +38,7 @@ service.functions.deploy:
 			CheckSourceUpdateFunctionTimeout="$$(cat functions/environment.json | jq -r '.Functions.CheckSourceUpdate.FunctionConfiguration.Timeout')" \
 			CheckSourceUpdateFunctionSchedule="$$(cat functions/environment.json | jq -r '.Functions.CheckSourceUpdate.CheckSourceUpdateFunctionSchedule')" \
 			InvokeLoadScriptFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokeLoadScript.FunctionConfiguration.FunctionName')" \
+			InvokeUpdatePipelineFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokeUpdatePipeline.FunctionConfiguration.FunctionName')" \
 			ECRBaseUri="${ECR_BASE_URI}" \
 			BuildServiceRepositoryName="${BUILD_REPOSITORY}" \
 			2>&1 | tee -a $$CFN_LOG_PATH || true

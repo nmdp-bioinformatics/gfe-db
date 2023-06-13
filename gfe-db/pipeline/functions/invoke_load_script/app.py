@@ -52,7 +52,8 @@ def lambda_handler(event, context):
 
     logger.info(json.dumps(event))
     
-    # TODO BOOKMARK 5/31/23: Check if Neo4jLoadQueryDocument is already running, if it is exit 0
+    # TODO BOOKMARK 5/31/23: Check if Neo4jLoadQueryDocument is already running, if it is exit 0 (makes service idempotent)
+    # Note: Neo4jLoadQueryDocument only needs to be triggered once and it will fetch the next release until there are no more left 
 
     cmd = command_line_default
 
