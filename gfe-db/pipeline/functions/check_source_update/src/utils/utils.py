@@ -165,18 +165,6 @@ def flatten_json(data, sep=".", skip_fields=[], select_fields=[]):
     return data
 
 
-def flatten_json_records(data, sep=".", skip_fields=[], select_fields=[]):
-    """Flatten a list of JSON records."""
-    return [
-        flatten_json(
-        data=record, 
-        sep=sep,
-        skip_fields=skip_fields, 
-        select_fields=select_fields) \
-            for record in data
-    ]
-
-
 def read_s3_json(bucket, key):
     """Reads config file containing the current state of branches in
     a GitHub repo"""
@@ -470,6 +458,28 @@ def rename_fields(dataset: List[dict], key_names_map: dict[str, str]):
     return [rename_keys(x, key_names_map) for x in dataset]
 
 
+def flatten_json_records(data, sep=".", skip_fields=[], select_fields=[], filter_nulls=True):
+    """Flatten a list of JSON records."""
+    if filter_nulls:
+        return [
+            filter_null_fields(flatten_json(
+            data=record, 
+            sep=sep,
+            skip_fields=skip_fields, 
+            select_fields=select_fields)) \
+                for record in data
+        ]
+    else:
+        return [
+            flatten_json(
+            data=record, 
+            sep=sep,
+            skip_fields=skip_fields, 
+            select_fields=select_fields) \
+                for record in data
+        ]
+
+
 def restore_nested_json(data: dict, split_on="."):
     """Restores a previously flattened JSON object into a nested JSON object.
 
@@ -515,14 +525,38 @@ def get_release_version_for_commit(commit: Union[Commit, dict], **kwargs) -> int
 
 
 def filter_nulls(items: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    """Filter out null items from a list of dictionaries
+
+    Args:
+        items (List[Dict[str, str]]): A list of dictionaries
+
+    Returns:
+        List[Dict[str, str]]: A list of dictionaries with null items removed
+    """
     return [x for x in items if x is not None]
 
 
 def filter_null_fields(items: dict) -> dict:
+    """Filter out null fields from a dictionary
+
+    Args:
+        items (dict): A dictionary
+
+    Returns:
+        dict: A dictionary with null fields removed
+    """
     return { k: v for k, v in items.items() if v is not None }
 
 
-def filter_nested_nulls(data):
+def filter_nested_nulls(data: Union[dict, list]):
+    """Filter out null fields from a nested dictionary or list of dictionaries
+
+    Args:
+        data (Union[dict, list]): A nested dictionary or list of dictionaries
+
+    Returns:
+        Union[dict, list]: A nested dictionary or list of dictionaries with null fields removed
+    """
     if isinstance(data, list):
         return filter_nulls([filter_nested_nulls(i) for i in data])
     elif isinstance(data, dict):

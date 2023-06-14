@@ -21,7 +21,8 @@ from src.utils.types import (
     ExecutionState,
 )
 from src.utils.utils import (
-    flatten_json_records
+    flatten_json_records,
+    filter_null_fields
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -40,6 +41,7 @@ GITHUB_REPOSITORY_NAME = os.environ["GITHUB_REPOSITORY_NAME"]
 execution_state_table_name = ssm.get_parameter(
     Name=f'/{APP_NAME}/{STAGE}/{AWS_REGION}/ExecutionStateTableName'
 )['Parameter']['Value']
+table = dynamodb.Table(execution_state_table_name)
 
 if __name__ == "__main__":
 
@@ -52,34 +54,15 @@ if __name__ == "__main__":
     with open(input_dir / "execution-state.json", "r") as f:
         execution_state = ExecutionState(**json.load(f))
 
-    # for item in execution_state.items:
-    #     item.execution.created_utc = utc_now
-    #     item.execution.updated_utc = utc_now
-
-    # execution_state_json = [
-    #     {
-    #         "commit.sha": item.commit.sha,
-    #         "version": item.execution.version,
-    #         "execution": item.execution.json(),
-    #         "commit": item.commit.json(),
-    #         "repository": item.repository.json(),
-    #     } for item in execution_state.items
-    # ]
-
-    # TODO use selected fields from constants
-    # flatten JSON records and filter nulls
-    # skip_fields = [
-    #     "execution.input_parameters",
-    #     "repository.description",
-    #     "repository.excluded_commit_shas",
-    #     "repository.target_metadata_config",
-    #     "repository.tracked_assets"
-    # ]
-
-    execution_state_flat = flatten_json_records(execution_state.dict()["items"], sep="__", select_fields=[item.replace(".", "__") for item in execution_state_table_fields])
+    # flatten JSON records for execution state table model
+    # Uses double-underscore as separator because DynamoDB does not allow dots in attribute names
+    execution_state_flat = flatten_json_records(
+        execution_state.dict()["items"], 
+        sep="__", 
+        select_fields=[item.replace(".", "__") for item in execution_state_table_fields],
+        filter_nulls=True)
 
     # load to dynamodb table named execution_state_table_name using batch put
-    table = dynamodb.Table(execution_state_table_name)
     with table.batch_writer() as batch:
         logger.info(f"Loading {len(execution_state_flat)} items to {execution_state_table_name}")
         for item in execution_state_flat:

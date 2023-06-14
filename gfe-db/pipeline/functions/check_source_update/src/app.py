@@ -10,7 +10,6 @@ import os
 import logging
 from decimal import Decimal
 from datetime import datetime, timedelta
-utc_now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 import json
 import boto3
 from utils.constants import (
@@ -37,6 +36,7 @@ from utils.utils import (
     list_commits, 
     get_release_version_for_commit,
     flatten_json,
+    filter_null_fields
 )
 
 logger = logging.getLogger()
@@ -59,6 +59,7 @@ gfedb_processing_queue = queue.Queue(gfedb_processing_queue_url)
 
 def lambda_handler(event, context):
     # logger.info(json.dumps(event))
+    utc_now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
     try:
         # Get items from state table
@@ -79,11 +80,14 @@ def lambda_handler(event, context):
                     "message": message
                 }),
             }
-
+        
+        # Get the release version for each commit and create a new state record
         logger.info(f"Getting release versions")
         commits_with_releases = []
         for commit in commits:
             sha = commit["sha"]
+
+            # Loop through available file assets containing release version information
             for asset_config in source_repo_config.target_metadata_config.items:
                 try:
                     release_version = get_release_version_for_commit(commit, **asset_config.dict())
@@ -93,10 +97,11 @@ def lambda_handler(event, context):
                         "owner": GITHUB_REPOSITORY_OWNER, 
                         "name": GITHUB_REPOSITORY_NAME,
                         "url": f"https://github.com/{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}",
+                        # TODO remove default params from state table, they are retrieved from source config file in S3
                         "default_input_parameters": source_repo_config.default_input_parameters,
                     })
                     execution_state_item = ExecutionStateItem(
-                        updated_utc=utc_now,
+                        created_utc=utc_now,
                         execution=execution_detail,
                         repository=repository_config,
                         commit=Commit.from_response_json(commit)
@@ -112,33 +117,39 @@ def lambda_handler(event, context):
         # 1) Mark the most recent commit for each release as PENDING
         input_parameters = source_repo_config.default_input_parameters
         pending_commits = [ 
-            update_execution_state_item(commit, status="PENDING", input_parameters=input_parameters) \
-                for item in select_most_recent_commit_for_release(commits_with_releases) \
-                    for commit in item.values()
+            update_execution_state_item(
+                commit, 
+                status="PENDING", 
+                timestamp=utc_now,
+                input_parameters=input_parameters) \
+            for item in select_most_recent_commit_for_release(commits_with_releases) \
+                for commit in item.values()
         ]
 
         # 2) Mark the older commits for each release as SKIPPED
-        skipped_commits = [ update_execution_state_item(commit, "SKIPPED") for commit in commits_with_releases if commit not in pending_commits ]
+        skipped_commits = [ update_execution_state_item(commit, "SKIPPED", utc_now) for commit in commits_with_releases if commit not in pending_commits ]
 
         # 3) Update the state table with the new commits, order by commit.date_utc descending
         new_execution_state = pending_commits + skipped_commits
         new_execution_state = sorted(new_execution_state, key=lambda x: x.commit.date_utc, reverse=False)
 
-        # 4) Flatten and load the processed records to the state table
+        # 4) Flatten, filter nulls and load the processed records to the state table (DynamoDB payload)
         items = [ 
-            flatten_json(
+            filter_null_fields(flatten_json(
                 data=item.dict(),
                 sep="__",
-                select_fields=[item.replace(".", "__") for item in execution_state_table_fields]) \
+                select_fields=[item.replace(".", "__") for item in execution_state_table_fields])) \
                     for item in new_execution_state
             ]
 
-        with table.batch_writer() as batch:
-            logger.info(f"Loading {len(items)} items to {table_name}")
-            for item in items:
-                batch.put_item(Item=item)
-
-        logger.info(f"{len(items)} items loaded to {table_name}")   
+        if len(items) > 0:
+            with table.batch_writer() as batch:
+                logger.info(f"Loading {len(items)} items to {table_name}")
+                for item in items:
+                    batch.put_item(Item=item)
+            logger.info(f"{len(items)} items loaded to {table_name}")   
+        else:
+            raise Exception("Commits were found but the DynamoDB payload is empty")
 
         # 5) Return pending commits to the state machine for further processing
         execution_payload = [ ExecutionPayloadItem.from_execution_state_item(item).dict() for item in pending_commits ] 
@@ -202,14 +213,15 @@ def select_most_recent_commit_for_release(commits: list[ExecutionStateItem]):
         for version in unique_new_releases
     ]
 
-def update_execution_state_item(execution_state_item: ExecutionStateItem, status: str, input_parameters: dict = None):
+def update_execution_state_item(execution_state_item: ExecutionStateItem, status: str, timestamp: str, input_parameters: dict = None):
     execution_state_item.execution.status = status
 
     if input_parameters is not None and status == "PENDING":
         execution_state_item.execution.input_parameters = input_parameters
         execution_state_item.execution.s3_path = f's3://{data_bucket_name}/data/{execution_state_item.execution.version}/csv/'
+        execution_state_item.execution.date_utc = timestamp
 
-    execution_state_item.execution.date_utc = str_from_datetime(datetime.utcnow())
+    # execution_state_item.updated_utc = timestamp
     return execution_state_item
 
 

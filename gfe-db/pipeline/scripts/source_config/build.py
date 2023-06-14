@@ -1,5 +1,5 @@
 """
-Builds the source config file for the given repository source.
+Builds the execution state for the given repository source from the static repository source configuration (`source-config.json`).
 """
 import os
 import sys
@@ -37,7 +37,6 @@ APP_NAME = os.environ["APP_NAME"]
 GITHUB_REPOSITORY_OWNER = os.environ["GITHUB_REPOSITORY_OWNER"]
 GITHUB_REPOSITORY_NAME = os.environ["GITHUB_REPOSITORY_NAME"]
 DATA_BUCKET_NAME = os.environ["DATA_BUCKET_NAME"]
-# PIPELINE_SOURCE_CONFIG_S3_PATH = os.environ["PIPELINE_SOURCE_CONFIG_S3_PATH"]
 
 
 if __name__ == "__main__":
@@ -45,12 +44,6 @@ if __name__ == "__main__":
     # Paths
     output_dir = Path(sys.argv[1])
 
-    # Get base source config
-    # try:
-    #     source_config = SourceConfig(**read_s3_json(DATA_BUCKET_NAME, PIPELINE_SOURCE_CONFIG_S3_PATH))
-    # except Exception as e:
-    #     logger.error(f"Error loading source config from {PIPELINE_SOURCE_CONFIG_S3_PATH}")
-    #     logger.info("Trying local source config")
     with open(output_dir / "source-config.json", "r") as f:
         source_config = SourceConfig(**json.load(f))
 
@@ -67,7 +60,7 @@ if __name__ == "__main__":
     commit_keys = ["sha", "commit.author.date", "commit.message", "html_url"]
     all_commits_flat = [select_keys(x, commit_keys) for x in all_commits_flat]
 
-    # refactor to use rename_fields
+    # rename fields for state table model
     commit_key_names_map = {
         "sha": "sha",
         "commit.author.date": "date_utc",
@@ -82,37 +75,39 @@ if __name__ == "__main__":
     excluded_commit_shas = source_config.repositories[GITHUB_REPOSITORY_OWNER+"/"+GITHUB_REPOSITORY_NAME].excluded_commit_shas.values
     commits = [commit for commit in commits if commit["sha"] not in excluded_commit_shas]
 
-    # Build ExecutionStateItem list using thread pooling    
+    # Build ExecutionStateItem records from raw commits using thread pooling    
     logger.info("Building execution state")
     execution_state_items = process_execution_state_items(
-        timestamp=utc_now, # TODO
+        timestamp=utc_now,
         commits=commits,
+        # TODO remove default params from state table, they are retrieved from source config file in S3
         repository_config=RepositoryConfig(
             **select_keys(
                 source_config.repositories[GITHUB_REPOSITORY_OWNER+"/"+GITHUB_REPOSITORY_NAME].dict(), 
-                ["owner", "name", "url", "default_input_parameters"]
+                ["owner", "name", "url"]
             )
         ),
-        target_metadata_config=target_metadata_config,
+        target_metadata_config=target_metadata_config, # Infers release version from file contents
         parallel=True,
     )
 
+    # Package records as ExecutionState object to seed table
     execution_state = ExecutionState(**{
         "created_utc": utc_now,
-        # "updated_utc": None,
         "items": execution_state_items,
     })
 
+    # Updates the source config file but does not actually build it
     source_config.created_utc, source_config.updated_utc = utc_now, utc_now
 
-    logger.info("Writing execution state to local file system")
-    # TODO get output_dir from argparse
+    logger.info(f"Writing execution state to {str(output_dir / 'execution-state.json')}")
+
     # write ExecutionState locally
-    with open(output_dir / f"execution-state.json", "w") as f:
+    with open(output_dir / "execution-state.json", "w") as f:
         json.dump(filter_nested_nulls(execution_state.dict()), f, indent=4)
 
-    logger.info("Writing source config to local file system")
-    # TODO get output_dir from argparse
+    logger.info(f"Updating source config in {str(output_dir / 'source-config.json')}")
+
     # write SourceConfig locally
     with open(output_dir / f"source-config.json", "w") as f:
         json.dump(source_config.dict(), f, indent=4)

@@ -108,7 +108,7 @@ class RepositoryConfig(BaseModel):
     tracked_assets: Optional[TrackedAssetsConfig]  
     target_metadata_config: Optional[TargetMetadataConfig]
     excluded_commit_shas: Optional[ExcludedCommitShas]
-    default_input_parameters: InputParameters
+    default_input_parameters: Optional[InputParameters]
 
     # validate that the url is a valid URL
     @validator('url')
@@ -145,7 +145,7 @@ class SourceConfig(BaseModel):
         return date_is_iso_8601_with_timezone(v)
 
 class ExecutionStateItem(BaseModel):
-    created_utc: str # TODO make required once fully implemented
+    created_utc: str
     updated_utc: Optional[str] # TODO make required once fully implemented
     repository: RepositoryConfig
     commit: Commit
@@ -153,7 +153,6 @@ class ExecutionStateItem(BaseModel):
     
 class ExecutionState(BaseModel):
     created_utc: str
-    updated_utc: Optional[str] # TODO remove for this class, use in ExecutionStateItem
     items: list[ExecutionStateItem]
 
     @root_validator(pre=True)
