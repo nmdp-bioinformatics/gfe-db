@@ -27,11 +27,14 @@ neo4j_database_instance_id = ssm.get_parameter(Name=os.environ["NEO4J_DATABASE_I
 update_pipeline_state_machine_arn = ssm.get_parameter(Name=os.environ["UDPATE_PIPELINE_STATE_MACHINE_ARN_SSM_PARAM"])['Parameter']['Value']
 
 # Check that database is running, abort if not
-response = ec2.describe_instance_status(InstanceIds=[neo4j_database_instance_id])
-if response['InstanceStatuses'][0]['InstanceState']['Name'] != 'running':
-    raise Exception(f'Instance {neo4j_database_instance_id} is not running, aborting...')
-else:
-    logger.info(f'Instance {neo4j_database_instance_id} is running')
+try:
+    response = ec2.describe_instance_status(InstanceIds=[neo4j_database_instance_id])
+    if response['InstanceStatuses'][0]['InstanceState']['Name'] != 'running':
+        raise Exception(f'Instance {neo4j_database_instance_id} is not running, aborting...')
+    else:
+        logger.info(f'Instance {neo4j_database_instance_id} is running')
+except Exception as e:
+    raise e
 
 
 def lambda_handler(event, context):

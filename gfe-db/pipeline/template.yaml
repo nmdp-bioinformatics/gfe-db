@@ -494,7 +494,7 @@ Resources:
     Properties:
       FunctionName: !Ref InvokeUpdatePipelineFunctionName
       Description: !Sub "Invoke the build and load processing pipeline for ${AppName}"
-      CodeUri: functions/invoke_update_pipeline/src/
+      CodeUri: functions/invoke_update_pipeline/
       Handler: app.lambda_handler
       Runtime: python3.9
       MemorySize: 128
@@ -517,7 +517,7 @@ Resources:
                 - "*"
             - Effect: "Allow"
               Action: 
-                - "ec2:DescribeInstances"
+                - "ec2:DescribeInstanceStatus"
               Resource: "*" # Has to be for all resources since Instance ID is not available when this stack is deployed
             - Effect: "Allow"
               Action: 
@@ -525,7 +525,7 @@ Resources:
               Resource: 
                 - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineStateMachineArn}}'
       Events:
-        InvokeUpdatePipeline:
+        GfeDbProcessingQueueTrigger:
           Type: SQS
           Properties:
             Queue: !GetAtt GfeDbProcessingQueue.Arn

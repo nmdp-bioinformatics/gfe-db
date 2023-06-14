@@ -156,7 +156,8 @@ def lambda_handler(event, context):
         for item in execution_payload:
             gfedb_processing_queue.send_message(MessageBody=json.dumps(item))
 
-        message = f'Queued {len(execution_payload)} release(s) for processing\n{json.dumps(execution_payload, indent=4)}'
+        # TODO log out the commits that were skipped and pending
+        message = f'Queued {len(execution_payload)} release(s) for processing\n{execution_payload}'
         return {
             "statusCode": 200,
             "body": json.dumps({
