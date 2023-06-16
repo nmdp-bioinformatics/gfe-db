@@ -505,6 +505,7 @@ Resources:
         Variables:
           NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId'
           UDPATE_PIPELINE_STATE_MACHINE_ARN_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineStateMachineArn'
+          GFE_DB_PROCESSING_QUEUE_URL_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/GfeDbProcessingQueueUrl'
       Policies:
         - AWSLambdaBasicExecutionRole
         - Version: "2012-10-17"
