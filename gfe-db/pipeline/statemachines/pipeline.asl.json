@@ -67,8 +67,53 @@
                             "Type": "Task",
                             "Resource": "arn:aws:lambda:us-east-1:531868584498:function:GfeDbBuildJobMockFunction",
                             "ResultPath": null,
+                            "Next": "ListFiles"
+                        },
+                        "ListFiles": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::aws-sdk:s3:listObjects",
+                            "Parameters": {
+                              "Bucket": "${DataBucketName}",
+                              "Prefix.$": "States.Format('data/{}/csv/', $.version)"
+                            },
+                            "ResultSelector": {
+                              "files.$": "$.Contents[*].Key",
+                              "num_files.$": "States.ArrayLength($.Contents)"
+                            },
+                            "ResultPath": "$",
+                            "Next": "FilesExist"
+                          },
+                          "FilesExist": {
+                            "Type": "Choice",
+                            "Choices": [
+                              {
+                                "Variable": "$.files",
+                                "IsNull": true,
+                                "Next": "FilesNotFound"
+                              },
+                              {
+                                "Variable": "$.num_files",
+                                "NumericEquals": 0,
+                                "Next": "FilesNotFound"
+                              },
+                              {
+                                "Variable": "$.num_files",
+                                "NumericGreaterThan": 0,
+                                "Next": "FilesFound"
+                              }
+                            ],
+                            "Default": "FilesNotFound"
+                          },
+                          "FilesNotFound": {
+                            "Type": "Fail",
+                            "Error": "NoFilesFoundError",
+                            "Cause": "No files found in the specified S3 location."
+                          },
+                          "FilesFound": {
+                            "Type": "Pass",
+                            "OutputPath": "$$.Execution.Input",
                             "End": true
-                        }
+                          }
                     }
                 }
             ]
