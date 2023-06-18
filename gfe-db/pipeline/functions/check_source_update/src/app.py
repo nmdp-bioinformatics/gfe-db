@@ -151,8 +151,9 @@ def lambda_handler(event, context):
         else:
             raise Exception("Commits were found but the DynamoDB payload is empty")
 
-        # 5) Return pending commits to the state machine for further processing
+        # 5) Send pending commits to the state machine for further processing
         execution_payload = [ ExecutionPayloadItem.from_execution_state_item(item).dict() for item in pending_commits ] 
+        execution_payload = sorted(execution_payload, key=lambda x: x["version"], reverse=False)        
         for item in execution_payload:
             gfedb_processing_queue.send_message(MessageBody=json.dumps(item))
 

@@ -415,7 +415,6 @@ Resources:
         Variables:
           APP_NAME: !Ref AppName
           STAGE: !Ref Stage
-          # TODO PROCESSING_QUEUE_URL_PARAM: !Ref GfeDbProcessingQueueUrlParameter
           PIPELINE_SOURCE_CONFIG_S3_PATH: !Sub '${ConfigS3Path}/${ServiceName}/source-config.json'
       Events:
         Trigger:
@@ -554,6 +553,8 @@ Resources:
             BucketName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
         - LambdaInvokePolicy:
             FunctionName: !Ref InvokeLoadScriptFunction
+        - DynamoDBReadPolicy:
+            TableName: !Ref ExecutionStateTable
         - DynamoDBWritePolicy:
             TableName: !Ref ExecutionStateTable
         - SNSPublishMessagePolicy:

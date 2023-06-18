@@ -1,6 +1,42 @@
 {
-    "StartAt": "BuildRelease",
+    "StartAt": "GetState",
     "States": {
+        "GetState": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::dynamodb:getItem",
+            "ResultSelector": {
+                "commit__sha.$": "$.Item.commit__sha.S",
+                "execution__version.$": "$.Item.execution__version.N",
+                "commit__date_utc.$": "$.Item.commit__date_utc.S",
+                "commit__html_url.$": "$.Item.commit__html_url.S",
+                "commit__message.$": "$.Item.commit__message.S",
+                "created_utc.$": "$.Item.created_utc.S",
+                "repository__name.$": "$.Item.repository__name.S",
+                "repository__owner.$": "$.Item.repository__owner.S",
+                "repository__url.$": "$.Item.repository__url.S"
+            },
+            "ResultPath": "$.state",
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "Next": "ReportFailure"
+                }
+            ],
+            "Next": "BuildRelease",
+            "Parameters": {
+                "TableName": "dev-gfe-db-pipeline-ExecutionStateTable-M01KLKJBONAZ",
+                "Key": {
+                    "commit__sha": {
+                        "S.$": "$.commit_sha"
+                    },
+                    "execution__version": {
+                        "N.$": "States.Format('{}', $.version)"
+                    }
+                }
+            }
+        },
         "BuildRelease": {
             "Type": "Parallel",
             "Next": "LoadRelease",
@@ -15,9 +51,9 @@
             ],
             "Branches": [
                 {
-                    "StartAt": "UpdateExecutionStateInProgress",
+                    "StartAt": "UpdateStateExecutionInProgress",
                     "States": {
-                        "UpdateExecutionStateInProgress": {
+                        "UpdateStateExecutionInProgress": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
@@ -73,47 +109,58 @@
                             "Type": "Task",
                             "Resource": "arn:aws:states:::aws-sdk:s3:listObjects",
                             "Parameters": {
-                              "Bucket": "${DataBucketName}",
-                              "Prefix.$": "States.Format('data/{}/csv/', $.version)"
+                                "Bucket": "${DataBucketName}",
+                                "Prefix.$": "States.Format('data/{}/csv/', $.version)"
                             },
-                            "ResultSelector": {
-                              "files.$": "$.Contents[*].Key",
-                              "num_files.$": "States.ArrayLength($.Contents)"
-                            },
-                            "ResultPath": "$",
-                            "Next": "FilesExist"
-                          },
-                          "FilesExist": {
+                            "ResultPath": "$.s3_response",
+                            "Next": "ValidateFiles"
+                        },
+                        "ValidateFiles": {
                             "Type": "Choice",
                             "Choices": [
-                              {
-                                "Variable": "$.files",
-                                "IsNull": true,
-                                "Next": "FilesNotFound"
-                              },
-                              {
-                                "Variable": "$.num_files",
-                                "NumericEquals": 0,
-                                "Next": "FilesNotFound"
-                              },
-                              {
-                                "Variable": "$.num_files",
-                                "NumericGreaterThan": 0,
-                                "Next": "FilesFound"
-                              }
+                                {
+                                    "Variable": "$.s3_response.Contents",
+                                    "IsPresent": true,
+                                    "Next": "FilesExist"
+                                }
                             ],
-                            "Default": "FilesNotFound"
-                          },
-                          "FilesNotFound": {
+                            "Default": "FileError"
+                        },
+                        "FileError": {
                             "Type": "Fail",
-                            "Error": "NoFilesFoundError",
-                            "Cause": "No files found in the specified S3 location."
-                          },
-                          "FilesFound": {
+                            "Cause": "No files found"
+                        },
+                        "FilesExist": {
                             "Type": "Pass",
-                            "OutputPath": "$$.Execution.Input",
+                            "Parameters": {
+                                "files.$": "$.s3_response.Contents[*].Key",
+                                "num_files.$": "States.ArrayLength($.s3_response.Contents)"
+                            },
+                            "ResultPath": "$.build_output",
+                            "Next": "ValidateFileNames"
+                        },
+                        "ValidateFileNames": {
+                            "Type": "Choice",
+                            "Choices": [
+                                {
+                                    "Variable": "$.build_output.num_files",
+                                    "NumericGreaterThan": 0,
+                                    "Next": "FilesAreValid"
+                                }
+                            ],
+                            "Default": "FileError"
+                        },
+                        "FilesAreValid": {
+                            "Type": "Pass",
+                            "Parameters": {
+                                "version.$": "$.version",
+                                "commit_sha.$": "$.commit_sha",
+                                "input_parameters.$": "$.input_parameters",
+                                "s3_path.$": "$.s3_path",
+                                "state.$": "$.state"
+                            },
                             "End": true
-                          }
+                        }
                     }
                 }
             ]
@@ -160,9 +207,9 @@
             "InputPath": "$$.Execution.Input",
             "Branches": [
                 {
-                    "StartAt": "UpdateExecutionStateFailure",
+                    "StartAt": "UpdateStateExecutionFailure",
                     "States": {
-                        "UpdateExecutionStateFailure": {
+                        "UpdateStateExecutionFailure": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
@@ -218,9 +265,9 @@
             "InputPath": "$$.Execution.Input",
             "Branches": [
                 {
-                    "StartAt": "UpdateExecutionStateSuccess",
+                    "StartAt": "UpdateStateExecutionSuccess",
                     "States": {
-                        "UpdateExecutionStateSuccess": {
+                        "UpdateStateExecutionSuccess": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
