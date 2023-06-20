@@ -1,0 +1,56 @@
+{
+    "StartAt": "BuildReleaseJob",
+    "States": {
+        "BuildReleaseJob": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::batch:submitJob.sync",
+            "ResultPath": "$.s3_path",
+            "Next": "ValidateBuildOutput",
+            "Parameters": {
+                "JobDefinition": "${BuildJobDefinition}",
+                "JobName": "${BuildJobName}",
+                "JobQueue": "${BuildJobQueue}",
+                "ContainerOverrides": {
+                    "Environment": [
+                        {
+                            "Name": "RELEASES",
+                            "Value.$": "$.version"
+                        },
+                        {
+                            "Name": "COMMIT_SHA",
+                            "Value.$": "$.commit_sha"
+                        },
+                        {
+                            "Name": "ALIGN",
+                            "Value.$": "$.input_parameters.align"
+                        },
+                        {
+                            "Name": "KIR",
+                            "Value.$": "$.input_parameters.kir"
+                        },
+                        {
+                            "Name": "MEM_PROFILE",
+                            "Value.$": "$.input_parameters.mem_profile"
+                        },
+                        {
+                            "Name": "LIMIT",
+                            "Value.$": "$.input_parameters.limit"
+                        },
+                        {
+                            "Name": "OUTPUT_URI",
+                            "Value.$": "$.s3_path"
+                        },
+                        {
+                            "Name": "STATE",
+                            "Value.$": "States.JsonToString($.state)"
+                        }
+                    ]
+                }
+            }
+        },
+        "ValidateBuildOutput": {
+            "Type": "Pass",
+            "End": true
+        }
+    }
+}
