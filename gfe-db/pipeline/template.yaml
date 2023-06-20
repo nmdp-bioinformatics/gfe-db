@@ -32,6 +32,12 @@ Parameters:
     Type: Number
   CheckSourceUpdateFunctionSchedule:
     Type: String
+  ValidateBuildOutputFunctionName:
+    Type: String
+  ValidateBuildOutputFunctionMemorySize:
+    Type: Number
+  ValidateBuildOutputFunctionTimeout:
+    Type: Number
   InvokeLoadScriptFunctionName:
     Type: String
   InvokeUpdatePipelineFunctionName:
@@ -538,6 +544,7 @@ Resources:
       DefinitionSubstitutions:
         ExecutionStateTable: !Ref ExecutionStateTable
         DataBucketName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
+        ValidateBuildOutputFunctionArn: !GetAtt ValidateBuildOutputFunction.Arn
         GfeDbExecutionResultTopicArn: !GetAtt GfeDbExecutionResultTopic.TopicArn
       #   BuildJobDefinition: !Ref BuildJobDefinition
       #   BuildJobName: !Sub '${Stage}-${AppName}-build-job'
@@ -549,6 +556,8 @@ Resources:
             FunctionName: GfeDbBuildJobMockFunction
         - LambdaInvokePolicy:
             FunctionName: GfeDbLoadMockFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ValidateBuildOutputFunction
         - S3ReadPolicy:
             BucketName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
         - LambdaInvokePolicy:
@@ -651,6 +660,38 @@ Resources:
   #             LogGroupArn: !GetAtt UpdatePipelineLogGroup.Arn
   #       IncludeExecutionData: true
   #       Level: ALL
+
+  ValidateBuildOutputFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Ref ValidateBuildOutputFunctionName
+      Description: !Sub "Invoke server-side loading on Neo4j for ${AppName}"
+      CodeUri: functions/validate_build_output/
+      Handler: app.lambda_handler
+      Runtime: python3.10
+      MemorySize: !Ref ValidateBuildOutputFunctionMemorySize
+      Timeout: !Ref ValidateBuildOutputFunctionTimeout
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          APP_NAME: !Ref AppName
+          STAGE: !Ref Stage
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action: 
+                - "ssm:GetParameters"
+                - "ssm:GetParameter"
+              Resource: 
+                - "*"
+            - Effect: "Allow"
+              Action: 
+                - "s3:GetObject"
+              Resource: 
+                - !Sub "arn:aws:s3:::{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}/*"
 
   InvokeLoadScriptFunction:
     Type: AWS::Serverless::Function

@@ -1,0 +1,59 @@
+{
+    "version": 3470,
+    "commit_sha": "cada41a6bfac5a8bf88ed2107a0b856b9b9785a0",
+    "input_parameters": {
+      "align": false,
+      "kir": false,
+      "mem_profile": false,
+      "limit": -1
+    },
+    "s3_path": "s3://dev-gfe-db-531868584498-us-east-1/data/3470/csv/",
+    "state": {
+      "commit__sha": "cada41a6bfac5a8bf88ed2107a0b856b9b9785a0",
+      "commit__date_utc": "2022-03-15T14:27:59Z",
+      "commit__html_url": "https://github.com/ANHIG/IMGTHLA/commit/cada41a6bfac5a8bf88ed2107a0b856b9b9785a0",
+      "commit__message": "Merge pull request #299 from ANHIG/3470\n\nUpdate to xml/hla.xml.zip correcting meta data",
+      "repository__name": "IMGTHLA",
+      "created_utc": "2023-06-13T23:31:50Z",
+      "repository__owner": "ANHIG",
+      "repository__url": "https://github.com/ANHIG/IMGTHLA",
+      "execution__version": "3470"
+    },
+    "s3_response": {
+      "Contents": [
+        {
+          "ETag": "\"9ad1c1a9c1ec4aab46150ae20c964f3c\"",
+          "Key": "data/3470/csv/all_cds.3470.csv",
+          "LastModified": "2023-06-11T03:09:55Z",
+          "Size": 6655389,
+          "StorageClass": "STANDARD"
+        },
+        {
+          "ETag": "\"c2adce77dbf50e0f2d20ffb2b88cbb6c\"",
+          "Key": "data/3470/csv/all_features.3470.csv",
+          "LastModified": "2023-06-11T03:09:55Z",
+          "Size": 1573207,
+          "StorageClass": "STANDARD"
+        },
+        {
+          "ETag": "\"3f9485e640c8b94beef3ea6fc27a0954\"",
+          "Key": "data/3470/csv/all_groups.3470.csv",
+          "LastModified": "2023-06-11T03:09:55Z",
+          "Size": 566361,
+          "StorageClass": "STANDARD"
+        },
+        {
+          "ETag": "\"cfa15885630eb85cb00bba748091a59b-2\"",
+          "Key": "data/3470/csv/gfe_sequences.3470.csv",
+          "LastModified": "2023-06-11T03:09:55Z",
+          "Size": 11022516,
+          "StorageClass": "STANDARD"
+        }
+      ],
+      "IsTruncated": false,
+      "Marker": "",
+      "MaxKeys": 1000,
+      "Name": "dev-gfe-db-531868584498-us-east-1",
+      "Prefix": "data/3470/csv/"
+    }
+  }

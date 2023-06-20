@@ -113,52 +113,11 @@
                                 "Prefix.$": "States.Format('data/{}/csv/', $.version)"
                             },
                             "ResultPath": "$.s3_response",
-                            "Next": "ValidateFiles"
+                            "Next": "ValidateBuildOutput"
                         },
-                        "ValidateFiles": {
-                            "Type": "Choice",
-                            "Choices": [
-                                {
-                                    "Variable": "$.s3_response.Contents",
-                                    "IsPresent": true,
-                                    "Next": "FilesExist"
-                                }
-                            ],
-                            "Default": "FileError"
-                        },
-                        "FileError": {
-                            "Type": "Fail",
-                            "Cause": "No files found"
-                        },
-                        "FilesExist": {
-                            "Type": "Pass",
-                            "Parameters": {
-                                "files.$": "$.s3_response.Contents[*].Key",
-                                "num_files.$": "States.ArrayLength($.s3_response.Contents)"
-                            },
-                            "ResultPath": "$.build_output",
-                            "Next": "ValidateFileNames"
-                        },
-                        "ValidateFileNames": {
-                            "Type": "Choice",
-                            "Choices": [
-                                {
-                                    "Variable": "$.build_output.num_files",
-                                    "NumericGreaterThan": 0,
-                                    "Next": "FilesAreValid"
-                                }
-                            ],
-                            "Default": "FileError"
-                        },
-                        "FilesAreValid": {
-                            "Type": "Pass",
-                            "Parameters": {
-                                "version.$": "$.version",
-                                "commit_sha.$": "$.commit_sha",
-                                "input_parameters.$": "$.input_parameters",
-                                "s3_path.$": "$.s3_path",
-                                "state.$": "$.state"
-                            },
+                        "ValidateBuildOutput": {
+                            "Type": "Task",
+                            "Resource": "${ValidateBuildOutputFunctionArn}",
                             "End": true
                         }
                     }
