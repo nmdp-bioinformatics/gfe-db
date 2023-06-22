@@ -2,42 +2,89 @@
 
 START_EXECUTION=$SECONDS
 
-export ROOT="$(dirname "$(dirname "$0")")"
+# export ROOT="$(dirname "$(dirname "$0")")"
+export ROOT="$(dirname "$0")"
+echo "ROOT: $ROOT"
 export BIN_DIR=$ROOT/scripts
 export SRC_DIR=$ROOT/src
-export DATA_DIR=$ROOT/../data
+export DATA_DIR=$ROOT/data
 export LOGS_DIR=$ROOT/logs
 
-# Check for environment variables
-if [[ -z "${GFE_BUCKET}" ]]; then
-	echo "GFE_BUCKET not set. Please specify an S3 bucket."
-	exit 1
+# TODO BOOKMARK 6/21/23
+get_download_url() {
+    owner="$1"
+    repo="$2"
+    asset_path="$3"
+    commit_sha="$4"
+
+    base_url="https://api.github.com"
+    endpoint="/repos/${owner}/${repo}/contents/${asset_path}"
+    url="${base_url}${endpoint}"
+
+    # Authorization header
+    auth_header="Authorization: token ${GITHUB_PERSONAL_ACCESS_TOKEN}"
+
+    # Content-Type header
+    content_type_header="Content-Type: application/json"
+
+    # Accept header
+    accept_header="Accept: application/vnd.github.v3+json"
+
+    # X-GitHub-Api-Version header
+    x_github_api_version_header="X-GitHub-Api-Version: 2022-11-28"
+
+    # GET request with headers and ref parameter
+    # response=$(curl -s -H "${auth_header}" -H "${content_type_header}" -H "${accept_header}" -H "${x_github_api_version_header}" "${url}?ref=${commit_sha}")
+    response=$(curl -s -H "${content_type_header}" -H "${accept_header}" -H "${x_github_api_version_header}" "${url}?ref=${commit_sha}")
+
+    # Print the response
+    echo "${response}" | jq -r '.download_url'
+}
+
+# Takes the download url and downloads the asset
+get_asset() {
+    download_url="$1"
+    asset_path="$2"
+
+    # Download the asset
+    curl -sSL -o "${asset_path}" -w 'Downloaded %{url_effective} - HTTP status %{http_code} - Total time %{time_total}\n' "${download_url}"
+    if [[ $? -ne 0 ]]; then
+        echo "Download failed for URL ${download_url}"
+    fi
+}
+
+# EVENT="{\"version\":3470,\"commit_sha\":\"cada41a6bfac5a8bf88ed2107a0b856b9b9785a0\",\"input_parameters\":{\"align\":false,\"kir\":false,\"mem_profile\":false,\"limit\":-1},\"s3_path\":\"s3://dev-gfe-db-531868584498-us-east-1/data/3470/csv/\",\"state\":{\"commit__sha\":\"cada41a6bfac5a8bf88ed2107a0b856b9b9785a0\",\"commit__date_utc\":\"2022-03-15T14:27:59Z\",\"commit__html_url\":\"https://github.com/ANHIG/IMGTHLA/commit/cada41a6bfac5a8bf88ed2107a0b856b9b9785a0\",\"commit__message\":\"Merge pull request #299 from ANHIG/3470\n\nUpdate to xml/hla.xml.zip correcting meta data\",\"repository__name\":\"IMGTHLA\",\"created_utc\":\"2023-06-13T23:31:50Z\",\"repository__owner\":\"ANHIG\",\"repository__url\":\"https://github.com/ANHIG/IMGTHLA\",\"execution__version\":\"3470\"}}"
+
+if [[ -z "${EVENT}" ]]; then
+	echo "No event found. Exiting..."
+    exit 1
+else
+	echo "Build is limited to $LIMIT alleles"
 fi
 
-if [[ -z "${RELEASES}" ]]; then
-	echo "RELEASES not set. Please specify the release versions to load."
-	exit 1
-fi
+# parse event
+version=$(echo "$EVENT" | jq -r '.version')
+commit_sha=$(echo "$EVENT" | jq -r '.commit_sha')
+commit_html_url=$(echo "$EVENT" | jq -r '.state.commit__html_url')
+repository_owner=$(echo "$EVENT" | jq -r '.state.repository__owner')
+repository_name=$(echo "$EVENT" | jq -r '.state.repository__name')
+align=$(echo "$EVENT" | jq -r '.input_parameters.align')
+kir=$(echo "$EVENT" | jq -r '.input_parameters.kir')
+mem_profile=$(echo "$EVENT" | jq -r '.input_parameters.mem_profile')
+limit=$(echo "$EVENT" | jq -r '.input_parameters.limit')
+s3_path=$(echo "$EVENT" | jq -r '.s3_path')
 
-if [[ -z "${ALIGN}" ]]; then
-	echo "ALIGN not set"
-	ALIGN=False
-fi
 
-if [[ -z "${KIR}" ]]; then
-	echo "KIR not set"
-	KIR=False
-fi
-
-if [[ -z "${MEM_PROFILE}" ]]; then
-	echo "MEM_PROFILE not set"
-	MEM_PROFILE=False
-fi
+# Refactor the above variable validations into a for loop
+for var in version commit_sha commit_html_url align kir mem_profile mem_profile limit s3_path repository_owner repository_name; do
+    if [[ -z "${!var}" ]]; then
+        echo "$var not set. Please specify a value."
+        exit 1
+    fi
+done
 
 echo "Found environment variables:"
-echo -e "GFE_BUCKET: $GFE_BUCKET\nRELEASES: $RELEASES\nALIGN: $ALIGN\nKIR: $KIR\nMEM_PROFILE: $MEM_PROFILE\nLIMIT: $LIMIT"
 
-# Check limit
 if [[ -z "${LIMIT}" ]]; then
 	echo "No limit set, building GFEs for all alleles"
 else
@@ -45,26 +92,24 @@ else
 fi
 
 # Check if data directory exists
+# TODO: get full path for each
 if [ ! -d "$DATA_DIR" ]; then
 	echo "Creating new directory in root: $DATA_DIR"
 	mkdir -p "$DATA_DIR"
 else
-	# TODO: get full path
 	echo "Data directory: $DATA_DIR"
 fi
 
 # Check if logs directory exists
 if [ ! -d "$LOGS_DIR" ]; then
-	# TODO: get full path
 	echo "Creating logs directory: $LOGS_DIR"
 	mkdir -p "$LOGS_DIR"
 else
-	# TODO: get full path
 	echo "Logs directory: $LOGS_DIR"
 fi
 
 # Memory profiling
-if [ "$MEM_PROFILE" == "True" ]; then
+if [ "$MEM_PROFILE" == "true" ]; then
 	echo "Memory profiling is set to $MEM_PROFILE."
 	MEM_PROFILE_FLAG="-p"
 	touch "$LOGS_DIR/mem_profile_agg.txt"
@@ -74,7 +119,7 @@ else
 fi
 
 # Load KIR data
-if [ "$KIR" == "True" ]; then
+if [ "$KIR" == "true" ]; then
 	echo "Loading KIR = $KIR"
 	KIRFLAG="-k"
 else
@@ -82,7 +127,7 @@ else
 fi
 
 # Load alignments data
-if [ "$ALIGN" == "True" ]; then
+if [ "$ALIGN" == "true" ]; then
 	echo "Loading alignments..."
 	ALIGNFLAG="-a"
 	sh "$BIN_DIR/get_alignments.sh"
@@ -90,72 +135,60 @@ else
 	ALIGNFLAG=""
 fi
 
-# Build csv files
-RELEASES=$(echo "${RELEASES}" | sed s'/"//'g | sed s'/,/ /g')
+echo "Processing release version: $version"
 
-for release in ${RELEASES}; do
+# Check if data directory exists
+# TODO: get full path for each
+if [ ! -d "$DATA_DIR/$version/csv" ]; then
+    echo "Creating new directory in root: $DATA_DIR/$version/csv"
+    mkdir -p "$DATA_DIR/$version/csv"
+else
+    echo "CSV directory: $DATA_DIR/$version/csv"
+fi
 
-	release=$(echo "$release" | sed s'/,//g')
-	echo "Processing release: $release"
+# Check if DAT file exists
+if [ -f "$DATA_DIR/$version/hla.$version.dat" ]; then
+    echo "DAT file for release $version already exists"
+else
 
-	# Check if data directory exists
-	if [ ! -d "$DATA_DIR/$release/csv" ]; then
-		# TODO: get full path
-		echo "Creating new directory in root: $DATA_DIR/$release/csv..."
-		mkdir -p "$DATA_DIR/$release/csv"
-	else
-		# TODO: get full path
-		echo "CSV directory: $DATA_DIR/$release/csv"
-	fi
+    # download_url works for all releases including 3440 and earlier
+    echo "Fetching DAT file for release $version..."
+    download_url="$(get_download_url "$repository_owner" "$repository_name" "hla.dat" "$commit_sha")"
+    get_asset "$download_url" "$DATA_DIR/$version/hla.$version.dat"
+fi
 
-	# Check if DAT file exists
-	if [ -f "$DATA_DIR/$release/hla.$release.dat" ]; then
-		echo "DAT file for release $release already exists"
-	else
-		echo "Downloading DAT file for release $release..."
-		if [ "$(echo "$release" | bc -l)" -lt 3350  ]; then
+# Builds CSV files
+# TODO booleans for kir, align, mem_profile are lower case, limit is now -1 instead of none
+python "$SRC_DIR"/app.py \
+	-o "$DATA_DIR/$version/csv" \
+	-r "$version" \
+	$KIRFLAG \
+	$ALIGNFLAG \
+	$MEM_PROFILE_FLAG \
+	-v \
+	-l $LIMIT
+[ $? -ne 0 ] && exit 1;
 
-			# Should be environment variable
-			imgt_hla_raw_url='https://raw.githubusercontent.com/ANHIG/IMGTHLA'
-			echo "Downloading $imgt_hla_raw_url/$release/hla.dat to $DATA_DIR/$release/hla.$release.dat"
-			curl -SL "$imgt_hla_raw_url/$release/hla.dat" > "$DATA_DIR/$release/hla.$release.dat"
-		else
-			imgt_hla_media_url='https://media.githubusercontent.com/media/ANHIG/IMGTHLA'
-			echo "Downloading $imgt_hla_media_url/$release/hla.dat to $DATA_DIR/$release/hla.$release.dat"
-			curl -SL "$imgt_hla_media_url/$release/hla.dat" > "$DATA_DIR/$release/hla.$release.dat"
-		fi
-	fi
-	
-	# Builds CSV files
-	python "$SRC_DIR"/app.py \
-		-o "$DATA_DIR/$release/csv" \
-		-r "$release" \
-		$KIRFLAG \
-		$ALIGNFLAG \
-		$MEM_PROFILE_FLAG \
-		-v \
-		-l $LIMIT
-	[ $? -ne 0 ] && exit 1;
+# TODO: Use this S3 hierarchy: root/release/data/csv | logs
+echo -e "Uploading data to s3://$GFE_BUCKET/data/$version"
+aws s3 --recursive --quiet cp "$DATA_DIR/$version/" s3://$GFE_BUCKET/data/$version/
 
-	# TODO: Use this S3 hierarchy: root/release/csv | logs
-	echo -e "Uploading CSVs to s3://$GFE_BUCKET/data/$release/csv/:\n$(ls $DATA_DIR/$release/csv/)"
-	aws s3 --recursive cp "$DATA_DIR/$release/csv/" s3://$GFE_BUCKET/data/$release/csv/ > "$LOGS_DIR/s3Copy$$LOG_FILE"
-	mv "$LOGS_DIR/gfeBuildLogs.txt" "$LOGS_DIR/gfeBuildLogs.$release.txt"
-	mv "$LOGS_DIR/s3Copy$$LOG_FILE" "$LOGS_DIR/s3CopyLog.$release.txt"
+if [ "$MEM_PROFILE" == "true" ]; then
+	mv "$LOGS_DIR/mem_profile_agg.txt" "$LOGS_DIR/mem_profile_agg.$version.txt"
+	mv "$LOGS_DIR/mem_profile_diff.txt" "$LOGS_DIR/mem_profile_diff.$version.txt"
+fi
 
-	if [ "$MEM_PROFILE" == "True" ]; then
-		mv "$LOGS_DIR/mem_profile_agg.txt" "$LOGS_DIR/mem_profile_agg.$release.txt"
-		mv "$LOGS_DIR/mem_profile_diff.txt" "$LOGS_DIR/mem_profile_diff.$release.txt"
-	fi
+echo -e "Uploading logs to s3://$GFE_BUCKET/logs/$version"
+aws s3 --recursive cp "$LOGS_DIR/" s3://$GFE_BUCKET/logs/pipeline/build/$version/logs/
 
-	echo -e "Uploading logs to s3://$GFE_BUCKET/logs/$release/:\n$(ls $LOGS_DIR/)"
-	aws s3 --recursive cp "$LOGS_DIR/" s3://$GFE_BUCKET/logs/pipeline/build/$release/ > "$LOGS_DIR/s3CopyLog.Local.txt"
-
-done
 
 END_EXECUTION=$(( SECONDS - $START_EXECUTION ))
 echo "Finished in $END_EXECUTION seconds"
-exit 0
 
 # For debugging to keep the build server running
-# sleep 1h
+if [ "$DEBUG" == "true" ]; then
+    echo "DEBUG mode is set to $DEBUG. Sleeping..."
+    while true; do sleep 1000; done
+fi
+
+exit 0
