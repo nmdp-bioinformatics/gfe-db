@@ -41,7 +41,7 @@
                             "Value.$": "$.s3_path"
                         },
                         {
-                            "Name": "STATE",
+                            "Name": "COMMIT_STATE",
                             "Value.$": "States.JsonToString($.state)"
                         }
                     ]
