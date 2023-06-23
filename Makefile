@@ -188,6 +188,13 @@ database.reboot:
 database.sync-scripts:
 	$(MAKE) -C ${APP_NAME}/database/ service.config.scripts.sync
 
+# # TODO get expiration date, automate renewal
+# database.ssl.get-expiration:
+# 	$(MAKE) -C ${APP_NAME}/database/ service.ssl.get-expiration
+
+database.ssl.renew-cert:
+	$(MAKE) -C ${APP_NAME}/database/ service.ssl.renew-cert
+
 database.backup:
 	@echo "Backing up $${APP_NAME} server..."
 	$(MAKE) -C ${APP_NAME}/database/ service.backup
