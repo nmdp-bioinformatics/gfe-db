@@ -12,6 +12,7 @@ deploy:
 	$(MAKE) service.config.deploy
 
 # TODO update S3 config parameters GitHubRepositoryOwner, GitHubRepositoryName, PipelineStatePath, PipelineParamsPath
+# TODO add error handling for bash commands by checking $? after each command
 service.functions.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} - functions" 2>&1 | tee -a $$CFN_LOG_PATH
 	@sam build \

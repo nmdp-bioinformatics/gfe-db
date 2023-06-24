@@ -101,11 +101,11 @@ Resources:
       GroupName: !Sub '${Stage}-${AppName}-build-server-sg'
       GroupDescription: !Sub 'Security group for the ${Stage}-${AppName} build server'
       VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcID}}'
-      # SecurityGroupIngress: # Uncomment to allow SSH access to build instance
-      #   - CidrIp: 0.0.0.0/0
-      #     FromPort: 22
-      #     IpProtocol: tcp
-      #     ToPort: 22
+      SecurityGroupIngress: # Uncomment to allow SSH access to build instance
+        - CidrIp: 0.0.0.0/0
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
       Tags:
         - Key: Name
           Value: !Sub '${Stage}-${AppName}-build-server-sg'
@@ -529,7 +529,7 @@ Resources:
               Action: 
                 - "states:StartExecution"
               Resource: 
-                - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineStateMachineArn}}'
+                - !GetAtt UpdatePipelineStateMachine.Arn
       Events:
         GfeDbProcessingQueueTrigger:
           Type: SQS
@@ -546,9 +546,9 @@ Resources:
         DataBucketName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
         ValidateBuildOutputFunctionArn: !GetAtt ValidateBuildOutputFunction.Arn
         GfeDbExecutionResultTopicArn: !GetAtt GfeDbExecutionResultTopic.TopicArn
-      #   BuildJobDefinition: !Ref BuildJobDefinition
-      #   BuildJobName: !Sub '${Stage}-${AppName}-build-job'
-      #   BuildJobQueue: !Ref BuildJobQueue
+        BuildJobDefinition: !Ref BuildJobDefinition
+        BuildJobName: !Sub '${Stage}-${AppName}-build-job'
+        BuildJobQueue: !Ref BuildJobQueue
         InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
         LoadReleaseActivityArn: !Ref LoadReleaseActivity
       Policies:
@@ -582,27 +582,21 @@ Resources:
                 - "logs:DescribeLogGroups"
               Resource: 
                 - "*"
-        # - Version: "2012-10-17"
-        #   Statement:
-        #     - Effect: "Allow"
-        #       Action: 
-        #         - "dynamodb:UpdateItem"
-        #       Resource: !GetAtt ExecutionStateTable.Arn
-      #   - Version: "2012-10-17"
-      #     Statement:
-      #       - Effect: "Allow"
-      #         Action: 
-      #           - "batch:SubmitJob"
-      #           - "batch:DescribeJobs"
-      #           - "batch:TerminateJob"
-      #         Resource: "*"
-      #       - Effect: "Allow"
-      #         Action: 
-      #           - "events:PutTargets"
-      #           - "events:PutRule"
-      #           - "events:DescribeRule"
-      #         Resource: 
-      #           - !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule'
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action: 
+                - "batch:SubmitJob"
+                - "batch:DescribeJobs"
+                - "batch:TerminateJob"
+              Resource: "*"
+            - Effect: "Allow"
+              Action: 
+                - "events:PutTargets"
+                - "events:PutRule"
+                - "events:DescribeRule"
+              Resource: 
+                - !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule'
       Logging:
         Destinations: 
           - CloudWatchLogsLogGroup: 

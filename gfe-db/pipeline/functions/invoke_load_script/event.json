@@ -7,5 +7,5 @@
         "mem_profile": false,
         "limit": -1
     },
-    "s3_path": "s3://dev-gfe-db-531868584498-us-east-1/data/3470/csv"
+    "s3_path": "s3://dev-gfe-db-531868584498-us-east-1/data/3470"
 }

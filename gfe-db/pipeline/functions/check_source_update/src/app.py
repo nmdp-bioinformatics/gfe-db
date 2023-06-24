@@ -220,7 +220,8 @@ def update_execution_state_item(execution_state_item: ExecutionStateItem, status
 
     if input_parameters is not None and status == "PENDING":
         execution_state_item.execution.input_parameters = input_parameters
-        execution_state_item.execution.s3_path = f's3://{data_bucket_name}/data/{execution_state_item.execution.version}/csv/'
+        # TODO Update format to s3://<data_bucket_name>/data/csv/<version>' for csv and s3://<data_bucket_name>/data/dat/<version>' for hla.dat for Glue Catalog 
+        execution_state_item.execution.s3_path = f's3://{data_bucket_name}/data/{execution_state_item.execution.version}'
         execution_state_item.execution.date_utc = timestamp
 
     # execution_state_item.updated_utc = timestamp

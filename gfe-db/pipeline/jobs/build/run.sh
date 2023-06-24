@@ -10,7 +10,6 @@ export SRC_DIR=$ROOT/src
 export DATA_DIR=$ROOT/data
 export LOGS_DIR=$ROOT/logs
 
-# TODO BOOKMARK 6/21/23
 get_download_url() {
     owner="$1"
     repo="$2"
@@ -21,8 +20,8 @@ get_download_url() {
     endpoint="/repos/${owner}/${repo}/contents/${asset_path}"
     url="${base_url}${endpoint}"
 
-    # Authorization header
-    auth_header="Authorization: token ${GITHUB_PERSONAL_ACCESS_TOKEN}"
+    # # Authorization header
+    # auth_header="Authorization: token ${GITHUB_PERSONAL_ACCESS_TOKEN}"
 
     # Content-Type header
     content_type_header="Content-Type: application/json"
@@ -59,37 +58,36 @@ if [[ -z "${EVENT}" ]]; then
 	echo "No event found. Exiting..."
     exit 1
 else
-	echo "Build is limited to $LIMIT alleles"
+	echo "Build is limited to $limit alleles"
 fi
 
 # parse event
 version=$(echo "$EVENT" | jq -r '.version')
 commit_sha=$(echo "$EVENT" | jq -r '.commit_sha')
-commit_html_url=$(echo "$EVENT" | jq -r '.state.commit__html_url')
 repository_owner=$(echo "$EVENT" | jq -r '.state.repository__owner')
 repository_name=$(echo "$EVENT" | jq -r '.state.repository__name')
 align=$(echo "$EVENT" | jq -r '.input_parameters.align')
 kir=$(echo "$EVENT" | jq -r '.input_parameters.kir')
 mem_profile=$(echo "$EVENT" | jq -r '.input_parameters.mem_profile')
 limit=$(echo "$EVENT" | jq -r '.input_parameters.limit')
-s3_path=$(echo "$EVENT" | jq -r '.s3_path')
-
+# s3_path=$(echo "$EVENT" | jq -r '.s3_path')
 
 # Refactor the above variable validations into a for loop
-for var in version commit_sha commit_html_url align kir mem_profile mem_profile limit s3_path repository_owner repository_name; do
+for var in version commit_sha align kir mem_profile limit repository_owner repository_name; do
     if [[ -z "${!var}" ]]; then
         echo "$var not set. Please specify a value."
         exit 1
     fi
+    echo "$var: ${!var}"
 done
 
-echo "Found environment variables:"
-
-if [[ -z "${LIMIT}" ]]; then
+if [[ -z "${limit}" ]]; then
 	echo "No limit set, building GFEs for all alleles"
 else
-	echo "Build is limited to $LIMIT alleles"
+	echo "Build is limited to $limit alleles"
 fi
+
+echo "Found environment variables"
 
 # Check if data directory exists
 # TODO: get full path for each
@@ -109,8 +107,8 @@ else
 fi
 
 # Memory profiling
-if [ "$MEM_PROFILE" == "true" ]; then
-	echo "Memory profiling is set to $MEM_PROFILE."
+if [ "$mem_profile" == "true" ]; then
+	echo "Memory profiling is set to $mem_profile."
 	MEM_PROFILE_FLAG="-p"
 	touch "$LOGS_DIR/mem_profile_agg.txt"
 	touch "$LOGS_DIR/mem_profile_diff.txt"
@@ -118,16 +116,16 @@ else
 	MEM_PROFILE_FLAG=""
 fi
 
-# Load KIR data
-if [ "$KIR" == "true" ]; then
-	echo "Loading KIR = $KIR"
+# Load kir data
+if [ "$kir" == "true" ]; then
+	echo "Loading kir = $kir"
 	KIRFLAG="-k"
 else
 	KIRFLAG=""
 fi
 
 # Load alignments data
-if [ "$ALIGN" == "true" ]; then
+if [ "$align" == "true" ]; then
 	echo "Loading alignments..."
 	ALIGNFLAG="-a"
 	sh "$BIN_DIR/get_alignments.sh"
@@ -157,33 +155,33 @@ else
     get_asset "$download_url" "$DATA_DIR/$version/hla.$version.dat"
 fi
 
-# Builds CSV files
-# TODO booleans for kir, align, mem_profile are lower case, limit is now -1 instead of none
-python "$SRC_DIR"/app.py \
-	-o "$DATA_DIR/$version/csv" \
-	-r "$version" \
-	$KIRFLAG \
-	$ALIGNFLAG \
-	$MEM_PROFILE_FLAG \
-	-v \
-	-l $LIMIT
-[ $? -ne 0 ] && exit 1;
+# # Builds CSV files
+# # TODO booleans for kir, align, mem_profile are lower case, limit is now -1 instead of none
+# python "$SRC_DIR"/app.py \
+# 	-o "$DATA_DIR/$version/csv" \
+# 	-r "$version" \
+# 	$KIRFLAG \
+# 	$ALIGNFLAG \
+# 	$MEM_PROFILE_FLAG \
+# 	-v \
+# 	-l $limit
+# [ $? -ne 0 ] && exit 1;
 
-# TODO: Use this S3 hierarchy: root/release/data/csv | logs
-echo -e "Uploading data to s3://$GFE_BUCKET/data/$version"
-aws s3 --recursive --quiet cp "$DATA_DIR/$version/" s3://$GFE_BUCKET/data/$version/
+# # TODO: Use this S3 hierarchy: root/release/data/csv | logs
+# echo -e "Uploading data to s3://$GFE_BUCKET/data/$version"
+# aws s3 --recursive --quiet cp "$DATA_DIR/$version/" s3://$GFE_BUCKET/data/$version/
 
-if [ "$MEM_PROFILE" == "true" ]; then
-	mv "$LOGS_DIR/mem_profile_agg.txt" "$LOGS_DIR/mem_profile_agg.$version.txt"
-	mv "$LOGS_DIR/mem_profile_diff.txt" "$LOGS_DIR/mem_profile_diff.$version.txt"
-fi
+# if [ "$mem_profile" == "true" ]; then
+# 	mv "$LOGS_DIR/mem_profile_agg.txt" "$LOGS_DIR/mem_profile_agg.$version.txt"
+# 	mv "$LOGS_DIR/mem_profile_diff.txt" "$LOGS_DIR/mem_profile_diff.$version.txt"
+# fi
 
-echo -e "Uploading logs to s3://$GFE_BUCKET/logs/$version"
-aws s3 --recursive cp "$LOGS_DIR/" s3://$GFE_BUCKET/logs/pipeline/build/$version/logs/
+# echo -e "Uploading logs to s3://$GFE_BUCKET/logs/$version"
+# aws s3 --recursive cp "$LOGS_DIR/" s3://$GFE_BUCKET/logs/pipeline/build/$version/logs/
 
 
-END_EXECUTION=$(( SECONDS - $START_EXECUTION ))
-echo "Finished in $END_EXECUTION seconds"
+# END_EXECUTION=$(( SECONDS - $START_EXECUTION ))
+# echo "Finished in $END_EXECUTION seconds"
 
 # For debugging to keep the build server running
 if [ "$DEBUG" == "true" ]; then

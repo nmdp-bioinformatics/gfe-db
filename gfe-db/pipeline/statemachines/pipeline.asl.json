@@ -26,7 +26,7 @@
             ],
             "Next": "BuildRelease",
             "Parameters": {
-                "TableName": "dev-gfe-db-pipeline-ExecutionStateTable-M01KLKJBONAZ",
+                "TableName": "${ExecutionStateTable}",
                 "Key": {
                     "commit__sha": {
                         "S.$": "$.commit_sha"
@@ -97,13 +97,26 @@
                     }
                 },
                 {
-                    "StartAt": "GfeDbBuildJobMockState",
+                    "StartAt": "GfeDbBuildJob",
                     "States": {
-                        "GfeDbBuildJobMockState": {
+                        "GfeDbBuildJob": {
                             "Type": "Task",
-                            "Resource": "arn:aws:lambda:us-east-1:531868584498:function:GfeDbBuildJobMockFunction",
+                            "Resource": "arn:aws:states:::batch:submitJob.sync",
                             "ResultPath": null,
-                            "Next": "ListFiles"
+                            "Next": "ListFiles",
+                            "Parameters": {
+                                "JobDefinition": "${BuildJobDefinition}",
+                                "JobName": "${BuildJobName}",
+                                "JobQueue": "${BuildJobQueue}",
+                                "ContainerOverrides": {
+                                    "Environment": [
+                                        {
+                                            "Name": "EVENT",
+                                            "Value.$": "States.JsonToString($)"
+                                        }
+                                    ]
+                                }
+                            }
                         },
                         "ListFiles": {
                             "Type": "Task",
