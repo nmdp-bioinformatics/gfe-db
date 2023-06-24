@@ -189,6 +189,9 @@ neo4j.create-report:
 ssl.create-cert:
 	@bash init/create_cert.sh "${SUBDOMAIN}.${HOST_DOMAIN}" ${ADMIN_EMAIL}
 
+ssl.renew-cert:
+	@bash init/renew_cert.sh "${SUBDOMAIN}.${HOST_DOMAIN}"
+
 copy-logs:
 	@mkdir -p ${LOGS_DIR}/neo4j ${LOGS_DIR}/system
 	$(MAKE) logs.bootstrap

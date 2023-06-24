@@ -49,6 +49,13 @@ service.config.scripts.sync: service.config.scripts.deploy
 		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
 		--comment "Sync scripts to database instance" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
+service.ssl.renew-cert:
+	@aws ssm send-command \
+		--document-name "AWS-RunShellScript" \
+		--parameters "commands=[cd /home/bitnami && sudo make ssl.renew-cert]" \
+		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
+		--comment "${STAGE}-${APP_NAME} SSL certificate renewal utility" 2>&1 | tee -a $$CFN_LOG_PATH || true
+
 service.config.cloudwatch-agent.deploy:
 	@mkdir -p config/amazon-cloudwatch-agent/tmp/ 
 	@cat config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json | sed "s/STAGE/$${STAGE}/g" | sed "s/APP_NAME/$${APP_NAME}/g" > config/amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json
