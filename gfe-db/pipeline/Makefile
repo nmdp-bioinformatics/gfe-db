@@ -38,6 +38,8 @@ service.functions.deploy:
 			CheckSourceUpdateFunctionMemorySize="$$(cat functions/environment.json | jq -r '.Functions.CheckSourceUpdate.FunctionConfiguration.MemorySize')" \
 			CheckSourceUpdateFunctionTimeout="$$(cat functions/environment.json | jq -r '.Functions.CheckSourceUpdate.FunctionConfiguration.Timeout')" \
 			CheckSourceUpdateFunctionSchedule="$$(cat functions/environment.json | jq -r '.Functions.CheckSourceUpdate.CheckSourceUpdateFunctionSchedule')" \
+			GetExecutionStateFunctionTimeout="$$(cat functions/environment.json | jq -r '.Functions.GetExecutionState.FunctionConfiguration.Timeout')" \
+			GetExecutionStateFunctionMemorySize="$$(cat functions/environment.json | jq -r '.Functions.GetExecutionState.FunctionConfiguration.MemorySize')" \
 			ValidateBuildOutputFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.ValidateBuildOutput.FunctionConfiguration.FunctionName')" \
 			ValidateBuildOutputFunctionMemorySize="$$(cat functions/environment.json | jq -r '.Functions.ValidateBuildOutput.FunctionConfiguration.MemorySize')" \
 			ValidateBuildOutputFunctionTimeout="$$(cat functions/environment.json | jq -r '.Functions.ValidateBuildOutput.FunctionConfiguration.Timeout')" \

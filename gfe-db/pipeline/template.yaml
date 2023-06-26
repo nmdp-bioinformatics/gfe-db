@@ -32,6 +32,10 @@ Parameters:
     Type: Number
   CheckSourceUpdateFunctionSchedule:
     Type: String
+  GetExecutionStateFunctionTimeout:
+    Type: Number
+  GetExecutionStateFunctionMemorySize:
+    Type: Number
   ValidateBuildOutputFunctionName:
     Type: String
   ValidateBuildOutputFunctionMemorySize:
@@ -490,6 +494,43 @@ Resources:
               Resource:
                 - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
                 - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
+
+  GetExecutionStateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub '${AppName} execution input validation and state retrieval'
+      CodeUri: functions/get_execution_state/
+      Handler: app.lambda_handler
+      Runtime: python3.10
+      Layers:
+        - !Ref GfeDbModelsLayer
+      MemorySize: !Ref GetExecutionStateFunctionMemorySize
+      Timeout: !Ref GetExecutionStateFunctionTimeout
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          APP_NAME: !Ref AppName
+          STAGE: !Ref Stage
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: "AllowSSMParameterStoreAccess"
+              Effect: "Allow"
+              Action:
+                - "ssm:GetParameters"
+                - "ssm:GetParameter"
+              # TODO test correct ARN path for app specific parameters
+              # arn:aws:ssm:us-east-2:123456789012:parameter/${AppName}/${Stage}/${AWS::Region}/*
+              Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*'
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: "AllowDynamoDBReadAccess"
+              Effect: "Allow"
+              Action:
+                - "dynamodb:ReadItem"
+              Resource: !GetAtt ExecutionStateTable.Arn
 
   # # TODO redeploy
   # CheckSourceUpdateFunctionAlarm:
