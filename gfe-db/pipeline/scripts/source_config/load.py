@@ -5,22 +5,24 @@ TODO solution to avoid overwriting data when running this script (regular Dynamo
 """
 import os
 from pathlib import Path
+import os
 import sys
-sys.path.append(
-    str(Path(__file__).parent.parent.parent / "functions" / "check_source_update")
-)
+# for dev, local path to gfe-db modules
+# ./gfe-db/pipeline/lambda_layers/gfe_db_models (use absolute path)
+sys.path.append(os.environ["GFEDBMODELS_PATH"])
+
 import logging
 from datetime import datetime
 utc_now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 import json
 import boto3
-from src.utils.constants import (
+from gfedbmodels.constants import (
     execution_state_table_fields
 )
-from src.utils.types import (
+from gfedbmodels.types import (
     ExecutionState,
 )
-from src.utils.utils import (
+from gfedbmodels.utils import (
     flatten_json_records,
     filter_null_fields
 )

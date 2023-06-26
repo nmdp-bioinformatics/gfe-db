@@ -38,6 +38,9 @@ s3 = session.client("s3")
 
 cache_dir = Path(__file__).parent / "_cache"
 
+# TODO clear cache
+# TODO disable/enable cache for testing
+
 def save_json_to_cache(data, var_name):
     """Saves data to cache directory"""
     if not cache_dir.exists():

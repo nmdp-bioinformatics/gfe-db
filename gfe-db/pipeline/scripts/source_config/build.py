@@ -1,14 +1,15 @@
 """
 Builds the execution state for the given repository source from the static repository source configuration (`source-config.json`).
 """
+
 import os
 import sys
-sys.path.append(
-    "/Users/ammon/Projects/nmdp-bioinformatics/02-Repositories/gfe-db/gfe-db/pipeline/functions/check_source_update"
-)
+# for dev, local path to gfe-db modules
+# ./gfe-db/pipeline/lambda_layers/gfe_db_models (use absolute path)
+sys.path.append(os.environ["GFEDBMODELS_PATH"])
+
 from pathlib import Path
 import logging
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 from datetime import datetime
@@ -17,12 +18,12 @@ utc_now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 import json
 
 # these libraries are shared from the check_source_update function
-from src.utils.types import (
+from gfedbmodels.types import (
     SourceConfig,
     RepositoryConfig,
     ExecutionState
 )
-from src.utils import (
+from gfedbmodels import (
     paginate_commits,
     select_fields,
     flatten_json_records,

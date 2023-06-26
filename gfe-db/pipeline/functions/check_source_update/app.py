@@ -7,12 +7,17 @@ syncing state. If old items are deleted on the Execution state table while the m
 this function will not reprocess the deleted items.
 """
 import os
+if __name__ != "app":
+    import sys
+    # for dev, local path to gfe-db modules
+    # ./gfe-db/pipeline/lambda_layers/gfe_db_models (use absolute path)
+    sys.path.append(os.environ["GFEDBMODELS_PATH"])
 import logging
 from decimal import Decimal
 from datetime import datetime, timedelta
 import json
 import boto3
-from utils.constants import (
+from gfedbmodels.constants import (
     dynamodb,
     GITHUB_REPOSITORY_OWNER,
     GITHUB_REPOSITORY_NAME,
@@ -21,7 +26,7 @@ from utils.constants import (
     gfedb_processing_queue_url,
     execution_state_table_fields
 )
-from utils.types import (
+from gfedbmodels.types import (
     str_to_datetime,
     str_from_datetime,
     ExecutionStateItem, 
@@ -30,7 +35,7 @@ from utils.types import (
     ExecutionDetailsConfig,
     ExecutionPayloadItem
 )
-from utils.utils import (
+from gfedbmodels.utils import (
     read_source_config,
     restore_nested_json, 
     list_commits, 

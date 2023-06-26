@@ -1,0 +1,4 @@
+python-dotenv
+pydantic
+requests
+urllib3<2

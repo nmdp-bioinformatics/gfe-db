@@ -69,6 +69,20 @@ Resources:
       Description: GitHub Personal Access Token for repository access
       Value: !Sub '{"owner":"${GithubRepositoryOwner}", "name":"${GithubRepositoryName}"}'
 
+  # Create a lambda layer
+  GfeDbModelsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub '${Stage}-gfe-db-models'
+      Description: !Sub '${AppName} models for validationa and processing data'
+      ContentUri: lambda_layers/gfe_db_models
+      RetentionPolicy: delete
+      CompatibleRuntimes:
+        - python3.10
+    Metadata:
+      BuildMethod: python3.10
+      BuildArchitectures: arm64
+
   # TODO change name to GfeDbExecutionStateTable
   ExecutionStateTable:
     Type: AWS::DynamoDB::Table
@@ -413,6 +427,8 @@ Resources:
       CodeUri: functions/check_source_update/
       Handler: app.lambda_handler
       Runtime: python3.9
+      Layers:
+        - !Ref GfeDbModelsLayer
       MemorySize: !Ref CheckSourceUpdateFunctionMemorySize
       Timeout: !Ref CheckSourceUpdateFunctionTimeout
       Architectures:
