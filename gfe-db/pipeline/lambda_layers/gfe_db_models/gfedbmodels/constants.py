@@ -28,7 +28,7 @@ github_source_repository = json.loads(ssm.get_parameter(
 GITHUB_REPOSITORY_OWNER = github_source_repository["owner"]
 GITHUB_REPOSITORY_NAME = github_source_repository["name"]
 
-table_name = ssm.get_parameter(
+execution_state_table_name = ssm.get_parameter(
     Name=f'/{os.environ["APP_NAME"]}/{os.environ["STAGE"]}/{os.environ["AWS_REGION"]}/ExecutionStateTableName'
 )["Parameter"]["Value"]
 

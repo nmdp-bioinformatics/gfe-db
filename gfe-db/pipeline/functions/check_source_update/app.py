@@ -21,7 +21,7 @@ from gfedbmodels.constants import (
     dynamodb,
     GITHUB_REPOSITORY_OWNER,
     GITHUB_REPOSITORY_NAME,
-    table_name,
+    execution_state_table_name,
     data_bucket_name,
     gfedb_processing_queue_url,
     execution_state_table_fields
@@ -68,8 +68,8 @@ def lambda_handler(event, context):
 
     try:
         # Get items from state table
-        logger.info(f"Fetching execution state from {table_name}")
-        table = dynamodb.Table(table_name)
+        logger.info(f"Fetching execution state from {execution_state_table_name}")
+        table = dynamodb.Table(execution_state_table_name)
         execution_state = get_execution_state(table)
 
         # Get the most recent commits from github since the most recent commit date retrieved from DynamoDB
@@ -149,10 +149,10 @@ def lambda_handler(event, context):
 
         if len(items) > 0:
             with table.batch_writer() as batch:
-                logger.info(f"Loading {len(items)} items to {table_name}")
+                logger.info(f"Loading {len(items)} items to {execution_state_table_name}")
                 for item in items:
                     batch.put_item(Item=item)
-            logger.info(f"{len(items)} items loaded to {table_name}")   
+            logger.info(f"{len(items)} items loaded to {execution_state_table_name}")   
         else:
             raise Exception("Commits were found but the DynamoDB payload is empty")
 
