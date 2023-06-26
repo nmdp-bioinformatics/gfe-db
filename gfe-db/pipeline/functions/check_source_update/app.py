@@ -232,6 +232,6 @@ def update_execution_state_item(execution_state_item: ExecutionStateItem, status
 if __name__ == "__main__":
     from pathlib import Path
 
-    event = json.loads((Path(__file__).parent.parent / "events" / "event.json").read_text())
+    event = json.loads((Path(__file__).parent / "event.json").read_text())
 
     lambda_handler(event, None)

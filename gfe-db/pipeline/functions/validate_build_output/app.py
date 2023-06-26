@@ -31,6 +31,8 @@ def lambda_handler(event, context):
 
     for file_path in output_file_paths:
 
+        logger.info(f"Validating {file_path}")
+
         # get schema name from file name
         schema = file_path.split("/")[-1].split(".")[0]
 
