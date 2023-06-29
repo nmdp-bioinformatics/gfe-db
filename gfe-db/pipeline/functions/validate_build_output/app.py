@@ -17,7 +17,8 @@ data_bucket_name = ssm.get_parameter(
     Name=f'/{os.environ["APP_NAME"]}/{os.environ["STAGE"]}/{os.environ["AWS_REGION"]}/DataBucketName'
 )["Parameter"]["Value"]
 
-
+# TODO use Powertools event parser
+# @event_parser(model=Order)
 def lambda_handler(event, context):
 
     logger.info(json.dumps(event))
@@ -70,6 +71,7 @@ output_headers = {
     "gfe_sequences": ['gfe_name', 'allele_id', 'locus', 'hla_name', 'seq_id', 'sequence', 'length', 'imgt_release']
 }
 
+# TODO Use S3 streaming https://docs.powertools.aws.dev/lambda/python/latest/utilities/streaming/#getting-started
 def load_csv_from_s3(path: str) -> dict:
     data = s3.get_object(Bucket=data_bucket_name, Key=path)["Body"].read().decode("utf-8")
 
