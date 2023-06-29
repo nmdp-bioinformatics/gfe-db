@@ -1,5 +1,6 @@
 import os
 import logging
+from typing import Union, Literal
 from dataclasses import dataclass
 from functools import lru_cache
 import re
@@ -12,8 +13,9 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-# TODO send to CloudFormation
-app_params_mapping = {
+# TODO send to CloudFormation and retrieve all with SSM Parameter "AppConfigLayerMapping"
+app_config_layer_mapping = {
+    "ssm": {
     "infra": [
         "VpcID",
         "PublicSubnetID",
@@ -41,18 +43,15 @@ app_params_mapping = {
         "Neo4jCredentialsSecretArn",
         "Neo4jDatabaseSecurityGroupName",
         "Neo4jDatabaseInstanceId",
-    ]
-}
-
-# TODO send to CloudFormation
-app_secrets_mapping = {
+    ]},
+    "secretsmanager": {
     "pipeline": [
         "GitHubPersonalAccessToken"
     ],
     "database": [
         "Neo4jCredentials"
     ]
-}
+}}
 
 def camel_to_snake(name):
     name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
@@ -71,7 +70,6 @@ def get_secret_value(secretsmanager_client, secret_id: str) -> str:
         SecretId=secret_id
     )["SecretString"]
 
-
 @dataclass
 class JsonModel:
     __slots__ = "__dict__"
@@ -85,6 +83,12 @@ class JsonModel:
 
     def __repr__(self) -> str:
         return self.__dict__()
+
+    def __getitem__(self, key):
+        return getattr(self, key)
+
+    def __setitem__(self, key, value):
+        setattr(self, key, value)
 
 
 class SessionManager:
@@ -105,61 +109,82 @@ class SessionManager:
             setattr(self.resources, service_name, self._session.resource(service_name, region_name=os.environ["AWS_REGION"]))
         return getattr(self.resources, service_name)
     
-
-
-class LayerParameterManager(JsonModel):
+        
+class ConfigManager(JsonModel):
 
     def __init__(self, **kwargs) -> None:
-        self._params_mapping = kwargs.get("params_mapping")
-        self.params_prefix = kwargs.get("params_prefix")
-        self._ssm_client = kwargs.get("ssm_client")
+        self._service = kwargs["service"]
+        self.map = kwargs["mapping"]
+        self._path_prefix = kwargs["path_prefix"]
+        self._client = kwargs["client"]
     
-    def __getattr__(self, name) -> Any:
-        if name in self._params_mapping.keys() and name not in self.__dict__.keys():
-            value = get_parameter_value(self._ssm_client, f'{self.params_prefix}/{self._params_mapping[name]}')
+    def __getattr__(self, name: str) -> Union[str, dict, list, int, float, bool]:
+        """Fetches and caches values from SSM Parameter Store or Secrets Manager. Will not fetch the same value twice.
+
+        Args:
+            name (str): Name of the parameter or secret to fetch
+
+        Raises:
+            ValueError: Bad value for service type
+            AttributeError: Parameter or secret not found
+
+        Returns:
+            Union[str, dict, list, int, float, bool]: Value of the parameter or secret
+        """
+        if name in self.map.keys() and name not in self.__dict__.keys():
+            if self._service == "ssm":
+                value = get_parameter_value(self._client, f'{self._path_prefix}/{self.map[name]}')
+            elif self._service == "secretsmanager":
+                value = get_secret_value(self._client, f'{self._path_prefix}/{self.map[name]}')
+            else:
+                raise ValueError(f"Service {self._service} not supported, must be one of 'ssm' or 'secretsmanager'")
+            
+            # detect json
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                pass
+
             setattr(self, name, value)
             return value
         else:
-            raise AttributeError(f"Attribute {name} not found")
+            raise AttributeError(f"Could not find '{name}' in {self._service} mapping")
 
     def __str__(self) -> str:
-        return json.dumps({k: v for k, v in self.__dict__.items() if k != '_ssm_client'})
-
-# TODO
-class LayerSecretsManager:
-    pass
+        return json.dumps({k: v for k, v in self.__dict__.items() if k != '_client'})
         
-
-# TODO
-class AppLayer:
-    def __init__(self, **kwargs) -> None:
-        self.layer_name = kwargs.get("layer_name")
-        # self.params_prefix = f'/{self.env.APP_NAME}/{self.env.STAGE}/{self.env.AWS_REGION}' # TODO create a named tuple of pydantic class for the path to enforce
-        self.params = JsonModel()
-        self._init_params()
-    
-    def _init_params(self):
-        setattr(self.params, self.layer_name, LayerParameterManager(
-            params_mapping=self.params_mapping[self.layer_name],
-            params_prefix=f'{self.params_prefix}', # TODO f'{self.params_prefix}/{layer}',
-            ssm_client=self._ssm_client))
 
 class AppConfig:
 
-    def __init__(self, params_mapping: dict, boto3_session = None) -> None:
-        self.params_mapping = { k: {camel_to_snake(item): item for item in v} for k, v in app_params_mapping.items() }
+    def __init__(self, params_mapping: dict = None, secrets_mapping: dict = None, boto3_session = None, **kwargs) -> None:
+        self._build_mappings(params_mapping, secrets_mapping)
+        # for name, mapping in {"ssm": params_mapping, "secretsmanager": secrets_mapping}.items():
+        #     self.mappings[name] = { k: {camel_to_snake(item): item for item in v} for k, v in mapping.items() }
         self.env = JsonModel(**{
             "AWS_REGION": os.environ["AWS_REGION"],
             "APP_NAME": os.environ["APP_NAME"],
             "STAGE": os.environ["STAGE"]
         })
+        self._path_prefix = f'/{self.env.APP_NAME}/{self.env.STAGE}/{self.env.AWS_REGION}' # TODO create a named tuple of pydantic class for the path to enforce
+        self.params, self.secrets = JsonModel(), JsonModel() # hard coded model attributes define intended class scope
         self.session = boto3_session or SessionManager()
-        self.params = JsonModel()
 
-        for layer in self.params_mapping:
-            setattr(self.params, layer, AppLayer(layer_name=layer, params_mapping=self.params_mapping, boto3_session=self.session))
+        for service in ["ssm", "secretsmanager"]:
+            setattr(self.session.clients, service, self.session.get_client(service)) 
+            self._init_config(service=service)
 
-        
+    def _build_mappings(self, params_mapping: dict, secrets_mapping: dict):
+        self.mappings = {}
+        for name, mapping in {"ssm": params_mapping, "secretsmanager": secrets_mapping}.items():
+            self.mappings[name] = { k: {camel_to_snake(item): item for item in v} for k, v in mapping.items() }
+
+    def _init_config(self, service: str = Union[Literal["ssm"],Literal["secretsmanager"]]):
+        for layer in self.mappings[service]:
+            setattr(self.params if service == "ssm" else self.secrets, layer, ConfigManager(
+                service=service,
+                mapping=self.mappings[service][layer],
+                path_prefix=f'{self._path_prefix}', # TODO f'{self._path_prefix}/{layer}/Name',
+                client=self.session.clients[service]))
 
 # GITHUB_PERSONAL_ACCESS_TOKEN = secretsmanager.get_secret_value(
 #     SecretId=f'/{os.environ["APP_NAME"]}/{os.environ["STAGE"]}/{os.environ["AWS_REGION"]}/GitHubPersonalAccessToken'
@@ -211,9 +236,20 @@ execution_state_table_fields = [
     "updated_utc"
 ]
 
-app = AppConfig(app_params_mapping)
+app = AppConfig(
+    params_mapping=app_config_layer_mapping["ssm"],
+    secrets_mapping=app_config_layer_mapping["secretsmanager"]
+)
+
+# ssm param
 try:
     app.params.pipeline.data_bucket_name
 except AttributeError:
     app.params.infra.data_bucket_name
+
+# secret
+try:
+    app.secrets.infra.git_hub_personal_access_token
+except AttributeError:
+    app.secrets.pipeline.git_hub_personal_access_token
 print(app.env)
