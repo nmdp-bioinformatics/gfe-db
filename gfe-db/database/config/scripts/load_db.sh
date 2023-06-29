@@ -39,7 +39,7 @@ fi
 # Get Neo4j Credentials
 NEO4J_CREDENTIALS=$(aws secretsmanager get-secret-value \
     --region $AWS_REGION \
-    --secret-id ${APP_NAME}-${STAGE}-Neo4jCredentials | jq -r '.SecretString')
+    --secret-id "/${APP_NAME}/${STAGE}/${AWS::Region}/Neo4jCredentials" | jq -r '.SecretString') # TODO update path to use "/${AppName}/${Stage}/${AWS::Region}/
 NEO4J_USERNAME=$(echo $NEO4J_CREDENTIALS | jq -r '.NEO4J_USERNAME')
 NEO4J_PASSWORD=$(echo $NEO4J_CREDENTIALS | jq -r '.NEO4J_PASSWORD')
 
