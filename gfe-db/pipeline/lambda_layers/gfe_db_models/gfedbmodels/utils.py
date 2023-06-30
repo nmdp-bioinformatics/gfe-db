@@ -19,7 +19,7 @@ from .types import (
     TargetMetadataConfig,
     Commit,
     ExecutionStateItem,
-    ExecutionDetailsConfig
+    ExecutionDetailsConfig,
 )
 from .constants import (
     AWS_REGION,
@@ -41,6 +41,7 @@ cache_dir = Path(__file__).parent / "_cache"
 # TODO clear cache
 # TODO disable/enable cache for testing
 
+
 def save_json_to_cache(data, var_name):
     """Saves data to cache directory"""
     if not cache_dir.exists():
@@ -61,7 +62,7 @@ def save_json_to_cache(data, var_name):
         # remove the file if it exists
         if (cache_dir / var_name).exists():
             (cache_dir / var_name).unlink()
-    
+
 
 def save_pickle_to_cache(data, var_name):
     """Saves data to cache directory"""
@@ -124,7 +125,7 @@ def cache_pickle(func):
 def flatten_json(data, sep=".", skip_fields=[], select_fields=[]):
     """Flatten a nested json file. For a list of dictionaries, use this
     inside a for loop before converting to pandas DataFrame.
-    
+
     Args:
         data (dict): nested json file
         sep (str, optional): separator for flattened keys. Defaults to ".".
@@ -154,9 +155,9 @@ def flatten_json(data, sep=".", skip_fields=[], select_fields=[]):
         # Keep unpacking the json file until all values are atomic elements (not data or list)
         data = dict(chain.from_iterable(starmap(unpack, data.items())))
         # Terminate condition: not any value in the json file is data or list
-        if not any(
-            isinstance(value, dict) for value in data.values()
-        ) and not any(isinstance(value, list) for value in data.values()):
+        if not any(isinstance(value, dict) for value in data.values()) and not any(
+            isinstance(value, list) for value in data.values()
+        ):
             break
 
     if len(skip_fields) > 0:
@@ -203,6 +204,7 @@ def read_source_config(bucket, key):
 # def write_source_config(bucket, key, source_config: SourceConfig):
 #     write_s3_json(bucket, key, source_config.dict())
 
+
 def list_commits(owner, repo, **params):
     """Return a list of GitHub commits for the specified repository"""
 
@@ -230,6 +232,7 @@ def list_commits(owner, repo, **params):
     response.raise_for_status()
 
     return response.json()
+
 
 @cache_json
 def paginate_commits(owner, repo, start_page=1, per_page=100, **kwargs):
@@ -461,25 +464,31 @@ def rename_fields(dataset: List[dict], key_names_map: dict[str, str]):
     return [rename_keys(x, key_names_map) for x in dataset]
 
 
-def flatten_json_records(data, sep=".", skip_fields=[], select_fields=[], filter_nulls=True):
+def flatten_json_records(
+    data, sep=".", skip_fields=[], select_fields=[], filter_nulls=True
+):
     """Flatten a list of JSON records."""
     if filter_nulls:
         return [
-            filter_null_fields(flatten_json(
-            data=record, 
-            sep=sep,
-            skip_fields=skip_fields, 
-            select_fields=select_fields)) \
-                for record in data
+            filter_null_fields(
+                flatten_json(
+                    data=record,
+                    sep=sep,
+                    skip_fields=skip_fields,
+                    select_fields=select_fields,
+                )
+            )
+            for record in data
         ]
     else:
         return [
             flatten_json(
-            data=record, 
-            sep=sep,
-            skip_fields=skip_fields, 
-            select_fields=select_fields) \
-                for record in data
+                data=record,
+                sep=sep,
+                skip_fields=skip_fields,
+                select_fields=select_fields,
+            )
+            for record in data
         ]
 
 
@@ -548,7 +557,7 @@ def filter_null_fields(items: dict) -> dict:
     Returns:
         dict: A dictionary with null fields removed
     """
-    return { k: v for k, v in items.items() if v is not None }
+    return {k: v for k, v in items.items() if v is not None}
 
 
 def filter_nested_nulls(data: Union[dict, list]):
@@ -566,7 +575,6 @@ def filter_nested_nulls(data: Union[dict, list]):
         return filter_null_fields({k: filter_nested_nulls(v) for k, v in data.items()})
     else:
         return data
-
 
 
 def sort_execution_state_items(
@@ -606,7 +614,7 @@ def process_execution_state_item(
                     status="NOT_PROCESSED",
                     date_utc=None,
                     input_parameters=None,
-                )
+                ),
             }
 
         except Exception as e:
@@ -645,9 +653,9 @@ def parallel_process_execution_state_items(
             executor.submit(
                 process_execution_state_item,
                 timestamp,
-                commit, 
-                repository_config, 
-                target_metadata_config
+                commit,
+                repository_config,
+                target_metadata_config,
             )
             for commit in commits[:limit]
         ]

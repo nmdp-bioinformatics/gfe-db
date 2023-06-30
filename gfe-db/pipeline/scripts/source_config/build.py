@@ -4,12 +4,14 @@ Builds the execution state for the given repository source from the static repos
 
 import os
 import sys
+
 # for dev, local path to gfe-db modules
 # ./gfe-db/pipeline/lambda_layers/gfe_db_models (use absolute path)
 sys.path.append(os.environ["GFEDBMODELS_PATH"])
 
 from pathlib import Path
 import logging
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 from datetime import datetime
@@ -18,11 +20,7 @@ utc_now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 import json
 
 # these libraries are shared from the check_source_update function
-from gfedbmodels.types import (
-    SourceConfig,
-    RepositoryConfig,
-    ExecutionState
-)
+from gfedbmodels.types import SourceConfig, RepositoryConfig, ExecutionState
 from gfedbmodels import (
     paginate_commits,
     select_fields,
@@ -30,7 +28,7 @@ from gfedbmodels import (
     select_keys,
     rename_fields,
     process_execution_state_items,
-    filter_nested_nulls
+    filter_nested_nulls,
 )
 
 # Environment variables
@@ -41,7 +39,6 @@ DATA_BUCKET_NAME = os.environ["DATA_BUCKET_NAME"]
 
 
 if __name__ == "__main__":
-
     # Paths
     output_dir = Path(sys.argv[1])
 
@@ -72,11 +69,17 @@ if __name__ == "__main__":
     commits = rename_fields(all_commits_flat, commit_key_names_map)
 
     # Get the release version for each commit
-    target_metadata_config = source_config.repositories[GITHUB_REPOSITORY_OWNER+"/"+GITHUB_REPOSITORY_NAME].target_metadata_config
-    excluded_commit_shas = source_config.repositories[GITHUB_REPOSITORY_OWNER+"/"+GITHUB_REPOSITORY_NAME].excluded_commit_shas.values
-    commits = [commit for commit in commits if commit["sha"] not in excluded_commit_shas]
+    target_metadata_config = source_config.repositories[
+        GITHUB_REPOSITORY_OWNER + "/" + GITHUB_REPOSITORY_NAME
+    ].target_metadata_config
+    excluded_commit_shas = source_config.repositories[
+        GITHUB_REPOSITORY_OWNER + "/" + GITHUB_REPOSITORY_NAME
+    ].excluded_commit_shas.values
+    commits = [
+        commit for commit in commits if commit["sha"] not in excluded_commit_shas
+    ]
 
-    # Build ExecutionStateItem records from raw commits using thread pooling    
+    # Build ExecutionStateItem records from raw commits using thread pooling
     logger.info("Building execution state")
     execution_state_items = process_execution_state_items(
         timestamp=utc_now,
@@ -84,24 +87,30 @@ if __name__ == "__main__":
         # TODO remove default params from state table, they are retrieved from source config file in S3
         repository_config=RepositoryConfig(
             **select_keys(
-                source_config.repositories[GITHUB_REPOSITORY_OWNER+"/"+GITHUB_REPOSITORY_NAME].dict(), 
-                ["owner", "name", "url"]
+                source_config.repositories[
+                    GITHUB_REPOSITORY_OWNER + "/" + GITHUB_REPOSITORY_NAME
+                ].dict(),
+                ["owner", "name", "url"],
             )
         ),
-        target_metadata_config=target_metadata_config, # Infers release version from file contents
+        target_metadata_config=target_metadata_config,  # Infers release version from file contents
         parallel=True,
     )
 
     # Package records as ExecutionState object to seed table
-    execution_state = ExecutionState(**{
-        "created_utc": utc_now,
-        "items": execution_state_items,
-    })
+    execution_state = ExecutionState(
+        **{
+            "created_utc": utc_now,
+            "items": execution_state_items,
+        }
+    )
 
     # Updates the source config file but does not actually build it
     source_config.created_utc, source_config.updated_utc = utc_now, utc_now
 
-    logger.info(f"Writing execution state to {str(output_dir / 'execution-state.json')}")
+    logger.info(
+        f"Writing execution state to {str(output_dir / 'execution-state.json')}"
+    )
 
     # write ExecutionState locally
     with open(output_dir / "execution-state.json", "w") as f:

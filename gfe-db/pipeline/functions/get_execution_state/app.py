@@ -7,8 +7,10 @@ syncing state. If old items are deleted on the Execution state table while the m
 this function will not reprocess the deleted items.
 """
 import os
+
 if __name__ != "app":
     import sys
+
     # for dev, local path to gfe-db modules
     # ./gfe-db/pipeline/lambda_layers/gfe_db_models (use absolute path)
     sys.path.append(os.environ["GFEDBMODELS_PATH"])

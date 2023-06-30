@@ -16,59 +16,56 @@ logger.setLevel(logging.INFO)
 # TODO send to CloudFormation and retrieve all with SSM Parameter "AppConfigLayerMapping"
 app_config_layer_mapping = {
     "ssm": {
-    "infra": [
-        "VpcID",
-        "PublicSubnetID",
-        "DataBucketName",
-        "DataBucketArn",
-        "DataBucketRegionalDomainName",
-        "Neo4jDatabaseEndpoint",
-        "Neo4jDatabaseEndpointAllocationId",
-        "DataPipelineErrorsTopicArn"
-    ],
-    "pipeline": [
-        "GithubSourceRepository",
-        "GitHubPersonalAccessToken",
-        "ExecutionStateTableName",
-        "BuildJobQueueArn",
-        "BuildServiceRepositoryName",
-        "GfeDbProcessingQueueUrl",
-        "GfeDbExecutionResultTopicArn",
-        "LoadReleaseActivityArn"
-        "UpdatePipelineStateMachineArn",
-        "Neo4jLoadQueryDocumentName",
-        "DatabaseSyncScriptsDocumentName"
-    ],
-    "database": [
-        "Neo4jCredentialsSecretArn",
-        "Neo4jDatabaseSecurityGroupName",
-        "Neo4jDatabaseInstanceId",
-    ]},
+        "infra": [
+            "VpcID",
+            "PublicSubnetID",
+            "DataBucketName",
+            "DataBucketArn",
+            "DataBucketRegionalDomainName",
+            "Neo4jDatabaseEndpoint",
+            "Neo4jDatabaseEndpointAllocationId",
+            "DataPipelineErrorsTopicArn",
+        ],
+        "pipeline": [
+            "GithubSourceRepository",
+            "GitHubPersonalAccessToken",
+            "ExecutionStateTableName",
+            "BuildJobQueueArn",
+            "BuildServiceRepositoryName",
+            "GfeDbProcessingQueueUrl",
+            "GfeDbExecutionResultTopicArn",
+            "LoadReleaseActivityArn" "UpdatePipelineStateMachineArn",
+            "Neo4jLoadQueryDocumentName",
+            "DatabaseSyncScriptsDocumentName",
+        ],
+        "database": [
+            "Neo4jCredentialsSecretArn",
+            "Neo4jDatabaseSecurityGroupName",
+            "Neo4jDatabaseInstanceId",
+        ],
+    },
     "secretsmanager": {
-    "pipeline": [
-        "GitHubPersonalAccessToken"
-    ],
-    "database": [
-        "Neo4jCredentials"
-    ]
-}}
+        "pipeline": ["GitHubPersonalAccessToken"],
+        "database": ["Neo4jCredentials"],
+    },
+}
+
 
 def camel_to_snake(name):
-    name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
+    name = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+    return re.sub("([a-z0-9])([A-Z])", r"\1_\2", name).lower()
+
 
 @lru_cache
 def get_parameter_value(ssm_client, parameter_path: str) -> str:
     logger.info(f"Getting parameter {parameter_path}")
-    return ssm_client.get_parameter(
-        Name=parameter_path
-    )["Parameter"]["Value"]
+    return ssm_client.get_parameter(Name=parameter_path)["Parameter"]["Value"]
+
 
 @lru_cache
 def get_secret_value(secretsmanager_client, secret_id: str) -> str:
-    return secretsmanager_client.get_secret_value(
-        SecretId=secret_id
-    )["SecretString"]
+    return secretsmanager_client.get_secret_value(SecretId=secret_id)["SecretString"]
+
 
 @dataclass
 class JsonModel:
@@ -92,8 +89,7 @@ class JsonModel:
 
 
 class SessionManager:
-
-    def __init__(self, boto3_session = None, region_name: str = None) -> None:
+    def __init__(self, boto3_session=None, region_name: str = None) -> None:
         self.session = boto3_session or boto3.Session(region_name=region_name)
         self.clients = JsonModel()  # Cache for clients
         self.resources = JsonModel()  # Cache for resources
@@ -102,7 +98,7 @@ class SessionManager:
         if not hasattr(self.clients, service_name):
             setattr(self.clients, service_name, self.session.client(service_name))
         return getattr(self.clients, service_name)
-    
+
     def get_resource(self, service_name: str):
         if not hasattr(self.resources, service_name):
             setattr(self.resources, service_name, self.session.resource(service_name))
@@ -110,16 +106,15 @@ class SessionManager:
 
     def __getattr__(self, name):
         return getattr(self.session, name)
-    
-        
-class ConfigManager(JsonModel):
 
+
+class ConfigManager(JsonModel):
     def __init__(self, **kwargs) -> None:
         self._service = kwargs["service"]
         self.map = kwargs["mapping"]
         self._path_prefix = kwargs["path_prefix"]
         self._client = kwargs["client"]
-    
+
     def __getattr__(self, name: str) -> Union[str, dict, list, int, float, bool]:
         """Fetches and caches values from SSM Parameter Store or Secrets Manager. Will not fetch the same value twice.
 
@@ -135,12 +130,18 @@ class ConfigManager(JsonModel):
         """
         if name in self.map.keys() and name not in self.__dict__.keys():
             if self._service == "ssm":
-                value = get_parameter_value(self._client, f'{self._path_prefix}/{self.map[name]}')
+                value = get_parameter_value(
+                    self._client, f"{self._path_prefix}/{self.map[name]}"
+                )
             elif self._service == "secretsmanager":
-                value = get_secret_value(self._client, f'{self._path_prefix}/{self.map[name]}')
+                value = get_secret_value(
+                    self._client, f"{self._path_prefix}/{self.map[name]}"
+                )
             else:
-                raise ValueError(f"Service {self._service} not supported, must be one of 'ssm' or 'secretsmanager'")
-            
+                raise ValueError(
+                    f"Service {self._service} not supported, must be one of 'ssm' or 'secretsmanager'"
+                )
+
             # detect json
             try:
                 value = json.loads(value)
@@ -153,8 +154,8 @@ class ConfigManager(JsonModel):
             raise AttributeError(f"Could not find '{name}' in {self._service} mapping")
 
     def __str__(self) -> str:
-        return json.dumps({k: v for k, v in self.__dict__.items() if k != '_client'})
-        
+        return json.dumps({k: v for k, v in self.__dict__.items() if k != "_client"})
+
 
 class AppConfig:
     """Class to manage the configuration of the application using SSM Parameter Store and Secrets Manager.
@@ -174,38 +175,69 @@ class AppConfig:
         boto3_session ([type], optional): Boto3 session to use. Defaults to None.
     """
 
-    def __init__(self, ssm_mapping: dict = None, secrets_mapping: dict = None, boto3_session = None, region_name: str = None) -> None:
-        self.services, self.mappings = self._build_mappings(ssm_mapping=ssm_mapping, secrets_mapping=secrets_mapping)
-        self.env = JsonModel(**{
-            "AWS_REGION": os.environ["AWS_REGION"],
-            "APP_NAME": os.environ["APP_NAME"],
-            "STAGE": os.environ["STAGE"]
-        })
-        self.path_prefix = f'/{self.env.APP_NAME}/{self.env.STAGE}/{self.env.AWS_REGION}' # TODO create a named tuple of pydantic class for the path to enforce
-        self.params, self.secrets = JsonModel(), JsonModel() # hard coded model attributes define intended class scope
+    def __init__(
+        self,
+        ssm_mapping: dict = None,
+        secrets_mapping: dict = None,
+        boto3_session=None,
+        region_name: str = None,
+    ) -> None:
+        self.services, self.mappings = self._build_mappings(
+            ssm_mapping=ssm_mapping, secrets_mapping=secrets_mapping
+        )
+        self.env = JsonModel(
+            **{
+                "AWS_REGION": os.environ["AWS_REGION"],
+                "APP_NAME": os.environ["APP_NAME"],
+                "STAGE": os.environ["STAGE"],
+            }
+        )
+        self.path_prefix = f"/{self.env.APP_NAME}/{self.env.STAGE}/{self.env.AWS_REGION}"  # TODO create a named tuple of pydantic class for the path to enforce
+        self.params, self.secrets = (
+            JsonModel(),
+            JsonModel(),
+        )  # hard coded model attributes define intended class scope
         self.session = SessionManager(boto3_session, region_name)
 
         for service in self.services:
-            setattr(self.session.clients, service, self.session.get_client(service)) 
+            setattr(self.session.clients, service, self.session.get_client(service))
             self._init_config(service=service)
 
     @staticmethod
     def _build_mappings(**kwargs):
-        collections = {k: v for k, v in {"ssm": kwargs.get("ssm_mapping"), "secretsmanager": kwargs.get("secrets_mapping")}.items() if v is not None}
+        collections = {
+            k: v
+            for k, v in {
+                "ssm": kwargs.get("ssm_mapping"),
+                "secretsmanager": kwargs.get("secrets_mapping"),
+            }.items()
+            if v is not None
+        }
         services = list(collections.keys())
         mappings = {}
         for name, mapping in collections.items():
-            mappings[name] = { k: {camel_to_snake(item): item for item in v} for k, v in mapping.items() }
+            mappings[name] = {
+                k: {camel_to_snake(item): item for item in v}
+                for k, v in mapping.items()
+            }
 
         return services, mappings
 
-    def _init_config(self, service: str = Union[Literal["ssm"],Literal["secretsmanager"]]):
+    def _init_config(
+        self, service: str = Union[Literal["ssm"], Literal["secretsmanager"]]
+    ):
         for layer in self.mappings[service]:
-            setattr(self.params if service == "ssm" else self.secrets, layer, ConfigManager(
-                service=service,
-                mapping=self.mappings[service][layer],
-                path_prefix=f'{self.path_prefix}', # TODO f'{self.path_prefix}/{layer}/Name',
-                client=self.session.clients[service]))
+            setattr(
+                self.params if service == "ssm" else self.secrets,
+                layer,
+                ConfigManager(
+                    service=service,
+                    mapping=self.mappings[service][layer],
+                    path_prefix=f"{self.path_prefix}",  # TODO f'{self.path_prefix}/{layer}/Name',
+                    client=self.session.clients[service],
+                ),
+            )
+
 
 # TODO move to CloudFormation
 # list of fields to be used in the execution state table
@@ -225,7 +257,7 @@ execution_state_table_fields = [
     "repository.owner",
     "repository.url",
     "created_utc",
-    "updated_utc"
+    "updated_utc",
 ]
 
 session = boto3.Session(region_name="us-east-1")
