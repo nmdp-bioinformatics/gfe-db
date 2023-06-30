@@ -57,7 +57,6 @@ def camel_to_snake(name):
     name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
 
-# TODO validate that max_size can be total count of all params
 @lru_cache
 def get_parameter_value(ssm_client, parameter_path: str) -> str:
     logger.info(f"Getting parameter {parameter_path}")
@@ -65,6 +64,7 @@ def get_parameter_value(ssm_client, parameter_path: str) -> str:
         Name=parameter_path
     )["Parameter"]["Value"]
 
+@lru_cache
 def get_secret_value(secretsmanager_client, secret_id: str) -> str:
     return secretsmanager_client.get_secret_value(
         SecretId=secret_id
@@ -93,21 +93,23 @@ class JsonModel:
 
 class SessionManager:
 
-    def __init__(self, region_name: str = None) -> None:
-        self._region = region_name
-        self._session = boto3.Session(region_name=region_name)
+    def __init__(self, boto3_session = None, region_name: str = None) -> None:
+        self.session = boto3_session or boto3.Session(region_name=region_name)
         self.clients = JsonModel()  # Cache for clients
         self.resources = JsonModel()  # Cache for resources
 
     def get_client(self, service_name: str):
         if not hasattr(self.clients, service_name):
-            setattr(self.clients, service_name, self._session.client(service_name, region_name=os.environ["AWS_REGION"]))
+            setattr(self.clients, service_name, self.session.client(service_name))
         return getattr(self.clients, service_name)
     
     def get_resource(self, service_name: str):
         if not hasattr(self.resources, service_name):
-            setattr(self.resources, service_name, self._session.resource(service_name, region_name=os.environ["AWS_REGION"]))
+            setattr(self.resources, service_name, self.session.resource(service_name))
         return getattr(self.resources, service_name)
+
+    def __getattr__(self, name):
+        return getattr(self.session, name)
     
         
 class ConfigManager(JsonModel):
@@ -155,65 +157,55 @@ class ConfigManager(JsonModel):
         
 
 class AppConfig:
+    """Class to manage the configuration of the application using SSM Parameter Store and Secrets Manager.
 
-    def __init__(self, params_mapping: dict = None, secrets_mapping: dict = None, boto3_session = None, **kwargs) -> None:
-        self._build_mappings(params_mapping, secrets_mapping)
-        # for name, mapping in {"ssm": params_mapping, "secretsmanager": secrets_mapping}.items():
-        #     self.mappings[name] = { k: {camel_to_snake(item): item for item in v} for k, v in mapping.items() }
+    Usage:
+        >>> config = AppConfig(ssm_mapping=ssm_mapping, secrets_mapping=secrets_mapping)
+        >>> # Show application environment variables
+        >>> config.env
+        >>> # Fetch a parameter
+        >>> config.pipeline.github_source_repository
+        >>> # Fetch a secret
+        >>> config.database.neo4j_credentials
+
+    Args:
+        ssm_mapping (dict, optional): Mapping of parameter names to their path in SSM Parameter Store. Defaults to None.
+        secrets_mapping (dict, optional): Mapping of secret names to their path in Secrets Manager. Defaults to None.
+        boto3_session ([type], optional): Boto3 session to use. Defaults to None.
+    """
+
+    def __init__(self, ssm_mapping: dict = None, secrets_mapping: dict = None, boto3_session = None, region_name: str = None) -> None:
+        self.services, self.mappings = self._build_mappings(ssm_mapping=ssm_mapping, secrets_mapping=secrets_mapping)
         self.env = JsonModel(**{
             "AWS_REGION": os.environ["AWS_REGION"],
             "APP_NAME": os.environ["APP_NAME"],
             "STAGE": os.environ["STAGE"]
         })
-        self._path_prefix = f'/{self.env.APP_NAME}/{self.env.STAGE}/{self.env.AWS_REGION}' # TODO create a named tuple of pydantic class for the path to enforce
+        self.path_prefix = f'/{self.env.APP_NAME}/{self.env.STAGE}/{self.env.AWS_REGION}' # TODO create a named tuple of pydantic class for the path to enforce
         self.params, self.secrets = JsonModel(), JsonModel() # hard coded model attributes define intended class scope
-        self.session = boto3_session or SessionManager()
+        self.session = SessionManager(boto3_session, region_name)
 
-        for service in ["ssm", "secretsmanager"]:
+        for service in self.services:
             setattr(self.session.clients, service, self.session.get_client(service)) 
             self._init_config(service=service)
 
-    def _build_mappings(self, params_mapping: dict, secrets_mapping: dict):
-        self.mappings = {}
-        for name, mapping in {"ssm": params_mapping, "secretsmanager": secrets_mapping}.items():
-            self.mappings[name] = { k: {camel_to_snake(item): item for item in v} for k, v in mapping.items() }
+    @staticmethod
+    def _build_mappings(**kwargs):
+        collections = {k: v for k, v in {"ssm": kwargs.get("ssm_mapping"), "secretsmanager": kwargs.get("secrets_mapping")}.items() if v is not None}
+        services = list(collections.keys())
+        mappings = {}
+        for name, mapping in collections.items():
+            mappings[name] = { k: {camel_to_snake(item): item for item in v} for k, v in mapping.items() }
+
+        return services, mappings
 
     def _init_config(self, service: str = Union[Literal["ssm"],Literal["secretsmanager"]]):
         for layer in self.mappings[service]:
             setattr(self.params if service == "ssm" else self.secrets, layer, ConfigManager(
                 service=service,
                 mapping=self.mappings[service][layer],
-                path_prefix=f'{self._path_prefix}', # TODO f'{self._path_prefix}/{layer}/Name',
+                path_prefix=f'{self.path_prefix}', # TODO f'{self.path_prefix}/{layer}/Name',
                 client=self.session.clients[service]))
-
-# GITHUB_PERSONAL_ACCESS_TOKEN = secretsmanager.get_secret_value(
-#     SecretId=f'/{os.environ["APP_NAME"]}/{os.environ["STAGE"]}/{os.environ["AWS_REGION"]}/GitHubPersonalAccessToken'
-# )["SecretString"]
-
-
-# # TODO put params in Lambda context so that functions that don't need this don't have extra overhead
-# # Get SSM Parameters
-# github_source_repository = json.loads(ssm.get_parameter(
-#     Name=f'/{os.environ["APP_NAME"]}/{os.environ["STAGE"]}/{os.environ["AWS_REGION"]}/GithubSourceRepository'
-# )["Parameter"]["Value"])
-# GITHUB_REPOSITORY_OWNER = github_source_repository["owner"]
-# GITHUB_REPOSITORY_NAME = github_source_repository["name"]
-
-# execution_state_table_name = ssm.get_parameter(
-#     Name=f'/{os.environ["APP_NAME"]}/{os.environ["STAGE"]}/{os.environ["AWS_REGION"]}/ExecutionStateTableName'
-# )["Parameter"]["Value"]
-
-# # state_machine_arn = ssm.get_parameter(
-# #     Name=f'/{os.environ["APP_NAME"]}/{os.environ["STAGE"]}/{os.environ["AWS_REGION"]}/UpdatePipelineArn'
-# # )["Parameter"]["Value"]
-
-# data_bucket_name = ssm.get_parameter(
-#     Name=f'/{os.environ["APP_NAME"]}/{os.environ["STAGE"]}/{os.environ["AWS_REGION"]}/DataBucketName'
-# )["Parameter"]["Value"]
-
-# gfedb_processing_queue_url = ssm.get_parameter(
-#     Name=f'/{os.environ["APP_NAME"]}/{os.environ["STAGE"]}/{os.environ["AWS_REGION"]}/GfeDbProcessingQueueUrl'
-# )["Parameter"]["Value"]
 
 # TODO move to CloudFormation
 # list of fields to be used in the execution state table
@@ -236,9 +228,12 @@ execution_state_table_fields = [
     "updated_utc"
 ]
 
+session = boto3.Session(region_name="us-east-1")
+
 app = AppConfig(
-    params_mapping=app_config_layer_mapping["ssm"],
-    secrets_mapping=app_config_layer_mapping["secretsmanager"]
+    # ssm_mapping=app_config_layer_mapping["ssm"],
+    secrets_mapping=app_config_layer_mapping["secretsmanager"],
+    # boto3_session=session
 )
 
 # ssm param
