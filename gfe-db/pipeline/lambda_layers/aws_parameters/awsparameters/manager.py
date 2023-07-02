@@ -54,20 +54,35 @@ class JsonModel:
 
 
 class SessionManager:
-    def __init__(self, boto3_session=None, region_name: str = None) -> None:
+    def __init__(self, 
+            boto3_session=None, 
+            region_name: str = None, 
+            **kwargs
+    ) -> None:
         self.session = boto3_session or boto3.Session(region_name=region_name)
-        self.clients = JsonModel()  # Cache for clients
-        self.resources = JsonModel()  # Cache for resources
+        self.clients = {}  # Cache for clients
+        self.resources = {}  # Cache for resources
+        self._init_clients_or_resources(**kwargs)
+
+    def _init_clients_or_resources(self, **kwargs):
+        """Initializes clients and resources from the boto3 session when created"""
+
+        if "get_clients" in kwargs:
+            for service in kwargs["get_clients"]:
+                self.get_client(service)
+        if "get_resources" in kwargs:
+            for service in kwargs["get_resources"]:
+                self.get_resource(service)
 
     def get_client(self, service_name: str):
-        if not hasattr(self.clients, service_name):
-            setattr(self.clients, service_name, self.session.client(service_name))
-        return getattr(self.clients, service_name)
+        if service_name not in self.clients:
+            self.clients[service_name] = self.session.client(service_name)
+        return self.clients[service_name]
 
     def get_resource(self, service_name: str):
-        if not hasattr(self.resources, service_name):
-            setattr(self.resources, service_name, self.session.resource(service_name))
-        return getattr(self.resources, service_name)
+        if service_name not in self.resources:
+            self.resources[service_name] = self.session.resource(service_name)
+        return self.resources[service_name]
 
     def __getattr__(self, name):
         return getattr(self.session, name)
@@ -117,6 +132,9 @@ class ConfigManager(JsonModel):
         else:
             raise AttributeError(f"Could not find '{name}' in {self._service} mapping")
 
+    def list(self):
+        return list(self._attr_map.values())
+
     def __str__(self) -> str:
         return json.dumps({k: v for k, v in self.__dict__.items() if k != "_client"})
 
@@ -148,8 +166,10 @@ class AppConfig:
         **kwargs,
     ) -> None:
         self.mapping_path = mapping_path
-        self.session = SessionManager(boto3_session, region_name)
-        self.session.get_client("ssm")
+        self.session = SessionManager(
+            boto3_session,
+            region_name,
+            get_clients=["ssm"])
     
         self.ssm_paths, self.secrets_paths = \
             self._load_service_mappings() if mapping_path else \
@@ -161,7 +181,8 @@ class AppConfig:
             path_separator=path_separator,
         )
         for service in self.services:
-            setattr(self.session.clients, service, self.session.get_client(service))
+            if service not in self.session.clients:
+                self.session.get_client(service)
             setattr(
                 self,
                 "params" if service == "ssm" else "secrets",
@@ -173,7 +194,7 @@ class AppConfig:
             )
 
     def _load_service_mappings(self) -> Tuple[dict, dict]:
-        service_mappings = json.loads(self.session.clients.ssm.get_parameter(
+        service_mappings = json.loads(self.session.clients["ssm"].get_parameter(
             Name=self.mapping_path,
         )["Parameter"]["Value"])
         return service_mappings.get("ssm", None), service_mappings.get("secretsmanager", None)
@@ -201,12 +222,14 @@ class AppConfig:
     def map(self):
         return self._attr_map
 
-# pipeline = AppConfig(
-#     mapping_path=f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GfedbPipelineParamMappings",
-# )
+session = boto3.Session(region_name=AWS_REGION)
+pipeline = AppConfig(
+    mapping_path=f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GfedbPipelineParamMappings",
+    boto3_session=session,
+)
 
-# print(pipeline.params.map)
-# # print(pipeline.params.github_source_repository)
+print(pipeline.params.map)
+# print(pipeline.params.github_source_repository)
 
 # TODO implement AppConfigLayerMapping and test
 # Notes
