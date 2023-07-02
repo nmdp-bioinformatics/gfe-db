@@ -106,12 +106,39 @@ Resources:
       #   ReadCapacityUnits: 2
       #   WriteCapacityUnits: 2
 
-  ExecutionStateTableName:
+  ExecutionStateTableNameParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/ExecutionStateTableName'
       Type: String
       Value: !Ref ExecutionStateTable
+
+  ExecutionStateTableFieldsParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/ExecutionStateTableFields'
+      Description: !Sub 'Selected fields for ${Stage}-${AppName} execution state table'
+      Tier: Standard
+      Value: !Sub |
+        [
+            "commit.sha",
+            "execution.version",
+            "commit.date_utc",
+            "commit.html_url",
+            "commit.message",
+            "execution.date_utc",
+            "execution.status",
+            "execution.input_parameters.align",
+            "execution.input_parameters.kir",
+            "execution.input_parameters.limit",
+            "execution.input_parameters.mem_profile",
+            "repository.name",
+            "repository.owner",
+            "repository.url",
+            "created_utc",
+            "updated_utc",
+        ]
 
   BuildServerSG:
     Type: AWS::EC2::SecurityGroup
@@ -1000,3 +1027,30 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DatabaseSyncScriptsDocumentName'
       Description: "Name of SSM document for syncing shell scripts to the database"
       Value: !Ref DatabaseSyncScriptsDocument
+
+  GfedbPipelineParamMappingsParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/GfedbPipelineParamMappings'
+      Description: !Sub 'SSM Parameter and SecretsManager parameter paths for ${AppName} pipeline layer'
+      Tier: Standard
+      Value: !Sub |
+        {
+          "ssm": [
+              "/${AppName}/${Stage}/${AWS::Region}/GithubSourceRepository",
+              "/${AppName}/${Stage}/${AWS::Region}/GitHubPersonalAccessToken",
+              "/${AppName}/${Stage}/${AWS::Region}/ExecutionStateTableName",
+              "/${AppName}/${Stage}/${AWS::Region}/BuildJobQueueArn",
+              "/${AppName}/${Stage}/${AWS::Region}/BuildServiceRepositoryName",
+              "/${AppName}/${Stage}/${AWS::Region}/GfeDbProcessingQueueUrl",
+              "/${AppName}/${Stage}/${AWS::Region}/GfeDbExecutionResultTopicArn",
+              "/${AppName}/${Stage}/${AWS::Region}/LoadReleaseActivityArn",
+              "/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineStateMachineArn",
+              "/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName",
+              "/${AppName}/${Stage}/${AWS::Region}/DatabaseSyncScriptsDocumentName"
+          ],
+          "secretsmanager": [
+              "/${AppName}/${Stage}/${AWS::Region}/GitHubPersonalAccessToken"
+          ]
+        }

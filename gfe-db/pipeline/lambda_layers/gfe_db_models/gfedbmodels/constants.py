@@ -1,6 +1,6 @@
 import os
 import logging
-from typing import Union, Literal
+from typing import Union, Tuple
 from dataclasses import dataclass
 from functools import lru_cache
 import re
@@ -16,49 +16,49 @@ AWS_REGION = os.environ["AWS_REGION"]
 APP_NAME = os.environ["APP_NAME"]
 STAGE = os.environ["STAGE"]
 
-# TODO send to CloudFormation and retrieve all with SSM Parameter "AppConfigLayerMapping"
-infra_mapping = {
-    "ssm": [
-            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/VpcID",
-            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/PublicSubnetID",
-            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/DataBucketName",
-            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/DataBucketArn",
-            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/DataBucketRegionalDomainName",
-            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jDatabaseEndpoint",
-            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jDatabaseEndpointAllocationId",
-            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/DataPipelineErrorsTopicArn",
-        ]
-}
+# # TODO send to CloudFormation and retrieve all with SSM Parameter "AppConfigLayerMapping"
+# infra_mapping = {
+#     "ssm": [
+#             f"/{APP_NAME}/{STAGE}/{AWS_REGION}/VpcID",
+#             f"/{APP_NAME}/{STAGE}/{AWS_REGION}/PublicSubnetID",
+#             f"/{APP_NAME}/{STAGE}/{AWS_REGION}/DataBucketName",
+#             f"/{APP_NAME}/{STAGE}/{AWS_REGION}/DataBucketArn",
+#             f"/{APP_NAME}/{STAGE}/{AWS_REGION}/DataBucketRegionalDomainName",
+#             f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jDatabaseEndpoint",
+#             f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jDatabaseEndpointAllocationId",
+#             f"/{APP_NAME}/{STAGE}/{AWS_REGION}/DataPipelineErrorsTopicArn",
+#         ]
+# }
 
-pipeline_mapping = {
-    "ssm": [
-        f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GithubSourceRepository",
-        f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GitHubPersonalAccessToken",
-        f"/{APP_NAME}/{STAGE}/{AWS_REGION}/ExecutionStateTableName",
-        f"/{APP_NAME}/{STAGE}/{AWS_REGION}/BuildJobQueueArn",
-        f"/{APP_NAME}/{STAGE}/{AWS_REGION}/BuildServiceRepositoryName",
-        f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GfeDbProcessingQueueUrl",
-        f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GfeDbExecutionResultTopicArn",
-        f"/{APP_NAME}/{STAGE}/{AWS_REGION}/LoadReleaseActivityArn",
-        f"/{APP_NAME}/{STAGE}/{AWS_REGION}/UpdatePipelineStateMachineArn",
-        f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jLoadQueryDocumentName",
-        f"/{APP_NAME}/{STAGE}/{AWS_REGION}/DatabaseSyncScriptsDocumentName",
-    ],
-    "secretsmanager": [
-        f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GitHubPersonalAccessToken"
-    ],
-}
+# pipeline_mapping = {
+#     "ssm": [
+#         f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GithubSourceRepository",
+#         f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GitHubPersonalAccessToken",
+#         f"/{APP_NAME}/{STAGE}/{AWS_REGION}/ExecutionStateTableName",
+#         f"/{APP_NAME}/{STAGE}/{AWS_REGION}/BuildJobQueueArn",
+#         f"/{APP_NAME}/{STAGE}/{AWS_REGION}/BuildServiceRepositoryName",
+#         f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GfeDbProcessingQueueUrl",
+#         f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GfeDbExecutionResultTopicArn",
+#         f"/{APP_NAME}/{STAGE}/{AWS_REGION}/LoadReleaseActivityArn",
+#         f"/{APP_NAME}/{STAGE}/{AWS_REGION}/UpdatePipelineStateMachineArn",
+#         f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jLoadQueryDocumentName",
+#         f"/{APP_NAME}/{STAGE}/{AWS_REGION}/DatabaseSyncScriptsDocumentName",
+#     ],
+#     "secretsmanager": [
+#         f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GitHubPersonalAccessToken"
+#     ],
+# }
 
-database_mapping = {
-    "ssm": [
-        f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jCredentialsSecretArn",
-        f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jDatabaseSecurityGroupName",
-        f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jDatabaseInstanceId",
-    ],
-    "secretsmanager":  [
-        f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jCredentials"
-    ]
-}
+# database_mapping = {
+#     "ssm": [
+#         f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jCredentialsSecretArn",
+#         f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jDatabaseSecurityGroupName",
+#         f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jDatabaseInstanceId",
+#     ],
+#     "secretsmanager":  [
+#         f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jCredentials"
+#     ]
+# }
 
 
 def camel_to_snake(name):
@@ -186,19 +186,26 @@ class AppConfig:
 
     def __init__(
         self,
+        mapping_path: str = None,
         ssm_paths: dict = None,
         secrets_paths: dict = None,
         path_separator: str = "/",
         boto3_session=None,
         region_name: str = None,
     ) -> None:
-        self.services, self.mappings = self._build_mappings(
-            ssm_paths=ssm_paths, 
-            secrets_paths=secrets_paths,
+        self.mapping_path = mapping_path
+        self.session = SessionManager(boto3_session, region_name)
+        self.session.get_client("ssm")
+    
+        self.ssm_paths, self.secrets_paths = \
+            self._load_service_mappings() if mapping_path else \
+            (ssm_paths, secrets_paths)
+        
+        self.services, self.mappings = self._build_attr_mappings(
+            ssm_paths=self.ssm_paths, 
+            secrets_paths=self.secrets_paths,
             path_separator=path_separator,
         )
-        self.session = SessionManager(boto3_session, region_name)
-
         for service in self.services:
             setattr(self.session.clients, service, self.session.get_client(service))
             setattr(
@@ -211,8 +218,14 @@ class AppConfig:
                 )
             )
 
+    def _load_service_mappings(self) -> Tuple[dict, dict]:
+        service_mappings = json.loads(self.session.clients.ssm.get_parameter(
+            Name=self.mapping_path,
+        )["Parameter"]["Value"])
+        return service_mappings.get("ssm", None), service_mappings.get("secretsmanager", None)
+
     @staticmethod
-    def _build_mappings(**kwargs):
+    def _build_attr_mappings(**kwargs):
         collections = {
             k: v
             for k, v in {
@@ -253,10 +266,15 @@ class AppConfig:
 # ]
 
 # session = boto3.Session(region_name="us-east-1")
+# ssm = session.client("ssm")
+# pipeline_mapping = json.loads(ssm.get_parameter(
+#     Name=f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GfedbPipelineParamMappings",
+# )["Parameter"]["Value"])
 
 pipeline = AppConfig(
-    ssm_paths=pipeline_mapping["ssm"],
-    secrets_paths=pipeline_mapping["secretsmanager"],
+    mapping_path=f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GfedbPipelineParamMappings",
+    # ssm_paths=pipeline_mapping["ssm"],
+    # secrets_paths=pipeline_mapping["secretsmanager"],
     # boto3_session=session
 )
 
