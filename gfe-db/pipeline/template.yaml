@@ -137,7 +137,7 @@ Resources:
             "repository.owner",
             "repository.url",
             "created_utc",
-            "updated_utc",
+            "updated_utc"
         ]
 
   BuildServerSG:
