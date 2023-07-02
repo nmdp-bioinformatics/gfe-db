@@ -12,41 +12,58 @@ import boto3
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+AWS_REGION = os.environ["AWS_REGION"]
+APP_NAME = os.environ["APP_NAME"]
+STAGE = os.environ["STAGE"]
 
 # TODO send to CloudFormation and retrieve all with SSM Parameter "AppConfigLayerMapping"
+
+# # Test string formatting for paths with no separator
+# app_config_layer_mapping = {
+#     "ssm": {
+#         "infra": [
+#             "VpcID",
+#             "PublicSubnetID",
+#             "DataBucketName",
+#         ]
+#     }
+# }
+
+
 app_config_layer_mapping = {
     "ssm": {
         "infra": [
-            "VpcID",
-            "PublicSubnetID",
-            "DataBucketName",
-            "DataBucketArn",
-            "DataBucketRegionalDomainName",
-            "Neo4jDatabaseEndpoint",
-            "Neo4jDatabaseEndpointAllocationId",
-            "DataPipelineErrorsTopicArn",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/VpcID",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/PublicSubnetID",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/DataBucketName",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/DataBucketArn",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/DataBucketRegionalDomainName",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jDatabaseEndpoint",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jDatabaseEndpointAllocationId",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/DataPipelineErrorsTopicArn",
         ],
         "pipeline": [
-            "GithubSourceRepository",
-            "GitHubPersonalAccessToken",
-            "ExecutionStateTableName",
-            "BuildJobQueueArn",
-            "BuildServiceRepositoryName",
-            "GfeDbProcessingQueueUrl",
-            "GfeDbExecutionResultTopicArn",
-            "LoadReleaseActivityArn" "UpdatePipelineStateMachineArn",
-            "Neo4jLoadQueryDocumentName",
-            "DatabaseSyncScriptsDocumentName",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GithubSourceRepository",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GitHubPersonalAccessToken",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/ExecutionStateTableName",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/BuildJobQueueArn",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/BuildServiceRepositoryName",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GfeDbProcessingQueueUrl",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GfeDbExecutionResultTopicArn",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/LoadReleaseActivityArn",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/UpdatePipelineStateMachineArn",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jLoadQueryDocumentName",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/DatabaseSyncScriptsDocumentName",
         ],
         "database": [
-            "Neo4jCredentialsSecretArn",
-            "Neo4jDatabaseSecurityGroupName",
-            "Neo4jDatabaseInstanceId",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jCredentialsSecretArn",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jDatabaseSecurityGroupName",
+            f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jDatabaseInstanceId",
         ],
     },
     "secretsmanager": {
-        "pipeline": ["GitHubPersonalAccessToken"],
-        "database": ["Neo4jCredentials"],
+        "pipeline": [f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GitHubPersonalAccessToken"],
+        "database": [f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jCredentials"],
     },
 }
 
@@ -112,7 +129,7 @@ class ConfigManager(JsonModel):
     def __init__(self, **kwargs) -> None:
         self._service = kwargs["service"]
         self.map = kwargs["mapping"]
-        self._path_prefix = kwargs["path_prefix"]
+        # self._path_prefix = kwargs["path_prefix"]
         self._client = kwargs["client"]
 
     def __getattr__(self, name: str) -> Union[str, dict, list, int, float, bool]:
@@ -131,11 +148,11 @@ class ConfigManager(JsonModel):
         if name in self.map.keys() and name not in self.__dict__.keys():
             if self._service == "ssm":
                 value = get_parameter_value(
-                    self._client, f"{self._path_prefix}/{self.map[name]}"
+                    self._client, self.map[name]
                 )
             elif self._service == "secretsmanager":
                 value = get_secret_value(
-                    self._client, f"{self._path_prefix}/{self.map[name]}"
+                    self._client, self.map[name]
                 )
             else:
                 raise ValueError(
@@ -179,24 +196,19 @@ class AppConfig:
         self,
         ssm_mapping: dict = None,
         secrets_mapping: dict = None,
+        path_separator: str = "/",
         boto3_session=None,
         region_name: str = None,
     ) -> None:
         self.services, self.mappings = self._build_mappings(
-            ssm_mapping=ssm_mapping, secrets_mapping=secrets_mapping
+            ssm_mapping=ssm_mapping, 
+            secrets_mapping=secrets_mapping,
+            path_separator=path_separator,
         )
-        self.env = JsonModel(
-            **{
-                "AWS_REGION": os.environ["AWS_REGION"],
-                "APP_NAME": os.environ["APP_NAME"],
-                "STAGE": os.environ["STAGE"],
-            }
-        )
-        self.path_prefix = f"/{self.env.APP_NAME}/{self.env.STAGE}/{self.env.AWS_REGION}"  # TODO create a named tuple of pydantic class for the path to enforce
         self.params, self.secrets = (
             JsonModel(),
             JsonModel(),
-        )  # hard coded model attributes define intended class scope
+        )  # hard coded model attributes define intended class scope (handles SSM Parameters and SecretsManager Secrets )
         self.session = SessionManager(boto3_session, region_name)
 
         for service in self.services:
@@ -217,7 +229,7 @@ class AppConfig:
         mappings = {}
         for name, mapping in collections.items():
             mappings[name] = {
-                k: {camel_to_snake(item): item for item in v}
+                k: {camel_to_snake(item.split(kwargs.get("path_separator"))[-1]): item for item in v}
                 for k, v in mapping.items()
             }
 
@@ -233,9 +245,8 @@ class AppConfig:
                 ConfigManager(
                     service=service,
                     mapping=self.mappings[service][layer],
-                    path_prefix=f"{self.path_prefix}",  # TODO f'{self.path_prefix}/{layer}/Name',
                     client=self.session.clients[service],
-                ),
+                )
             )
 
 
@@ -263,8 +274,8 @@ execution_state_table_fields = [
 session = boto3.Session(region_name="us-east-1")
 
 app = AppConfig(
-    # ssm_mapping=app_config_layer_mapping["ssm"],
-    secrets_mapping=app_config_layer_mapping["secretsmanager"],
+    ssm_mapping=app_config_layer_mapping["ssm"],
+    # secrets_mapping=app_config_layer_mapping["secretsmanager"],
     # boto3_session=session
 )
 
@@ -280,3 +291,6 @@ try:
 except AttributeError:
     app.secrets.pipeline.git_hub_personal_access_token
 print(app.env)
+
+# TODO implement AppConfigLayerMapping and test
+# TODO add functionality for custom defined paths that differ from the default (to be able to use shared resource params like `github-token`) 
