@@ -12,9 +12,9 @@ Parameters:
   ServiceName:
     Type: String
     Description: Service name
-  GithubRepositoryOwner:
+  GitHubRepositoryOwner:
     Type: String
-  GithubRepositoryName:
+  GitHubRepositoryName:
     Type: String
   GitHubPersonalAccessToken:
     Type: String
@@ -68,10 +68,10 @@ Resources:
   GitHubSourceRepositoryParameter:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/GithubSourceRepository"
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/GitHubSourceRepository"
       Type: String
       Description: GitHub Personal Access Token for repository access
-      Value: !Sub '{"owner":"${GithubRepositoryOwner}", "name":"${GithubRepositoryName}"}'
+      Value: !Sub '{"owner":"${GitHubRepositoryOwner}", "name":"${GitHubRepositoryName}"}'
 
   # Create a lambda layer
   GfeDbModelsLayer:
@@ -82,9 +82,10 @@ Resources:
       ContentUri: lambda_layers/gfe_db_models
       RetentionPolicy: delete
       CompatibleRuntimes:
+        - python3.9
         - python3.10
     Metadata:
-      BuildMethod: python3.10
+      BuildMethod: python3.9
       BuildArchitectures: arm64
 
   # TODO change name to GfeDbExecutionStateTable
@@ -1038,9 +1039,10 @@ Resources:
       Value: !Sub |
         {
           "ssm": [
-              "/${AppName}/${Stage}/${AWS::Region}/GithubSourceRepository",
+              "/${AppName}/${Stage}/${AWS::Region}/GitHubSourceRepository",
               "/${AppName}/${Stage}/${AWS::Region}/GitHubPersonalAccessToken",
               "/${AppName}/${Stage}/${AWS::Region}/ExecutionStateTableName",
+              "/${AppName}/${Stage}/${AWS::Region}/ExecutionStateTableFields",
               "/${AppName}/${Stage}/${AWS::Region}/BuildJobQueueArn",
               "/${AppName}/${Stage}/${AWS::Region}/BuildServiceRepositoryName",
               "/${AppName}/${Stage}/${AWS::Region}/GfeDbProcessingQueueUrl",

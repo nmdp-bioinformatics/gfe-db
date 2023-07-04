@@ -9,7 +9,7 @@ Parameters:
     Type: String
   DataBucketName:
     Type: String
-    
+
 Mappings:
   # AvailabilityZoneMap defines availability zones where an m5d.xlarge instance is available (used for Neo4j server).
   AvailabilityZoneMap:
@@ -37,30 +37,31 @@ Resources:
       EnableDnsSupport: true
       Tags:
         - Key: Name
-          Value: !Sub '${Stage}-${AppName}-${AWS::Region}-vpc'
-  
+          Value: !Sub "${Stage}-${AppName}-${AWS::Region}-vpc"
+
   PublicSubnet:
     Type: AWS::EC2::Subnet
     Properties:
       CidrBlock: 10.0.0.0/24
       VpcId: !Ref Vpc
-      AvailabilityZone: !FindInMap [AvailabilityZoneMap, !Ref AWS::Region, AvailabilityZone]
+      AvailabilityZone:
+        !FindInMap [AvailabilityZoneMap, !Ref AWS::Region, AvailabilityZone]
       MapPublicIpOnLaunch: true
-  
+
   InternetGateway:
     Type: AWS::EC2::InternetGateway
-  
+
   RouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref Vpc
-  
+
   VpcGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
       VpcId: !Ref Vpc
       InternetGatewayId: !Ref InternetGateway
-  
+
   Route:
     Type: AWS::EC2::Route
     DependsOn:
@@ -70,59 +71,59 @@ Resources:
       RouteTableId: !Ref RouteTable
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
-  
+
   SubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref RouteTable
       SubnetId: !Ref PublicSubnet
-  
+
   DataBucket:
     Type: AWS::S3::Bucket
     # Condition: CreateDataBucket
     Properties:
       BucketName: !Ref DataBucketName
-  
+
   VpcIDParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/VpcID'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/VpcID"
       Description: "Name of gfe-db VPC network"
       Value: !Ref Vpc
-  
+
   PublicSubnetIDParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID"
       Description: "Public Subnet for the gfe-db Neo4j server"
       Value: !Ref PublicSubnet
-  
+
   DataBucketNameParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataBucketName'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/DataBucketName"
       Description: "Name of gfe-db data bucket"
       Value: !Ref DataBucket
-  
+
   DataBucketArnParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataBucketArn'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/DataBucketArn"
       Description: "ARN of gfe-db data bucket"
       Value: !GetAtt DataBucket.Arn
-  
+
   DataBucketRegionalDomainNameParameter:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataBucketRegionalDomainName'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/DataBucketRegionalDomainName"
       Type: String
       Description: "S3 Bucket Regional Domain name for application bucket"
       Value: !GetAtt DataBucket.RegionalDomainName
-  
+
   Neo4jDatabaseElasticIp:
     Type: AWS::EC2::EIP
     Properties:
@@ -132,16 +133,16 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint'
-      Description: !Sub 'Endpoint for ${AppName} Neo4j server'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint"
+      Description: !Sub "Endpoint for ${AppName} Neo4j server"
       Value: !Ref Neo4jDatabaseElasticIp
 
   Neo4jDatabaseEndpointAllocationIdParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId'
-      Description: !Sub 'AllocationId for ${AppName} Neo4j server static IP'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId"
+      Description: !Sub "AllocationId for ${AppName} Neo4j server static IP"
       Value: !GetAtt Neo4jDatabaseElasticIp.AllocationId
 
   DataPipelineErrorsTopicPolicy:
@@ -168,16 +169,40 @@ Resources:
       Tags:
         - Key: Stage
           Value: !Ref Stage
-        - Key: AppName 
+        - Key: AppName
           Value: !Ref AppName
 
   DataPipelineErrorsTopicArnParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn'
-      Description: !Sub 'ARN for ${AppName} Data Pipeline Errors SNS topic'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn"
+      Description: !Sub "ARN for ${AppName} Data Pipeline Errors SNS topic"
       Value: !Ref DataPipelineErrorsTopic
+
+  GfedbInfrastructureParamMappingsParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/GfedbInfrastructureParamMappings"
+      Description: !Sub "SSM Parameter and SecretsManager parameter paths for ${AppName} infrastructure layer"
+      Tier: Standard
+      Value: !Sub |
+        {
+          "ssm": [
+            "/${AppName}/${Stage}/${AWS::Region}/VpcID",
+            "/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID",
+            "/${AppName}/${Stage}/${AWS::Region}/DataBucketName",
+            "/${AppName}/${Stage}/${AWS::Region}/DataBucketArn",
+            "/${AppName}/${Stage}/${AWS::Region}/DataBucketRegionalDomainName",
+            "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint",
+            "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId",
+            "/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn"
+          ],
+          "secretsmanager": [
+              "/${AppName}/${Stage}/${AWS::Region}/GitHubPersonalAccessToken"
+          ]
+        }
 
 Outputs:
   Neo4jDatabaseElasticIp:

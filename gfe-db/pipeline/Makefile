@@ -31,8 +31,8 @@ service.functions.deploy:
 			AppName="$${APP_NAME}" \
 			ServiceName="${SERVICE}" \
 			ConfigS3Path="$${CONFIG_S3_PATH}" \
-			GithubRepositoryOwner="$$GITHUB_REPOSITORY_OWNER" \
-			GithubRepositoryName="$$GITHUB_REPOSITORY_NAME" \
+			GitHubRepositoryOwner="$$GITHUB_REPOSITORY_OWNER" \
+			GitHubRepositoryName="$$GITHUB_REPOSITORY_NAME" \
 			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN" \
 			CheckSourceUpdateFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.CheckSourceUpdate.FunctionConfiguration.FunctionName')" \
 			CheckSourceUpdateFunctionMemorySize="$$(cat functions/environment.json | jq -r '.Functions.CheckSourceUpdate.FunctionConfiguration.MemorySize')" \

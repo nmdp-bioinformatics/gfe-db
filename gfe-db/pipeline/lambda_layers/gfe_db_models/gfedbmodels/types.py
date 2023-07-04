@@ -62,7 +62,7 @@ def commit_sha_is_hex(v):
 class Commit(BaseModel):
     sha: str
     date_utc: str
-    message: Optional[str]
+    message: Optional[str] = None
     html_url: str
 
     @validator("sha")
@@ -91,11 +91,11 @@ class InputParameters(BaseModel):
     align: bool
     kir: bool
     mem_profile: bool
-    limit: Optional[int]
+    limit: Optional[int] = None
 
 
 class ExcludedCommitShas(BaseModel):
-    description: Optional[str]
+    description: Optional[str] = None
     values: list[str]
 
     @validator("values")
@@ -106,30 +106,30 @@ class ExcludedCommitShas(BaseModel):
 
 
 class TrackedAssetsConfig(BaseModel):
-    description: Optional[str]
+    description: Optional[str] = None
     values: list[str]
 
 
 class TargetMetadataConfigItem(BaseModel):
-    description: Optional[str]
+    description: Optional[str] = None
     asset_path: str
     metadata_regex: str
 
 
 class TargetMetadataConfig(BaseModel):
-    description: Optional[str]
+    description: Optional[str] = None
     items: list[TargetMetadataConfigItem]
 
 
 class RepositoryConfig(BaseModel):
     owner: str
     name: str
-    description: Optional[str]
+    description: Optional[str] = None
     url: str
-    tracked_assets: Optional[TrackedAssetsConfig]
-    target_metadata_config: Optional[TargetMetadataConfig]
-    excluded_commit_shas: Optional[ExcludedCommitShas]
-    default_input_parameters: Optional[InputParameters]
+    tracked_assets: Optional[TrackedAssetsConfig] = None
+    target_metadata_config: Optional[TargetMetadataConfig] = None
+    excluded_commit_shas: Optional[ExcludedCommitShas] = None
+    default_input_parameters: Optional[InputParameters] = None
 
     # validate that the url is a valid URL
     @validator("url")
@@ -141,9 +141,9 @@ class RepositoryConfig(BaseModel):
 class ExecutionDetailsConfig(BaseModel):
     version: int
     status: str
-    date_utc: Optional[str]
-    input_parameters: Optional[InputParameters]
-    s3_path: Optional[str]
+    date_utc: Optional[str] = None
+    input_parameters: Optional[InputParameters] = None
+    s3_path: Optional[str] = None
 
     @validator("status")
     def status_is_valid(cls, v):
@@ -158,8 +158,8 @@ class ExecutionDetailsConfig(BaseModel):
 
 
 class SourceConfig(BaseModel):
-    created_utc: Optional[str]
-    updated_utc: Optional[str]
+    created_utc: Optional[str] = None
+    updated_utc: Optional[str] = None
     repositories: dict[str, RepositoryConfig]
 
     # validate dates are ISO 8601 format with timezone for created_utc, updated_utc
@@ -170,7 +170,7 @@ class SourceConfig(BaseModel):
 
 class ExecutionStateItem(BaseModel):
     created_utc: str
-    updated_utc: Optional[str]  # TODO make required once fully implemented
+    updated_utc: Optional[str] = None  # TODO make required once fully implemented
     repository: RepositoryConfig
     commit: Commit
     execution: ExecutionDetailsConfig

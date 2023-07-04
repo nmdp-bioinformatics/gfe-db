@@ -20,7 +20,6 @@ from datetime import datetime, timedelta
 import json
 import boto3
 from gfedbmodels.constants import (
-    dynamodb,
     GITHUB_REPOSITORY_OWNER,
     GITHUB_REPOSITORY_NAME,
     execution_state_table_name,
@@ -62,9 +61,9 @@ source_repo_config = read_source_config(
     data_bucket_name, PIPELINE_SOURCE_CONFIG_S3_PATH
 ).repositories[f"{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}"]
 
+dynamodb = boto3.resource("dynamodb")
 queue = boto3.resource("sqs")
 gfedb_processing_queue = queue.Queue(gfedb_processing_queue_url)
-
 
 def lambda_handler(event, context):
     # logger.info(json.dumps(event))
@@ -278,6 +277,6 @@ def update_execution_state_item(
 if __name__ == "__main__":
     from pathlib import Path
 
-    event = json.loads((Path(__file__).parent / "event.json").read_text())
+    event = json.loads((Path(__file__).parent / "schedule-event.json").read_text())
 
     lambda_handler(event, None)

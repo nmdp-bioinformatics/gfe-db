@@ -1,50 +1,31 @@
 import os
 import logging
-import json
 import boto3
+from awsparameters import AppConfig
 
 # Logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 # Environment variables
-AWS_REGION = os.environ["AWS_REGION"] 
+APP_NAME = os.environ["APP_NAME"]
+STAGE = os.environ["STAGE"]
+AWS_REGION = os.environ["AWS_REGION"]
 
-# AWS clients
 session = boto3.Session(region_name=AWS_REGION)
-ssm = session.client("ssm")
-dynamodb = session.resource("dynamodb", region_name=AWS_REGION)
-sqs = session.client("sqs", region_name=AWS_REGION)
-secretsmanager = session.client("secretsmanager", region_name=AWS_REGION)
 
-GITHUB_PERSONAL_ACCESS_TOKEN = secretsmanager.get_secret_value(
-    SecretId=f'/{os.environ["APP_NAME"]}/{os.environ["STAGE"]}/{os.environ["AWS_REGION"]}/GitHubPersonalAccessToken'
-)["SecretString"]
+infra_config_path = f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GfedbInfrastructureParamMappings"
+infra = AppConfig(mapping_path=infra_config_path, boto3_session=session)
 
-# Get SSM Parameters
-github_source_repository = json.loads(ssm.get_parameter(
-    Name=f'/{os.environ["APP_NAME"]}/{os.environ["STAGE"]}/{os.environ["AWS_REGION"]}/GithubSourceRepository'
-)["Parameter"]["Value"])
-GITHUB_REPOSITORY_OWNER = github_source_repository["owner"]
-GITHUB_REPOSITORY_NAME = github_source_repository["name"]
+pipeline_config_path = f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GfedbPipelineParamMappings"
+pipeline = AppConfig(mapping_path=pipeline_config_path, boto3_session=session)
 
-execution_state_table_name = ssm.get_parameter(
-    Name=f'/{os.environ["APP_NAME"]}/{os.environ["STAGE"]}/{os.environ["AWS_REGION"]}/ExecutionStateTableName'
-)["Parameter"]["Value"]
-
-# state_machine_arn = ssm.get_parameter(
-#     Name=f'/{os.environ["APP_NAME"]}/{os.environ["STAGE"]}/{os.environ["AWS_REGION"]}/UpdatePipelineArn'
-# )["Parameter"]["Value"]
-
-data_bucket_name = ssm.get_parameter(
-    Name=f'/{os.environ["APP_NAME"]}/{os.environ["STAGE"]}/{os.environ["AWS_REGION"]}/DataBucketName'
-)["Parameter"]["Value"]
-
-gfedb_processing_queue_url = ssm.get_parameter(
-    Name=f'/{os.environ["APP_NAME"]}/{os.environ["STAGE"]}/{os.environ["AWS_REGION"]}/GfeDbProcessingQueueUrl'
-)["Parameter"]["Value"]
-
-# list of fields to be used in the execution state table
-execution_state_table_fields = json.loads(ssm.get_parameter(
-    Name=f'/{os.environ["APP_NAME"]}/{os.environ["STAGE"]}/{os.environ["AWS_REGION"]}/ExecutionStateTableFields'
-)["Parameter"]["Value"])
+GITHUB_PERSONAL_ACCESS_TOKEN = pipeline.secrets.git_hub_personal_access_token
+github_source_repository = pipeline.params.git_hub_source_repository
+GITHUB_REPOSITORY_OWNER = pipeline.params.git_hub_source_repository["owner"]
+GITHUB_REPOSITORY_NAME = pipeline.params.git_hub_source_repository["name"]
+execution_state_table_name = pipeline.params.execution_state_table_name
+# state_machine_arn = pipeline.params.state_machine_arn
+data_bucket_name = infra.params.data_bucket_name
+gfedb_processing_queue_url = pipeline.params.gfe_db_processing_queue_url
+execution_state_table_fields = pipeline.params.execution_state_table_fields
