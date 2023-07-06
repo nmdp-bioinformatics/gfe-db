@@ -11,7 +11,6 @@ import re
 import requests
 import multiprocessing
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import boto3
 from botocore.exceptions import ClientError
 from .types import (
     SourceConfig,
@@ -22,10 +21,8 @@ from .types import (
     ExecutionDetailsConfig,
 )
 from .constants import (
-    session,
     infra,
     pipeline,
-    database
 )
 
 # Logging
@@ -33,6 +30,8 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 AWS_REGION = os.environ["AWS_REGION"]
+
+# TODO can call these directly in the functions instead of decarling and passing them in, they should be cached
 GITHUB_PERSONAL_ACCESS_TOKEN = infra.secrets.GitHubPersonalAccessToken
 GITHUB_REPOSITORY_OWNER = pipeline.params.GitHubSourceRepository["owner"]
 GITHUB_REPOSITORY_NAME = pipeline.params.GitHubSourceRepository["name"]
