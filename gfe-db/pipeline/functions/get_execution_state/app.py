@@ -1,11 +1,4 @@
-"""
-Checks a GitHub repository for new commits and triggers data ingestion. This function processes
-only the releases that it finds. To process specific releases, use a different method.
-
-Note: this function is only responsible for checking and processing the most recent commits. It is not responsible for 
-syncing state. If old items are deleted on the Execution state table while the most recent commits remain, 
-this function will not reprocess the deleted items.
-"""
+"""In progress"""
 import os
 
 if __name__ != "app":

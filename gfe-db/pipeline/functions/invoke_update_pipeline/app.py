@@ -1,8 +1,21 @@
 import os
+if __name__ != "app":
+    import sys
+
+    # for dev, local path to gfe-db modules
+    # ./gfe-db/pipeline/lambda_layers/gfe_db_models (use absolute path)
+    sys.path.append(os.environ["GFEDBMODELS_PATH"])
+
 import logging
 from datetime import datetime
 import json
 import boto3
+from gfedbmodels.constants import (
+    session,
+    infra,
+    pipeline,
+    database
+)
 
 # set up logging
 logger = logging.getLogger()
@@ -12,22 +25,14 @@ logger.setLevel(logging.INFO)
 AWS_REGION = os.environ["AWS_REGION"]
 
 # Boto3 Clients
-session = boto3.Session(region_name=AWS_REGION)
-ssm = session.client("ssm", region_name=AWS_REGION)
 ec2 = session.client("ec2", region_name=AWS_REGION)
 states = session.client("stepfunctions", region_name=AWS_REGION)
 sqs = session.client("sqs", region_name=AWS_REGION)
 
 # Get SSM Parameters
-neo4j_database_instance_id = ssm.get_parameter(
-    Name=os.environ["NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM"]
-)["Parameter"]["Value"]
-update_pipeline_state_machine_arn = ssm.get_parameter(
-    Name=os.environ["UDPATE_PIPELINE_STATE_MACHINE_ARN_SSM_PARAM"]
-)["Parameter"]["Value"]
-gfe_db_processing_queue_url = ssm.get_parameter(
-    Name=os.environ["GFE_DB_PROCESSING_QUEUE_URL_SSM_PARAM"]
-)["Parameter"]["Value"]
+neo4j_database_instance_id = database.params.Neo4jDatabaseInstanceId
+update_pipeline_state_machine_arn = pipeline.params.UpdatePipelineStateMachineArn
+gfe_db_processing_queue_url = pipeline.params.GfeDbProcessingQueueUrl
 
 # Check that database is running, abort if not
 try:

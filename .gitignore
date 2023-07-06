@@ -113,3 +113,4 @@ source-config-v*.json
 gfe-db/pipeline/jobs/build/event.json
 test.asl.json
 _cache*/
+ssm-describe*.json

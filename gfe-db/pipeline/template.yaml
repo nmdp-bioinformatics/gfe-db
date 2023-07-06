@@ -1040,7 +1040,6 @@ Resources:
         {
           "ssm": [
               "/${AppName}/${Stage}/${AWS::Region}/GitHubSourceRepository",
-              "/${AppName}/${Stage}/${AWS::Region}/GitHubPersonalAccessToken",
               "/${AppName}/${Stage}/${AWS::Region}/ExecutionStateTableName",
               "/${AppName}/${Stage}/${AWS::Region}/ExecutionStateTableFields",
               "/${AppName}/${Stage}/${AWS::Region}/BuildJobQueueArn",

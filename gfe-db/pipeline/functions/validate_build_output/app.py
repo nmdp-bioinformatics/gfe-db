@@ -1,22 +1,29 @@
 import os
+if __name__ != "app":
+    import sys
+
+    # for dev, local path to gfe-db modules
+    # ./gfe-db/pipeline/lambda_layers/gfe_db_models (use absolute path)
+    sys.path.append(os.environ["GFEDBMODELS_PATH"])
 import logging
 import re
 import json
 import boto3
 import polars as pl
+from gfedbmodels.constants import (
+    session,
+    infra,
+    pipeline,
+    database
+)
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-session = boto3.Session(region_name=os.environ["AWS_REGION"])
-ssm = session.client("ssm", region_name=os.environ["AWS_REGION"])
 s3 = session.client("s3", region_name=os.environ["AWS_REGION"])
 
 # SSM Parameters
-data_bucket_name = ssm.get_parameter(
-    Name=f'/{os.environ["APP_NAME"]}/{os.environ["STAGE"]}/{os.environ["AWS_REGION"]}/DataBucketName'
-)["Parameter"]["Value"]
-
+data_bucket_name = infra.params.DataBucketName
 
 # TODO use Powertools event parser
 # @event_parser(model=Order)

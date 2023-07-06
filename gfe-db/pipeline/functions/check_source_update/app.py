@@ -18,8 +18,9 @@ import logging
 from decimal import Decimal
 from datetime import datetime, timedelta
 import json
-import boto3
-from gfedbmodels.constants import (
+from constants import (
+    session,
+    PIPELINE_SOURCE_CONFIG_S3_PATH,
     GITHUB_REPOSITORY_OWNER,
     GITHUB_REPOSITORY_NAME,
     execution_state_table_name,
@@ -48,21 +49,21 @@ from gfedbmodels.utils import (
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# Environment
-APP_NAME = os.environ["APP_NAME"]
-STAGE = os.environ["STAGE"]
-PIPELINE_SOURCE_CONFIG_S3_PATH = os.environ["PIPELINE_SOURCE_CONFIG_S3_PATH"]
-
 logger.info(
     f"Fetching source config from {data_bucket_name}/{PIPELINE_SOURCE_CONFIG_S3_PATH}"
 )
+
+s3 = session.client("s3")
+dynamodb = session.resource("dynamodb")
+queue = session.resource("sqs")
+
 # Get data source configuration
 source_repo_config = read_source_config(
-    data_bucket_name, PIPELINE_SOURCE_CONFIG_S3_PATH
+    s3_client=s3, 
+    bucket=data_bucket_name, 
+    key=PIPELINE_SOURCE_CONFIG_S3_PATH
 ).repositories[f"{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}"]
 
-dynamodb = boto3.resource("dynamodb")
-queue = boto3.resource("sqs")
 gfedb_processing_queue = queue.Queue(gfedb_processing_queue_url)
 
 def lambda_handler(event, context):

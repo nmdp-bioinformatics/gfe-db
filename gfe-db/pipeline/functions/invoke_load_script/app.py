@@ -1,37 +1,30 @@
 import os
+if __name__ != "app":
+    import sys
+
+    # for dev, local path to gfe-db modules
+    # ./gfe-db/pipeline/lambda_layers/gfe_db_models (use absolute path)
+    sys.path.append(os.environ["GFEDBMODELS_PATH"])
+
 import logging
 import json
 import boto3
+from gfedbmodels.constants import (
+    session,
+    pipeline,
+    database
+)
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 app_name = os.environ["APP_NAME"]
-neo4j_load_query_document_name_param = os.environ[
-    "NEO4J_LOAD_QUERY_DOCUMENT_NAME_SSM_PARAM"
-]
-neo4j_database_instance_id_param = os.environ["NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM"]
-load_release_activity_arn_param = os.environ["LOAD_RELEASE_ACTIVITY_ARN_SSM_PARAM"]
-
-# SSM Parameters
-ssm = boto3.client("ssm", region_name=os.environ["AWS_REGION"])
-
-# LoadQueryDocumentName
-neo4j_load_query_document_name = ssm.get_parameter(
-    Name=neo4j_load_query_document_name_param
-)["Parameter"]["Value"]
-
-# LoadReleaseActivityArn
-load_release_activity_arn = ssm.get_parameter(Name=load_release_activity_arn_param)[
-    "Parameter"
-]["Value"]
-
-# Get Instance ID
-neo4j_database_instance_id = ssm.get_parameter(Name=neo4j_database_instance_id_param)[
-    "Parameter"
-]["Value"]
+neo4j_load_query_document_name = pipeline.params.Neo4jLoadQueryDocumentName
+neo4j_database_instance_id = database.params.Neo4jDatabaseInstanceId
+load_release_activity_arn = pipeline.params.LoadReleaseActivityArn
 
 # Get SSM Document Neo4jLoadQuery
+ssm = session.clients["ssm"]
 response = ssm.get_document(Name=neo4j_load_query_document_name)
 neo4j_load_query_document_content = json.loads(response["Content"])
 
