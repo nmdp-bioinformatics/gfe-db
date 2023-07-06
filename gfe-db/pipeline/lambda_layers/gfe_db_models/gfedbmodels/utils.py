@@ -22,25 +22,25 @@ from .types import (
     ExecutionDetailsConfig,
 )
 from .constants import (
-    AWS_REGION,
-    GITHUB_PERSONAL_ACCESS_TOKEN,
-    GITHUB_REPOSITORY_OWNER,
-    GITHUB_REPOSITORY_NAME,
+    session,
+    infra,
+    pipeline,
+    database
 )
 
 # Logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-# boto3 session
-session = boto3.Session(region_name=AWS_REGION)
-s3 = session.client("s3")
+AWS_REGION = os.environ["AWS_REGION"]
+GITHUB_PERSONAL_ACCESS_TOKEN = infra.secrets.GitHubPersonalAccessToken
+GITHUB_REPOSITORY_OWNER = pipeline.params.GitHubSourceRepository["owner"]
+GITHUB_REPOSITORY_NAME = pipeline.params.GitHubSourceRepository["name"]
 
 cache_dir = Path(__file__).parent / "_cache"
 
 # TODO clear cache
 # TODO disable/enable cache for testing
-
 
 def save_json_to_cache(data, var_name):
     """Saves data to cache directory"""
@@ -169,12 +169,12 @@ def flatten_json(data, sep=".", skip_fields=[], select_fields=[]):
     return data
 
 
-def read_s3_json(bucket, key):
+def read_s3_json(s3_client, bucket, key):
     """Reads config file containing the current state of branches in
     a GitHub repo"""
 
     try:
-        response = s3.get_object(Bucket=bucket, Key=key)
+        response = s3_client.get_object(Bucket=bucket, Key=key)
         return json.loads(response["Body"].read().decode())
 
     except ClientError as err:
@@ -182,12 +182,12 @@ def read_s3_json(bucket, key):
         raise err
 
 
-def write_s3_json(bucket, key, data):
+def write_s3_json(s3_client, bucket, key, data):
     """Writes config file containing the current state of branches in
     a GitHub repo"""
 
     try:
-        response = s3.put_object(Bucket=bucket, Key=key, Body=json.dumps(data).encode())
+        response = s3_client.put_object(Bucket=bucket, Key=key, Body=json.dumps(data).encode())
 
     except Exception as err:
         logger.error(
@@ -196,8 +196,8 @@ def write_s3_json(bucket, key, data):
         raise err
 
 
-def read_source_config(bucket, key):
-    data = read_s3_json(bucket, key)
+def read_source_config(s3_client, bucket, key):
+    data = read_s3_json(s3_client, bucket, key)
     return SourceConfig(**data)
 
 
