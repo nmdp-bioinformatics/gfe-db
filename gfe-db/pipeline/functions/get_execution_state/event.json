@@ -1,0 +1,11 @@
+{
+    "version": 3520,
+    "commit_sha": "70b3c643390b8a1e394b5d9cc9ee1f2c6eb1baca",
+    "input_parameters": {
+      "align": false,
+      "kir": false,
+      "mem_profile": false,
+      "limit": -1
+    },
+    "s3_path": "s3://dev-gfe-db-531868584498-us-east-1/data/3520"
+  }

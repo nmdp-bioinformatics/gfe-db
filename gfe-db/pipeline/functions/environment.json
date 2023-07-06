@@ -8,6 +8,12 @@
                 "MemorySize": 256
             }
         },
+        "GetExecutionState": {
+            "FunctionConfiguration": {
+                "Timeout": 60,
+                "MemorySize": 256
+            }
+        },
         "InvokeLoadScript": {
             "FunctionConfiguration": {
                 "FunctionName": "invoke-load-script",

@@ -12,9 +12,9 @@ Parameters:
   ServiceName:
     Type: String
     Description: Service name
-  GithubRepositoryOwner:
+  GitHubRepositoryOwner:
     Type: String
-  GithubRepositoryName:
+  GitHubRepositoryName:
     Type: String
   GitHubPersonalAccessToken:
     Type: String
@@ -32,6 +32,10 @@ Parameters:
     Type: Number
   CheckSourceUpdateFunctionSchedule:
     Type: String
+  GetExecutionStateFunctionTimeout:
+    Type: Number
+  GetExecutionStateFunctionMemorySize:
+    Type: Number
   ValidateBuildOutputFunctionName:
     Type: String
   ValidateBuildOutputFunctionMemorySize:
@@ -64,10 +68,25 @@ Resources:
   GitHubSourceRepositoryParameter:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/GithubSourceRepository"
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/GitHubSourceRepository"
       Type: String
       Description: GitHub Personal Access Token for repository access
-      Value: !Sub '{"owner":"${GithubRepositoryOwner}", "name":"${GithubRepositoryName}"}'
+      Value: !Sub '{"owner":"${GitHubRepositoryOwner}", "name":"${GitHubRepositoryName}"}'
+
+  # Create a lambda layer
+  GfeDbModelsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub '${Stage}-gfe-db-models'
+      Description: !Sub '${AppName} models for validationa and processing data'
+      ContentUri: lambda_layers/gfe_db_models
+      RetentionPolicy: delete
+      CompatibleRuntimes:
+        - python3.9
+        - python3.10
+    Metadata:
+      BuildMethod: python3.9
+      BuildArchitectures: arm64
 
   # TODO change name to GfeDbExecutionStateTable
   ExecutionStateTable:
@@ -88,12 +107,39 @@ Resources:
       #   ReadCapacityUnits: 2
       #   WriteCapacityUnits: 2
 
-  ExecutionStateTableName:
+  ExecutionStateTableNameParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/ExecutionStateTableName'
       Type: String
       Value: !Ref ExecutionStateTable
+
+  ExecutionStateTableFieldsParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/ExecutionStateTableFields'
+      Description: !Sub 'Selected fields for ${Stage}-${AppName} execution state table'
+      Tier: Standard
+      Value: !Sub |
+        [
+            "commit.sha",
+            "execution.version",
+            "commit.date_utc",
+            "commit.html_url",
+            "commit.message",
+            "execution.date_utc",
+            "execution.status",
+            "execution.input_parameters.align",
+            "execution.input_parameters.kir",
+            "execution.input_parameters.limit",
+            "execution.input_parameters.mem_profile",
+            "repository.name",
+            "repository.owner",
+            "repository.url",
+            "created_utc",
+            "updated_utc"
+        ]
 
   BuildServerSG:
     Type: AWS::EC2::SecurityGroup
@@ -410,9 +456,11 @@ Resources:
     Properties:
       FunctionName: !Ref CheckSourceUpdateFunctionName
       Description: !Sub '${AppName} update pipeline trigger: checks for new IMGT/HLA releases and starts the loading process'
-      CodeUri: functions/check_source_update/src/
+      CodeUri: functions/check_source_update/
       Handler: app.lambda_handler
       Runtime: python3.9
+      Layers:
+        - !Ref GfeDbModelsLayer
       MemorySize: !Ref CheckSourceUpdateFunctionMemorySize
       Timeout: !Ref CheckSourceUpdateFunctionTimeout
       Architectures:
@@ -474,6 +522,43 @@ Resources:
               Resource:
                 - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
                 - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
+
+  GetExecutionStateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub '${AppName} execution input validation and state retrieval'
+      CodeUri: functions/get_execution_state/
+      Handler: app.lambda_handler
+      Runtime: python3.10
+      Layers:
+        - !Ref GfeDbModelsLayer
+      MemorySize: !Ref GetExecutionStateFunctionMemorySize
+      Timeout: !Ref GetExecutionStateFunctionTimeout
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          APP_NAME: !Ref AppName
+          STAGE: !Ref Stage
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: "AllowSSMParameterStoreAccess"
+              Effect: "Allow"
+              Action:
+                - "ssm:GetParameters"
+                - "ssm:GetParameter"
+              # TODO test correct ARN path for app specific parameters
+              # arn:aws:ssm:us-east-2:123456789012:parameter/${AppName}/${Stage}/${AWS::Region}/*
+              Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*'
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: "AllowDynamoDBReadAccess"
+              Effect: "Allow"
+              Action:
+                - "dynamodb:ReadItem"
+              Resource: !GetAtt ExecutionStateTable.Arn
 
   # # TODO redeploy
   # CheckSourceUpdateFunctionAlarm:
@@ -943,3 +1028,30 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DatabaseSyncScriptsDocumentName'
       Description: "Name of SSM document for syncing shell scripts to the database"
       Value: !Ref DatabaseSyncScriptsDocument
+
+  GfedbPipelineParamMappingsParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/GfedbPipelineParamMappings'
+      Description: !Sub 'SSM Parameter and SecretsManager parameter paths for ${AppName} pipeline layer'
+      Tier: Standard
+      Value: !Sub |
+        {
+          "ssm": [
+              "/${AppName}/${Stage}/${AWS::Region}/GitHubSourceRepository",
+              "/${AppName}/${Stage}/${AWS::Region}/ExecutionStateTableName",
+              "/${AppName}/${Stage}/${AWS::Region}/ExecutionStateTableFields",
+              "/${AppName}/${Stage}/${AWS::Region}/BuildJobQueueArn",
+              "/${AppName}/${Stage}/${AWS::Region}/BuildServiceRepositoryName",
+              "/${AppName}/${Stage}/${AWS::Region}/GfeDbProcessingQueueUrl",
+              "/${AppName}/${Stage}/${AWS::Region}/GfeDbExecutionResultTopicArn",
+              "/${AppName}/${Stage}/${AWS::Region}/LoadReleaseActivityArn",
+              "/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineStateMachineArn",
+              "/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName",
+              "/${AppName}/${Stage}/${AWS::Region}/DatabaseSyncScriptsDocumentName"
+          ],
+          "secretsmanager": [
+              "/${AppName}/${Stage}/${AWS::Region}/GitHubPersonalAccessToken"
+          ]
+        }
