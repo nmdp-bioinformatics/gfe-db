@@ -16,7 +16,7 @@ from Bio.SeqFeature import SeqFeature
 from Bio.SeqRecord import SeqRecord
 from seqann.models.annotation import Annotation
 from Bio import SeqIO
-from pyard import ARD
+import pyard
 from seqann.gfe import GFE
 from constants import *
 
@@ -569,7 +569,7 @@ if __name__ == '__main__':
     
     alleles = parse_dat(data_dir, dbversion)
 
-    ard = ARD(dbversion)
+    ard = pyard.init(dbversion)
 
     gfe_maker = GFE(
         verbose=verbose, 
