@@ -569,7 +569,7 @@ if __name__ == '__main__':
     
     alleles = parse_dat(data_dir, dbversion)
 
-    ard = pyard.init(dbversion, load_mac=False)
+    ard = pyard.init(dbversion)
 
     gfe_maker = GFE(
         verbose=verbose, 
