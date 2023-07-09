@@ -9,6 +9,17 @@ if __name__ != "app":
     sys.path.append(os.environ["GFEDBMODELS_PATH"])
 import logging
 import json
+from gfedbmodels.types import (
+    ExecutionPayloadItem,
+    ExecutionStateItem
+)
+from gfedbmodels.constants import (
+    session,
+    pipeline
+)
+from gfedbmodels.utils import (
+    restore_nested_json
+)
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -17,16 +28,31 @@ logger.setLevel(logging.INFO)
 APP_NAME = os.environ["APP_NAME"]
 STAGE = os.environ["STAGE"]
 
+dynamodb = session.resource("dynamodb")
+table = dynamodb.Table(pipeline.params.ExecutionStateTableName)
 
 def lambda_handler(event, context):
     logger.info(json.dumps(event))
 
-    # TODO validate input
+    # validate input
+    execution_payload_item = ExecutionPayloadItem(**event)
+
     # TODO Get state for commit in input
-    # TODO Return state
-    # TODO return the SQS message receipt in case it needs to be returned to the queue if the state machine fails
+    commit_state = table.get_item(
+        Key={
+            "commit__sha": execution_payload_item.commit_sha,
+            "execution__version": execution_payload_item.version
+        }
+    )['Item']
+
+    commit_state = restore_nested_json(commit_state, split_on="__")
+    commit_state = ExecutionStateItem(**commit_state) # TODO table logic in models.utils
+
+    # TODO Return state, include the SQS message receipt in case it needs to be returned to the queue if the state machine fails
 
     return
+
+
 
 
 if __name__ == "__main__":

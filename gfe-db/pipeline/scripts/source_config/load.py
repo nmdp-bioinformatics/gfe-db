@@ -1,6 +1,7 @@
 """
 Loads the initial gfe-db execution state to DynamoDB table.
 
+TODO Sync state to local script so it can be reloaded from local
 TODO solution to avoid overwriting data when running this script (regular DynamoDB backups to S3 etc, fetch file from S3 and compare)
 """
 import os
@@ -17,29 +18,25 @@ from datetime import datetime
 
 utc_now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 import json
-import boto3
-from gfedbmodels.constants import execution_state_table_fields
+from gfedbmodels.constants import (
+    session,
+    pipeline
+)
 from gfedbmodels.types import (
     ExecutionState,
 )
-from gfedbmodels.utils import flatten_json_records, filter_null_fields
+from gfedbmodels.utils import flatten_json_records
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-ssm = boto3.client("ssm")
-dynamodb = boto3.resource("dynamodb")
+ssm = session.clients["ssm"]
+dynamodb = session.resource("dynamodb")
 
-AWS_REGION = os.environ["AWS_REGION"]
-APP_NAME = os.environ["APP_NAME"]
-STAGE = os.environ["STAGE"]
-DATA_BUCKET_NAME = os.environ["DATA_BUCKET_NAME"]
-GITHUB_REPOSITORY_OWNER = os.environ["GITHUB_REPOSITORY_OWNER"]
-GITHUB_REPOSITORY_NAME = os.environ["GITHUB_REPOSITORY_NAME"]
+# TODO
+execution_state_table_fields = pipeline.params.ExecutionStateTableFields
+execution_state_table_name = pipeline.params.ExecutionStateTableName
 
-execution_state_table_name = ssm.get_parameter(
-    Name=f"/{APP_NAME}/{STAGE}/{AWS_REGION}/ExecutionStateTableName"
-)["Parameter"]["Value"]
 table = dynamodb.Table(execution_state_table_name)
 
 if __name__ == "__main__":

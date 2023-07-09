@@ -8,7 +8,6 @@ if __name__ != "app":
 
 import logging
 import json
-import boto3
 from gfedbmodels.constants import (
     session,
     pipeline,

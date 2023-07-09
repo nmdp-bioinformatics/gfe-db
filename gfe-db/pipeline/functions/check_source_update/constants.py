@@ -1,6 +1,4 @@
 import os
-import boto3
-from awsparameters import AppConfig
 from gfedbmodels.constants import (
     session,
     infra,

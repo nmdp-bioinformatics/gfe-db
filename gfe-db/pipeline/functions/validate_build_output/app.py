@@ -8,13 +8,10 @@ if __name__ != "app":
 import logging
 import re
 import json
-import boto3
 import polars as pl
 from gfedbmodels.constants import (
     session,
-    infra,
-    pipeline,
-    database
+    infra
 )
 
 logger = logging.getLogger()

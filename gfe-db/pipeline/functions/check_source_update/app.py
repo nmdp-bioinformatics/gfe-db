@@ -7,10 +7,8 @@ syncing state. If old items are deleted on the Execution state table while the m
 this function will not reprocess the deleted items.
 """
 import os
-
 if __name__ != "app":
     import sys
-
     # for dev, local path to gfe-db modules
     # ./gfe-db/pipeline/lambda_layers/gfe_db_models (use absolute path)
     sys.path.append(os.environ["GFEDBMODELS_PATH"])
@@ -18,16 +16,7 @@ import logging
 from decimal import Decimal
 from datetime import datetime, timedelta
 import json
-from constants import (
-    session,
-    PIPELINE_SOURCE_CONFIG_S3_PATH,
-    GITHUB_REPOSITORY_OWNER,
-    GITHUB_REPOSITORY_NAME,
-    execution_state_table_name,
-    data_bucket_name,
-    gfedb_processing_queue_url,
-    execution_state_table_fields,
-)
+from gfedbmodels.constants import session
 from gfedbmodels.types import (
     str_to_datetime,
     str_from_datetime,
@@ -37,13 +26,25 @@ from gfedbmodels.types import (
     ExecutionDetailsConfig,
     ExecutionPayloadItem,
 )
+# TODO update after refactor
 from gfedbmodels.utils import (
-    read_source_config,
     restore_nested_json,
     list_commits,
-    get_release_version_for_commit,
     flatten_json,
     filter_null_fields,
+)
+from gfedbmodels.ingest import (
+    read_source_config,
+    get_release_version_for_commit
+)
+from constants import (
+    PIPELINE_SOURCE_CONFIG_S3_PATH,
+    GITHUB_REPOSITORY_OWNER,
+    GITHUB_REPOSITORY_NAME,
+    execution_state_table_name,
+    data_bucket_name,
+    gfedb_processing_queue_url,
+    execution_state_table_fields,
 )
 
 logger = logging.getLogger()

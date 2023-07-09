@@ -9,10 +9,8 @@ if __name__ != "app":
 import logging
 from datetime import datetime
 import json
-import boto3
 from gfedbmodels.constants import (
     session,
-    infra,
     pipeline,
     database
 )
