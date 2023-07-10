@@ -3,18 +3,7 @@
     "States": {
         "GetState": {
             "Type": "Task",
-            "Resource": "arn:aws:states:::dynamodb:getItem",
-            "ResultSelector": {
-                "commit__sha.$": "$.Item.commit__sha.S",
-                "execution__version.$": "$.Item.execution__version.N",
-                "commit__date_utc.$": "$.Item.commit__date_utc.S",
-                "commit__html_url.$": "$.Item.commit__html_url.S",
-                "commit__message.$": "$.Item.commit__message.S",
-                "created_utc.$": "$.Item.created_utc.S",
-                "repository__name.$": "$.Item.repository__name.S",
-                "repository__owner.$": "$.Item.repository__owner.S",
-                "repository__url.$": "$.Item.repository__url.S"
-            },
+            "Resource": "${GetExecutionStateFunctionArn}",
             "ResultPath": "$.state",
             "Catch": [
                 {
@@ -24,18 +13,7 @@
                     "Next": "ReportFailure"
                 }
             ],
-            "Next": "BuildRelease",
-            "Parameters": {
-                "TableName": "${ExecutionStateTable}",
-                "Key": {
-                    "commit__sha": {
-                        "S.$": "$.commit_sha"
-                    },
-                    "execution__version": {
-                        "N.$": "States.Format('{}', $.version)"
-                    }
-                }
-            }
+            "Next": "BuildRelease"
         },
         "BuildRelease": {
             "Type": "Parallel",

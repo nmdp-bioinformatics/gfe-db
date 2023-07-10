@@ -33,16 +33,14 @@ update_pipeline_state_machine_arn = pipeline.params.UpdatePipelineStateMachineAr
 gfe_db_processing_queue_url = pipeline.params.GfeDbProcessingQueueUrl
 
 # Check that database is running, abort if not
-try:
-    response = ec2.describe_instance_status(InstanceIds=[neo4j_database_instance_id])
-    if response["InstanceStatuses"][0]["InstanceState"]["Name"] != "running":
-        raise Exception(
-            f"Instance {neo4j_database_instance_id} is not running, aborting..."
-        )
-    else:
-        logger.info(f"Instance {neo4j_database_instance_id} is running")
-except Exception as e:
-    raise e
+
+response = ec2.describe_instance_status(InstanceIds=[neo4j_database_instance_id])
+if response["InstanceStatuses"][0]["InstanceState"]["Name"] != "running":
+    raise Exception(
+        f"Instance {neo4j_database_instance_id} is not running, aborting..."
+    )
+else:
+    logger.info(f"Instance {neo4j_database_instance_id} is running")
 
 
 def lambda_handler(event, context):
@@ -51,6 +49,10 @@ def lambda_handler(event, context):
     for record in event["Records"]:
         try:
             message = json.loads(record["body"])
+
+            # Include receipt handle in message to return to queue if step function fails
+            message["receipt_handle"] = record["receiptHandle"]
+            
             logger.info(
                 f"Received message for version {message['version']} and commit {message['commit_sha']}"
             )

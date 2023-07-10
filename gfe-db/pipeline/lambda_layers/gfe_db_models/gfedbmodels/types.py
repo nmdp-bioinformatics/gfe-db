@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, validator, root_validator
 import jmespath
+from .utils import restore_nested_json
 
 # ExecutionState is changed using Step Functions DynamoDB states
 # SKIPPED: never processed (set by CheckSourceUpdate) ✅
@@ -176,8 +177,10 @@ class ExecutionStateItem(BaseModel):
     execution: ExecutionDetailsConfig
 
     @classmethod
-    def from_execution_state_item(cls, item):
-        pass
+    def from_execution_state_item(cls, execution_state_item: dict):
+        # Items from table are separated by "__" because "." is not allowed in DynamoDB
+        execution_state_item = restore_nested_json(execution_state_item, split_on="__")
+        return cls(**execution_state_item)
 
 
 class ExecutionState(BaseModel):

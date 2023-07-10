@@ -17,16 +17,9 @@ from gfedbmodels.constants import (
     session,
     pipeline
 )
-from gfedbmodels.utils import (
-    restore_nested_json
-)
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
-# Environment
-APP_NAME = os.environ["APP_NAME"]
-STAGE = os.environ["STAGE"]
 
 dynamodb = session.resource("dynamodb")
 table = dynamodb.Table(pipeline.params.ExecutionStateTableName)
@@ -45,14 +38,13 @@ def lambda_handler(event, context):
         }
     )['Item']
 
-    commit_state = restore_nested_json(commit_state, split_on="__")
-    commit_state = ExecutionStateItem(**commit_state) # TODO table logic in models.utils
+    # Validate record with pydantic model
+    execution_state_item = ExecutionStateItem.from_execution_state_item(commit_state)
 
-    # TODO Return state, include the SQS message receipt in case it needs to be returned to the queue if the state machine fails
-
-    return
-
-
+    # return payload to step functions
+    # event["state"] = execution_state_item.model_dump()
+    
+    return execution_state_item.model_dump()
 
 
 if __name__ == "__main__":
