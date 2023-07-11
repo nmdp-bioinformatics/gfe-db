@@ -33,6 +33,7 @@ service.config.neo4j.deploy: service.config.update-dns
 	@aws s3 cp neo4j/neo4j.conf s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws s3 cp --recursive neo4j/cypher/ s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
 
+# This target will configure the database to use the correct DNS name using env vars
 service.config.update-dns:
 	@[ "${HOST_DOMAIN}" != "" ] && \
 	cat neo4j/neo4j.template | \
@@ -51,6 +52,13 @@ service.config.scripts.sync: service.config.scripts.deploy
 		--document-name "$$document_name" \
 		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
 		--comment "${STAGE}=${APP_NAME} backup service" 2>&1 | tee -a $$CFN_LOG_PATH || true
+
+service.ssl.renew-cert:
+	@aws ssm send-command \
+		--document-name "AWS-RunShellScript" \
+		--parameters "commands=[cd /home/bitnami && sudo make ssl.renew-cert]" \
+		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
+		--comment "${STAGE}-${APP_NAME} SSL certificate renewal utility" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 service.config.cloudwatch-agent.deploy:
 	@mkdir -p amazon-cloudwatch-agent/tmp/ 

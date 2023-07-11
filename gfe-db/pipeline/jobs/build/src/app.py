@@ -16,7 +16,7 @@ from Bio.SeqFeature import SeqFeature
 from Bio.SeqRecord import SeqRecord
 from seqann.models.annotation import Annotation
 from Bio import SeqIO
-from pyard import ARD
+import pyard
 from seqann.gfe import GFE
 from constants import *
 
@@ -525,7 +525,6 @@ if __name__ == '__main__':
                         help="Limit number of records in output",
                         default=None,
                         nargs='?',
-                        type=int,
                         action="store")
 
     args = parser.parse_args()
@@ -549,7 +548,7 @@ if __name__ == '__main__':
     _mem_profile = True if '-p' in sys.argv else False
     verbose = True if '-v' in sys.argv else False
     verbosity = 1 #args.verbosity if args.verbosity else None
-    limit = args.limit if args.limit else None #min(args.count, args.limit)
+    limit = int(args.limit) if args.limit else None #min(args.count, args.limit)
 
     #data_dir = f'{data_dir}/{dbversion}'
     # data_dir = os.path.dirname(__file__) + f"/../data/{dbversion}"
@@ -570,7 +569,7 @@ if __name__ == '__main__':
     
     alleles = parse_dat(data_dir, dbversion)
 
-    ard = ARD(dbversion)
+    ard = pyard.init(dbversion)
 
     gfe_maker = GFE(
         verbose=verbose, 
