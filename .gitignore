@@ -88,6 +88,8 @@ packaged.yaml
 samconfig.toml
 
 # Project files
+change-batch.json.tmp
+_cache/
 tags
 data/
 *.pem
@@ -105,4 +107,3 @@ gfedb.zip
 gfe-db/pipeline/jobs/build/event.json
 gfe-db/pipeline/statemachines/test*
 reports/
-_cache/
