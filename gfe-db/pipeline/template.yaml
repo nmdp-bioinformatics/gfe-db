@@ -306,6 +306,7 @@ Resources:
         MaxvCpus: 32
         InstanceTypes:
           - c5d.2xlarge
+        # TODO use private subnet?
         Subnets:
           - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID}}'
         SecurityGroupIds:
