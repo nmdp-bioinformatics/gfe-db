@@ -645,5 +645,6 @@ if __name__ == '__main__':
     logging.info(f'Finished build for version {imgt_release}')
     if len(errors) > 0:
         logging.info(f'{len(errors)} errors: {errors}')
+        exit(1)
     end = time.time()
     logging.info(f'****** Build finished in {round(end - start, 2)} seconds ******')
