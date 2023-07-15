@@ -557,16 +557,8 @@ Resources:
             - Sid: "AllowDynamoDBReadAccess"
               Effect: "Allow"
               Action:
-                - "dynamodb:ReadItem"
+                - "dynamodb:GetItem"
               Resource: !GetAtt ExecutionStateTable.Arn
-        # TODO this permission is not needed by the function, but is loaded by the module => disable in the module
-        # - Version: "2012-10-17"
-        #   Statement:
-        #     - Sid: "AllowSecretsManagerAccess"
-        #       Effect: "Allow"
-        #       Action:
-        #         - "secretsmanager:GetSecretValue"
-        #       Resource: !Ref GitHubPersonalAccessTokenSecret
 
   # # TODO redeploy
   # CheckSourceUpdateFunctionAlarm:
