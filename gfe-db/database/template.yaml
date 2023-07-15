@@ -35,16 +35,6 @@ Parameters:
     Type: String
 
 Resources:
-  Neo4jDNSRecord:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneName: !Sub "${HostDomain}."
-      Comment: !Sub 'DNS name for ${Stage}-${AppName} server'
-      Name: !Sub ${Subdomain}.${HostDomain}.
-      Type: A
-      TTL: 300
-      ResourceRecords:
-      - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint}}'
 
   Neo4jCredentialsSecret:
     Type: AWS::SecretsManager::Secret

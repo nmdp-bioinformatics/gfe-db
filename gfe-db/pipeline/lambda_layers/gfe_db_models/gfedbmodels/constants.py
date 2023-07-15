@@ -1,6 +1,5 @@
 import os
 import logging
-import boto3
 from awsparameters import AppConfig
 from awsparameters.manager import SessionManager
 

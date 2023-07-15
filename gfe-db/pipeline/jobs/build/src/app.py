@@ -16,7 +16,7 @@ from Bio.SeqFeature import SeqFeature
 from Bio.SeqRecord import SeqRecord
 from seqann.models.annotation import Annotation
 from Bio import SeqIO
-from pyard import ARD
+import pyard
 from seqann.gfe import GFE
 from constants import *
 
@@ -505,7 +505,7 @@ if __name__ == '__main__':
                         help="Option for running in verbose",
                         action="store_true")
 
-    # TO DO: add option to specify last n releases UPDATE: instead of having this script handle multiple releases,
+    # TODO: add option to specify last n releases UPDATE: instead of having this script handle multiple releases,
     # have it handle one release and just call it multiple times for an array or queue of releases
     # parser.add_argument("-n", "--number",
     #                     required=False,
@@ -569,7 +569,7 @@ if __name__ == '__main__':
     
     alleles = parse_dat(data_dir, dbversion)
 
-    ard = ARD(dbversion)
+    ard = pyard.init(dbversion)
 
     gfe_maker = GFE(
         verbose=verbose, 
@@ -578,6 +578,8 @@ if __name__ == '__main__':
         store_features=True,
         loci=load_loci)
 
+    errors = []
+    max_errors = 10
     for idx, allele in enumerate(alleles):
         if idx == limit:
             break
@@ -611,6 +613,7 @@ if __name__ == '__main__':
             else:
                 logger.warn(f'Skipping allele {hla_name} for locus {locus}')
         except:
+            errors.append(allele.id)
             try:
                 logger.info(f'Sending message to {failed_alleles_queue_name}')
                 response = sqs.send_message(
@@ -634,7 +637,14 @@ if __name__ == '__main__':
             except Exception as err:
                 logger.error("Failed to send message")
                 raise err
+            
+            if len(errors) > max_errors:
+                logger.error(f'Max errors ({max_errors}) reached. Exiting...')
+                break
 
     logging.info(f'Finished build for version {imgt_release}')
+    if len(errors) > 0:
+        logging.info(f'{len(errors)} errors: {errors}')
+        exit(1)
     end = time.time()
     logging.info(f'****** Build finished in {round(end - start, 2)} seconds ******')

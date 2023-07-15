@@ -1,7 +1,6 @@
 """
 Builds the execution state for the given repository source from the static repository source configuration (`source-config.json`).
 """
-
 import os
 import sys
 
@@ -11,31 +10,37 @@ sys.path.append(os.environ["GFEDBMODELS_PATH"])
 
 from pathlib import Path
 import logging
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 from datetime import datetime
-
-utc_now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+utc_now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ") # TODO match format 2023-07-06T19:03:55.500Z
 import json
-
-# these libraries are shared from the check_source_update function
-from gfedbmodels.types import SourceConfig, RepositoryConfig, ExecutionState
-from gfedbmodels import (
+print(json.dumps(sys.path, indent=4))
+from gfedbmodels.constants import (
+    infra,
+    pipeline
+)
+from gfedbmodels.utils import (
     paginate_commits,
     select_fields,
     flatten_json_records,
     select_keys,
     rename_fields,
-    process_execution_state_items,
     filter_nested_nulls,
+)
+from gfedbmodels.types import (
+    SourceConfig, 
+    RepositoryConfig, 
+    ExecutionState
+)
+from gfedbmodels.ingest import (
+    process_execution_state_items
 )
 
 # Environment variables
-APP_NAME = os.environ["APP_NAME"]
-GITHUB_REPOSITORY_OWNER = os.environ["GITHUB_REPOSITORY_OWNER"]
-GITHUB_REPOSITORY_NAME = os.environ["GITHUB_REPOSITORY_NAME"]
-DATA_BUCKET_NAME = os.environ["DATA_BUCKET_NAME"]
+GITHUB_REPOSITORY_OWNER = pipeline.params.GitHubSourceRepository["owner"]
+GITHUB_REPOSITORY_NAME = pipeline.params.GitHubSourceRepository["name"]
+DATA_BUCKET_NAME = infra.params.DataBucketName
 
 
 if __name__ == "__main__":

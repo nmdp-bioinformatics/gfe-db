@@ -6,6 +6,7 @@ export
 export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity --query Account --output text)
 export ROOT_DIR := $(shell pwd)
 export DATABASE_DIR := ${ROOT_DIR}/${APP_NAME}/database
+export INFRA_DIR := ${ROOT_DIR}/${APP_NAME}/infrastructure
 export LOGS_DIR := $(shell echo "${ROOT_DIR}/logs")
 export CFN_LOG_PATH := $(shell echo "${LOGS_DIR}/cfn/logs.txt")
 export PURGE_LOGS := false
@@ -82,7 +83,7 @@ check.dependencies:
 	$(MAKE) check.dependencies.jq
 
 check.dependencies.docker:
-	@if ! docker info >/dev/null 2>&1; then \
+	@if docker info 2>&1 | grep -q 'Is the docker daemon running?'; then \
 		echo "**** Docker is not running. Please start Docker before deploying. ****" && \
 		echo "**** Please refer to the documentation for a list of prerequisistes. ****" && \
 		exit 1; \

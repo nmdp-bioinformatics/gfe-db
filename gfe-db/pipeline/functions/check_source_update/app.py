@@ -7,10 +7,8 @@ syncing state. If old items are deleted on the Execution state table while the m
 this function will not reprocess the deleted items.
 """
 import os
-
 if __name__ != "app":
     import sys
-
     # for dev, local path to gfe-db modules
     # ./gfe-db/pipeline/lambda_layers/gfe_db_models (use absolute path)
     sys.path.append(os.environ["GFEDBMODELS_PATH"])
@@ -18,16 +16,7 @@ import logging
 from decimal import Decimal
 from datetime import datetime, timedelta
 import json
-from constants import (
-    session,
-    PIPELINE_SOURCE_CONFIG_S3_PATH,
-    GITHUB_REPOSITORY_OWNER,
-    GITHUB_REPOSITORY_NAME,
-    execution_state_table_name,
-    data_bucket_name,
-    gfedb_processing_queue_url,
-    execution_state_table_fields,
-)
+from gfedbmodels.constants import session, pipeline
 from gfedbmodels.types import (
     str_to_datetime,
     str_from_datetime,
@@ -37,13 +26,25 @@ from gfedbmodels.types import (
     ExecutionDetailsConfig,
     ExecutionPayloadItem,
 )
+# TODO update after refactor
 from gfedbmodels.utils import (
-    read_source_config,
     restore_nested_json,
     list_commits,
-    get_release_version_for_commit,
     flatten_json,
     filter_null_fields,
+)
+from gfedbmodels.ingest import (
+    read_source_config,
+    get_release_version_for_commit
+)
+from constants import (
+    PIPELINE_SOURCE_CONFIG_S3_PATH,
+    GITHUB_REPOSITORY_OWNER,
+    GITHUB_REPOSITORY_NAME,
+    execution_state_table_name,
+    data_bucket_name,
+    gfedb_processing_queue_url,
+    execution_state_table_fields,
 )
 
 logger = logging.getLogger()
@@ -56,6 +57,8 @@ logger.info(
 s3 = session.client("s3")
 dynamodb = session.resource("dynamodb")
 queue = session.resource("sqs")
+
+GITHUB_PERSONAL_ACCESS_TOKEN = pipeline.secrets.GitHubPersonalAccessToken
 
 # Get data source configuration
 source_repo_config = read_source_config(
@@ -100,7 +103,11 @@ def lambda_handler(event, context):
             for asset_config in source_repo_config.target_metadata_config.items:
                 try:
                     release_version = get_release_version_for_commit(
-                        commit, **asset_config.dict()
+                        commit=commit, 
+                        owner=GITHUB_REPOSITORY_OWNER,
+                        repo=GITHUB_REPOSITORY_NAME,
+                        token=GITHUB_PERSONAL_ACCESS_TOKEN,
+                        **asset_config.model_dump()
                     )
                     logger.info(
                         f"Found release version {release_version} for commit {sha}"
@@ -161,7 +168,7 @@ def lambda_handler(event, context):
         items = [
             filter_null_fields(
                 flatten_json(
-                    data=item.dict(),
+                    data=item.model_dump(),
                     sep="__",
                     select_fields=[
                         item.replace(".", "__") for item in execution_state_table_fields
@@ -184,7 +191,7 @@ def lambda_handler(event, context):
 
         # 5) Send pending commits to the state machine for further processing
         execution_payload = [
-            ExecutionPayloadItem.from_execution_state_item(item).dict()
+            ExecutionPayloadItem.from_execution_state_item(item).model_dump()
             for item in pending_commits
         ]
         execution_payload = sorted(
@@ -195,6 +202,7 @@ def lambda_handler(event, context):
 
         # TODO log out the commits that were skipped and pending
         message = f"Queued {len(execution_payload)} release(s) for processing\n{execution_payload}"
+        logger.info(message)
         return {
             "statusCode": 200,
             "body": json.dumps({"message": message}),
@@ -238,7 +246,7 @@ def get_most_recent_commits(execution_state):
     since = str_from_datetime(last_commit_date + timedelta(seconds=1))
 
     # 2) Get the most recent commits from GitHub using since=<date> parameter
-    return list_commits(GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY_NAME, since=since)
+    return list_commits(GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY_NAME, since=since, token=GITHUB_PERSONAL_ACCESS_TOKEN)
 
 
 def select_most_recent_commit_for_release(commits: list[ExecutionStateItem]):

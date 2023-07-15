@@ -1,6 +1,4 @@
 import os
-import boto3
-from awsparameters import AppConfig
 from gfedbmodels.constants import (
     session,
     infra,
@@ -8,11 +6,8 @@ from gfedbmodels.constants import (
 )
 
 # Environment
-AWS_REGION = os.environ["AWS_REGION"]
-APP_NAME = os.environ["APP_NAME"]
-STAGE = os.environ["STAGE"]
 PIPELINE_SOURCE_CONFIG_S3_PATH = os.environ["PIPELINE_SOURCE_CONFIG_S3_PATH"]
-
+data_bucket_name = infra.params.DataBucketName
 (
     GITHUB_REPOSITORY_OWNER, 
     GITHUB_REPOSITORY_NAME, 
@@ -26,5 +21,3 @@ PIPELINE_SOURCE_CONFIG_S3_PATH = os.environ["PIPELINE_SOURCE_CONFIG_S3_PATH"]
     pipeline.params.GfeDbProcessingQueueUrl,
     pipeline.params.ExecutionStateTableFields
 )
-
-data_bucket_name = infra.params.DataBucketName

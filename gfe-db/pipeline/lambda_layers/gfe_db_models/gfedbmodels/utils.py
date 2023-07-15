@@ -9,32 +9,13 @@ import json
 import pickle
 import re
 import requests
-import multiprocessing
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from botocore.exceptions import ClientError
-from .types import (
-    SourceConfig,
-    RepositoryConfig,
-    TargetMetadataConfig,
-    Commit,
-    ExecutionStateItem,
-    ExecutionDetailsConfig,
-)
-from .constants import (
-    infra,
-    pipeline,
-)
 
 # Logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 AWS_REGION = os.environ["AWS_REGION"]
-
-# TODO can call these directly in the functions instead of decarling and passing them in, they should be cached
-GITHUB_PERSONAL_ACCESS_TOKEN = infra.secrets.GitHubPersonalAccessToken
-GITHUB_REPOSITORY_OWNER = pipeline.params.GitHubSourceRepository["owner"]
-GITHUB_REPOSITORY_NAME = pipeline.params.GitHubSourceRepository["name"]
 
 cache_dir = Path(__file__).parent / "_cache"
 
@@ -195,16 +176,7 @@ def write_s3_json(s3_client, bucket, key, data):
         raise err
 
 
-def read_source_config(s3_client, bucket, key):
-    data = read_s3_json(s3_client, bucket, key)
-    return SourceConfig(**data)
-
-
-# def write_source_config(bucket, key, source_config: SourceConfig):
-#     write_s3_json(bucket, key, source_config.dict())
-
-
-def list_commits(owner, repo, **params):
+def list_commits(owner, repo, token, **params):
     """Return a list of GitHub commits for the specified repository"""
 
     base_url = "https://api.github.com"
@@ -221,7 +193,7 @@ def list_commits(owner, repo, **params):
 
     # Headers
     headers = {
-        "Authorization": f"token {GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "Authorization": f"token {token}",
         "Content-Type": "application/json",
         "Accept": "application/vnd.github.v3+json",
         "X-GitHub-Api-Version": "2022-11-28",
@@ -251,7 +223,7 @@ def paginate_commits(owner, repo, start_page=1, per_page=100, **kwargs):
     return commits
 
 
-def get_commit(owner, repo, commit_sha):
+def get_commit(owner, repo, token, commit_sha):
     """Return the commit for the specified repository and commit SHA"""
 
     base_url = "https://api.github.com"
@@ -262,7 +234,7 @@ def get_commit(owner, repo, commit_sha):
 
     # Headers
     headers = {
-        "Authorization": f"token {GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "Authorization": f"token {token}",
         "Content-Type": "application/json",
         "Accept": "application/vnd.github.v3+json",
         "X-GitHub-Api-Version": "2022-11-28",
@@ -274,7 +246,7 @@ def get_commit(owner, repo, commit_sha):
     return response.json()
 
 
-def get_file_contents(owner, repo, path):
+def get_file_contents(owner, repo, token, path):
     base_url = "https://api.github.com"
 
     # Endpoint
@@ -283,7 +255,7 @@ def get_file_contents(owner, repo, path):
 
     # Headers
     headers = {
-        "Authorization": f"token {GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "Authorization": f"token {token}",
         "Content-Type": "application/json",
         "Accept": "application/vnd.github.v3+json",
         "X-GitHub-Api-Version": "2022-11-28",
@@ -295,7 +267,7 @@ def get_file_contents(owner, repo, path):
     return response.json()
 
 
-def get_commits_for_asset(owner, repo, path, since=None):
+def get_commits_for_asset(owner, repo, token, path, since=None):
     base_url = "https://api.github.com"
 
     # Endpoint
@@ -304,7 +276,7 @@ def get_commits_for_asset(owner, repo, path, since=None):
 
     # Headers
     headers = {
-        "Authorization": f"token {GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "Authorization": f"token {token}",
         "Content-Type": "application/json",
         "Accept": "application/vnd.github.v3+json",
         "X-GitHub-Api-Version": "2022-11-28",
@@ -322,7 +294,7 @@ def get_commits_for_asset(owner, repo, path, since=None):
     return response.json()
 
 
-def get_repo_contents(owner, repo, path, commit_sha=None):
+def get_repo_contents(owner, repo, token, path, commit_sha=None):
     base_url = "https://api.github.com"
 
     # Endpoint
@@ -331,7 +303,7 @@ def get_repo_contents(owner, repo, path, commit_sha=None):
 
     # Headers
     headers = {
-        "Authorization": f"token {GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "Authorization": f"token {token}",
         "Content-Type": "application/json",
         "Accept": "application/vnd.github.v3+json",
         "X-GitHub-Api-Version": "2022-11-28",
@@ -350,9 +322,9 @@ def get_repo_contents(owner, repo, path, commit_sha=None):
     return response.json()
 
 
-def get_repo_asset(owner, repo, path, commit_sha=None):
+def get_repo_asset(owner, repo, token, path, commit_sha=None):
     """Download a file from a GitHub repository"""
-    repo_contents = get_repo_contents(owner, repo, path, commit_sha)
+    repo_contents = get_repo_contents(owner, repo, token, path, commit_sha)
 
     response = requests.get(repo_contents["download_url"])
     response.raise_for_status()
@@ -364,7 +336,7 @@ def get_repo_asset(owner, repo, path, commit_sha=None):
     return response.text
 
 
-def get_branches(owner, repo):
+def get_branches(owner, repo, token):
     """Fetch branches for a GitHub repository"""
 
     base_url = "https://api.github.com"
@@ -375,7 +347,7 @@ def get_branches(owner, repo):
 
     # Headers
     headers = {
-        "Authorization": f"token {GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "Authorization": f"token {token}",
         "Content-Type": "application/json",
         "Accept": "application/vnd.github.v3+json",
         "X-GitHub-Api-Version": "2022-11-28",
@@ -387,7 +359,7 @@ def get_branches(owner, repo):
     return response.json()
 
 
-def get_branch(owner, repo, branch_name):
+def get_branch(owner, repo, token, branch_name):
     """Fetch branches for a GitHub repository"""
 
     base_url = "https://api.github.com"
@@ -398,7 +370,7 @@ def get_branch(owner, repo, branch_name):
 
     # Headers
     headers = {
-        "Authorization": f"token {GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "Authorization": f"token {token}",
         "Content-Type": "application/json",
         "Accept": "application/vnd.github.v3+json",
         "X-GitHub-Api-Version": "2022-11-28",
@@ -411,12 +383,12 @@ def get_branch(owner, repo, branch_name):
 
 
 # Function to fetch pull requests
-def get_pull_requests(owner, repo):
+def get_pull_requests(owner, repo, token):
     url = f"https://api.github.com/repos/{owner}/{repo}/pulls?state=all"
 
     # Headers
     headers = {
-        "Authorization": f"token {GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "Authorization": f"token {token}",
         "Content-Type": "application/json",
         "Accept": "application/vnd.github.v3+json",
         "X-GitHub-Api-Version": "2022-11-28",
@@ -519,22 +491,6 @@ def find_text(pattern, input_str):
         return text
 
 
-def get_release_version_for_commit(commit: Union[Commit, dict], **kwargs) -> int:
-    try:
-        sha = commit["sha"]
-    except:
-        sha = commit.sha
-    asset_path = kwargs["asset_path"]
-    release_version_regex = kwargs["metadata_regex"]
-    allele_list = get_repo_asset(
-        GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY_NAME, asset_path, sha
-    )
-    release_version = find_text(release_version_regex, allele_list)
-    if release_version is None:
-        raise Exception(f"Release version not found for commit {sha}")
-    return int(release_version.replace(".", "")[:4])
-
-
 def filter_nulls(items: List[Dict[str, str]]) -> List[Dict[str, str]]:
     """Filter out null items from a list of dictionaries
 
@@ -584,123 +540,3 @@ def sort_execution_state_items(
         key=lambda x: x["commit"].date_utc,
         reverse=(not ascending),
     )
-
-
-def process_execution_state_item(
-    timestamp: str,
-    commit: Dict[str, str],
-    repository_config: RepositoryConfig,
-    target_metadata_config: TargetMetadataConfig,
-    limit: int = None,
-) -> Dict[str, str]:
-    errors = 0
-    sha = commit["sha"]
-
-    for config in target_metadata_config.items:
-        try:
-            logger.info(
-                f"Getting release version for sha {sha} from {config.asset_path}"
-            )
-            release_version = get_release_version_for_commit(commit, **config.dict())
-            logger.info(f"Found release version {release_version} ({sha})")
-
-            result = {
-                "created_utc": timestamp,
-                "repository": repository_config,
-                "commit": Commit(**commit),
-                "execution": ExecutionDetailsConfig(
-                    version=release_version,
-                    status="NOT_PROCESSED",
-                    date_utc=None,
-                    input_parameters=None,
-                ),
-            }
-
-        except Exception as e:
-            # This is because Allelelist.txt for certain commits doesn't contain the release version or name
-            # Need to find another file that indicates the release version should be small
-            errors += 1
-            logger.error(f"Error processing commit {sha}: {e}")
-            if errors == len(target_metadata_config.items):
-                # logger.error(f"Max errors reached. Exiting loop.")
-                raise e
-            else:
-                continue
-
-        # return error count and increment outside this function
-
-        # TODO deserialize to ExecutionStateItem
-        return result
-
-
-def parallel_process_execution_state_items(
-    timestamp: str,
-    commits: List[Dict[str, str]],
-    repository_config: RepositoryConfig,
-    target_metadata_config: TargetMetadataConfig,
-    limit: int = None,
-):
-    execution_state_items = []
-    num_cores = multiprocessing.cpu_count()
-    num_threads = max(1, num_cores - 1)  # Reserve one core for other processes
-    num_threads = min(6, num_cores)  # limit threads to avoid GitHub API rate limit
-
-    # Create a ThreadPoolExecutor with the specified number of threads
-    with ThreadPoolExecutor(max_workers=num_threads) as executor:
-        # Submit the process_commit function for each commit to the executor
-        futures = [
-            executor.submit(
-                process_execution_state_item,
-                timestamp,
-                commit,
-                repository_config,
-                target_metadata_config,
-            )
-            for commit in commits[:limit]
-        ]
-
-        # Collect the results as they complete
-        execution_state_items = [future.result() for future in as_completed(futures)]
-
-    return [
-        ExecutionStateItem(**item)
-        for item in sort_execution_state_items(filter_nulls(execution_state_items))
-    ]
-
-
-# limit is int or None
-@cache_pickle
-def process_execution_state_items(
-    timestamp: str,
-    commits: List[Dict[str, str]],
-    repository_config: RepositoryConfig,
-    target_metadata_config: TargetMetadataConfig,
-    limit: None = None,
-    parallel: str = False,
-) -> List[Dict[str, str]]:
-    if parallel == True:
-        if limit:
-            logger.warning("'limit' will not work if parallel processing is enabled")
-        return parallel_process_execution_state_items(
-            timestamp=timestamp,
-            commits=commits,
-            repository_config=repository_config,
-            target_metadata_config=target_metadata_config,
-            limit=limit,
-        )
-    else:
-        execution_state_items = []
-        for commit in commits[:limit]:
-            execution_state_items.append(
-                process_execution_state_item(
-                    commit=commit,
-                    repository_config=repository_config,
-                    target_metadata_config=target_metadata_config,
-                    limit=limit,
-                )
-            )
-
-        return [
-            ExecutionStateItem(**item)
-            for item in sort_execution_state_items(filter_nulls(execution_state_items))
-        ]

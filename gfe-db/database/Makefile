@@ -31,9 +31,15 @@ service.check-key-pair: ##=> Checks if the key pair already exists and creates i
 service.config.deploy: service.config.neo4j.deploy service.config.scripts.deploy service.config.cloudwatch-agent.deploy
 
 # TODO consolidate all config files into one command, by service layer
-service.config.neo4j.deploy: service.config.update-dns
+service.config.neo4j.deploy: service.config.neo4j.update-dns
 	@aws s3 cp config/neo4j/neo4j.conf s3://$$DATA_BUCKET_NAME/$${CONFIG_S3_PATH}/${SERVICE}/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws s3 cp --recursive config/neo4j/cypher/ s3://$$DATA_BUCKET_NAME/$${CONFIG_S3_PATH}/${SERVICE}/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
+
+# # This target will configure the database to use the correct DNS name using env vars
+# service.config.neo4j.update-dns:
+# 	@[ "${HOST_DOMAIN}" != "" ] && \
+# 	cat neo4j/neo4j.template | \
+# 	sed s"/# dbms.default_advertised_address=.*/dbms.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > neo4j/neo4j.conf
 
 service.config.scripts.deploy:
 	@script_s3_path=s3://$$DATA_BUCKET_NAME/$${CONFIG_S3_PATH}/${SERVICE}/scripts/ && \
@@ -65,7 +71,7 @@ service.config.cloudwatch-agent.deploy:
 	aws s3 cp config/amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json $$config_s3_path
 	@rm -rf config/amazon-cloudwatch-agent/tmp/
 
-service.config.update-dns:
+service.config.neo4j.update-dns:
 	@[ "${HOST_DOMAIN}" != "" ] && \
 	cat config/neo4j/neo4j.template | \
 	sed s"/# dbms.default_advertised_address=.*/dbms.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > config/neo4j/neo4j.conf

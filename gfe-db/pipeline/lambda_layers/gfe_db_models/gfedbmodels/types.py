@@ -3,13 +3,14 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, validator, root_validator
 import jmespath
+from .utils import restore_nested_json
 
 # ExecutionState is changed using Step Functions DynamoDB states
 # SKIPPED: never processed (set by CheckSourceUpdate) ✅
 # PENDING: state machine execution started (set by CheckSourceUpdate) ✅
-# IN_PROGRESS: batch build job triggered (set by state machine)
-# SUCCESS: state machine execution succeeded (set by state machine)
-# FAILED: state machine execution failed (set by state machine)
+# IN_PROGRESS: batch build job triggered (set by state machine) ✅
+# SUCCESS: state machine execution succeeded (set by state machine) ✅
+# FAILED: state machine execution failed (set by state machine) ✅
 
 # TODO remove None, default is NOT_PROCESSED
 valid_statuses = [
@@ -174,6 +175,12 @@ class ExecutionStateItem(BaseModel):
     repository: RepositoryConfig
     commit: Commit
     execution: ExecutionDetailsConfig
+
+    @classmethod
+    def from_execution_state_item(cls, execution_state_item: dict):
+        # Items from table are separated by "__" because "." is not allowed in DynamoDB
+        execution_state_item = restore_nested_json(execution_state_item, split_on="__")
+        return cls(**execution_state_item)
 
 
 class ExecutionState(BaseModel):

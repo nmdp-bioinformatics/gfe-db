@@ -9,24 +9,41 @@ if __name__ != "app":
     sys.path.append(os.environ["GFEDBMODELS_PATH"])
 import logging
 import json
+from gfedbmodels.types import (
+    ExecutionPayloadItem,
+    ExecutionStateItem
+)
+from gfedbmodels.constants import (
+    session,
+    pipeline
+)
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# Environment
-APP_NAME = os.environ["APP_NAME"]
-STAGE = os.environ["STAGE"]
-
+dynamodb = session.resource("dynamodb")
+table = dynamodb.Table(pipeline.params.ExecutionStateTableName)
 
 def lambda_handler(event, context):
     logger.info(json.dumps(event))
 
-    # TODO validate input
-    # TODO Get state for commit in input
-    # TODO Return state
-    # TODO return the SQS message receipt in case it needs to be returned to the queue if the state machine fails
+    # validate input
+    execution_payload_item = ExecutionPayloadItem(**event)
 
-    return
+    commit_state = table.get_item(
+        Key={
+            "commit__sha": execution_payload_item.commit_sha,
+            "execution__version": execution_payload_item.version
+        }
+    )['Item']
+
+    # Validate record with pydantic model
+    execution_state_item = ExecutionStateItem.from_execution_state_item(commit_state)
+
+    # return payload to step functions
+    # event["state"] = execution_state_item.model_dump()
+    
+    return execution_state_item.model_dump()
 
 
 if __name__ == "__main__":
