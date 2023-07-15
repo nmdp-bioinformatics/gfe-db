@@ -7,7 +7,7 @@ from gfedbmodels.constants import (
 
 # Environment
 PIPELINE_SOURCE_CONFIG_S3_PATH = os.environ["PIPELINE_SOURCE_CONFIG_S3_PATH"]
-
+data_bucket_name = infra.params.DataBucketName
 (
     GITHUB_REPOSITORY_OWNER, 
     GITHUB_REPOSITORY_NAME, 
@@ -21,5 +21,3 @@ PIPELINE_SOURCE_CONFIG_S3_PATH = os.environ["PIPELINE_SOURCE_CONFIG_S3_PATH"]
     pipeline.params.GfeDbProcessingQueueUrl,
     pipeline.params.ExecutionStateTableFields
 )
-
-data_bucket_name = infra.params.DataBucketName

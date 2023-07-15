@@ -47,7 +47,7 @@ def lambda_handler(event, context):
 
         # validate_schema: validate CSV headers by comparing to schema map
         df = load_csv_from_s3(file_path)
-        if not set(df.columns) == set(output_headers[schema]):
+        if not set(df.columns) == set(csv_headers[schema]):
             raise Exception(f"Columns in {file_path} do not match schema for {schema}")
 
         # validate_rows: validate CSV data by confirming that rows exist
@@ -74,7 +74,7 @@ def lambda_handler(event, context):
 
 
 # Schema map
-output_headers = {
+csv_headers = {
     "all_cds": ["gfe_name", "bp_seq_id", "bp_sequence", "aa_seq_id", "aa_sequence"],
     "all_features": [
         "accession",

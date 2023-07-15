@@ -16,7 +16,7 @@ import logging
 from decimal import Decimal
 from datetime import datetime, timedelta
 import json
-from gfedbmodels.constants import session
+from gfedbmodels.constants import session, pipeline
 from gfedbmodels.types import (
     str_to_datetime,
     str_from_datetime,
@@ -57,6 +57,8 @@ logger.info(
 s3 = session.client("s3")
 dynamodb = session.resource("dynamodb")
 queue = session.resource("sqs")
+
+GITHUB_PERSONAL_ACCESS_TOKEN = pipeline.secrets.GitHubPersonalAccessToken
 
 # Get data source configuration
 source_repo_config = read_source_config(
@@ -101,7 +103,11 @@ def lambda_handler(event, context):
             for asset_config in source_repo_config.target_metadata_config.items:
                 try:
                     release_version = get_release_version_for_commit(
-                        commit, **asset_config.dict()
+                        commit=commit, 
+                        owner=GITHUB_REPOSITORY_OWNER,
+                        repo=GITHUB_REPOSITORY_NAME,
+                        token=GITHUB_PERSONAL_ACCESS_TOKEN,
+                        **asset_config.model_dump()
                     )
                     logger.info(
                         f"Found release version {release_version} for commit {sha}"
@@ -162,7 +168,7 @@ def lambda_handler(event, context):
         items = [
             filter_null_fields(
                 flatten_json(
-                    data=item.dict(),
+                    data=item.model_dump(),
                     sep="__",
                     select_fields=[
                         item.replace(".", "__") for item in execution_state_table_fields
@@ -185,7 +191,7 @@ def lambda_handler(event, context):
 
         # 5) Send pending commits to the state machine for further processing
         execution_payload = [
-            ExecutionPayloadItem.from_execution_state_item(item).dict()
+            ExecutionPayloadItem.from_execution_state_item(item).model_dump()
             for item in pending_commits
         ]
         execution_payload = sorted(
@@ -240,7 +246,7 @@ def get_most_recent_commits(execution_state):
     since = str_from_datetime(last_commit_date + timedelta(seconds=1))
 
     # 2) Get the most recent commits from GitHub using since=<date> parameter
-    return list_commits(GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY_NAME, since=since)
+    return list_commits(GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY_NAME, since=since, token=GITHUB_PERSONAL_ACCESS_TOKEN)
 
 
 def select_most_recent_commit_for_release(commits: list[ExecutionStateItem]):

@@ -10,19 +10,12 @@ import pickle
 import re
 import requests
 from botocore.exceptions import ClientError
-from .constants import pipeline
 
 # Logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 AWS_REGION = os.environ["AWS_REGION"]
-
-# TODO can call these directly in the functions instead of decarling and passing them in, they should be cached
-# TODO call where needed in the module or script, not here BOOKMARK 7/14/23, requires refactoring all functions that use this env var
-GITHUB_PERSONAL_ACCESS_TOKEN = pipeline.secrets.GitHubPersonalAccessToken
-GITHUB_REPOSITORY_OWNER = pipeline.params.GitHubSourceRepository["owner"]
-GITHUB_REPOSITORY_NAME = pipeline.params.GitHubSourceRepository["name"]
 
 cache_dir = Path(__file__).parent / "_cache"
 
@@ -183,7 +176,7 @@ def write_s3_json(s3_client, bucket, key, data):
         raise err
 
 
-def list_commits(owner, repo, **params):
+def list_commits(owner, repo, token, **params):
     """Return a list of GitHub commits for the specified repository"""
 
     base_url = "https://api.github.com"
@@ -200,7 +193,7 @@ def list_commits(owner, repo, **params):
 
     # Headers
     headers = {
-        "Authorization": f"token {GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "Authorization": f"token {token}",
         "Content-Type": "application/json",
         "Accept": "application/vnd.github.v3+json",
         "X-GitHub-Api-Version": "2022-11-28",
@@ -230,7 +223,7 @@ def paginate_commits(owner, repo, start_page=1, per_page=100, **kwargs):
     return commits
 
 
-def get_commit(owner, repo, commit_sha):
+def get_commit(owner, repo, token, commit_sha):
     """Return the commit for the specified repository and commit SHA"""
 
     base_url = "https://api.github.com"
@@ -241,7 +234,7 @@ def get_commit(owner, repo, commit_sha):
 
     # Headers
     headers = {
-        "Authorization": f"token {GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "Authorization": f"token {token}",
         "Content-Type": "application/json",
         "Accept": "application/vnd.github.v3+json",
         "X-GitHub-Api-Version": "2022-11-28",
@@ -253,7 +246,7 @@ def get_commit(owner, repo, commit_sha):
     return response.json()
 
 
-def get_file_contents(owner, repo, path):
+def get_file_contents(owner, repo, token, path):
     base_url = "https://api.github.com"
 
     # Endpoint
@@ -262,7 +255,7 @@ def get_file_contents(owner, repo, path):
 
     # Headers
     headers = {
-        "Authorization": f"token {GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "Authorization": f"token {token}",
         "Content-Type": "application/json",
         "Accept": "application/vnd.github.v3+json",
         "X-GitHub-Api-Version": "2022-11-28",
@@ -274,7 +267,7 @@ def get_file_contents(owner, repo, path):
     return response.json()
 
 
-def get_commits_for_asset(owner, repo, path, since=None):
+def get_commits_for_asset(owner, repo, token, path, since=None):
     base_url = "https://api.github.com"
 
     # Endpoint
@@ -283,7 +276,7 @@ def get_commits_for_asset(owner, repo, path, since=None):
 
     # Headers
     headers = {
-        "Authorization": f"token {GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "Authorization": f"token {token}",
         "Content-Type": "application/json",
         "Accept": "application/vnd.github.v3+json",
         "X-GitHub-Api-Version": "2022-11-28",
@@ -301,7 +294,7 @@ def get_commits_for_asset(owner, repo, path, since=None):
     return response.json()
 
 
-def get_repo_contents(owner, repo, path, commit_sha=None):
+def get_repo_contents(owner, repo, token, path, commit_sha=None):
     base_url = "https://api.github.com"
 
     # Endpoint
@@ -310,7 +303,7 @@ def get_repo_contents(owner, repo, path, commit_sha=None):
 
     # Headers
     headers = {
-        "Authorization": f"token {GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "Authorization": f"token {token}",
         "Content-Type": "application/json",
         "Accept": "application/vnd.github.v3+json",
         "X-GitHub-Api-Version": "2022-11-28",
@@ -329,9 +322,9 @@ def get_repo_contents(owner, repo, path, commit_sha=None):
     return response.json()
 
 
-def get_repo_asset(owner, repo, path, commit_sha=None):
+def get_repo_asset(owner, repo, token, path, commit_sha=None):
     """Download a file from a GitHub repository"""
-    repo_contents = get_repo_contents(owner, repo, path, commit_sha)
+    repo_contents = get_repo_contents(owner, repo, token, path, commit_sha)
 
     response = requests.get(repo_contents["download_url"])
     response.raise_for_status()
@@ -343,7 +336,7 @@ def get_repo_asset(owner, repo, path, commit_sha=None):
     return response.text
 
 
-def get_branches(owner, repo):
+def get_branches(owner, repo, token):
     """Fetch branches for a GitHub repository"""
 
     base_url = "https://api.github.com"
@@ -354,7 +347,7 @@ def get_branches(owner, repo):
 
     # Headers
     headers = {
-        "Authorization": f"token {GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "Authorization": f"token {token}",
         "Content-Type": "application/json",
         "Accept": "application/vnd.github.v3+json",
         "X-GitHub-Api-Version": "2022-11-28",
@@ -366,7 +359,7 @@ def get_branches(owner, repo):
     return response.json()
 
 
-def get_branch(owner, repo, branch_name):
+def get_branch(owner, repo, token, branch_name):
     """Fetch branches for a GitHub repository"""
 
     base_url = "https://api.github.com"
@@ -377,7 +370,7 @@ def get_branch(owner, repo, branch_name):
 
     # Headers
     headers = {
-        "Authorization": f"token {GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "Authorization": f"token {token}",
         "Content-Type": "application/json",
         "Accept": "application/vnd.github.v3+json",
         "X-GitHub-Api-Version": "2022-11-28",
@@ -390,12 +383,12 @@ def get_branch(owner, repo, branch_name):
 
 
 # Function to fetch pull requests
-def get_pull_requests(owner, repo):
+def get_pull_requests(owner, repo, token):
     url = f"https://api.github.com/repos/{owner}/{repo}/pulls?state=all"
 
     # Headers
     headers = {
-        "Authorization": f"token {GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "Authorization": f"token {token}",
         "Content-Type": "application/json",
         "Accept": "application/vnd.github.v3+json",
         "X-GitHub-Api-Version": "2022-11-28",

@@ -158,11 +158,14 @@ def get_release_version_for_commit(commit: Union[Commit, dict], **kwargs) -> int
         sha = commit["sha"]
     except:
         sha = commit.sha
-    asset_path = kwargs["asset_path"]
-    release_version_regex = kwargs["metadata_regex"]
     allele_list = get_repo_asset(
-        pipeline.params.GitHubSourceRepository["owner"], pipeline.params.GitHubSourceRepository["name"], asset_path, sha
+        owner=kwargs.get("owner"), # pipeline.params.GitHubSourceRepository["owner"], 
+        repo=kwargs.get("repo"), # pipeline.params.GitHubSourceRepository["name"],
+        token=kwargs.get("token"), # pipeline.secrets.GitHubPersonalAccessToken,
+        path=kwargs.get("asset_path"), 
+        commit_sha=sha
     )
+    release_version_regex = kwargs.get("metadata_regex")
     release_version = find_text(release_version_regex, allele_list)
     if release_version is None:
         raise Exception(f"Release version not found for commit {sha}")

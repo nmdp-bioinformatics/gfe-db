@@ -30,7 +30,6 @@ def lambda_handler(event, context):
     # validate input
     execution_payload_item = ExecutionPayloadItem(**event)
 
-    # TODO Get state for commit in input
     commit_state = table.get_item(
         Key={
             "commit__sha": execution_payload_item.commit_sha,
