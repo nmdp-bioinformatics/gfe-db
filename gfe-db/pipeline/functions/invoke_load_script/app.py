@@ -17,7 +17,6 @@ from gfedbmodels.constants import (
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-app_name = os.environ["APP_NAME"]
 neo4j_load_query_document_name = pipeline.params.Neo4jLoadQueryDocumentName
 neo4j_database_instance_id = database.params.Neo4jDatabaseInstanceId
 load_release_activity_arn = pipeline.params.LoadReleaseActivityArn

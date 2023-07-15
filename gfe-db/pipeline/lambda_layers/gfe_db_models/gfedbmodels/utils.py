@@ -10,10 +10,7 @@ import pickle
 import re
 import requests
 from botocore.exceptions import ClientError
-from .constants import (
-    infra,
-    pipeline,
-)
+from .constants import pipeline
 
 # Logging
 logger = logging.getLogger(__name__)
@@ -22,7 +19,8 @@ logger.setLevel(logging.INFO)
 AWS_REGION = os.environ["AWS_REGION"]
 
 # TODO can call these directly in the functions instead of decarling and passing them in, they should be cached
-GITHUB_PERSONAL_ACCESS_TOKEN = infra.secrets.GitHubPersonalAccessToken
+# TODO call where needed in the module or script, not here BOOKMARK 7/14/23, requires refactoring all functions that use this env var
+GITHUB_PERSONAL_ACCESS_TOKEN = pipeline.secrets.GitHubPersonalAccessToken
 GITHUB_REPOSITORY_OWNER = pipeline.params.GitHubSourceRepository["owner"]
 GITHUB_REPOSITORY_NAME = pipeline.params.GitHubSourceRepository["name"]
 

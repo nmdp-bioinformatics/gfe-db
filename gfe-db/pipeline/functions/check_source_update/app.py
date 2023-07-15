@@ -196,6 +196,7 @@ def lambda_handler(event, context):
 
         # TODO log out the commits that were skipped and pending
         message = f"Queued {len(execution_payload)} release(s) for processing\n{execution_payload}"
+        logger.info(message)
         return {
             "statusCode": 200,
             "body": json.dumps({"message": message}),

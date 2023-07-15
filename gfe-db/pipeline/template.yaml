@@ -52,7 +52,6 @@ Parameters:
     Type: String
 
 Resources:
-
   GitHubPersonalAccessTokenSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
@@ -62,9 +61,9 @@ Resources:
       Tags:
         - Key: Stage
           Value: !Ref Stage
-        - Key: AppName 
+        - Key: AppName
           Value: !Ref AppName
-  
+
   GitHubSourceRepositoryParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -77,15 +76,15 @@ Resources:
   GfeDbModelsLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
-      LayerName: !Sub '${Stage}-gfe-db-models'
-      Description: !Sub '${AppName} models for validationa and processing data'
+      LayerName: !Sub "${Stage}-gfe-db-models"
+      Description: !Sub "${AppName} models for validationa and processing data"
       ContentUri: lambda_layers/gfe_db_models
       RetentionPolicy: delete
       CompatibleRuntimes:
         - python3.9
         - python3.10
     Metadata:
-      BuildMethod: python3.9
+      BuildMethod: python3.10
       BuildArchitectures: arm64
 
   # TODO change name to GfeDbExecutionStateTable
@@ -93,14 +92,14 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       AttributeDefinitions:
-        - AttributeName: 'commit__sha'
+        - AttributeName: "commit__sha"
           AttributeType: S
-        - AttributeName: 'execution__version'
+        - AttributeName: "execution__version"
           AttributeType: N
       KeySchema:
-        - AttributeName: 'commit__sha'
+        - AttributeName: "commit__sha"
           KeyType: HASH
-        - AttributeName: 'execution__version'
+        - AttributeName: "execution__version"
           KeyType: RANGE
       BillingMode: PAY_PER_REQUEST
       # ProvisionedThroughput:
@@ -110,7 +109,7 @@ Resources:
   ExecutionStateTableNameParameter:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/ExecutionStateTableName'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/ExecutionStateTableName"
       Type: String
       Value: !Ref ExecutionStateTable
 
@@ -118,8 +117,8 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/ExecutionStateTableFields'
-      Description: !Sub 'Selected fields for ${Stage}-${AppName} execution state table'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/ExecutionStateTableFields"
+      Description: !Sub "Selected fields for ${Stage}-${AppName} execution state table"
       Tier: Standard
       Value: !Sub |
         [
@@ -144,9 +143,9 @@ Resources:
   BuildServerSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !Sub '${Stage}-${AppName}-build-server-sg'
-      GroupDescription: !Sub 'Security group for the ${Stage}-${AppName} build server'
-      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcID}}'
+      GroupName: !Sub "${Stage}-${AppName}-build-server-sg"
+      GroupDescription: !Sub "Security group for the ${Stage}-${AppName} build server"
+      VpcId: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcID}}"
       SecurityGroupIngress: # Uncomment to allow SSH access to build instance
         - CidrIp: 0.0.0.0/0
           FromPort: 22
@@ -154,7 +153,7 @@ Resources:
           ToPort: 22
       Tags:
         - Key: Name
-          Value: !Sub '${Stage}-${AppName}-build-server-sg'
+          Value: !Sub "${Stage}-${AppName}-build-server-sg"
 
   BatchServiceRole:
     Type: AWS::IAM::Role
@@ -168,7 +167,7 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole
-        
+
   BatchWorkerInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
@@ -191,8 +190,8 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonS3FullAccess
         - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
       Policies:
-        - PolicyName: !Sub '${Stage}-${AppName}-ECS-CloudWatchLogs'
-          PolicyDocument: 
+        - PolicyName: !Sub "${Stage}-${AppName}-ECS-CloudWatchLogs"
+          PolicyDocument:
             Version: "2012-10-17"
             Statement:
               - Action:
@@ -202,12 +201,12 @@ Resources:
                   - "logs:DescribeLogStreams"
                 Effect: "Allow"
                 Resource: "arn:aws:logs:*:*:*"
-        - PolicyName: !Sub '${Stage}-${AppName}-BuildServiceS3ReadWritePolicy'
+        - PolicyName: !Sub "${Stage}-${AppName}-BuildServiceS3ReadWritePolicy"
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
               - Effect: "Allow"
-                Action: 
+                Action:
                   - "s3:GetObject"
                   - "s3:ListBucket"
                   - "s3:GetBucketLocation"
@@ -218,14 +217,14 @@ Resources:
                   - "s3:PutLifecycleConfiguration"
                   - "s3:DeleteObject"
                 Resource:
-                  - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
-                  - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
-        - PolicyName: !Sub '${Stage}-${AppName}-SecretsPolicy'
+                  - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}"
+                  - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*"
+        - PolicyName: !Sub "${Stage}-${AppName}-SecretsPolicy"
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
               - Effect: "Allow"
-                Action: 
+                Action:
                   - "ssm:GetParameters"
                   - "ssm:GetParameter"
                   - "secretsmanager:GetResourcePolicy"
@@ -233,11 +232,11 @@ Resources:
                   - "secretsmanager:DescribeSecret"
                   - "secretsmanager:ListSecretVersionIds"
                   - "secretsmanager:ListSecrets"
-                Resource: 
+                Resource:
                   - "*"
-        - PolicyName: !Sub '${Stage}-${AppName}-SQSPolicy'
+        - PolicyName: !Sub "${Stage}-${AppName}-SQSPolicy"
           PolicyDocument:
-            Version: '2012-10-17' 
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
@@ -253,9 +252,9 @@ Resources:
     Type: AWS::Batch::JobDefinition
     Properties:
       Type: container
-      JobDefinitionName: !Sub '${Stage}-${AppName}-BuildJobDefinition'
+      JobDefinitionName: !Sub "${Stage}-${AppName}-BuildJobDefinition"
       ContainerProperties:
-        Image: !Sub '${ECRBaseUri}/${BuildServiceRepositoryName}:latest'
+        Image: !Sub "${ECRBaseUri}/${BuildServiceRepositoryName}:latest"
         Vcpus: 8
         # TODO: Memory param is deprecated, move to ResourceRequirements
         Memory: 8000 # Keep this around half the available RAM to avoid getting stuck in RUNNABLE status
@@ -267,7 +266,7 @@ Resources:
           - run.sh
         Environment:
           - Name: GFE_BUCKET
-            Value: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
+            Value: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}"
           - Name: FAILED_ALLELES_QUEUE
             Value: !Ref FailedAllelesQueue
           - Name: AWS_REGION
@@ -278,7 +277,7 @@ Resources:
   BuildJobQueue:
     Type: AWS::Batch::JobQueue
     Properties:
-      JobQueueName: !Sub '${Stage}-${AppName}-BuildJobQueue'
+      JobQueueName: !Sub "${Stage}-${AppName}-BuildJobQueue"
       Priority: 1
       ComputeEnvironmentOrder:
         - Order: 1
@@ -288,7 +287,7 @@ Resources:
   BuildJobQueueArn:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/BuildJobQueueArn'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/BuildJobQueueArn"
       Type: String
       Value: !GetAtt BuildJobQueue.JobQueueArn
 
@@ -308,7 +307,7 @@ Resources:
           - c5d.2xlarge
         # TODO use private subnet?
         Subnets:
-          - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID}}'
+          - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID}}"
         SecurityGroupIds:
           - !Ref BuildServerSG
         InstanceRole: !Ref BatchWorkerInstanceProfile
@@ -323,7 +322,7 @@ Resources:
       LaunchTemplateData:
         DisableApiTermination: false
         InstanceInitiatedShutdownBehavior: stop
-        ImageId: '{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id}}'
+        ImageId: "{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id}}"
         InstanceType: c5d.xlarge
         IamInstanceProfile:
           Name: !Ref BatchWorkerInstanceProfile
@@ -354,9 +353,9 @@ Resources:
             --==MYBOUNDARY==
       TagSpecifications:
         - ResourceType: launch-template
-          Tags: 
+          Tags:
             - Key: Name
-              Value: 'gfe-db-build-worker'
+              Value: "gfe-db-build-worker"
 
   BatchTaskExecutionRole:
     Type: AWS::IAM::Role
@@ -370,8 +369,8 @@ Resources:
               Service: ecs-tasks.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: !Sub '${Stage}-${AppName}-ecsTaskExecutionRolePolicy'
-          PolicyDocument: 
+        - PolicyName: !Sub "${Stage}-${AppName}-ecsTaskExecutionRolePolicy"
+          PolicyDocument:
             Version: "2012-10-17"
             Statement:
               - Effect: Allow
@@ -383,21 +382,21 @@ Resources:
                   - "logs:CreateLogStream"
                   - "logs:PutLogEvents"
                 Resource: "*"
-        - PolicyName: !Sub '${Stage}-${AppName}-BatchTaskExecutionPolicy'
+        - PolicyName: !Sub "${Stage}-${AppName}-BatchTaskExecutionPolicy"
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
               - Effect: "Allow"
-                Action: 
+                Action:
                   - "ssm:GetParameters"
                   - "secretsmanager:GetResourcePolicy"
                   - "secretsmanager:GetSecretValue"
                   - "secretsmanager:DescribeSecret"
                   - "secretsmanager:ListSecretVersionIds"
                   - "secretsmanager:ListSecrets"
-                Resource: 
+                Resource:
                   - "*"
-                  
+
   BuildServiceRepository:
     Type: AWS::ECR::Repository
     Properties:
@@ -409,7 +408,7 @@ Resources:
             Effect: "Allow"
             Principal:
               AWS:
-                - !Sub 'arn:aws:iam::${AWS::AccountId}:role/${BatchWorkerInstanceRole}'
+                - !Sub "arn:aws:iam::${AWS::AccountId}:role/${BatchWorkerInstanceRole}"
             Action:
               - "ecr:GetDownloadUrlForLayer"
               - "ecr:BatchGetImage"
@@ -423,7 +422,7 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/BuildServiceRepositoryName'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/BuildServiceRepositoryName"
       Description: !Sub "Name of ${AppName} build service repository"
       Value: !Ref BuildServiceRepositoryName
 
@@ -448,7 +447,7 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/GfeDbProcessingQueueUrl'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/GfeDbProcessingQueueUrl"
       Description: "URL of gfe-db processing queue"
       Value: !GetAtt GfeDbProcessingQueue.QueueUrl
 
@@ -456,10 +455,10 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Ref CheckSourceUpdateFunctionName
-      Description: !Sub '${AppName} update pipeline trigger: checks for new IMGT/HLA releases and starts the loading process'
+      Description: !Sub "${AppName} update pipeline trigger: checks for new IMGT/HLA releases and starts the loading process"
       CodeUri: functions/check_source_update/
       Handler: app.lambda_handler
-      Runtime: python3.9
+      Runtime: python3.10
       Layers:
         - !Ref GfeDbModelsLayer
       MemorySize: !Ref CheckSourceUpdateFunctionMemorySize
@@ -470,7 +469,7 @@ Resources:
         Variables:
           APP_NAME: !Ref AppName
           STAGE: !Ref Stage
-          PIPELINE_SOURCE_CONFIG_S3_PATH: !Sub '${ConfigS3Path}/${ServiceName}/source-config.json'
+          PIPELINE_SOURCE_CONFIG_S3_PATH: !Sub "${ConfigS3Path}/${ServiceName}/source-config.json"
       Events:
         Trigger:
           Type: Schedule
@@ -500,7 +499,7 @@ Resources:
               Action:
                 - "dynamodb:Scan"
                 - "dynamodb:BatchWriteItem"
-              Resource: !GetAtt ExecutionStateTable.Arn 
+              Resource: !GetAtt ExecutionStateTable.Arn
         - Version: "2012-10-17"
           Statement:
             - Sid: "AllowSQSAccess"
@@ -515,19 +514,19 @@ Resources:
           Statement:
             - Sid: "AllowS3Access"
               Effect: "Allow"
-              Action: 
+              Action:
                 - "s3:GetObject"
                 - "s3:ListBucket"
                 - "s3:GetBucketLocation"
                 - "s3:GetObjectVersion"
               Resource:
-                - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
-                - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
+                - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}"
+                - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*"
 
   GetExecutionStateFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Description: !Sub '${AppName} execution input validation and state retrieval'
+      Description: !Sub "${AppName} execution input validation and state retrieval"
       CodeUri: functions/get_execution_state/
       Handler: app.lambda_handler
       Runtime: python3.10
@@ -552,7 +551,7 @@ Resources:
                 - "ssm:GetParameter"
               # TODO test correct ARN path for app specific parameters
               # arn:aws:ssm:us-east-2:123456789012:parameter/${AppName}/${Stage}/${AWS::Region}/*
-              Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*'
+              Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*"
         - Version: "2012-10-17"
           Statement:
             - Sid: "AllowDynamoDBReadAccess"
@@ -560,6 +559,14 @@ Resources:
               Action:
                 - "dynamodb:ReadItem"
               Resource: !GetAtt ExecutionStateTable.Arn
+        # TODO this permission is not needed by the function, but is loaded by the module => disable in the module
+        # - Version: "2012-10-17"
+        #   Statement:
+        #     - Sid: "AllowSecretsManagerAccess"
+        #       Effect: "Allow"
+        #       Action:
+        #         - "secretsmanager:GetSecretValue"
+        #       Resource: !Ref GitHubPersonalAccessTokenSecret
 
   # # TODO redeploy
   # CheckSourceUpdateFunctionAlarm:
@@ -587,34 +594,38 @@ Resources:
       Description: !Sub "Invoke the build and load processing pipeline for ${AppName}"
       CodeUri: functions/invoke_update_pipeline/
       Handler: app.lambda_handler
-      Runtime: python3.9
+      Runtime: python3.10
+      Layers:
+        - !Ref GfeDbModelsLayer
       MemorySize: 128
       Timeout: 60
       Architectures:
         - x86_64
       Environment:
         Variables:
-          NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId'
-          UDPATE_PIPELINE_STATE_MACHINE_ARN_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineStateMachineArn'
-          GFE_DB_PROCESSING_QUEUE_URL_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/GfeDbProcessingQueueUrl'
+          APP_NAME: !Ref AppName
+          STAGE: !Ref Stage
+          NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM: !Sub "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId"
+          UDPATE_PIPELINE_STATE_MACHINE_ARN_SSM_PARAM: !Sub "/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineStateMachineArn"
+          GFE_DB_PROCESSING_QUEUE_URL_SSM_PARAM: !Sub "/${AppName}/${Stage}/${AWS::Region}/GfeDbProcessingQueueUrl"
       Policies:
         - AWSLambdaBasicExecutionRole
         - Version: "2012-10-17"
           Statement:
             - Effect: "Allow"
-              Action: 
+              Action:
                 - "ssm:GetParameters"
                 - "ssm:GetParameter"
-              Resource: 
+              Resource:
                 - "*"
             - Effect: "Allow"
-              Action: 
+              Action:
                 - "ec2:DescribeInstanceStatus"
               Resource: "*" # Has to be for all resources since Instance ID is not available when this stack is deployed
             - Effect: "Allow"
-              Action: 
+              Action:
                 - "states:StartExecution"
-              Resource: 
+              Resource:
                 - !GetAtt UpdatePipelineStateMachine.Arn
       Events:
         GfeDbProcessingQueueTrigger:
@@ -630,29 +641,29 @@ Resources:
       DefinitionSubstitutions:
         GetExecutionStateFunctionArn: !GetAtt GetExecutionStateFunction.Arn
         ExecutionStateTable: !Ref ExecutionStateTable
-        DataBucketName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
+        DataBucketName: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}"
         ValidateBuildOutputFunctionArn: !GetAtt ValidateBuildOutputFunction.Arn
         GfeDbExecutionResultTopicArn: !GetAtt GfeDbExecutionResultTopic.TopicArn
         BuildJobDefinition: !Ref BuildJobDefinition
-        BuildJobName: !Sub '${Stage}-${AppName}-build-job'
+        BuildJobName: !Sub "${Stage}-${AppName}-build-job"
         BuildJobQueue: !Ref BuildJobQueue
         InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
         LoadReleaseActivityArn: !Ref LoadReleaseActivity
       Policies:
         - LambdaInvokePolicy:
-          FunctionName: !Ref GetExecutionStateFunction # TODO BOOKMARK fix invalid policy error
+            FunctionName: !Ref GetExecutionStateFunction # TODO BOOKMARK fix invalid policy error
         - LambdaInvokePolicy:
-          FunctionName: !Ref ValidateBuildOutputFunction
+            FunctionName: !Ref ValidateBuildOutputFunction
         - S3ReadPolicy:
-          BucketName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
+            BucketName: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}"
         - LambdaInvokePolicy:
-          FunctionName: !Ref InvokeLoadScriptFunction
+            FunctionName: !Ref InvokeLoadScriptFunction
         - DynamoDBReadPolicy:
-          TableName: !Ref ExecutionStateTable
+            TableName: !Ref ExecutionStateTable
         - DynamoDBWritePolicy:
-          TableName: !Ref ExecutionStateTable
+            TableName: !Ref ExecutionStateTable
         - SNSPublishMessagePolicy:
-          TopicName: !GetAtt GfeDbExecutionResultTopic.TopicName 
+            TopicName: !GetAtt GfeDbExecutionResultTopic.TopicName
         - Version: "2012-10-17"
           Statement:
             - Effect: "Allow"
@@ -665,26 +676,26 @@ Resources:
                 - "logs:PutResourcePolicy"
                 - "logs:DescribeResourcePolicies"
                 - "logs:DescribeLogGroups"
-              Resource: 
+              Resource:
                 - "*"
         - Version: "2012-10-17"
           Statement:
             - Effect: "Allow"
-              Action: 
+              Action:
                 - "batch:SubmitJob"
                 - "batch:DescribeJobs"
                 - "batch:TerminateJob"
               Resource: "*"
             - Effect: "Allow"
-              Action: 
+              Action:
                 - "events:PutTargets"
                 - "events:PutRule"
                 - "events:DescribeRule"
-              Resource: 
-                - !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule'
+              Resource:
+                - !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule"
       Logging:
-        Destinations: 
-          - CloudWatchLogsLogGroup: 
+        Destinations:
+          - CloudWatchLogsLogGroup:
               LogGroupArn: !GetAtt UpdatePipelineLogGroup.Arn
         IncludeExecutionData: true
         Level: ALL
@@ -716,26 +727,26 @@ Resources:
   #               - "logs:PutResourcePolicy"
   #               - "logs:DescribeResourcePolicies"
   #               - "logs:DescribeLogGroups"
-  #             Resource: 
+  #             Resource:
   #               - "*"
   #       - Version: "2012-10-17"
   #         Statement:
   #           - Effect: "Allow"
-  #             Action: 
+  #             Action:
   #               - "batch:SubmitJob"
   #               - "batch:DescribeJobs"
   #               - "batch:TerminateJob"
   #             Resource: "*"
   #           - Effect: "Allow"
-  #             Action: 
+  #             Action:
   #               - "events:PutTargets"
   #               - "events:PutRule"
   #               - "events:DescribeRule"
-  #             Resource: 
+  #             Resource:
   #               - !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule'
   #     Logging:
-  #       Destinations: 
-  #         - CloudWatchLogsLogGroup: 
+  #       Destinations:
+  #         - CloudWatchLogsLogGroup:
   #             LogGroupArn: !GetAtt UpdatePipelineLogGroup.Arn
   #       IncludeExecutionData: true
   #       Level: ALL
@@ -761,15 +772,15 @@ Resources:
         - Version: "2012-10-17"
           Statement:
             - Effect: "Allow"
-              Action: 
+              Action:
                 - "ssm:GetParameters"
                 - "ssm:GetParameter"
-              Resource: 
+              Resource:
                 - "*"
             - Effect: "Allow"
-              Action: 
+              Action:
                 - "s3:GetObject"
-              Resource: 
+              Resource:
                 - !Sub "arn:aws:s3:::{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}/*"
 
   InvokeLoadScriptFunction:
@@ -779,42 +790,43 @@ Resources:
       Description: !Sub "Invoke server-side loading on Neo4j for ${AppName}"
       CodeUri: functions/invoke_load_script/
       Handler: app.lambda_handler
-      Runtime: python3.9
+      Runtime: python3.10
       MemorySize: 256
       Timeout: 60
       Architectures:
         - x86_64
       Environment:
         Variables:
-          NEO4J_LOAD_QUERY_DOCUMENT_NAME_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName'
-          NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId'
-          LOAD_RELEASE_ACTIVITY_ARN_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/LoadReleaseActivityArn'
           APP_NAME: !Ref AppName
+          STAGE: !Ref Stage
+          NEO4J_LOAD_QUERY_DOCUMENT_NAME_SSM_PARAM: !Sub "/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName"
+          NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM: !Sub "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId"
+          LOAD_RELEASE_ACTIVITY_ARN_SSM_PARAM: !Sub "/${AppName}/${Stage}/${AWS::Region}/LoadReleaseActivityArn"
       Policies:
         - AWSLambdaBasicExecutionRole
         - Version: "2012-10-17"
           Statement:
             - Effect: "Allow"
-              Action: 
+              Action:
                 - "ssm:SendCommand"
                 - "ssm:GetDocument"
               Resource:
-                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${Neo4jLoadQueryDocument}'
-                - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*'
+                - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${Neo4jLoadQueryDocument}"
+                - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
             - Effect: "Allow"
-              Action: 
+              Action:
                 - "ssm:GetParameters"
                 - "ssm:GetParameter"
-              Resource: 
+              Resource:
                 - "*"
 
   InvokeLoadScriptFunctionAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: !Sub 'Alarm for ${InvokeLoadScriptFunction} function errors'
+      AlarmDescription: !Sub "Alarm for ${InvokeLoadScriptFunction} function errors"
       ActionsEnabled: true
       AlarmActions:
-        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
+        - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}"
       MetricName: Errors
       Namespace: AWS/Lambda
       Statistic: Sum
@@ -833,20 +845,20 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/GfeDbExecutionResultTopicArn'
-      Description: !Sub 'ARN for ${AppName} Data Pipeline Errors SNS topic'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/GfeDbExecutionResultTopicArn"
+      Description: !Sub "ARN for ${AppName} Data Pipeline Errors SNS topic"
       Value: !Ref GfeDbExecutionResultTopic
 
   LoadReleaseActivity:
     Type: AWS::StepFunctions::Activity
-    Properties: 
+    Properties:
       Name: !Sub "${AppName}-${Stage}-LoadReleaseActivity"
 
   LoadReleaseActivityArnParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/LoadReleaseActivityArn'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/LoadReleaseActivityArn"
       Description: "ARN of gfe-db load release activity"
       Value: !GetAtt LoadReleaseActivity.Arn
 
@@ -859,18 +871,18 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineStateMachineArn'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineStateMachineArn"
       Description: "ARN of gfe-db update pipeline state machine"
       Value: !GetAtt UpdatePipelineStateMachine.Arn
 
-# CloudWatch Alarm for failed pipeline executions
+  # CloudWatch Alarm for failed pipeline executions
   UpdatePipelineStateMachineExecutionAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: !Sub '${UpdatePipelineStateMachine} state machine errors'
+      AlarmDescription: !Sub "${UpdatePipelineStateMachine} state machine errors"
       ActionsEnabled: true
       AlarmActions:
-        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
+        - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}"
       MetricName: ExecutionsFailed
       Namespace: AWS/States
       Statistic: Sum
@@ -882,14 +894,14 @@ Resources:
         - Name: StateMachineArn
           Value: !GetAtt UpdatePipelineStateMachine.Arn
 
-# CloudWatch Alarm for failed pipeline integrations (Batch jobs)
+  # CloudWatch Alarm for failed pipeline integrations (Batch jobs)
   UpdatePipelineStateMachineIntegrationAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: !Sub '${UpdatePipelineStateMachine} state machine errors'
+      AlarmDescription: !Sub "${UpdatePipelineStateMachine} state machine errors"
       ActionsEnabled: true
       AlarmActions:
-        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
+        - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}"
       MetricName: ServiceIntegrationsFailed
       Namespace: AWS/States
       Statistic: Sum
@@ -899,7 +911,7 @@ Resources:
       ComparisonOperator: GreaterThanOrEqualToThreshold
       Dimensions:
         - Name: ServiceIntegrationResourceArn
-          Value: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:batch:submitJob.sync'
+          Value: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:batch:submitJob.sync"
 
   FailedAllelesQueue:
     Type: AWS::SQS::Queue
@@ -911,7 +923,7 @@ Resources:
   FailedAllelesDeadLetterQueue:
     Type: AWS::SQS::Queue
 
-  Neo4jLoadQueryDocument: 
+  Neo4jLoadQueryDocument:
     Type: AWS::SSM::Document
     Properties:
       DocumentType: "Command"
@@ -929,11 +941,11 @@ Resources:
             type: "StringMap"
             description: !Sub "Downloads all files under the ${AppName} scripts prefix"
             default:
-              path: !Sub 'https://{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}.s3.amazonaws.com/config/database/scripts/'
+              path: !Sub "https://{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}.s3.amazonaws.com/config/database/scripts/"
           commandLine:
             type: "String"
             description: "These commands are invoked by a Lambda script which sets the correct parameters (Refer to documentation)."
-            default: !Sub 'bash start_task.sh ${AppName} ${Stage}'
+            default: !Sub "bash start_task.sh ${AppName} ${Stage}"
           workingDirectory:
             type: "String"
             description: "Working directory"
@@ -951,12 +963,12 @@ Resources:
               destinationPath: "{{ workingDirectory }}"
           - action: "aws:runShellScript"
             name: "runShellScript"
-            inputs: 
+            inputs:
               runCommand:
                 - ""
                 - "directory=$(pwd)"
                 - "export PATH=$PATH:$directory"
-                - " {{ commandLine }} " 
+                - " {{ commandLine }} "
                 - ""
               workingDirectory: "{{ workingDirectory }}"
               timeoutSeconds: "{{ executionTimeout }}"
@@ -965,13 +977,13 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName"
       Description: "Name of SSM document for loading Neo4j"
       Value: !Ref Neo4jLoadQueryDocument
 
   # TODO verify that this works, had problem with file's content not showing up in files on db instance
   # TODO move to database layer
-  DatabaseSyncScriptsDocument: 
+  DatabaseSyncScriptsDocument:
     Type: AWS::SSM::Document
     Properties:
       DocumentType: "Command"
@@ -989,7 +1001,7 @@ Resources:
             type: "StringMap"
             description: !Sub "Downloads all files under the ${AppName} scripts prefix"
             default:
-              path: !Sub 'https://{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}.s3.amazonaws.com/${ConfigS3Path}/database/scripts/'
+              path: !Sub "https://{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}.s3.amazonaws.com/${ConfigS3Path}/database/scripts/"
           commandLine:
             type: "String"
             description: "Deletes ETag files created by SSM Agent."
@@ -1011,12 +1023,12 @@ Resources:
               destinationPath: "{{ workingDirectory }}"
           - action: "aws:runShellScript"
             name: "runShellScript"
-            inputs: 
+            inputs:
               runCommand:
                 - ""
                 - "directory=$(pwd)"
                 - "export PATH=$PATH:$directory"
-                - " {{ commandLine }} " 
+                - " {{ commandLine }} "
                 - ""
               workingDirectory: "{{ workingDirectory }}"
               timeoutSeconds: "{{ executionTimeout }}"
@@ -1025,7 +1037,7 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DatabaseSyncScriptsDocumentName'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/DatabaseSyncScriptsDocumentName"
       Description: "Name of SSM document for syncing shell scripts to the database"
       Value: !Ref DatabaseSyncScriptsDocument
 
@@ -1033,8 +1045,8 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/GfedbPipelineParamMappings'
-      Description: !Sub 'SSM Parameter and SecretsManager parameter paths for ${AppName} pipeline layer'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/GfedbPipelineParamMappings"
+      Description: !Sub "SSM Parameter and SecretsManager parameter paths for ${AppName} pipeline layer"
       Tier: Standard
       Value: !Sub |
         {

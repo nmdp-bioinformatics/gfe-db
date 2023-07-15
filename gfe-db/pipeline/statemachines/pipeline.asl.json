@@ -1,7 +1,7 @@
 {
-    "StartAt": "GetState",
+    "StartAt": "GetExecutionState",
     "States": {
-        "GetState": {
+        "GetExecutionState": {
             "Type": "Task",
             "Resource": "${GetExecutionStateFunctionArn}",
             "ResultPath": "$.state",
