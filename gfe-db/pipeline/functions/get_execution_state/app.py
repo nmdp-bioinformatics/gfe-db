@@ -38,12 +38,9 @@ def lambda_handler(event, context):
     )['Item']
 
     # Validate record with pydantic model
-    execution_state_item = ExecutionStateItem.from_execution_state_item(commit_state)
+    execution_state_item = ExecutionStateItem.from_execution_state_item_json(commit_state)
 
-    # return payload to step functions
-    # event["state"] = execution_state_item.model_dump()
-    
-    return execution_state_item.model_dump()
+    return execution_state_item.model_dump(exclude_none=True)
 
 
 if __name__ == "__main__":

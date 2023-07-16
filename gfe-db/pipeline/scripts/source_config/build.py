@@ -13,7 +13,6 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 from datetime import datetime
-utc_now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ") # TODO match format 2023-07-06T19:03:55.500Z
 import json
 print(json.dumps(sys.path, indent=4))
 from gfedbmodels.constants import (
@@ -21,6 +20,7 @@ from gfedbmodels.constants import (
     pipeline
 )
 from gfedbmodels.utils import (
+    get_utc_now,
     paginate_commits,
     select_fields,
     flatten_json_records,
@@ -44,6 +44,9 @@ DATA_BUCKET_NAME = infra.params.DataBucketName
 
 
 if __name__ == "__main__":
+
+    utc_now = get_utc_now()
+    
     # Paths
     output_dir = Path(sys.argv[1])
 

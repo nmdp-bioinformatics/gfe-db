@@ -14,9 +14,6 @@ import sys
 sys.path.append(os.environ["GFEDBMODELS_PATH"])
 
 import logging
-from datetime import datetime
-
-utc_now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 import json
 from gfedbmodels.constants import (
     session,
@@ -25,7 +22,7 @@ from gfedbmodels.constants import (
 from gfedbmodels.types import (
     ExecutionState,
 )
-from gfedbmodels.utils import flatten_json_records
+from gfedbmodels.utils import flatten_json_records, get_utc_now
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -40,7 +37,10 @@ execution_state_table_name = pipeline.params.ExecutionStateTableName
 table = dynamodb.Table(execution_state_table_name)
 
 if __name__ == "__main__":
+    
     # TODO scan table for existing items and throw error if not empty, require --overwrite flag to proceed
+
+    utc_now = get_utc_now()
 
     # Paths
     input_dir = Path(sys.argv[1])

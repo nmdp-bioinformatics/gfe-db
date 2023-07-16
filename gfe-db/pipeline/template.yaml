@@ -751,6 +751,8 @@ Resources:
       CodeUri: functions/validate_build_output/
       Handler: app.lambda_handler
       Runtime: python3.10
+      Layers:
+        - !Ref GfeDbModelsLayer
       MemorySize: !Ref ValidateBuildOutputFunctionMemorySize
       Timeout: !Ref ValidateBuildOutputFunctionTimeout
       Architectures:

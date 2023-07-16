@@ -28,6 +28,7 @@ from gfedbmodels.types import (
 )
 # TODO update after refactor
 from gfedbmodels.utils import (
+    get_utc_now,
     restore_nested_json,
     list_commits,
     flatten_json,
@@ -71,7 +72,7 @@ gfedb_processing_queue = queue.Queue(gfedb_processing_queue_url)
 
 def lambda_handler(event, context):
     # logger.info(json.dumps(event))
-    utc_now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    utc_now = get_utc_now()
 
     try:
         # Get items from state table
@@ -81,9 +82,6 @@ def lambda_handler(event, context):
 
         # Get the most recent commits from github since the most recent commit date retrieved from DynamoDB
         commits = get_most_recent_commits(execution_state)
-        logger.info(
-            f"Found {len(commits)} commit(s) not yet processed\n{json.dumps([commit['sha'] for commit in commits], indent=2)}"
-        )
 
         if not commits:
             message = "No new commits found"
@@ -92,6 +90,10 @@ def lambda_handler(event, context):
                 "statusCode": 200,
                 "body": json.dumps({"message": message}),
             }
+        
+        logger.info(
+            f"Found {len(commits)} commit(s) not yet processed\n{json.dumps([commit['sha'] for commit in commits], indent=2)}"
+        )
 
         # Get the release version for each commit and create a new state record
         logger.info(f"Getting release versions")
@@ -142,7 +144,7 @@ def lambda_handler(event, context):
         input_parameters = source_repo_config.default_input_parameters
         pending_commits = [
             update_execution_state_item(
-                commit,
+                execution_state_item=commit,
                 status="PENDING",
                 timestamp=utc_now,
                 input_parameters=input_parameters,
@@ -153,7 +155,10 @@ def lambda_handler(event, context):
 
         # 2) Mark the older commits for each release as SKIPPED
         skipped_commits = [
-            update_execution_state_item(commit, "SKIPPED", utc_now)
+            update_execution_state_item(
+            execution_state_item=commit, 
+            status="SKIPPED",
+            timestamp=utc_now)
             for commit in commits_with_releases
             if commit not in pending_commits
         ]
@@ -279,7 +284,7 @@ def update_execution_state_item(
         )
         execution_state_item.execution.date_utc = timestamp
 
-    # execution_state_item.updated_utc = timestamp
+    execution_state_item.updated_utc = timestamp
     return execution_state_item
 
 
