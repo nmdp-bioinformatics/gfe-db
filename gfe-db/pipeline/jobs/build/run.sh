@@ -1,10 +1,12 @@
 #!/bin/bash
 
+# Exit immediately if a command exits with a non-zero status
+set -e
+
 START_EXECUTION=$SECONDS
 
 # export ROOT="$(dirname "$(dirname "$0")")"
 export ROOT="$(dirname "$0")"
-echo "ROOT: $ROOT"
 export BIN_DIR=$ROOT/scripts
 export SRC_DIR=$ROOT/src
 export DATA_DIR=$ROOT/data
@@ -58,7 +60,8 @@ if [[ -z "${EVENT}" ]]; then
 	echo "No event found. Exiting..."
     exit 1
 else
-	echo "Build is limited to $limit alleles"
+	echo "Found event"
+    echo "$EVENT"
 fi
 
 # parse event
@@ -155,33 +158,33 @@ else
     get_asset "$download_url" "$DATA_DIR/$version/hla.$version.dat"
 fi
 
-# # Builds CSV files
-# # TODO booleans for kir, align, mem_profile are lower case, limit is now -1 instead of none
-# python "$SRC_DIR"/app.py \
-# 	-o "$DATA_DIR/$version/csv" \
-# 	-r "$version" \
-# 	$KIRFLAG \
-# 	$ALIGNFLAG \
-# 	$MEM_PROFILE_FLAG \
-# 	-v \
-# 	-l $limit
-# [ $? -ne 0 ] && exit 1;
+# Builds CSV files
+# TODO booleans for kir, align, mem_profile are lower case, limit is now -1 instead of none
+python "$SRC_DIR"/app.py \
+	-o "$DATA_DIR/$version/csv" \
+	-r "$version" \
+	$KIRFLAG \
+	$ALIGNFLAG \
+	$MEM_PROFILE_FLAG \
+	-v \
+	-l $limit
+[ $? -ne 0 ] && exit 1;
 
-# # TODO: Use this S3 hierarchy: root/release/data/csv | logs
-# echo -e "Uploading data to s3://$GFE_BUCKET/data/$version"
-# aws s3 --recursive --quiet cp "$DATA_DIR/$version/" s3://$GFE_BUCKET/data/$version/
+# TODO: Use this S3 hierarchy: root/release/data/csv | logs
+echo -e "Uploading data to s3://$GFE_BUCKET/data/$version"
+aws s3 --recursive --quiet cp "$DATA_DIR/$version/" s3://$GFE_BUCKET/data/$version/
 
-# if [ "$mem_profile" == "true" ]; then
-# 	mv "$LOGS_DIR/mem_profile_agg.txt" "$LOGS_DIR/mem_profile_agg.$version.txt"
-# 	mv "$LOGS_DIR/mem_profile_diff.txt" "$LOGS_DIR/mem_profile_diff.$version.txt"
-# fi
+if [ "$mem_profile" == "true" ]; then
+	mv "$LOGS_DIR/mem_profile_agg.txt" "$LOGS_DIR/mem_profile_agg.$version.txt"
+	mv "$LOGS_DIR/mem_profile_diff.txt" "$LOGS_DIR/mem_profile_diff.$version.txt"
+fi
 
-# echo -e "Uploading logs to s3://$GFE_BUCKET/logs/$version"
-# aws s3 --recursive cp "$LOGS_DIR/" s3://$GFE_BUCKET/logs/pipeline/build/$version/logs/
+echo -e "Uploading logs to s3://$GFE_BUCKET/logs/$version"
+aws s3 --recursive cp "$LOGS_DIR/" s3://$GFE_BUCKET/logs/pipeline/build/$version/logs/
 
 
-# END_EXECUTION=$(( SECONDS - $START_EXECUTION ))
-# echo "Finished in $END_EXECUTION seconds"
+END_EXECUTION=$(( SECONDS - $START_EXECUTION ))
+echo "Finished in $END_EXECUTION seconds"
 
 # For debugging to keep the build server running
 if [ "$DEBUG" == "true" ]; then

@@ -80,6 +80,15 @@ def lambda_handler(event, context):
         table = dynamodb.Table(execution_state_table_name)
         execution_state = get_execution_state(table)
 
+        if not execution_state:
+            message = "No execution items found"
+            logger.error(message)
+            raise Exception(message)
+            # return {
+            #     "statusCode": 500,
+            #     "body": json.dumps({"message": message}),
+            # }
+
         # Get the most recent commits from github since the most recent commit date retrieved from DynamoDB
         commits = get_most_recent_commits(execution_state)
 
@@ -217,16 +226,21 @@ def lambda_handler(event, context):
 
         message = f"Error processing releases: {e}\n{traceback.format_exc()}\n{json.dumps(event)}"
         logger.error(message)
-        return {
-            "statusCode": 500,
-            "body": json.dumps({"message": message}),
-        }
+        # return {
+        #     "statusCode": 500,
+        #     "body": json.dumps({"message": message}),
+        # }
+        raise Exception(message)
 
 
 # @cache_pickle
 def get_execution_state(table, sort_column="commit__date_utc", reverse_sort=True):
     # Retrieve execution state from table
     items = table.scan()["Items"]
+
+    if not items:
+        return []
+
     items = [
         {k: int(v) if isinstance(v, Decimal) else v for k, v in item.items()}
         for item in items
