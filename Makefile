@@ -85,28 +85,28 @@ check.dependencies:
 check.dependencies.docker:
 	@if docker info 2>&1 | grep -q 'Is the docker daemon running?'; then \
 		echo "**** Docker is not running. Please start Docker before deploying. ****" && \
-		echo "**** Please refer to the documentation for a list of prerequisistes. ****" && \
+		echo "**** Please refer to the documentation for a list of prerequisites. ****" && \
 		exit 1; \
 	fi
 
 check.dependencies.awscli:
 	@if ! aws --version >/dev/null 2>&1; then \
 		echo "**** AWS CLI not found. Please install AWS CLI before deploying. ****" && \
-		echo "**** Please refer to the documentation for a list of prerequisistes. ****" && \
+		echo "**** Please refer to the documentation for a list of prerequisites. ****" && \
 		exit 1; \
 	fi
 
 check.dependencies.samcli:
 	@if ! sam --version >/dev/null 2>&1; then \
 		echo "**** SAM CLI not found. Please install SAM CLI before deploying. ****" && \
-		echo "**** Please refer to the documentation for a list of prerequisistes. ****" && \
+		echo "**** Please refer to the documentation for a list of prerequisites. ****" && \
 		exit 1; \
 	fi
 
 check.dependencies.jq:
 	@if ! jq --version >/dev/null 2>&1; then \
 		echo "**** jq not found. Please install jq before deploying. ****" && \
-		echo "**** Please refer to the documentation for a list of prerequisistes. ****" && \
+		echo "**** Please refer to the documentation for a list of prerequisites. ****" && \
 		exit 1; \
 	fi
 

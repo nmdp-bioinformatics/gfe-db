@@ -16,8 +16,10 @@ deploy:
 service.functions.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} - functions" 2>&1 | tee -a $$CFN_LOG_PATH
 	@sam build \
+		--region "$${AWS_REGION}" \
 		--template-file template.yaml  2>&1 | tee -a $$CFN_LOG_PATH || true && \
 	sam package \
+		--region "$${AWS_REGION}" \
 		--resolve-s3 \
 		--output-template-file packaged.yaml  2>&1 | tee -a $$CFN_LOG_PATH || true && \
 	sam deploy \
