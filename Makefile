@@ -1,5 +1,8 @@
 # Application specific environment variables can replace variables declared in the Makefile with `?=` assignment.
+
 include .env
+# TODO use environment-specific .env, ie., .env.dev, .env.prod, etc. ==> make deploy STAGE=dev
+# include .env.${STAGE}
 export
 
 # Base settings, these should almost never change
