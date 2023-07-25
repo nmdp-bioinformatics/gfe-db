@@ -24,7 +24,7 @@ service.functions.deploy:
 		--template-file packaged.yaml \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" \
 		--capabilities CAPABILITY_IAM \
-		--tags stage="$${STAGE}" app="$${APP_NAME}" service="${SERVICE}" \
+		--tags stage="$${STAGE}" app="$${APP_NAME}" service="${SERVICE}" release_branch="$$(git branch --show-current)" \
 		--parameter-overrides \
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
