@@ -331,6 +331,18 @@ Resources:
       Schedule: cron(0 0 ? * * *)
       ScheduleTimezone: US/Central
 
+  # Neo4jBackupMaintenanceWindowId Parameters
+  Neo4jBackupMaintenanceWindowIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jBackupMaintenanceWindowId'
+      Description: "ID for Neo4jBackupMaintenanceWindow"
+      Value: !Ref Neo4jBackupMaintenanceWindow
+      Tags:
+        Stage: !Ref Stage
+        AppName: !Ref AppName
+
   Neo4jBackupMaintenanceWindowTask:
     Type: AWS::SSM::MaintenanceWindowTask
     Properties:

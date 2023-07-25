@@ -6,34 +6,53 @@ import boto3
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# variables
+AWS_REGION = os.environ['AWS_REGION']
+STAGE = os.environ['STAGE']
+APP_NAME = os.environ['APP_NAME']
+
+session = boto3.Session(region_name=AWS_REGION)
+ssm = session.client('ssm')
+
+# use path '/${AppName}/${Stage}/${AWS::Region}/Neo4jBackupMaintenanceWindowId'
+maintenance_window_id = ssm.get_parameter(
+    Name=f'/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jBackupMaintenanceWindowId'
+)['Parameter']['Value']
+
 def lambda_handler(event, context):
     logger.info(json.dumps(event, indent=4))
+
+    # parse event to determine whether to disable or enable the backup window
+    alarm_state = json.loads(event['Records'][0]['Sns']['Message'])['NewStateValue']
+
+    if alarm_state == 'ALARM':
+        logger.info(f'Disabling maintenance window for backup process')
+        response = ssm.update_maintenance_window(
+            WindowId=maintenance_window_id,
+            Enabled=False
+        )
+        if response['Enabled']:
+            raise ValueError(f'Failed to disable maintenance window')
+    elif alarm_state == 'OK':
+        logger.info(f'Enabling maintenance window for backup process')
+        response = ssm.update_maintenance_window(
+            WindowId=maintenance_window_id,
+            Enabled=True
+        )
+        if not response['Enabled']:
+            raise ValueError(f'Failed to enable maintenance window')
+    else:
+        raise ValueError(f'Unknown state: {alarm_state}')
     
     return
 
 
-# Needed to serialize datetime objects in JSON responses
-class DatetimeEncoder(json.JSONEncoder):
-    """
-    Helps convert datetime objects to pure strings in AWS service API responses. Does not
-    convert timezone information.
-
-    Extend `json.JSONEncoder`. 
-    """
-
-    def default(self, obj):
-        try:
-            return super().default(obj)
-        except TypeError:
-            return str(obj)
-
-
-
 if __name__ == "__main__":
+    from pathlib import Path
 
-    path = '/Users/ammon/Documents/00-Projects/nmdp-bioinformatics/02-Repositories/gfe-db/gfe-db/pipeline/functions/invoke_load_script/event.json'
+    event_path = Path(__file__).resolve().parent / "enable-window-event.json"
 
-    with open(path, "r") as file:
+    with open(event_path, "r") as file:
         event = json.load(file)
 
     lambda_handler(event,"")

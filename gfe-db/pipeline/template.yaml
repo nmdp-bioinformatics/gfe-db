@@ -575,9 +575,10 @@ Resources:
       Timeout: 60
       Architectures:
         - x86_64
-      # Environment:
-      #   Variables:
-      #     APP_NAME: !Ref AppName
+      Environment:
+        Variables:
+          STAGE: !Ref Stage
+          APP_NAME: !Ref AppName
       Policies:
         - AWSLambdaBasicExecutionRole
         - Version: "2012-10-17"
@@ -588,7 +589,13 @@ Resources:
                 - "ssm:GetParameter"
               Resource: 
                 - "*"
-      # Subscribe to SNS topic for pipeline execution
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action: 
+                - "ssm:UpdateMaintenanceWindow"
+              Resource: 
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:maintenancewindow/*'
       Events:
         PipelineExecutionTopic:
           Type: SNS
