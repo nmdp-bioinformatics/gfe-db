@@ -74,6 +74,7 @@ service.deploy:
 		--region $${AWS_REGION} \
 		--template-file template.yaml \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" \
+		--tags stage="$${STAGE}" app="$${APP_NAME}" service="${SERVICE}" release_branch="$$(git branch --show-current)" \
 		--capabilities CAPABILITY_IAM \
 		--parameter-overrides \
 			Stage="$${STAGE}" \
