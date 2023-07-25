@@ -22,6 +22,11 @@
                 "Timeout": 60,
                 "MemorySize": 256
             }
+        },
+        "DisableBackup": {
+            "FunctionConfiguration": {
+                "FunctionName": "disable-backup"
+            }
         }
     }
 }
