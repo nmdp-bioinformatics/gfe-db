@@ -47,6 +47,7 @@ Resources:
       Name: !Sub "${AppName}-${Stage}-Neo4jCredentials"
       Description: Must match the username/password specified in the Neo4j Dockerfile. Empty until the database is created.
       SecretString: '{"NEO4J_USERNAME":"","NEO4J_PASSWORD":""}'
+      # TODO remove
       Tags:
         - Key: Stage
           Value: !Ref Stage
@@ -60,6 +61,7 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn'
       Description: "ARN for Neo4jCredentialsSecret"
       Value: !Ref Neo4jCredentialsSecret
+      # TODO remove
       Tags:
         Stage: !Ref Stage
         AppName: !Ref AppName
@@ -101,6 +103,7 @@ Resources:
         #   IpProtocol: tcp
         #   ToPort: 22
         #   Description: Update IP to use MyIP
+      # TODO remove
       Tags:
         - Key: Name
           Value: !Sub '${Stage}-${AppName}-neo4j-sg'
@@ -112,6 +115,7 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupName'
       Description: "Name of the Neo4jDatabaseSecurityGroup"
       Value: !Ref Neo4jDatabaseSecurityGroup
+      # TODO remove
       Tags:
         Stage: !Ref Stage
         AppName: !Ref AppName
@@ -212,6 +216,7 @@ Resources:
           sudo journalctl -b > logs/boot.log
           cat /opt/bitnami/neo4j/logs/neo4j.log > logs/neo4j.log
           cat /opt/bitnami/neo4j/logs/debug.log > logs/debug.log
+      # TODO remove
       Tags:
         - Key: Name
           Value: !Sub '${AppName}-${Stage}'
@@ -339,6 +344,7 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jBackupMaintenanceWindowId'
       Description: "ID for Neo4jBackupMaintenanceWindow"
       Value: !Ref Neo4jBackupMaintenanceWindow
+      # TODO remove
       Tags:
         Stage: !Ref Stage
         AppName: !Ref AppName

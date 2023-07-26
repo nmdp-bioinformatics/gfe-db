@@ -48,6 +48,7 @@ Resources:
       #     FromPort: 22
       #     IpProtocol: tcp
       #     ToPort: 22
+      # TODO remove
       Tags:
         - Key: Name
           Value: !Sub '${Stage}-${AppName}-build-server-sg'
@@ -199,7 +200,8 @@ Resources:
         InstanceRole: !Ref BatchWorkerInstanceProfile
         LaunchTemplate:
           LaunchTemplateId: !Ref BuildLaunchTemplate
-        Tags: { "Name": "gfe-db-build-worker" }
+        # TODO remove
+      Tags: { "Name": "gfe-db-build-worker" }
       ServiceRole: !GetAtt BatchServiceRole.Arn
 
   BuildLaunchTemplate:
@@ -239,7 +241,8 @@ Resources:
             --==MYBOUNDARY==
       TagSpecifications:
         - ResourceType: launch-template
-          Tags: 
+          # TODO remove
+      Tags: 
             - Key: Name
               Value: 'gfe-db-build-worker'
 

@@ -40,6 +40,7 @@ Resources:
       CidrBlock: 10.0.0.0/16
       EnableDnsHostnames: true
       EnableDnsSupport: true
+      # TODO remove
       Tags:
         - Key: Name
           Value: !Sub '${Stage}-${AppName}-${AWS::Region}-vpc'
@@ -134,6 +135,7 @@ Resources:
       Name: !Sub "${AppName}-${Stage}-GitHubPersonalAccessToken"
       Description: GitHub Personal Access Token for repository access
       SecretString: !Sub '{"personal_access_token":"${GitHubPersonalAccessToken}"}'
+      # TODO remove
       Tags:
         - Key: Stage
           Value: !Ref Stage
@@ -185,6 +187,7 @@ Resources:
       Subscription:
         - Endpoint: !Ref AdminEmail
           Protocol: email
+      # TODO remove
       Tags:
         - Key: Stage
           Value: !Ref Stage
@@ -223,6 +226,7 @@ Resources:
       Subscription:
         - Endpoint: !Ref AdminEmail
           Protocol: email
+      # TODO remove
       Tags:
         - Key: Stage
           Value: !Ref Stage
