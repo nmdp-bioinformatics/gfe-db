@@ -1,10 +1,17 @@
 {
-    "StartAt": "Build Stage",
+    "StartAt": "Pre-Execution Backup",
     "States": {
+        "Pre-Execution Backup": {
+            "Type": "Task",
+            "Resource": "${InvokeBackupScriptFunctionArn}",
+            "Next": "Build Stage"
+        },
         "Build Stage": {
             "Type": "Map",
-            "Next": "Load Stage",
+            "Next": "Validate Build",
             "MaxConcurrency": 0,
+            "ItemsPath": "$.input",
+            "ResultPath": "$.input",
             "Iterator": {
                 "StartAt": "Generate CSV files",
                 "States": {
@@ -12,13 +19,13 @@
                         "Type": "Task",
                         "Resource": "arn:aws:states:::batch:submitJob.sync",
                         "ResultPath": null,
-                        "Next": "Build Success",
+                        "End": true,
                         "Catch": [
                             {
                                 "ErrorEquals": [
                                     "States.ALL"
                                 ],
-                                "Next": "Build Error"
+                                "Next": "Fail Build"
                             }
                         ],
                         "Parameters": {
@@ -51,35 +58,31 @@
                             }
                         }
                     },
-                    "Build Error": {
+                    "Fail Build": {
                         "Type": "Pass",
-                        "End": true
-                    },
-                    "Build Success": {
-                        "Type": "Pass",
+                        "ResultPath": null,
                         "End": true
                     }
                 }
             }
         },
+        "Validate Build": {
+            "Type": "Pass",
+            "ResultPath": null,
+            "Next": "Load Stage"
+        },
         "Load Stage": {
             "Type": "Map",
-            "End": true,
+            "Next": "Post-Execution Backup",
             "MaxConcurrency": 1,
+            "ItemsPath": "$.input",
+            "ResultPath": "$.input",
             "Iterator": {
                 "StartAt": "Load Data",
                 "States": {
                     "Load Data": {
                         "Type": "Parallel",
-                        "Next": "Load Success",
-                        "Catch": [
-                            {
-                                "ErrorEquals": [
-                                    "States.ALL"
-                                ],
-                                "Next": "Load Error"
-                            }
-                        ],
+                        "End": true,
                         "Branches": [
                             {
                                 "StartAt": "Invoke Load Script",
@@ -98,22 +101,32 @@
                                         "Type": "Task",
                                         "Resource": "${LoadNeo4jActivityArn}",
                                         "HeartbeatSeconds": 60,
+                                        "End": true,
+                                        "Catch": [
+                                            {
+                                                "ErrorEquals": [
+                                                    "States.ALL"
+                                                ],
+                                                "Next": "Fail Load"
+                                            }
+                                        ]
+                                    },
+                                    "Fail Load": {
+                                        "Type": "Pass",
+                                        "ResultPath": null,
                                         "End": true
                                     }
                                 }
                             }
                         ]
-                    },
-                    "Load Error": {
-                        "Type": "Pass",
-                        "End": true
-                    },
-                    "Load Success": {
-                        "Type": "Pass",
-                        "End": true
                     }
                 }
             }
+        },
+        "Post-Execution Backup": {
+            "Type": "Pass",
+            "ResultPath": null,
+            "End": true
         }
     }
 }

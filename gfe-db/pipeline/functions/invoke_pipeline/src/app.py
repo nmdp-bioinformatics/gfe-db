@@ -44,19 +44,27 @@ def lambda_handler(event, context):
         new_releases, params = parse_state(branches_state_path, pipeline_params_path)
     
     if new_releases:
-        state_machine_input = []
+        execution_input = []
 
         for release in new_releases:
             params_input = copy.deepcopy(params)
             params_input["releases"] = release
             params_input = {k.upper():v for k,v in params_input.items()}
             logger.info(f'Running pipeline with these parameters:\n{json.dumps(params_input)}')            
-            state_machine_input.append(params_input)
+            execution_input.append(params_input)
+
+        payload = {
+            "input": execution_input,
+            # "error_status": {
+            #     "build": False,
+            #     "load": False
+            # },
+        }
 
         # TODO: include release number in execution identifier
         response = sfn.start_execution(
             stateMachineArn=UPDATE_PIPELINE_STATE_MACHINE_ARN,
-            input=json.dumps(state_machine_input))
+            input=json.dumps(payload))
 
         # Update the config file
         write_config(branches_state_path)
@@ -65,7 +73,7 @@ def lambda_handler(event, context):
             # TODO: add timestamp
             "status": response['ResponseMetadata']['HTTPStatusCode'],
             "message": "Pipeline triggered",
-            "input": state_machine_input
+            "payload": payload
         }
 
     else:
