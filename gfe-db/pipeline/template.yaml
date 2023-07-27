@@ -241,8 +241,7 @@ Resources:
             --==MYBOUNDARY==
       TagSpecifications:
         - ResourceType: launch-template
-          # TODO remove
-      Tags: 
+          Tags: 
             - Key: Name
               Value: 'gfe-db-build-worker'
 
@@ -378,6 +377,39 @@ Resources:
         - Name: FunctionName
           Value: !Ref InvokePipelineFunctionName
 
+  InvokeBackupScriptFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub "Invoke backup for Neo4j for ${AppName}"
+      CodeUri: functions/invoke_backup_script/
+      Handler: app.lambda_handler
+      Runtime: python3.10
+      MemorySize: 128
+      Timeout: 60
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          STAGE: !Ref Stage
+          APP_NAME: !Ref AppName
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action: 
+                - "ssm:SendCommand"
+                - "ssm:GetDocument"
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${Stage}-${AppName}-database-Neo4jBackupDocument*'
+                - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*'
+            - Effect: "Allow"
+              Action: 
+                - "ssm:GetParameters"
+                - "ssm:GetParameter"
+              Resource: 
+                - "*"
+
   InvokeLoadScriptFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -442,10 +474,13 @@ Resources:
         BuildJobName: !Sub '${Stage}-${AppName}-build-job'
         BuildJobQueue: !Ref BuildJobQueue
         InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
+        InvokeBackupScriptFunctionArn: !GetAtt InvokeBackupScriptFunction.Arn
         LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref InvokeLoadScriptFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref InvokeBackupScriptFunction
         - Version: "2012-10-17"
           Statement:
             - Effect: "Allow"

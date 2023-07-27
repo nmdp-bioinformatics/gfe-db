@@ -324,6 +324,14 @@ Resources:
                 - "directory=$(pwd)"
                 - "export PATH=$PATH:$directory"
                 - "cd {{ workingDirectory }} && {{ commandLine }}"
+                
+  Neo4jBackupDocumentNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jBackupDocumentName'
+      Description: "Name of SSM document for backing up Neo4j"
+      Value: !Ref Neo4jBackupDocument
 
   Neo4jBackupMaintenanceWindow:
     Type: AWS::SSM::MaintenanceWindow

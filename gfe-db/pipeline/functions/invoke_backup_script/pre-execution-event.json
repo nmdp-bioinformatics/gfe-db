@@ -1,0 +1,11 @@
+{
+    "input": [
+      {
+        "ALIGN": "False",
+        "KIR": "False",
+        "LIMIT": "1000",
+        "MEM_PROFILE": "False",
+        "RELEASES": "3520"
+      }
+    ]
+  }
