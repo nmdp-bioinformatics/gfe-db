@@ -82,6 +82,7 @@
                 "States": {
                     "Load Data": {
                         "Type": "Parallel",
+                        "ResultPath": null,
                         "End": true,
                         "Branches": [
                             {
@@ -90,6 +91,7 @@
                                     "Invoke Load Script": {
                                         "Type": "Task",
                                         "Resource": "${InvokeLoadScriptFunctionArn}",
+                                        "ResultPath": null,
                                         "End": true
                                     }
                                 }
@@ -101,6 +103,7 @@
                                         "Type": "Task",
                                         "Resource": "${LoadNeo4jActivityArn}",
                                         "HeartbeatSeconds": 60,
+                                        "ResultPath": null,
                                         "End": true,
                                         "Catch": [
                                             {

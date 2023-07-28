@@ -72,15 +72,19 @@ def lambda_handler(event, context):
 
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             logger.error(json.dumps(response, cls=DatetimeEncoder))
+            message = f"Failed to send command `{cmd}` to instance {neo4j_database_instance_id}"
             raise Exception("Failed to send command")
         else:
-            logger.info(f"Command `{cmd}` invoked on instance {neo4j_database_instance_id}")
+            message = f"Command `{cmd}` invoked on instance {neo4j_database_instance_id}"
+            logger.info(message)
     
     except Exception as err:
         logger.error(err)
         raise err
 
-    return
+    return {
+        "message": message
+    }
 
 
 # Needed to serialize datetime objects in JSON responses

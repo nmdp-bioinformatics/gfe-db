@@ -13,19 +13,13 @@ AWS_REGION = os.environ["AWS_REGION"]
 session = boto3.Session(region_name=AWS_REGION)
 ssm = session.client('ssm')
 
-# neo4j_backup_document_name = os.environ["NEO4J_BACKUP_DOCUMENT_NAME"]
-# '/${AppName}/${Stage}/${AWS::Region}/Neo4jBackupDocumentName
 neo4j_backup_document_name = ssm.get_parameter(
     Name=f'/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jBackupDocumentName'
 )["Parameter"]["Value"]
 
-# \!Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId'
 neo4j_database_instance_id = ssm.get_parameter(
     Name=f'/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jDatabaseInstanceId'
 )["Parameter"]["Value"]
-
-# Get SSM Document Neo4jLoadQuery
-response = ssm.get_document(Name=neo4j_backup_document_name)
 
 def lambda_handler(event, context):
 
@@ -48,6 +42,9 @@ def lambda_handler(event, context):
             raise Exception("Failed to send command")
         else:
             logger.info(f"Neo4j backup invoked on instance {neo4j_database_instance_id}")
+
+            # TODO poll SSM until command is complete
+            # try: poll; except Failed Command: raise Exception
     
     except Exception as err:
         logger.error(err)
@@ -84,7 +81,8 @@ class DatetimeEncoder(json.JSONEncoder):
 if __name__ == "__main__":
     from pathlib import Path
 
-    event_path = Path(__file__).parent / "pre-execution-event.json"
+    # event_path = Path(__file__).parent / "pre-execution-event.json"
+    event_path = Path(__file__).parent / "post-execution-event.json"
 
     with open(event_path, "r") as file:
         event = json.load(file)
