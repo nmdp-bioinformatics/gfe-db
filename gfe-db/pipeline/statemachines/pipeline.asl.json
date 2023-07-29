@@ -67,8 +67,13 @@
             }
         },
         "Validate Build": {
-            "Type": "Pass",
-            "ResultPath": null,
+            "Type": "Task",
+            "Resource": "${ValidateBuildOutputFunctionArn}",
+            "Parameters": {
+                "execution_context.$": "$$",
+                "build_output.$": "$"
+            },
+            "ResultPath": "$.build_validation",
             "Next": "Load Stage"
         },
         "Load Stage": {

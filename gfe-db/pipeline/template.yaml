@@ -464,6 +464,42 @@ Resources:
         - Name: FunctionName
           Value: !Ref InvokeLoadScriptFunctionName
 
+  ValidateBuildOutputFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub "Validate build output for ${AppName}"
+      CodeUri: functions/validate_build_output/
+      Handler: app.lambda_handler
+      Runtime: python3.10
+      MemorySize: 256
+      Timeout: 60
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          STAGE: !Ref Stage
+          APP_NAME: !Ref AppName
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action: 
+                - "ssm:GetParameters"
+                - "ssm:GetParameter"
+              Resource: 
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*'
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action: 
+                - "s3:GetObject"
+                - "s3:ListBucket"
+                - "s3:ListObjects"
+              Resource: 
+                - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
+                - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
+
   UpdatePipelineStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
@@ -473,6 +509,7 @@ Resources:
         BuildJobDefinition: !Ref BuildJobDefinition
         BuildJobName: !Sub '${Stage}-${AppName}-build-job'
         BuildJobQueue: !Ref BuildJobQueue
+        ValidateBuildOutputFunctionArn: !GetAtt ValidateBuildOutputFunction.Arn
         InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
         InvokeBackupScriptFunctionArn: !GetAtt InvokeBackupScriptFunction.Arn
         LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
@@ -481,6 +518,8 @@ Resources:
             FunctionName: !Ref InvokeLoadScriptFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref InvokeBackupScriptFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ValidateBuildOutputFunction
         - Version: "2012-10-17"
           Statement:
             - Effect: "Allow"

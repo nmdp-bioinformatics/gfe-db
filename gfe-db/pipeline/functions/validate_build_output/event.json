@@ -1,0 +1,58 @@
+{
+    "execution_context": {
+      "Execution": {
+        "Id": "arn:aws:states:us-east-1:810526023897:execution:UpdatePipelineStateMachine-cZyA03LshQeo:5763cf8a-ea0f-4f24-8500-d835d4005d24",
+        "Input": {
+          "input": [
+            {
+              "ALIGN": "False",
+              "KIR": "False",
+              "LIMIT": "1000",
+              "MEM_PROFILE": "False",
+              "RELEASES": "3460"
+            },
+            {
+              "ALIGN": "False",
+              "KIR": "False",
+              "LIMIT": "1000",
+              "MEM_PROFILE": "False",
+              "RELEASES": "3234"
+            }
+          ]
+        },
+        "StartTime": "2023-07-28T21:21:34.779Z",
+        "Name": "5763cf8a-ea0f-4f24-8500-d835d4005d24",
+        "RoleArn": "arn:aws:iam::810526023897:role/dev-gfe-db-pipeline-UpdatePipelineStateMachineRole-545MF0IUYA11"
+      },
+      "StateMachine": {
+        "Id": "arn:aws:states:us-east-1:810526023897:stateMachine:UpdatePipelineStateMachine-cZyA03LshQeo",
+        "Name": "UpdatePipelineStateMachine-cZyA03LshQeo"
+      },
+      "State": {
+        "Name": "Validate Build",
+        "EnteredTime": "2023-07-28T21:24:08.983Z",
+        "RetryCount": 0
+      }
+    },
+    "build_output": {
+      "input": [
+        {
+          "ALIGN": "False",
+          "KIR": "False",
+          "LIMIT": "1000",
+          "MEM_PROFILE": "False",
+          "RELEASES": "3460"
+        },
+        {
+          "Error": "States.TaskFailed",
+          "Cause": "{\"Attempts\":[{\"Container\":{\"ContainerInstanceArn\":\"arn:aws:ecs:us-east-1:810526023897:container-instance/BuildComputeEnvironment-FFdY50Fsdc5qWZMA_Batch_596273aa-0caa-3f6f-803f-62b9b7e8d6af/93e3f7c9c71e4d3f885da937d3cf061a\",\"ExitCode\":1,\"LogStreamName\":\"dev-gfe-db-BuildJobDefinition/default/19fe555c75d24887afb06eb4594758f2\",\"NetworkInterfaces\":[],\"TaskArn\":\"arn:aws:ecs:us-east-1:810526023897:task/BuildComputeEnvironment-FFdY50Fsdc5qWZMA_Batch_596273aa-0caa-3f6f-803f-62b9b7e8d6af/19fe555c75d24887afb06eb4594758f2\"},\"StartedAt\":1690579411521,\"StatusReason\":\"Essential container in task exited\",\"StoppedAt\":1690579412165}],\"Container\":{\"Command\":[\"bash\",\"run.sh\"],\"ContainerInstanceArn\":\"arn:aws:ecs:us-east-1:810526023897:container-instance/BuildComputeEnvironment-FFdY50Fsdc5qWZMA_Batch_596273aa-0caa-3f6f-803f-62b9b7e8d6af/93e3f7c9c71e4d3f885da937d3cf061a\",\"Environment\":[{\"Name\":\"GFE_BUCKET\",\"Value\":\"dev-gfe-db-810526023897-us-east-1\"},{\"Name\":\"FAILED_ALLELES_QUEUE\",\"Value\":\"https://sqs.us-east-1.amazonaws.com/810526023897/dev-gfe-db-pipeline-FailedAllelesQueue-csd4ychDoZCg\"},{\"Name\":\"AWS_REGION\",\"Value\":\"us-east-1\"},{\"Name\":\"ALIGN\",\"Value\":\"False\"},{\"Name\":\"RELEASES\",\"Value\":\"3234\"},{\"Name\":\"KIR\",\"Value\":\"False\"},{\"Name\":\"LIMIT\",\"Value\":\"1000\"},{\"Name\":\"MANAGED_BY_AWS\",\"Value\":\"STARTED_BY_STEP_FUNCTIONS\"},{\"Name\":\"MEM_PROFILE\",\"Value\":\"False\"}],\"ExitCode\":1,\"Image\":\"810526023897.dkr.ecr.us-east-1.amazonaws.com/dev-gfe-db-build-service:latest\",\"LogStreamName\":\"dev-gfe-db-BuildJobDefinition/default/19fe555c75d24887afb06eb4594758f2\",\"Memory\":8000,\"MountPoints\":[],\"NetworkInterfaces\":[],\"ResourceRequirements\":[],\"Secrets\":[],\"TaskArn\":\"arn:aws:ecs:us-east-1:810526023897:task/BuildComputeEnvironment-FFdY50Fsdc5qWZMA_Batch_596273aa-0caa-3f6f-803f-62b9b7e8d6af/19fe555c75d24887afb06eb4594758f2\",\"Ulimits\":[],\"Vcpus\":8,\"Volumes\":[]},\"CreatedAt\":1690579296317,\"DependsOn\":[],\"EksAttempts\":[],\"JobArn\":\"arn:aws:batch:us-east-1:810526023897:job/244c2e3b-36b4-4d06-a778-f5c271d93a10\",\"JobDefinition\":\"arn:aws:batch:us-east-1:810526023897:job-definition/dev-gfe-db-BuildJobDefinition:10\",\"JobId\":\"244c2e3b-36b4-4d06-a778-f5c271d93a10\",\"JobName\":\"dev-gfe-db-build-job\",\"JobQueue\":\"arn:aws:batch:us-east-1:810526023897:job-queue/dev-gfe-db-BuildJobQueue\",\"Parameters\":{},\"PlatformCapabilities\":[],\"PropagateTags\":false,\"RetryStrategy\":{\"Attempts\":1,\"EvaluateOnExit\":[]},\"StartedAt\":1690579411521,\"Status\":\"FAILED\",\"StatusReason\":\"Essential container in task exited\",\"StoppedAt\":1690579412165,\"Tags\":{}}"
+        }
+      ],
+      "backups": {
+        "pre": {
+          "DocumentName": "dev-gfe-db-database-Neo4jBackupDocument-nAqIhQzAdtbD",
+          "CommandId": "6be0c0cb-82a7-4e9f-9fce-d37b3c47279f"
+        }
+      }
+    }
+  }
