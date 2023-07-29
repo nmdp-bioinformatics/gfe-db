@@ -70,18 +70,32 @@
             "Type": "Task",
             "Resource": "${ValidateBuildOutputFunctionArn}",
             "Parameters": {
-                "execution_context.$": "$$",
-                "build_output.$": "$"
+                "execution_context.$": "$$"
             },
-            "ResultPath": "$.build_validation",
-            "Next": "Load Stage"
+            "Next": "Evaluate Payloads"
+        },
+        "Evaluate Payloads": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.has_valid_payload",
+                    "BooleanEquals": true,
+                    "Next": "Load Stage"
+                }
+            ],
+            "Default": "Execution Failed"
+        },
+        "Execution Failed": {
+            "Type": "Fail",
+            "Error": "ExecutionFailed",
+            "Cause": "No valid payloads were generated"
         },
         "Load Stage": {
             "Type": "Map",
             "Next": "Post-Execution Backup",
             "MaxConcurrency": 1,
-            "ItemsPath": "$.input",
-            "ResultPath": "$.input",
+            "ItemsPath": "$.validated",
+            "ResultPath": null,
             "Iterator": {
                 "StartAt": "Load Data",
                 "States": {
