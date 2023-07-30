@@ -156,7 +156,9 @@ database.load.run: # args: align, kir, limit, releases
 		--payload file://payload.json \
 		response.json \
 		--output json  >/dev/null 2>&1 && \
+	echo "Response:" && \
 	echo "Response:" >> ${CFN_LOG_PATH} && \
+	cat response.json | jq -r && \
 	cat response.json | jq -r >> ${CFN_LOG_PATH} && \
 	rm payload.json response.json
 	
