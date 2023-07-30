@@ -37,67 +37,77 @@ def lambda_handler(event, context):
 
     logger.info(json.dumps(event))
 
-    if "releases" in event:
+    try:
+        if "releases" in event:
 
-        # align, kir, mem_profile are booleans
-        if not all([ bool(event[arg]) for arg in [ 'align', 'kir', 'mem_profile' ] ]):
-            raise ValueError(f'align, kir, and mem_profile must be boolean values\n\talign: {event["align"]}\n\tkir: {event["kir"]}\n\tmem_profile: {event["mem_profile"]}')
+            # align, kir, mem_profile are booleans
+            if not all([ isinstance(event[arg], bool) for arg in [ 'align', 'kir', 'mem_profile' ] ]):
+                raise ValueError('align, kir, and mem_profile must be boolean values')
 
-        # limit is an integer
-        try:
-            if not isinstance(int(event['limit']), int):
-                raise ValueError(f'limit must be an integer\n\tlimit: {event["limit"]}')
-        except ValueError:
-            raise ValueError(f'limit must be an integer\n\tlimit: {event["limit"]}')
+            # conform booleans to the current argument format
+            event = { arg: str(val) for arg, val in event.items() }
 
-        # release is a string that matches regex
-        if not all([ is_valid_release(release, release_pattern) for release in event['releases'].split(',') ]):
-            raise ValueError(f'releases must contains strings that match {release_pattern}\n\treleases: {event["releases"]}')
-    
-        logging.info(f'Reading parameters from event')
-        new_releases, params = parse_event(event)
+            # limit is an integer
+            try:
+                if not isinstance(int(event['limit']), int):
+                    raise ValueError('limit must be an integer')
+            except ValueError:
+                raise ValueError('limit must be an integer')
 
-    else:
-        # Load the previous repository state
-        logging.info(f'Reading parameters from file')
-        new_releases, params = parse_state(branches_state_path, pipeline_params_path)
-    
-    if new_releases:
-        execution_input = []
-
-        for release in new_releases:
-            params_input = copy.deepcopy(params)
-            params_input["releases"] = release
-            params_input = {k.upper():v for k,v in params_input.items()}
-            logger.info(f'Running pipeline with these parameters:\n{json.dumps(params_input)}')            
-            execution_input.append(params_input)
-
-        payload = {
-            "input": execution_input
-        }
-
-        # TODO: include release number in execution identifier
-        response = sfn.start_execution(
-            stateMachineArn=UPDATE_PIPELINE_STATE_MACHINE_ARN,
-            input=json.dumps(payload))
-
-        # Update the config file
-        write_config(branches_state_path)
-
-        return {
-            # TODO: add timestamp
-            "status": response['ResponseMetadata']['HTTPStatusCode'],
-            "message": "Pipeline triggered",
-            "payload": payload
-        }
-
-    else:
-        # Update the config file
-        write_config(branches_state_path)
+            # release is a string that matches regex
+            if not all([ is_valid_release(release, release_pattern) for release in event['releases'].split(',') ]):
+                raise ValueError(f'releases must contains strings that match {release_pattern}')
         
+            logging.info(f'Reading parameters from event')
+            new_releases, params = parse_event(event)
+
+        else:
+            # Load the previous repository state
+            logging.info(f'Reading parameters from file')
+            new_releases, params = parse_state(branches_state_path, pipeline_params_path)
+        
+        if new_releases:
+            execution_input = []
+
+            for release in new_releases:
+                params_input = copy.deepcopy(params)
+                params_input["releases"] = release
+                params_input = {k.upper():v for k,v in params_input.items()}
+                logger.info(f'Running pipeline with these parameters:\n{json.dumps(params_input)}')            
+                execution_input.append(params_input)
+
+            payload = {
+                "input": execution_input
+            }
+
+            # TODO: include release number in execution identifier
+            response = sfn.start_execution(
+                stateMachineArn=UPDATE_PIPELINE_STATE_MACHINE_ARN,
+                input=json.dumps(payload))
+
+            # Update the config file
+            write_config(branches_state_path)
+
+            return {
+                # TODO: add timestamp
+                "status": response['ResponseMetadata']['HTTPStatusCode'],
+                "message": "Pipeline triggered",
+                "payload": payload
+            }
+
+        else:
+            # Update the config file
+            write_config(branches_state_path)
+            
+            return {
+                "status": 200,
+                "message": "No new releases found"
+            }
+    except Exception as e:
+        logger.error(e)
         return {
-            "status": 200,
-            "message": "No new releases found"
+            "status": 500,
+            "message": str(e)
         }
 
 
@@ -292,7 +302,7 @@ if __name__ == "__main__":
     import os
     from pathlib import Path
 
-    path = Path(__file__).parent / "event.json"
+    path = Path(__file__).parent / "bad-event.json"
     with open(path, "r") as f:
         event = json.load(f)
 

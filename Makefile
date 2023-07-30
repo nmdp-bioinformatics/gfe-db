@@ -138,11 +138,11 @@ monitoring.subscribe-email:
 # TODO fix output & error handling
 database.load.run: # args: align, kir, limit, releases
 	@echo "Confirm payload:" && \
-	[ "$$align" ] && align="$$align" || align="False" && \
-	[ "$$kir" ] && kir="$$kir" || kir="False" && \
+	[ "$$align" ] && align="$$align" || align=false && \
+	[ "$$kir" ] && kir="$$kir" || kir=false && \
 	[ "$$limit" ] && limit="$$limit" || limit="" && \
 	[ "$$releases" ] && releases="$$releases" || releases="" && \
-	payload="{ \"align\": \"$$align\", \"kir\": \"$$kir\", \"limit\": \"$$limit\", \"releases\": \"$$releases\", \"mem_profile\": \"False\" }" && \
+	payload="{ \"align\": $$align, \"kir\": $$kir, \"limit\": \"$$limit\", \"releases\": \"$$releases\", \"mem_profile\": false }" && \
 	echo "$$payload" | jq -r && \
 	echo "$$payload" | jq > payload.json
 	@echo "Run pipeline with this payload? [y/N] \c " && read ans && [ $${ans:-N} = y ]
@@ -155,7 +155,7 @@ database.load.run: # args: align, kir, limit, releases
 		--function-name "$$function_name" \
 		--payload file://payload.json \
 		response.json \
-		--output json  >/dev/null 2>&1 && \
+		--output json  >> ${CFN_LOG_PATH} && \
 	echo "Response:" && \
 	echo "Response:" >> ${CFN_LOG_PATH} && \
 	cat response.json | jq -r && \
