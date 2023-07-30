@@ -319,7 +319,7 @@ Resources:
     Properties:
       FunctionName: !Ref InvokePipelineFunctionName
       Description: !Sub '${AppName} update pipeline trigger: checks for new IMGT/HLA releases and starts the loading process'
-      CodeUri: functions/invoke_pipeline/src/
+      CodeUri: functions/invoke_pipeline/
       Handler: app.lambda_handler
       Runtime: python3.9
       MemorySize: !Ref InvokePipelineFunctionMemorySize
