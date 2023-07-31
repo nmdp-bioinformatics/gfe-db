@@ -116,11 +116,14 @@ infrastructure.deploy:
 database.deploy:
 	$(MAKE) -C ${APP_NAME}/database/ deploy
 
+database.service.deploy:
+	$(MAKE) -C ${APP_NAME}/database/ service.deploy
+
 pipeline.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ deploy
 
-pipeline.functions.deploy:
-	$(MAKE) -C ${APP_NAME}/pipeline/ service.functions.deploy
+pipeline.service.deploy:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.deploy
 
 pipeline.jobs.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.jobs.deploy
