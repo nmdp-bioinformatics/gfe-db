@@ -297,6 +297,15 @@ Resources:
       Description: "Instance ID for gfe-db Neo4j database instance"
       Value: !Ref Neo4jDatabaseInstance
 
+  Neo4jUriParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jUri'
+      Description: "Connection URI for Neo4j"
+      # "https://${SUBDOMAIN}.${HOST_DOMAIN}:7473/browser/"
+      Value: !Sub "https://${Subdomain}.${HostDomain}:7473/browser/"
+
   Neo4jBackupDocument: 
     Type: AWS::SSM::Document
     Properties:
@@ -344,7 +353,6 @@ Resources:
       Schedule: cron(0 0 ? * * *)
       ScheduleTimezone: US/Central
 
-  # Neo4jBackupMaintenanceWindowId Parameters
   Neo4jBackupMaintenanceWindowIdParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -352,10 +360,6 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jBackupMaintenanceWindowId'
       Description: "ID for Neo4jBackupMaintenanceWindow"
       Value: !Ref Neo4jBackupMaintenanceWindow
-      # TODO remove
-      Tags:
-        Stage: !Ref Stage
-        AppName: !Ref AppName
 
   Neo4jBackupMaintenanceWindowTask:
     Type: AWS::SSM::MaintenanceWindowTask

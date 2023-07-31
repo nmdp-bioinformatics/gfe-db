@@ -1,0 +1,125 @@
+{
+    "validated": [
+      {
+        "ALIGN": "False",
+        "KIR": "False",
+        "LIMIT": "1000",
+        "MEM_PROFILE": "False",
+        "RELEASES": "3460"
+      }
+    ],
+    "build_details": [
+      {
+        "release": "3460",
+        "details": [
+          {
+            "schema": "all_cds",
+            "release": "3460",
+            "file_path": "s3://dev-gfe-db-810526023897-us-east-1/data/3460/csv/all_cds.3460.csv",
+            "cols": [
+              "gfe_name",
+              "bp_seq_id",
+              "bp_sequence",
+              "aa_seq_id",
+              "aa_sequence"
+            ],
+            "num_rows": 1000,
+            "created_utc": "2023-07-30T23:45:16.000Z",
+            "details": {
+              "is_valid_csv_timestamp": true,
+              "is_valid_csv_filename": true,
+              "is_valid_csv_headers": true,
+              "is_valid_csv_rows": true
+            },
+            "num_errors": 0,
+            "is_valid_csv": true
+          },
+          {
+            "schema": "all_features",
+            "release": "3460",
+            "file_path": "s3://dev-gfe-db-810526023897-us-east-1/data/3460/csv/all_features.3460.csv",
+            "cols": [
+              "accession",
+              "hash_code",
+              "locus",
+              "rank",
+              "sequence",
+              "term",
+              "gfe_name",
+              "allele_id",
+              "hla_name",
+              "imgt_release"
+            ],
+            "num_rows": 11635,
+            "created_utc": "2023-07-30T23:45:16.000Z",
+            "details": {
+              "is_valid_csv_timestamp": true,
+              "is_valid_csv_filename": true,
+              "is_valid_csv_headers": true,
+              "is_valid_csv_rows": true
+            },
+            "num_errors": 0,
+            "is_valid_csv": true
+          },
+          {
+            "schema": "all_groups",
+            "release": "3460",
+            "file_path": "s3://dev-gfe-db-810526023897-us-east-1/data/3460/csv/all_groups.3460.csv",
+            "cols": [
+              "gfe_name",
+              "allele_id",
+              "hla_name",
+              "ard_id",
+              "ard_name",
+              "locus",
+              "imgt_release"
+            ],
+            "num_rows": 3000,
+            "created_utc": "2023-07-30T23:45:16.000Z",
+            "details": {
+              "is_valid_csv_timestamp": true,
+              "is_valid_csv_filename": true,
+              "is_valid_csv_headers": true,
+              "is_valid_csv_rows": true
+            },
+            "num_errors": 0,
+            "is_valid_csv": true
+          },
+          {
+            "schema": "gfe_sequences",
+            "release": "3460",
+            "file_path": "s3://dev-gfe-db-810526023897-us-east-1/data/3460/csv/gfe_sequences.3460.csv",
+            "cols": [
+              "gfe_name",
+              "acc_name",
+              "locus",
+              "hla_name",
+              "seq_id",
+              "sequence",
+              "length",
+              "imgt_release"
+            ],
+            "num_rows": 1000,
+            "created_utc": "2023-07-30T23:45:16.000Z",
+            "details": {
+              "is_valid_csv_timestamp": true,
+              "is_valid_csv_filename": true,
+              "is_valid_csv_headers": true,
+              "is_valid_csv_rows": true
+            },
+            "num_errors": 0,
+            "is_valid_csv": true
+          }
+        ],
+        "errors": [],
+        "expected_artifacts": [
+          "all_cds.3460.csv",
+          "all_features.3460.csv",
+          "all_groups.3460.csv",
+          "gfe_sequences.3460.csv"
+        ],
+        "is_valid_build": true
+      }
+    ],
+    "has_valid_payload": true
+  }

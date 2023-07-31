@@ -1,6 +1,11 @@
 {
-    "StartAt": "Pre-Execution Backup",
+    "StartAt": "Pre-Execution Validation Query",
     "States": {
+        "Pre-Execution Validation Query": {
+            "Type": "Pass",
+            "ResultPath": null,
+            "Next": "Pre-Execution Backup"
+        },
         "Pre-Execution Backup": {
             "Type": "Task",
             "Resource": "${InvokeBackupScriptFunctionArn}",
@@ -92,7 +97,7 @@
         },
         "Load Stage": {
             "Type": "Map",
-            "Next": "Post-Execution Backup",
+            "Next": "Post-Execution Validation Query",
             "MaxConcurrency": 1,
             "ItemsPath": "$.validated",
             "ResultPath": null,
@@ -144,6 +149,11 @@
                     }
                 }
             }
+        },
+        "Post-Execution Validation Query": {
+            "Type": "Pass",
+            "ResultPath": null,
+            "Next": "Post-Execution Backup"
         },
         "Post-Execution Backup": {
             "Type": "Pass",
