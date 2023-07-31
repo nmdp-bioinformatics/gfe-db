@@ -10,7 +10,7 @@
         "Pre-Execution Backup": {
             "Type": "Task",
             "Resource": "${InvokeBackupScriptFunctionArn}",
-            "ResultPath": "$.backups",
+            "ResultPath": "$.backups.pre",
             "Next": "Build Stage"
         },
         "Build Stage": {
@@ -80,9 +80,9 @@
                 "execution_context.$": "$$"
             },
             "ResultPath": "$.validations.build",
-            "Next": "Evaluate Payloads"
+            "Next": "Evaluate Payload"
         },
-        "Evaluate Payloads": {
+        "Evaluate Payload": {
             "Type": "Choice",
             "Choices": [
                 {
@@ -96,7 +96,7 @@
         "Execution Failed": {
             "Type": "Fail",
             "Error": "ExecutionFailed",
-            "Cause": "No valid payloads were generated"
+            "Cause": "No valid payload was generated"
         },
         "Load Stage": {
             "Type": "Map",
@@ -160,8 +160,9 @@
             "Next": "Post-Execution Backup"
         },
         "Post-Execution Backup": {
-            "Type": "Pass",
-            "ResultPath": null,
+            "Type": "Task",
+            "Resource": "${InvokeBackupScriptFunctionArn}",
+            "ResultPath": "$.backups.post",
             "End": true
         }
     }

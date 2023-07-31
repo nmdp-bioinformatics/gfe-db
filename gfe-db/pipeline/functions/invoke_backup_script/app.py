@@ -51,10 +51,8 @@ def lambda_handler(event, context):
         raise err
 
     return {
-        "pre": {
-            "DocumentName": response['Command']['DocumentName'],
-            "CommandId": response['Command']['CommandId']
-        }
+        "document_name": response['Command']['DocumentName'],
+        "command_id": response['Command']['CommandId']
     }
 
 
