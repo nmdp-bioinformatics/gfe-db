@@ -49,16 +49,18 @@ def lambda_handler(event, context):
                 "count": records[0].data()['count']
             })
 
-        # release counts
-        release_counts = execute_query(driver, release_counts_cql)
+        # HAS_IPD_ALLELE relationship releases property release counts
+        has_ipd_allele_release_counts = execute_query(driver, has_ipd_allele_release_counts_cql)
 
-        # IPD_Accession release counts
+        # IPD_Accession node release counts
         ipd_accession_release_counts = execute_query(driver, ipd_accession_release_counts_cql)
 
     return {
-        "node_counts": node_counts,
-        "release_counts": release_counts,
-        "ipd_accession_release_counts": ipd_accession_release_counts
+        "pre": {
+            "node_counts": node_counts,
+            "has_ipd_allele_release_counts": has_ipd_allele_release_counts,
+            "ipd_accession_release_counts": ipd_accession_release_counts
+        }
     }
 
 nodes = [
@@ -70,7 +72,7 @@ nodes = [
     "Submitter",
 ]
 
-release_counts_cql = """MATCH (:GFE)-[r:HAS_IPD_ALLELE]->(:IPD_Allele)
+has_ipd_allele_release_counts_cql = """MATCH (:GFE)-[r:HAS_IPD_ALLELE]->(:IPD_Allele)
 WITH r, apoc.coll.toSet(r.releases) as releases
 UNWIND releases as release_version
 RETURN DISTINCT release_version, count(release_version) as count

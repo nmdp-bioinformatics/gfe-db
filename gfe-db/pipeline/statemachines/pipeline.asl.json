@@ -2,13 +2,15 @@
     "StartAt": "Pre-Execution Validation Query",
     "States": {
         "Pre-Execution Validation Query": {
-            "Type": "Pass",
-            "ResultPath": null,
+            "Type": "Task",
+            "Resource": "${ExecuteValidationQueriesFunctionArn}",
+            "ResultPath": "$.validations.queries",
             "Next": "Pre-Execution Backup"
         },
         "Pre-Execution Backup": {
             "Type": "Task",
             "Resource": "${InvokeBackupScriptFunctionArn}",
+            "ResultPath": "$.backups",
             "Next": "Build Stage"
         },
         "Build Stage": {
@@ -16,7 +18,7 @@
             "Next": "Validate Build",
             "MaxConcurrency": 0,
             "ItemsPath": "$.input",
-            "ResultPath": "$.input",
+            "ResultPath": null,
             "Iterator": {
                 "StartAt": "Generate CSV files",
                 "States": {
@@ -77,13 +79,14 @@
             "Parameters": {
                 "execution_context.$": "$$"
             },
+            "ResultPath": "$.validations.build",
             "Next": "Evaluate Payloads"
         },
         "Evaluate Payloads": {
             "Type": "Choice",
             "Choices": [
                 {
-                    "Variable": "$.has_valid_payload",
+                    "Variable": "$.validations.build.has_valid_payload",
                     "BooleanEquals": true,
                     "Next": "Load Stage"
                 }
@@ -99,7 +102,7 @@
             "Type": "Map",
             "Next": "Post-Execution Validation Query",
             "MaxConcurrency": 1,
-            "ItemsPath": "$.validated",
+            "ItemsPath": "$.validations.build.validated",
             "ResultPath": null,
             "Iterator": {
                 "StartAt": "Load Data",

@@ -377,6 +377,40 @@ Resources:
         - Name: FunctionName
           Value: !Ref InvokePipelineFunctionName
 
+  ExecuteValidationQueriesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub "Invoke backup for Neo4j for ${AppName}"
+      CodeUri: functions/execute_validation_queries/
+      Handler: app.lambda_handler
+      Runtime: python3.10
+      MemorySize: 256
+      Timeout: 60
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          STAGE: !Ref Stage
+          APP_NAME: !Ref AppName
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action: 
+                - "ssm:GetParameters"
+                - "ssm:GetParameter"
+              Resource: 
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*'
+            - Effect: "Allow"
+              Action:
+                  - "secretsmanager:GetSecretValue"
+                  - "secretsmanager:DescribeSecret"
+                  - "secretsmanager:ListSecretVersionIds"
+                  - "secretsmanager:ListSecrets"
+              Resource:
+                - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn}}'
+
   InvokeBackupScriptFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -408,7 +442,7 @@ Resources:
                 - "ssm:GetParameters"
                 - "ssm:GetParameter"
               Resource: 
-                - "*"
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*'
 
   InvokeLoadScriptFunction:
     Type: AWS::Serverless::Function
@@ -444,7 +478,7 @@ Resources:
                 - "ssm:GetParameters"
                 - "ssm:GetParameter"
               Resource: 
-                - "*"
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*'
 
   InvokeLoadScriptFunctionAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -509,11 +543,14 @@ Resources:
         BuildJobDefinition: !Ref BuildJobDefinition
         BuildJobName: !Sub '${Stage}-${AppName}-build-job'
         BuildJobQueue: !Ref BuildJobQueue
+        ExecuteValidationQueriesFunctionArn: !GetAtt ExecuteValidationQueriesFunction.Arn
         ValidateBuildOutputFunctionArn: !GetAtt ValidateBuildOutputFunction.Arn
         InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
         InvokeBackupScriptFunctionArn: !GetAtt InvokeBackupScriptFunction.Arn
         LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
       Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ExecuteValidationQueriesFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref InvokeLoadScriptFunction
         - LambdaInvokePolicy:
@@ -665,7 +702,7 @@ Resources:
                 - "ssm:GetParameters"
                 - "ssm:GetParameter"
               Resource: 
-                - "*"
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*'
         - Version: "2012-10-17"
           Statement:
             - Effect: "Allow"

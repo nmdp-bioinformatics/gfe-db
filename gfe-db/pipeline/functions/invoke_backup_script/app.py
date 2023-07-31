@@ -51,12 +51,9 @@ def lambda_handler(event, context):
         raise err
 
     return {
-        **event, 
-        "backups": {
-            "pre": {
-                "DocumentName": response['Command']['DocumentName'],
-                "CommandId": response['Command']['CommandId']
-            }
+        "pre": {
+            "DocumentName": response['Command']['DocumentName'],
+            "CommandId": response['Command']['CommandId']
         }
     }
 
