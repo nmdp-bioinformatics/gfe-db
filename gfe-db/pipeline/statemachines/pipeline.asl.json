@@ -4,7 +4,7 @@
         "Pre-Execution Validation Query": {
             "Type": "Task",
             "Resource": "${ExecuteValidationQueriesFunctionArn}",
-            "ResultPath": "$.validations.queries",
+            "ResultPath": "$.validations.queries.pre",
             "Next": "Pre-Execution Backup"
         },
         "Pre-Execution Backup": {
@@ -154,8 +154,9 @@
             }
         },
         "Post-Execution Validation Query": {
-            "Type": "Pass",
-            "ResultPath": null,
+            "Type": "Task",
+            "Resource": "${ExecuteValidationQueriesFunctionArn}",
+            "ResultPath": "$.validations.queries.post",
             "Next": "Post-Execution Backup"
         },
         "Post-Execution Backup": {

@@ -56,11 +56,9 @@ def lambda_handler(event, context):
         ipd_accession_release_counts = execute_query(driver, ipd_accession_release_counts_cql)
 
     return {
-        "pre": {
-            "node_counts": node_counts,
-            "has_ipd_allele_release_counts": has_ipd_allele_release_counts,
-            "ipd_accession_release_counts": ipd_accession_release_counts
-        }
+        "node_counts": node_counts,
+        "has_ipd_allele_release_counts": has_ipd_allele_release_counts,
+        "ipd_accession_release_counts": ipd_accession_release_counts
     }
 
 nodes = [
@@ -80,6 +78,7 @@ ORDER BY release_version;"""
 
 ipd_accession_release_counts_cql = """MATCH ()-[r:HAS_IPD_ACCESSION]->() RETURN DISTINCT r.release as release_version, count(r.release) as count;"""
 
+# # too slow
 # node_counts_cql = """MATCH (gfe:GFE)
 # MATCH (ipd:IPD_Accession)
 # MATCH (ipda:IPD_Allele)
@@ -101,7 +100,7 @@ def execute_query(driver, query):
 if __name__ == "__main__":
     from pathlib import Path
 
-    event_path = Path(__file__).parent / "event.json"
+    event_path = Path(__file__).parent / "post-execution-event.json"
 
     with open(event_path, "r") as file:
         event = json.load(file)
