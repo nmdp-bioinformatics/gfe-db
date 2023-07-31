@@ -38,15 +38,63 @@ def lambda_handler(event, context):
 
     logger.info(json.dumps(event))
 
-    # TODO write validation query
-    # # Group and count nodes and edges for each release
-    cql = "MATCH (n) RETURN count(n);"
-
     with graphdb as driver:
-        records, _, _ = driver.execute_query(cql, database_="neo4j")
 
-    return
+        # node counts
+        node_counts = []
+        for node in nodes:
+            records, _, _ = driver.execute_query(f'MATCH (n:{node}) RETURN count(n) as count;', database_="neo4j")
+            node_counts.append({
+                "node": node,
+                "count": records[0].data()['count']
+            })
 
+        # release counts
+        release_counts = execute_query(driver, release_counts_cql)
+
+        # IPD_Accession release counts
+        ipd_accession_release_counts = execute_query(driver, ipd_accession_release_counts_cql)
+
+    return {
+        "node_counts": node_counts,
+        "release_counts": release_counts,
+        "ipd_accession_release_counts": ipd_accession_release_counts
+    }
+
+nodes = [
+    "GFE",
+    "IPD_Accession",
+    "IPD_Allele",
+    "Sequence",
+    "Feature",
+    "Submitter",
+]
+
+release_counts_cql = """MATCH (:GFE)-[r:HAS_IPD_ALLELE]->(:IPD_Allele)
+WITH r, apoc.coll.toSet(r.releases) as releases
+UNWIND releases as release_version
+RETURN DISTINCT release_version, count(release_version) as count
+ORDER BY release_version;"""
+
+ipd_accession_release_counts_cql = """MATCH ()-[r:HAS_IPD_ACCESSION]->() RETURN DISTINCT r.release as release_version, count(r.release) as count;"""
+
+# node_counts_cql = """MATCH (gfe:GFE)
+# MATCH (ipd:IPD_Accession)
+# MATCH (ipda:IPD_Allele)
+# MATCH (seq:Sequence)
+# MATCH (f:Feature)
+# MATCH (sub:Submitter)
+# RETURN 
+#     count(gfe),
+#     count(ipd),
+#     count(ipda),
+#     count(seq),
+#     count(f),
+#     count(sub);"""
+
+def execute_query(driver, query):
+    records, _, _ = driver.execute_query(query, database_="neo4j")
+    return [record.data() for record in records]
 
 if __name__ == "__main__":
     from pathlib import Path
