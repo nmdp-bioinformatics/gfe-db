@@ -348,25 +348,25 @@ For each invocation the data pipeline will download raw data from [ANHIG/IMGTHLA
 make database.load.run releases="<version>"
 
 # Example for single version
-make database.load.run releases="3510"
+make database.load.run releases=3510
 
 # Example for multiple versions
-make database.load.run releases="3490,3500,3510"
+make database.load.run releases=3490,3500,3510
 
 # Example with limit
-make database.load.run releases="3510" limit="1000"
+make database.load.run releases=3510 limit=1000
 
 # Example with all arguments included
-make database.load.run releases="3510" limit="" align="False" kir="False"
+make database.load.run releases=3510 limit="" align=false kir=false
 ```
 
 These commands build an event payload to send to the `invoke-gfe-db-pipeline` Lambda.
 ```json
 // Test payload example
 {
-  "align": "False",
-  "kir": "False",
-  "mem_profile": "False",
+  "align": false,
+  "kir": false,
+  "mem_profile": false,
   "limit": "",
   "releases": 3510
 }
