@@ -1,29 +1,91 @@
 {
-    "version": 3470,
-    "commit_sha": "cada41a6bfac5a8bf88ed2107a0b856b9b9785a0",
+    "version": 3530,
+    "commit_sha": "359b8c8634db73b939496c53643cc0fae7f22a58",
     "input_parameters": {
       "align": false,
       "kir": false,
       "mem_profile": false,
-      "limit": -1
+      "limit": 100
     },
-    "s3_path": "s3://dev-gfe-db-531868584498-us-east-1/data/3470/csv/",
+    "s3_path": "s3://dev-gfe-db-810526023897-us-east-1/data/3530",
+    "receipt_handle": "AQEBNH+Jb9yckXV/gctxaRxHmoWTT1iYILc65x3eTF9jX4nQCmiTaTXV4gKeMJXDBm0dv41tNP/u3Lag3fJVD8l+e21ZXVmMKQEju4nV73wB6gBKmIFtEF0OuBLcWJwVHENCLOpJYtzo1NCT757PSym9b6cM7mM3QlwpZVrhjC5QUAoEX6fllySm/B/BX9KN00Tre0T201F4hRDw9JJmEn4r/haazHVgXmiL0iES76hxVssotuSnaXouzMslUqjhWFcmPY7OHOssD8OlroEqltfPrXm8p5fvjsVkxurF6jX0UA13NFEBvwCGIcCUXqaCii/JtFq0ZnwMVThCV7hw+eE5P5qwsx7t5iJtl5Nqgv8z6tyP/BYEOJpItZXZ+8UIuG4DhZLC2QKMyYgDpxlNYviQYAC1k1sYSb3WYiNCKd7bQmkmaT9Ci0LCB9RVzwFq2LYg",
     "state": {
-      "commit__sha": "cada41a6bfac5a8bf88ed2107a0b856b9b9785a0",
-      "commit__date_utc": "2022-03-15T14:27:59Z",
-      "commit__html_url": "https://github.com/ANHIG/IMGTHLA/commit/cada41a6bfac5a8bf88ed2107a0b856b9b9785a0",
-      "commit__message": "Merge pull request #299 from ANHIG/3470\n\nUpdate to xml/hla.xml.zip correcting meta data",
-      "repository__name": "IMGTHLA",
-      "created_utc": "2023-06-13T23:31:50Z",
-      "repository__owner": "ANHIG",
-      "repository__url": "https://github.com/ANHIG/IMGTHLA",
-      "execution__version": "3470"
+      "created_utc": "2023-08-02T19:24:26.095Z",
+      "updated_utc": "2023-08-02T19:28:56.665Z",
+      "repository": {
+        "owner": "ANHIG",
+        "name": "IMGTHLA",
+        "url": "https://github.com/ANHIG/IMGTHLA"
+      },
+      "commit": {
+        "sha": "359b8c8634db73b939496c53643cc0fae7f22a58",
+        "date_utc": "2023-07-26T16:17:33Z",
+        "message": "Merge pull request #341 from ANHIG/3530\n\nDocumented changes to the hla.xml releasestatus and release comments …",
+        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/359b8c8634db73b939496c53643cc0fae7f22a58"
+      },
+      "execution": {
+        "version": 3530,
+        "status": "FAILED",
+        "date_utc": "2023-08-02T19:24:29.312Z",
+        "input_parameters": {
+          "align": false,
+          "kir": false,
+          "mem_profile": false,
+          "limit": -1
+        }
+      }
     },
     "s3_response": {
+      "Contents": [
+        {
+          "ETag": "\"9058a1392f371647568b2a72ca419ac0\"",
+          "Key": "data/3530/csv/all_cds.3530.csv",
+          "LastModified": "2023-08-02T20:44:05Z",
+          "Owner": {
+            "DisplayName": "gclindsey+awstesting",
+            "Id": "c7bf5cd354a38116b91f478b895cf40889f01091a7d26941d8a367727278b611"
+          },
+          "Size": 157185,
+          "StorageClass": "STANDARD"
+        },
+        {
+          "ETag": "\"e679db64af1411368d6dbe0ee1c2d0d7\"",
+          "Key": "data/3530/csv/all_features.3530.csv",
+          "LastModified": "2023-08-02T20:44:05Z",
+          "Owner": {
+            "DisplayName": "gclindsey+awstesting",
+            "Id": "c7bf5cd354a38116b91f478b895cf40889f01091a7d26941d8a367727278b611"
+          },
+          "Size": 481636,
+          "StorageClass": "STANDARD"
+        },
+        {
+          "ETag": "\"1cfd0d05dc456f6adecbd9ff076944f6\"",
+          "Key": "data/3530/csv/all_groups.3530.csv",
+          "LastModified": "2023-08-02T20:44:05Z",
+          "Owner": {
+            "DisplayName": "gclindsey+awstesting",
+            "Id": "c7bf5cd354a38116b91f478b895cf40889f01091a7d26941d8a367727278b611"
+          },
+          "Size": 30258,
+          "StorageClass": "STANDARD"
+        },
+        {
+          "ETag": "\"b47abe91dd262dc4ea7e9d25f145d30f\"",
+          "Key": "data/3530/csv/gfe_sequences.3530.csv",
+          "LastModified": "2023-08-02T20:44:05Z",
+          "Owner": {
+            "DisplayName": "gclindsey+awstesting",
+            "Id": "c7bf5cd354a38116b91f478b895cf40889f01091a7d26941d8a367727278b611"
+          },
+          "Size": 321855,
+          "StorageClass": "STANDARD"
+        }
+      ],
       "IsTruncated": false,
       "Marker": "",
       "MaxKeys": 1000,
-      "Name": "dev-gfe-db-531868584498-us-east-1",
-      "Prefix": "data/3470/csv/"
+      "Name": "dev-gfe-db-810526023897-us-east-1",
+      "Prefix": "data/3530/csv/"
     }
   }

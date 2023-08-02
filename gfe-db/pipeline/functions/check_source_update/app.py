@@ -26,7 +26,6 @@ from gfedbmodels.types import (
     ExecutionDetailsConfig,
     ExecutionPayloadItem,
 )
-# TODO update after refactor
 from gfedbmodels.utils import (
     get_utc_now,
     restore_nested_json,
@@ -84,10 +83,6 @@ def lambda_handler(event, context):
             message = "No execution items found"
             logger.error(message)
             raise Exception(message)
-            # return {
-            #     "statusCode": 500,
-            #     "body": json.dumps({"message": message}),
-            # }
 
         # Get the most recent commits from github since the most recent commit date retrieved from DynamoDB
         commits = get_most_recent_commits(execution_state)

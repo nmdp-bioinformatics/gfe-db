@@ -60,16 +60,16 @@ ifndef AWS_PROFILE
 $(error AWS_PROFILE is not set. Please select an AWS profile to use.)
 endif
 ifndef GITHUB_REPOSITORY_OWNER
-$(error GITHUB_REPOSITORY_OWNER is not set. Please add GITHUB_PERSONAL_ACCESS_TOKEN to the environment variables.)
+$(error GITHUB_REPOSITORY_OWNER is not set. Please add GITHUB_REPOSITORY_OWNER to the environment variables.)
 endif
 ifndef GITHUB_REPOSITORY_NAME
-$(error GITHUB_REPOSITORY_NAME is not set. Please add GITHUB_PERSONAL_ACCESS_TOKEN to the environment variables.)
+$(error GITHUB_REPOSITORY_NAME is not set. Please add GITHUB_REPOSITORY_NAME to the environment variables.)
 endif
 ifndef GITHUB_PERSONAL_ACCESS_TOKEN
 $(error GITHUB_PERSONAL_ACCESS_TOKEN is not set. Please add GITHUB_PERSONAL_ACCESS_TOKEN to the environment variables.)
 endif
 ifndef CONFIG_S3_PATH
-$(error CONFIG_S3_PATH is not set. Please add GITHUB_PERSONAL_ACCESS_TOKEN to the environment variables.)
+$(error CONFIG_S3_PATH is not set. Please add CONFIG_S3_PATH to the environment variables.)
 endif
 ifndef HOST_DOMAIN
 $(error HOST_DOMAIN is not set. Please add HOST_DOMAIN to the environment variables.)

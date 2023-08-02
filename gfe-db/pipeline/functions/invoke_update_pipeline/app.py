@@ -64,14 +64,14 @@ def lambda_handler(event, context):
 
             execution_arns.append(response["executionArn"])
 
-            try:
-                response = sqs.delete_message(
-                    QueueUrl=gfe_db_processing_queue_url,
-                    ReceiptHandle=record["receiptHandle"],
-                )
-                logger.info(f"Message deleted from queue")
-            except Exception as e:
-                logger.error(f"Error deleting message from queue: {e}")
+            # try:
+            #     response = sqs.delete_message(
+            #         QueueUrl=gfe_db_processing_queue_url,
+            #         ReceiptHandle=record["receiptHandle"],
+            #     )
+            #     logger.info(f"Message deleted from queue")
+            # except Exception as e:
+            #     logger.error(f"Error deleting message from queue: {e}")
 
         except Exception as e:
             import traceback

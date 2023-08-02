@@ -48,7 +48,7 @@ def lambda_handler(event, context):
         # validate_schema: validate CSV headers by comparing to schema map
         df = load_csv_from_s3(file_path)
         if not set(df.columns) == set(csv_headers[schema]):
-            raise Exception(f"Columns in {file_path} do not match schema for {schema}")
+            raise Exception(f"Columns in {file_path} do not match schema for {schema}:\n\tCSV headers: {df.columns}\n\tSchema headers: {csv_headers[schema]}")
 
         # validate_rows: validate CSV data by confirming that rows exist
         if len(df) == 0:
@@ -99,7 +99,7 @@ csv_headers = {
     ],
     "gfe_sequences": [
         "gfe_name",
-        "allele_id",
+        "acc_name",
         "locus",
         "hla_name",
         "seq_id",
@@ -129,7 +129,7 @@ def load_csv_from_s3(path: str) -> dict:
 if __name__ == "__main__":
     from pathlib import Path
 
-    path = Path(__file__).parent / "event.json"
+    path = Path(__file__).parent / "error-event.json"
 
     with open(path, "r") as file:
         event = json.load(file)
