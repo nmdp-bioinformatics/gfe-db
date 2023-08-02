@@ -40,6 +40,7 @@ get_download_url() {
 
     # Print the response
     echo "${response}" | jq -r '.download_url'
+
 }
 
 # Takes the download url and downloads the asset
@@ -48,13 +49,15 @@ get_asset() {
     asset_path="$2"
 
     # Download the asset
-    curl -sSL -o "${asset_path}" -w 'Downloaded %{url_effective} - HTTP status %{http_code} - Total time %{time_total}\n' "${download_url}"
-    if [[ $? -ne 0 ]]; then
-        echo "Download failed for URL ${download_url}"
+    response=$(curl -sSL -o "${asset_path}" -w "%{http_code}" "${download_url}")
+
+    if [ "$response" -ne 200 ]; then
+        echo "Failed to download asset. HTTP response code: $response"
+        exit 1
+    else
+        echo "Successfully downloaded asset. HTTP response code: $response"
     fi
 }
-
-# EVENT="{\"version\":3470,\"commit_sha\":\"cada41a6bfac5a8bf88ed2107a0b856b9b9785a0\",\"input_parameters\":{\"align\":false,\"kir\":false,\"mem_profile\":false,\"limit\":-1},\"s3_path\":\"s3://dev-gfe-db-531868584498-us-east-1/data/3470/csv/\",\"state\":{\"commit__sha\":\"cada41a6bfac5a8bf88ed2107a0b856b9b9785a0\",\"commit__date_utc\":\"2022-03-15T14:27:59Z\",\"commit__html_url\":\"https://github.com/ANHIG/IMGTHLA/commit/cada41a6bfac5a8bf88ed2107a0b856b9b9785a0\",\"commit__message\":\"Merge pull request #299 from ANHIG/3470\n\nUpdate to xml/hla.xml.zip correcting meta data\",\"repository__name\":\"IMGTHLA\",\"created_utc\":\"2023-06-13T23:31:50Z\",\"repository__owner\":\"ANHIG\",\"repository__url\":\"https://github.com/ANHIG/IMGTHLA\",\"execution__version\":\"3470\"}}"
 
 if [[ -z "${EVENT}" ]]; then
 	echo "No event found. Exiting..."
@@ -67,8 +70,8 @@ fi
 # parse event
 version=$(echo "$EVENT" | jq -r '.version')
 commit_sha=$(echo "$EVENT" | jq -r '.commit_sha')
-repository_owner=$(echo "$EVENT" | jq -r '.state.repository__owner')
-repository_name=$(echo "$EVENT" | jq -r '.state.repository__name')
+repository_owner=$(echo "$EVENT" | jq -r '.state.repository.owner')
+repository_name=$(echo "$EVENT" | jq -r '.state.repository.name')
 align=$(echo "$EVENT" | jq -r '.input_parameters.align')
 kir=$(echo "$EVENT" | jq -r '.input_parameters.kir')
 mem_profile=$(echo "$EVENT" | jq -r '.input_parameters.mem_profile')
@@ -77,17 +80,20 @@ limit=$(echo "$EVENT" | jq -r '.input_parameters.limit')
 
 # Refactor the above variable validations into a for loop
 for var in version commit_sha align kir mem_profile limit repository_owner repository_name; do
-    if [[ -z "${!var}" ]]; then
+    if [[ -z "${!var}" ]] || [[ "${!var}" == "null" ]]; then
         echo "$var not set. Please specify a value."
         exit 1
     fi
     echo "$var: ${!var}"
 done
 
-if [[ -z "${limit}" ]]; then
-	echo "No limit set, building GFEs for all alleles"
+if [[ "${limit}" == "-1" ]] || [[ -z "${limit}" ]]; then
+    echo "No limit set, building GFEs for all alleles"
+elif [[ "${limit}" =~ ^[0-9]+$ ]] && [[ "${limit}" -gt 0 ]]; then
+    echo "Build is limited to $limit alleles"
 else
-	echo "Build is limited to $limit alleles"
+    echo "Invalid limit specified. Please specify a positive integer or -1 for no limit."
+    exit 1
 fi
 
 echo "Found environment variables"
@@ -160,7 +166,7 @@ fi
 
 # Builds CSV files
 # TODO booleans for kir, align, mem_profile are lower case, limit is now -1 instead of none
-python "$SRC_DIR"/app.py \
+python3 "$SRC_DIR"/app.py \
 	-o "$DATA_DIR/$version/csv" \
 	-r "$version" \
 	$KIRFLAG \
@@ -172,7 +178,9 @@ python "$SRC_DIR"/app.py \
 
 # TODO: Use this S3 hierarchy: root/release/data/csv | logs
 echo -e "Uploading data to s3://$GFE_BUCKET/data/$version"
-aws s3 --recursive --quiet cp "$DATA_DIR/$version/" s3://$GFE_BUCKET/data/$version/
+res=$(aws s3 cp --recursive "$DATA_DIR/$version/" "s3://$GFE_BUCKET/data/$version/")
+
+echo $res
 
 if [ "$mem_profile" == "true" ]; then
 	mv "$LOGS_DIR/mem_profile_agg.txt" "$LOGS_DIR/mem_profile_agg.$version.txt"
