@@ -785,6 +785,8 @@ Resources:
       CodeUri: functions/invoke_load_script/
       Handler: app.lambda_handler
       Runtime: python3.10
+      Layers:
+        - !Ref GfeDbModelsLayer
       MemorySize: 256
       Timeout: 60
       Architectures:
