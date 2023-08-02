@@ -94,6 +94,16 @@ class InputParameters(BaseModel):
     mem_profile: bool
     limit: Optional[int] = None
 
+    # validate that limit is an integer equalt to -1 or greater than 0 but not equal to 0
+    @validator("limit")
+    def limit_is_valid(cls, v):
+        if v == -1:
+            return v
+        elif v > 0:
+            return v
+        else:
+            raise ValueError("Limit must be an integer equal to -1 or greater than 0")
+
 
 class ExcludedCommitShas(BaseModel):
     description: Optional[str] = None
