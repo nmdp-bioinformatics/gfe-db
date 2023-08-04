@@ -1,10 +1,16 @@
 """
-Checks a GitHub repository for new commits and triggers data ingestion. This function processes
+Checks a GitHub repository against app state for new commits and triggers data ingestion. This function processes
 only the releases that it finds. To process specific releases, use a different method.
 
+The execution state table is used to track the state of the application. It uses a composite key of
+- commit__sha (hash or primary key)
+- execution__version (range or sort key)
+
+There will usually be multiple commits for each release, so the script will determine the most recent commit for each and process only that.
+
 Note: this function is only responsible for checking and processing the most recent commits. It is not responsible for 
-syncing state. If old items are deleted on the Execution state table while the most recent commits remain, 
-this function will not reprocess the deleted items.
+syncing state. If old commits are deleted on the Execution state table while the most recent commits remain, 
+this function will not reprocess the deleted commits.
 """
 import os
 if __name__ != "app":
@@ -14,12 +20,13 @@ if __name__ != "app":
     sys.path.append(os.environ["GFEDBMODELS_PATH"])
 import logging
 from decimal import Decimal
-from datetime import datetime, timedelta
+from datetime import timedelta
 import json
 from gfedbmodels.constants import session, pipeline
 from gfedbmodels.types import (
     str_to_datetime,
     str_from_datetime,
+    InputParameters,
     ExecutionStateItem,
     RepositoryConfig,
     Commit,
@@ -70,11 +77,13 @@ source_repo_config = read_source_config(
 gfedb_processing_queue = queue.Queue(gfedb_processing_queue_url)
 
 def lambda_handler(event, context):
-    # logger.info(json.dumps(event))
     utc_now = get_utc_now()
+    logger.info(json.dumps(event))
 
     try:
-        # Get items from state table
+        ### Get the app state and compare with the repository ###
+
+        # 1) Get all items from state table
         logger.info(f"Fetching execution state from {execution_state_table_name}")
         table = dynamodb.Table(execution_state_table_name)
         execution_state = get_execution_state(table)
@@ -84,68 +93,95 @@ def lambda_handler(event, context):
             logger.error(message)
             raise Exception(message)
 
-        # Get the most recent commits from github since the most recent commit date retrieved from DynamoDB
-        commits = get_most_recent_commits(execution_state)
+        # Handle manually triggered pipeline execution
+        if "release" in event:
+            # extract the most recent record for the release value passed in the event
+            commits_with_releases = list(filter(
+                lambda record: record.execution.version == event["release"],
+                execution_state
+            ))
 
-        if not commits:
-            message = "No new commits found"
-            logger.info(message)
-            return {
-                "statusCode": 200,
-                "body": json.dumps({"message": message}),
-            }
-        
-        logger.info(
-            f"Found {len(commits)} commit(s) not yet processed\n{json.dumps([commit['sha'] for commit in commits], indent=2)}"
-        )
+            # Set input parameters for manual pipeline execution from event
+            input_parameters = InputParameters(**event)
 
-        # Get the release version for each commit and create a new state record
-        logger.info(f"Getting release versions")
-        commits_with_releases = []
-        for commit in commits:
-            sha = commit["sha"]
+        # Handle automated pipeline execution
+        else:
 
-            # Loop through available file assets containing release version information
-            for asset_config in source_repo_config.target_metadata_config.items:
-                try:
-                    release_version = get_release_version_for_commit(
-                        commit=commit, 
-                        owner=GITHUB_REPOSITORY_OWNER,
-                        repo=GITHUB_REPOSITORY_NAME,
-                        token=GITHUB_PERSONAL_ACCESS_TOKEN,
-                        **asset_config.model_dump()
-                    )
-                    logger.info(
-                        f"Found release version {release_version} for commit {sha}"
-                    )
-                    execution_detail = ExecutionDetailsConfig(
-                        **{"version": release_version, "status": "NOT_PROCESSED"}
-                    )
-                    repository_config = RepositoryConfig(
-                        **{
-                            "owner": GITHUB_REPOSITORY_OWNER,
-                            "name": GITHUB_REPOSITORY_NAME,
-                            "url": f"https://github.com/{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}",
-                            # TODO remove default params from state table, they are retrieved from source config file in S3
-                            "default_input_parameters": source_repo_config.default_input_parameters,
-                        }
-                    )
-                    execution_state_item = ExecutionStateItem(
-                        created_utc=utc_now,
-                        execution=execution_detail,
-                        repository=repository_config,
-                        commit=Commit.from_response_json(commit),
-                    )
-                    commits_with_releases.append(execution_state_item)
-                    # break the loop if successful
-                    break
-                except Exception as e:
-                    logger.info(f"Error getting release version for commit {sha}: {e}")
+            # Use default parameters for automated pipeline execution
+            input_parameters = source_repo_config.default_input_parameters
+            # 2) Get the most recent commits from github since the most recent commit date retrieved from DynamoDB
+            commits = get_most_recent_commits(execution_state)
 
-        ### Trigger the build process for each release with the most recent commit for that version ###
+            # Return if no commits are found, otherwise process the new commits
+            if not commits:
+                message = "No new commits found"
+                logger.info(message)
+                return {
+                    "statusCode": 200,
+                    "body": json.dumps({"message": message}),
+                }
+            
+            logger.info(
+                f"Found {len(commits)} commit(s) not yet processed\n{json.dumps([commit['sha'] for commit in commits], indent=2)}"
+            )
+
+            # Get the release version for each new commit and create a new state record
+            logger.info(f"Getting release versions")
+            commits_with_releases = []
+            for commit in commits:
+                sha = commit["sha"]
+
+                # Loop through available file assets containing release version metadata
+                for asset_config in source_repo_config.target_metadata_config.items:
+                    try:
+
+                        # Get the release version for the commit by examining file asset contents
+                        release_version = get_release_version_for_commit(
+                            commit=commit, 
+                            owner=GITHUB_REPOSITORY_OWNER,
+                            repo=GITHUB_REPOSITORY_NAME,
+                            token=GITHUB_PERSONAL_ACCESS_TOKEN,
+                            **asset_config.model_dump()
+                        )
+                        logger.info(
+                            f"Found release version {release_version} for commit {sha}"
+                        )
+
+                        # Build the execution object to be stored in the state table (`execution__*` fields)
+                        execution_detail = ExecutionDetailsConfig(
+                            **{"version": release_version, "status": "NOT_PROCESSED"}
+                        )
+
+                        # Build the repository object to be stored in the state table (`repository__*` fields)
+                        repository_config = RepositoryConfig(
+                            **{
+                                "owner": GITHUB_REPOSITORY_OWNER,
+                                "name": GITHUB_REPOSITORY_NAME,
+                                "url": f"https://github.com/{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}",
+                                # TODO remove default params from state table, they are retrieved from source config file in S3
+                                # "default_input_parameters": source_repo_config.default_input_parameters,
+                            }
+                        )
+
+                        # Assemble the execution state item for the new commit
+                        execution_state_item = ExecutionStateItem(
+                            created_utc=utc_now,
+                            execution=execution_detail,
+                            repository=repository_config,
+                            commit=Commit.from_response_json(commit),
+                        )
+                        commits_with_releases.append(execution_state_item)
+                        # break the loop if successful
+                        break
+                    except Exception as e:
+                        logger.info(f"Error getting release version for commit {sha}: {e}")
+
+        ### Process each release using the most recent commit for that version ###
         logger.info("Updating execution state")
-        # 1) Mark the most recent commit for each release as PENDING
-        input_parameters = source_repo_config.default_input_parameters
+
+        # 1a) Mark the most recent commit for each release as PENDING
+        # input_parameters = source_repo_config.default_input_parameters
+        recent_commits_for_release = select_most_recent_commit_for_release(commits_with_releases)
         pending_commits = [
             update_execution_state_item(
                 execution_state_item=commit,
@@ -153,11 +189,11 @@ def lambda_handler(event, context):
                 timestamp=utc_now,
                 input_parameters=input_parameters,
             )
-            for item in select_most_recent_commit_for_release(commits_with_releases)
+            for item in recent_commits_for_release
             for commit in item.values()
         ]
 
-        # 2) Mark the older commits for each release as SKIPPED
+        # 1b) Mark the older commits for each release as SKIPPED
         skipped_commits = [
             update_execution_state_item(
             execution_state_item=commit, 
@@ -167,13 +203,13 @@ def lambda_handler(event, context):
             if commit not in pending_commits
         ]
 
-        # 3) Update the state table with the new commits, order by commit.date_utc descending
+        # 1c) Combine the pending and skipped commits
         new_execution_state = pending_commits + skipped_commits
         new_execution_state = sorted(
             new_execution_state, key=lambda x: x.commit.date_utc, reverse=False
         )
 
-        # 4) Flatten, filter nulls and load the processed records to the state table (DynamoDB payload)
+        # 2) Preprocess the records for the state table (DynamoDB payload)
         items = [
             filter_null_fields(
                 flatten_json(
@@ -187,6 +223,9 @@ def lambda_handler(event, context):
             for item in new_execution_state
         ]
 
+        logger.info(f'Adding items to state table: {json.dumps(items, indent=2)}')
+
+        # 3) Load new commit records to the state table
         if len(items) > 0:
             with table.batch_writer() as batch:
                 logger.info(
@@ -198,7 +237,7 @@ def lambda_handler(event, context):
         else:
             raise Exception("Commits were found but the DynamoDB payload is empty")
 
-        # 5) Send pending commits to the state machine for further processing
+        # 4) Send pending commits to the state machine for build and load
         execution_payload = [
             ExecutionPayloadItem.from_execution_state_item(item).model_dump()
             for item in pending_commits
@@ -209,7 +248,6 @@ def lambda_handler(event, context):
         for item in execution_payload:
             gfedb_processing_queue.send_message(MessageBody=json.dumps(item))
 
-        # TODO log out the commits that were skipped and pending
         message = f"Queued {len(execution_payload)} release(s) for processing\n{execution_payload}"
         logger.info(message)
         return {
@@ -221,10 +259,6 @@ def lambda_handler(event, context):
 
         message = f"Error processing releases: {e}\n{traceback.format_exc()}\n{json.dumps(event)}"
         logger.error(message)
-        # return {
-        #     "statusCode": 500,
-        #     "body": json.dumps({"message": message}),
-        # }
         raise Exception(message)
 
 

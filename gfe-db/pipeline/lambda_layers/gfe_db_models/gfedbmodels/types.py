@@ -6,6 +6,7 @@ import jmespath
 from .utils import restore_nested_json, filter_nested_nulls
 
 # ExecutionState is changed using Step Functions DynamoDB states
+# NOT_PROCESSED: never processed (set by CheckSourceUpdate) ✅
 # SKIPPED: never processed (set by CheckSourceUpdate) ✅
 # PENDING: state machine execution started (set by CheckSourceUpdate) ✅
 # IN_PROGRESS: batch build job triggered (set by state machine) ✅
@@ -19,8 +20,7 @@ valid_statuses = [
     "PENDING",
     "IN_PROGRESS",
     "SUCCESS",
-    "FAILED",
-    None,
+    "FAILED"
 ]
 
 
@@ -92,7 +92,7 @@ class InputParameters(BaseModel):
     align: bool
     kir: bool
     mem_profile: bool
-    limit: Optional[int] = None
+    limit: Optional[int] = -1
 
     # validate that limit is an integer equalt to -1 or greater than 0 but not equal to 0
     @validator("limit")
