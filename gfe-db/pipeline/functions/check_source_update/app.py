@@ -89,17 +89,23 @@ def lambda_handler(event, context):
         execution_state = get_execution_state(table)
 
         if not execution_state:
-            message = "No execution items found"
+            message = "No execution items found. Please populate the state table."
             logger.error(message)
             raise Exception(message)
 
         # Handle manually triggered pipeline execution
-        if "release" in event:
+        if "releases" in event:
+
+            logger.info(f"Processing releases from user: {event['releases']}")
+
             # extract the most recent record for the release value passed in the event
-            commits_with_releases = list(filter(
-                lambda record: record.execution.version == event["release"],
-                execution_state
-            ))
+            releases = event["releases"].split(",")
+            commits_with_releases = []
+            for release in releases:
+                commits_with_releases.extend(list(filter(
+                    lambda record: record.execution.version == int(release),
+                    execution_state
+                )))
 
             # Set input parameters for manual pipeline execution from event
             input_parameters = InputParameters(**event)
@@ -334,6 +340,6 @@ def update_execution_state_item(
 if __name__ == "__main__":
     from pathlib import Path
 
-    event = json.loads((Path(__file__).parent / "schedule-event.json").read_text())
+    event = json.loads((Path(__file__).parent / "user-event.json").read_text())
 
     lambda_handler(event, None)

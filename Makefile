@@ -146,13 +146,13 @@ monitoring.subscribe-email:
 	$(MAKE) -C ${APP_NAME}/infrastructure service.monitoring.subscribe-email
 
 # TODO fix output & error handling
-database.load.run: # args: align, kir, limit, release
+database.load.run: # args: align, kir, limit, releases
 	@echo "Confirm payload:" && \
 	[ "$$align" ] && align="$$align" || align=false && \
 	[ "$$kir" ] && kir="$$kir" || kir=false && \
-	[ "$$limit" ] && limit="$$limit" || limit="" && \
-	[ "$$release" ] && release="$$release" || release="" && \
-	payload="{ \"align\": $$align, \"kir\": $$kir, \"limit\": $$limit, \"release\": $$release, \"mem_profile\": false }" && \
+	[ "$$limit" ] && limit="$$limit" || limit="-1" && \
+	[ "$$releases" ] && releases=$$releases || releases="" && \
+	payload="{ \"align\": $$align, \"kir\": $$kir, \"limit\": $$limit, \"releases\": \"$$releases\", \"mem_profile\": false }" && \
 	echo "$$payload" | jq -r && \
 	echo "$$payload" | jq > payload.json
 	@echo "Run pipeline with this payload? [y/N] \c " && read ans && [ $${ans:-N} = y ]

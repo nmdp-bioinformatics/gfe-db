@@ -1,7 +1,7 @@
 {
     "align": false,
     "kir": false,
-    "limit": 1000,
-    "release": 3500,
+    "limit": -1,
+    "releases": "3480,3490",
     "mem_profile": false
 }
