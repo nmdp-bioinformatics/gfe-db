@@ -35,53 +35,6 @@ Mappings:
       AvailabilityZone: eu-west-3a
 
 Resources:
-  # Vpc:
-  #   Type: AWS::EC2::VPC
-  #   Properties:
-  #     CidrBlock: 10.0.0.0/16
-  #     EnableDnsHostnames: true
-  #     EnableDnsSupport: true
-  #     Tags:
-  #       - Key: Name
-  #         Value: !Sub '${Stage}-${AppName}-${AWS::Region}-vpc'
-  
-  # PublicSubnet:
-  #   Type: AWS::EC2::Subnet
-  #   Properties:
-  #     CidrBlock: 10.0.0.0/24
-  #     VpcId: !Ref Vpc
-  #     AvailabilityZone: !FindInMap [AvailabilityZoneMap, !Ref AWS::Region, AvailabilityZone]
-  #     MapPublicIpOnLaunch: true
-  
-  # InternetGateway:
-  #   Type: AWS::EC2::InternetGateway
-  
-  # RouteTable:
-  #   Type: AWS::EC2::RouteTable
-  #   Properties:
-  #     VpcId: !Ref Vpc
-  
-  # VpcGatewayAttachment:
-  #   Type: AWS::EC2::VPCGatewayAttachment
-  #   Properties:
-  #     VpcId: !Ref Vpc
-  #     InternetGatewayId: !Ref InternetGateway
-  
-  # Route:
-  #   Type: AWS::EC2::Route
-  #   DependsOn:
-  #     - InternetGateway
-  #     - VpcGatewayAttachment
-  #   Properties:
-  #     RouteTableId: !Ref RouteTable
-  #     DestinationCidrBlock: 0.0.0.0/0
-  #     GatewayId: !Ref InternetGateway
-  
-  # SubnetRouteTableAssociation:
-  #   Type: AWS::EC2::SubnetRouteTableAssociation
-  #   Properties:
-  #     RouteTableId: !Ref RouteTable
-  #     SubnetId: !Ref PublicSubnet
   
   DataBucket:
     Type: AWS::S3::Bucket
@@ -120,14 +73,6 @@ Resources:
       Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/DataBucketArn"
       Description: "ARN of gfe-db data bucket"
       Value: !GetAtt DataBucket.Arn
-
-  DataBucketRegionalDomainNameParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/DataBucketRegionalDomainName"
-      Type: String
-      Description: "S3 Bucket Regional Domain name for application bucket"
-      Value: !GetAtt DataBucket.RegionalDomainName
 
   Neo4jDatabaseElasticIp:
     Type: AWS::EC2::EIP
@@ -171,11 +116,6 @@ Resources:
     Type: AWS::SNS::Topic
     Properties:
       DisplayName: !Sub "${AppName} Data Pipeline Errors"
-      Tags:
-        - Key: Stage
-          Value: !Ref Stage
-        - Key: AppName
-          Value: !Ref AppName
 
   DataPipelineErrorsTopicArnParameter:
     Type: AWS::SSM::Parameter
@@ -199,10 +139,10 @@ Resources:
             "/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID",
             "/${AppName}/${Stage}/${AWS::Region}/DataBucketName",
             "/${AppName}/${Stage}/${AWS::Region}/DataBucketArn",
-            "/${AppName}/${Stage}/${AWS::Region}/DataBucketRegionalDomainName",
             "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint",
             "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId",
-            "/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn"
+            "/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn",
+            "/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicArn"
           ]
         }
         
@@ -230,12 +170,6 @@ Resources:
       Subscription:
         - Endpoint: !Ref AdminEmail
           Protocol: email
-      # TODO remove
-      Tags:
-        - Key: Stage
-          Value: !Ref Stage
-        - Key: AppName 
-          Value: !Ref AppName
 
   DataPipelineExecutionTopicArnParameter:
     Type: AWS::SSM::Parameter

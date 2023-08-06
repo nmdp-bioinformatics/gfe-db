@@ -35,7 +35,7 @@ service.deploy:
 			DataBucketName="$${DATA_BUCKET_NAME}" \
 			VpcId="$${VPC_ID}" \
 			PublicSubnetId="$${PUBLIC_SUBNET_ID}" \
-			HostedZoneId="$${HOSTED_ZONE_ID}" 2>&1 | tee -a $${CFN_LOG_PATH} || true
+			2>&1 | tee -a $${CFN_LOG_PATH} || true
 	$(MAKE) service.deploy.update-dns
 
 service.monitoring.create-subscriptions:
