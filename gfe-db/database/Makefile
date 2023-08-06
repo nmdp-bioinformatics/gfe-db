@@ -91,11 +91,9 @@ service.deploy:
 			DataBucketName="$${DATA_BUCKET_NAME}" \
 			ConfigS3Path="$${CONFIG_S3_PATH}" \
 			Neo4jAmiId="$${NEO4J_AMI_ID}" \
-			Neo4jPassword="$${NEO4J_PASSWORD}" \
 			DatabaseVolumeSize="$${DATABASE_VOLUME_SIZE}" \
 			HostDomain="$${HOST_DOMAIN}" \
 			Subdomain="$${SUBDOMAIN}" \
-			HostedZoneId="$${HOSTED_ZONE_ID}" \
 			AdminEmail="$${ADMIN_EMAIL}" \
 			APOCVersion="$${APOC_VERSION}" \
 			GDSVersion="$${GDS_VERSION}" 2>&1 | tee -a $$CFN_LOG_PATH || true
