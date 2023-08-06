@@ -1,0 +1,13 @@
+{
+    "version": "0",
+    "id": "e58ee31d-5d5e-7a98-f497-aa0a04e81cb1",
+    "detail-type": "Scheduled Event",
+    "source": "aws.events",
+    "account": "<account_id>",
+    "time": "2023-07-30T12:00:00Z",
+    "region": "us-east-1",
+    "resources": [
+        "arn:aws:events:us-east-1:<account_id>:rule/dev-gfe-db-pipeline-InvokePipelineFunctionTrigger-A2S8FGQJMH5D"
+    ],
+    "detail": {}
+}

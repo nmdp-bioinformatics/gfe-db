@@ -31,6 +31,7 @@ service.deploy:
 		--parameter-overrides \
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
+			AdminEmail="$${ADMIN_EMAIL}" \
 			DataBucketName="$${DATA_BUCKET_NAME}" \
 			VpcId="$${VPC_ID}" \
 			PublicSubnetId="$${PUBLIC_SUBNET_ID}" \

@@ -120,11 +120,14 @@ infrastructure.deploy:
 database.deploy:
 	$(MAKE) -C ${APP_NAME}/database/ deploy
 
+database.service.deploy:
+	$(MAKE) -C ${APP_NAME}/database/ service.deploy
+
 pipeline.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ deploy
 
-pipeline.functions.deploy:
-	$(MAKE) -C ${APP_NAME}/pipeline/ service.functions.deploy
+pipeline.service.deploy:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.deploy
 
 pipeline.jobs.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.jobs.deploy
@@ -165,8 +168,10 @@ database.load.run: # args: align, kir, limit, releases
 		--function-name "$$function_name" \
 		--payload file://payload.json \
 		response.json \
-		--output json  >/dev/null 2>&1 && \
+		--output json  >> ${CFN_LOG_PATH} && \
+	echo "Response:" && \
 	echo "Response:" >> ${CFN_LOG_PATH} && \
+	cat response.json | jq -r && \
 	cat response.json | jq -r >> ${CFN_LOG_PATH} && \
 	rm payload.json response.json
 	

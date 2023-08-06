@@ -1,0 +1,111 @@
+{
+    "input": [
+      {
+        "ALIGN": "False",
+        "KIR": "False",
+        "LIMIT": "1000",
+        "MEM_PROFILE": "False",
+        "RELEASES": "3430"
+      }
+    ],
+    "validations": {
+      "queries": {
+        "pre": {
+          "node_counts": [
+            {
+              "node": "GFE",
+              "count": 1155
+            },
+            {
+              "node": "IPD_Accession",
+              "count": 1142
+            },
+            {
+              "node": "IPD_Allele",
+              "count": 1144
+            },
+            {
+              "node": "Sequence",
+              "count": 1155
+            },
+            {
+              "node": "Feature",
+              "count": 1240
+            },
+            {
+              "node": "Submitter",
+              "count": 1
+            }
+          ],
+          "has_ipd_allele_release_counts": [
+            {
+              "release_version": "3440",
+              "count": 1000
+            },
+            {
+              "release_version": "3450",
+              "count": 1000
+            },
+            {
+              "release_version": "3460",
+              "count": 1000
+            },
+            {
+              "release_version": "3470",
+              "count": 1000
+            },
+            {
+              "release_version": "3480",
+              "count": 1000
+            },
+            {
+              "release_version": "3490",
+              "count": 1000
+            },
+            {
+              "release_version": "3510",
+              "count": 1000
+            },
+            {
+              "release_version": "3520",
+              "count": 1000
+            }
+          ],
+          "ipd_accession_release_counts": [
+            {
+              "release_version": "3.51.0",
+              "count": 1000
+            },
+            {
+              "release_version": "3.52.0",
+              "count": 8
+            },
+            {
+              "release_version": "3.49.0",
+              "count": 14
+            },
+            {
+              "release_version": "3.48.0",
+              "count": 16
+            },
+            {
+              "release_version": "3.47.0",
+              "count": 12
+            },
+            {
+              "release_version": "3.46.0",
+              "count": 52
+            },
+            {
+              "release_version": "3.45.0",
+              "count": 35
+            },
+            {
+              "release_version": "3.44.0",
+              "count": 18
+            }
+          ]
+        }
+      }
+    }
+  }
