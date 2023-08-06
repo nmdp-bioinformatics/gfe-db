@@ -34,7 +34,7 @@ def lambda_handler(event, context):
 
     # TODO get the expected input from execution context and validate against this
     # TODO Remove this and use the output of validation against the expected input
-    # # In other words, the validation shoudl be "blind" to what the build output is, it should only
+    # # In other words, the validation should be "blind" to what the build output is, it should only
     # # tells us how it's different from the expected. Therefore the expected output is constructed from $$.Execution.Input
 
     # expected input is the execution input
