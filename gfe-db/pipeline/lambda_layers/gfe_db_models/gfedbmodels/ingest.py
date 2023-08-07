@@ -25,6 +25,7 @@ from .utils import (
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# TODO use method SourceConfig().from_s3(bucket, key) instead
 def read_source_config(s3_client, bucket, key):
     data = read_s3_json(s3_client, bucket, key)
     return SourceConfig(**data)
@@ -77,7 +78,7 @@ def process_execution_state_item(
 
         # return error count and increment outside this function
 
-        # TODO deserialize to ExecutionStateItem
+        # TODO deserialize to ExecutionStateItem, use as method
         return result
     
 def parallel_process_execution_state_items(

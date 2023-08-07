@@ -33,14 +33,16 @@ update_pipeline_state_machine_arn = pipeline.params.UpdatePipelineStateMachineAr
 gfe_db_processing_queue_url = pipeline.params.GfeDbProcessingQueueUrl
 
 # Check that database is running, abort if not
-
 response = ec2.describe_instance_status(InstanceIds=[neo4j_database_instance_id])
-if response["InstanceStatuses"][0]["InstanceState"]["Name"] != "running":
-    raise Exception(
-        f"Instance {neo4j_database_instance_id} is not running, aborting..."
-    )
+if len(response["InstanceStatuses"]) > 0:
+    if response["InstanceStatuses"][0]["InstanceState"]["Name"] != "running":
+        raise Exception(
+            f"Instance {neo4j_database_instance_id} is not running, aborting..."
+        )
+    else:
+        logger.info(f"Instance {neo4j_database_instance_id} is running")
 else:
-    logger.info(f"Instance {neo4j_database_instance_id} is running")
+    raise Exception(f"Instance {neo4j_database_instance_id} not found, aborting...")
 
 
 def lambda_handler(event, context):

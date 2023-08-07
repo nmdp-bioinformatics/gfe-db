@@ -31,8 +31,8 @@ ssm = session.clients["ssm"]
 dynamodb = session.resource("dynamodb")
 
 # TODO
-execution_state_table_fields = pipeline.params.ExecutionStateTableFields
-execution_state_table_name = pipeline.params.ExecutionStateTableName
+execution_state_table_fields = pipeline.params.GfeDbExecutionStateTableFields
+execution_state_table_name = pipeline.params.GfeDbExecutionStateTableName
 
 table = dynamodb.Table(execution_state_table_name)
 

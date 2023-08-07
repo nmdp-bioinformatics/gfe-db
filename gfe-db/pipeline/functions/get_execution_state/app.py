@@ -22,7 +22,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 dynamodb = session.resource("dynamodb")
-table = dynamodb.Table(pipeline.params.ExecutionStateTableName)
+table = dynamodb.Table(pipeline.params.GfeDbExecutionStateTableName)
 
 def lambda_handler(event, context):
     logger.info(json.dumps(event))
