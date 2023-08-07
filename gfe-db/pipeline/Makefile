@@ -5,7 +5,7 @@ target:
 	@exit 0
 
 # TODO: Don't deploy jobs if pipeline stack fails to create (exit Make)
-deploy:
+service.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
 	$(MAKE) service.deploy
 	$(MAKE) service.jobs.deploy
@@ -46,14 +46,6 @@ service.functions.deploy:
 			ValidateBuildOutputFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.ValidateBuildOutput.FunctionConfiguration.FunctionName')" \
 			ValidateBuildOutputFunctionMemorySize="$$(cat functions/environment.json | jq -r '.Functions.ValidateBuildOutput.FunctionConfiguration.MemorySize')" \
 			ValidateBuildOutputFunctionTimeout="$$(cat functions/environment.json | jq -r '.Functions.ValidateBuildOutput.FunctionConfiguration.Timeout')" \
-			InvokePipelineFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.FunctionName')" \
-			InvokePipelineFunctionMemorySize="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.MemorySize')" \
-			InvokePipelineFunctionTimeout="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Timeout')" \
-			InvokePipelineFunctionSchedule="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.InvokePipelineFunctionSchedule')" \
-			GitHubRepositoryOwner="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Environment.Variables.GITHUB_REPOSITORY_OWNER')" \
-			GitHubRepositoryName="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Environment.Variables.GITHUB_REPOSITORY_NAME')" \
-			PipelineStatePath="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Environment.Variables.PIPELINE_STATE_PATH')" \
-			PipelineParamsPath="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Environment.Variables.PIPELINE_PARAMS_PATH')"  \
 			DisableBackupFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.DisableBackup.FunctionConfiguration.FunctionName')" \
 			InvokeLoadScriptFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokeLoadScript.FunctionConfiguration.FunctionName')" \
 			InvokeUpdatePipelineFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokeUpdatePipeline.FunctionConfiguration.FunctionName')" \
