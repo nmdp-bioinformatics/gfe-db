@@ -58,6 +58,8 @@ send_result () {
 # TODO this will send task failure if any error is encountered, but sometimes errors can occur that do not affect that actual loading process
 trap 'cause="Error on line $LINENO: $ERR_MSG" && error=$? && send_result && kill 0' ERR
 
+start_time=$(date +%s)
+timeout=120
 while true; do
 
     # Poll StepFunctions API for new activities
@@ -65,7 +67,8 @@ while true; do
     export ACTIVITY=$(aws stepfunctions get-activity-task \
         --activity-arn "$ACTIVITY_ARN" \
         --worker-name "$APP_NAME" \
-        --region "$AWS_REGION")
+        --region "$AWS_REGION" \
+        --cli-connect-timeout 65)
 
     if [[ -z $ACTIVITY ]]; then
         echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - No activities found"
@@ -120,6 +123,20 @@ while true; do
             kill $send_heartbeat_pid
         fi
     fi
+
+    current_time=$(date +%s)
+    elapsed_time=$((current_time - start_time))
+
+    if [ $elapsed_time -ge $timeout ]; then
+        ERR_MSG="Timeout reached after $timeout seconds"
+        echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - $ERR_MSG" >&2
+        status="FAILED"
+        error="1"
+        cause="$ERR_MSG"
+        send_result
+        kill 0
+    fi
+
 done
 
 exit 0
