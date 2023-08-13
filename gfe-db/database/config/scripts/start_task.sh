@@ -80,7 +80,7 @@ while true; do
         echo "$ACTIVITY"
 
         export TASK_TOKEN=$(echo "$ACTIVITY" | jq -r '.taskToken')
-        export RELEASE=$(echo "$ACTIVITY" | jq -r '.input' | jq '.version')
+        export RELEASE=$(echo "$ACTIVITY" | jq -r '.input' | jq -r '.input.version')
 
         echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - TASK_TOKEN=$TASK_TOKEN"
         echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - RELEASE=$RELEASE"
