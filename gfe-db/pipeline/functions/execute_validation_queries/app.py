@@ -55,11 +55,25 @@ def lambda_handler(event, context):
         # IPD_Accession node release counts
         ipd_accession_release_counts = execute_query(driver, ipd_accession_release_counts_cql)
 
-    return {
+
+    payload = {
         "node_counts": node_counts,
         "has_ipd_allele_release_counts": has_ipd_allele_release_counts,
         "ipd_accession_release_counts": ipd_accession_release_counts
     }
+
+    # # TODO if event contains "$.validations.queries.pre", confirm that the pre and
+    # # post query results indicate the load was successful
+    # # `is_load_successful = True/False ==> return {"is_load_successful": is_load_successful}`
+    # # TODO calculate expected counts based on CSV files (validate build output) and compare
+    # if "validations" in event:
+    #     if "queries" in event["validations"]:
+    #         if "pre" in event["validations"]["queries"]:
+
+    #             # TODO temporary return value, still need to compare pre and post query results
+    #             payload["is_load_successful"] = True
+
+    return payload
 
 nodes = [
     "GFE",
@@ -100,7 +114,8 @@ def execute_query(driver, query):
 if __name__ == "__main__":
     from pathlib import Path
 
-    event_path = Path(__file__).parent / "post-execution-event.json"
+    event_path = Path(__file__).parent / "pre-execution-event.json"
+    # event_path = Path(__file__).parent / "post-execution-event.json"
 
     with open(event_path, "r") as file:
         event = json.load(file)
