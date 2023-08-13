@@ -252,15 +252,21 @@ def lambda_handler(event, context):
         execution_payload = sorted(
             execution_payload, key=lambda x: x["version"], reverse=False
         )
+
+        # Send the payload to the processing queue for the state machine 
         for item in execution_payload:
             gfedb_processing_queue.send_message(MessageBody=json.dumps(item))
 
-        message = f"Queued {len(execution_payload)} release(s) for processing\n{execution_payload}"
+        message = f"Queued {len(execution_payload)} release(s) for processing"
         logger.info(message)
         return {
             "statusCode": 200,
-            "body": json.dumps({"message": message}),
+            "body": json.dumps({
+                "message": message,
+                "payload": execution_payload
+            }),
         }
+    
     except Exception as e:
         import traceback
 

@@ -66,6 +66,7 @@
         "Load Stage": {
             "Type": "Parallel",
             "OutputPath": "$.[1]",
+            "ResultPath": null,
             "Next": "Post-Execution Validation Query",
             "Branches": [
                 {
