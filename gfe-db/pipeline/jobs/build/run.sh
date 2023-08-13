@@ -68,20 +68,20 @@ else
 fi
 
 # parse event
-version=$(echo "$EVENT" | jq -r '.version')
-commit_sha=$(echo "$EVENT" | jq -r '.commit_sha')
+version=$(echo "$EVENT" | jq -r '.state.execution.version')
+commit_sha=$(echo "$EVENT" | jq -r '.state.commit.sha')
 repository_owner=$(echo "$EVENT" | jq -r '.state.repository.owner')
 repository_name=$(echo "$EVENT" | jq -r '.state.repository.name')
-align=$(echo "$EVENT" | jq -r '.input_parameters.align')
-kir=$(echo "$EVENT" | jq -r '.input_parameters.kir')
-mem_profile=$(echo "$EVENT" | jq -r '.input_parameters.mem_profile')
-limit=$(echo "$EVENT" | jq -r '.input_parameters.limit')
-# s3_path=$(echo "$EVENT" | jq -r '.s3_path')
+align=$(echo "$EVENT" | jq -r '.state.execution.input_parameters.align')
+kir=$(echo "$EVENT" | jq -r '.state.execution.input_parameters.kir')
+mem_profile=$(echo "$EVENT" | jq -r '.state.execution.input_parameters.mem_profile')
+limit=$(echo "$EVENT" | jq -r '.state.execution.input_parameters.limit')
+s3_path=$(echo "$EVENT" | jq -r '.input.s3_path')
 
 # Refactor the above variable validations into a for loop
-for var in version commit_sha align kir mem_profile limit repository_owner repository_name; do
+for var in version commit_sha align kir mem_profile limit repository_owner repository_name s3_path; do
     if [[ -z "${!var}" ]] || [[ "${!var}" == "null" ]]; then
-        echo "$var not set. Please specify a value."
+        echo "\`$var\` not set. Please specify a value."
         exit 1
     fi
     echo "$var: ${!var}"
@@ -92,7 +92,7 @@ if [[ "${limit}" == "-1" ]] || [[ -z "${limit}" ]]; then
 elif [[ "${limit}" =~ ^[0-9]+$ ]] && [[ "${limit}" -gt 0 ]]; then
     echo "Build is limited to $limit alleles"
 else
-    echo "Invalid limit specified. Please specify a positive integer or -1 for no limit."
+    echo "Invalid limit specified. Please specify either a positive integer or -1 for no limit."
     exit 1
 fi
 
@@ -166,6 +166,7 @@ fi
 
 # Builds CSV files
 # TODO booleans for kir, align, mem_profile are lower case, limit is now -1 instead of none
+# TODO implement s3_path
 python3 "$SRC_DIR"/app.py \
 	-o "$DATA_DIR/$version/csv" \
 	-r "$version" \
