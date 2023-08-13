@@ -6,14 +6,17 @@ set -e
 # get APP_NAME and STAGE from arguments
 APP_NAME=$1
 STAGE=$2
+ERR_MSG=null
 
 if [[ -z $APP_NAME ]]; then
-    echo "APP_NAME environment variable not set"
+    ERR_MSG="APP_NAME environment variable not set"
+    echo $ERR_MSG >&2
     exit 1
 fi
 
 if [[ -z $STAGE ]]; then
-    echo "STAGE environment variable not set"
+    ERR_MSG="STAGE environment variable not set"
+    echo $ERR_MSG >&2
     exit 1
 fi
 
@@ -29,7 +32,8 @@ ACTIVITY_ARN=$(aws ssm get-parameter \
     --region "$AWS_REGION")
 
 if [[ -z $ACTIVITY_ARN ]]; then
-    echo "ACTIVITY_ARN environment variable not set"
+    ERR_MSG="ACTIVITY_ARN environment variable not set"
+    echo $ERR_MSG >&2
     exit 1
 fi
 
@@ -52,7 +56,7 @@ send_result () {
 }
 
 # TODO this will send task failure if any error is encountered, but sometimes errors can occur that do not affect that actual loading process
-trap 'cause="Error on line $LINENO" && error=$? && send_result && kill 0' ERR
+trap 'cause="Error on line $LINENO: $ERR_MSG" && error=$? && send_result && kill 0' ERR
 
 while true; do
 
@@ -79,9 +83,14 @@ while true; do
         echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - RELEASE=$RELEASE"
 
         # Check for release argument
-        if [[ -z $RELEASE ]]; then
-            echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Release version not found"
-            kill -1 $$
+        if [[ -z $RELEASE || "$RELEASE" == "null" || ! $RELEASE =~ ^[0-9]{1,4}$ ]]; then
+            ERR_MSG="Release version not found, is 'null', or is not a 1-4 digit integer"
+            echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - $ERR_MSG" >&2
+            status="FAILED"
+            error="1"
+            cause="$ERR_MSG"
+            send_result
+            kill 0
         else
             echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Starting load process for $RELEASE"
         fi
@@ -109,7 +118,6 @@ while true; do
             status="SUCCESS"
             send_result
             kill $send_heartbeat_pid
-
         fi
     fi
 done
