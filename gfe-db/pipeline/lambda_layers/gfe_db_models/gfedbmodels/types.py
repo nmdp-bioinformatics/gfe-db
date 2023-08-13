@@ -59,6 +59,11 @@ def commit_sha_is_hex(v):
     return v
 
 
+def s3_path_is_valid(v):
+    if not re.match(r"^s3://", v):
+        raise ValueError("S3 path must be a valid S3 path (s3://<bucket>/<key>)")
+    return v
+
 ### Source Config Models ###
 class Commit(BaseModel):
     sha: str
@@ -185,6 +190,7 @@ class ExecutionStateItem(BaseModel):
     repository: RepositoryConfig
     commit: Commit
     execution: ExecutionDetailsConfig
+    s3_path: Optional[str] = None
 
     @classmethod
     def from_execution_state_item_json(cls, execution_state_item: dict):
@@ -195,6 +201,12 @@ class ExecutionStateItem(BaseModel):
     # def model_dump(self, filter_nulls: bool = False):
     #     if filter_nested_nulls:
     #         return self.dict(exclude_none=True, by_alias=True)
+
+    # validate s3 path uses s3://<bucket>/<key> format
+    @validator("s3_path")
+    def s3_path_is_valid(cls, v):
+        return s3_path_is_valid(v)
+
 
 class ExecutionState(BaseModel):
     created_utc: str

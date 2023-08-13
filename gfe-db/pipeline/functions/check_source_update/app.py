@@ -76,6 +76,7 @@ source_repo_config = read_source_config(
 
 gfedb_processing_queue = queue.Queue(gfedb_processing_queue_url)
 
+# TODO validate commits against tracked source files requiring ingestion
 def lambda_handler(event, context):
     utc_now = get_utc_now()
     logger.info(json.dumps(event))

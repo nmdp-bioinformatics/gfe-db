@@ -29,6 +29,7 @@ data_bucket_name = ssm.get_parameter(
 def lambda_handler(event, context):
     """Validates the build output artifacts against the original execution input object."""
 
+    # TODO can specify execution input fields instead of passing entire object
     logger.info(json.dumps(event))
     execution_start_time = datetime.strptime(event['execution_context']['Execution']['StartTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=tz.tzutc())
 
@@ -40,7 +41,9 @@ def lambda_handler(event, context):
     # expected input is the execution input
     execution_input = event['execution_context']['Execution']['Input']['input']
 
-    releases = list(set([ item['RELEASES'] for item in execution_input ]))
+    # TODO clean up; left over from previous iteration that processed multipe releases per execution
+    # releases = list(set([ item['RELEASES'] for item in execution_input ]))
+    releases = [execution_input['version']]
 
     # reports for all release builds
     reports = []
@@ -155,14 +158,19 @@ def lambda_handler(event, context):
 
     ### Update output ###
     valid_release_builds = [ release['release'] for release in reports if release['is_valid_build'] ]
-    payload = list(filter(lambda x: x["RELEASES"] in valid_release_builds, execution_input))
 
+    # TODO clean up; left over from previous iteration that processed multipe releases per execution
+    # payload = list(filter(lambda x: x["RELEASES"] in valid_release_builds, execution_input))
 
-    return {
+    payload = list(filter(lambda x: x["version"] in valid_release_builds, [execution_input]))
+
+    result = {
         "validated": payload,
         "build_details": reports,
         "has_valid_payload": len(payload) > 0,
     }
+
+    return result
 
 # TODO implement Pydantic classes for managing and validating CSV schemas
 # Schema map
