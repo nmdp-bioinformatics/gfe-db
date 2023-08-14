@@ -126,16 +126,23 @@ The data pipeline layer automates integration of newly released IMGT/HLA data in
 Follow the steps to build and deploy the application to AWS.
 
 ### Quick Start
+1. Retrieve the VPC ID and subnet ID from the AWS console or using the AWS CLI.
 This list outlines the basic steps for deployment. For more details please see the following sections.
-1. Purchase or designate a domain in Route53 and create a hosted zone
-2. Acquire a subscription for the Bitnami Neo4j AMI through [AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-v47qqrn2yy7ie?sr=0-4&ref_=beagle&applicationId=AWSMPContessa)
-3. [Install prerequisites](#Prerequisites)
-4. [Set environment variables](#environment-variables)
-5. Check the [config JSONs](#data-pipeline-config) (parameters and state) and edit the values as desired
-6. Run `make deploy` to deploy the stacks to AWS
-7. Run `make database.load.run releases=<version>` to load the Neo4j, or `make database.load.run releases=<version> limit=<limit>` to run with a limited number of alleles
-8. Run `make database.get-credentials` to get the username and password for Neo4j
-9. Run `make database.get-url` to get the URL for Neo4j and navigate to the Neo4j browser at the subdomain and host domain, for example `https://gfe-db.cloudftl.com:7473/browser/`
+2. Purchase or designate a domain in Route53 and create a hosted zone with an A record for the subdomain. You can use the VPC's IP address for the A record because it will be updated later by the deployment script.
+3. Acquire a subscription for the Bitnami Neo4j AMI through [AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-v47qqrn2yy7ie?sr=0-4&ref_=beagle&applicationId=AWSMPContessa).
+4. [Install prerequisites](#Prerequisites).
+5. [Set environment variables](#environment) including the ones from the previous steps:
+    - VPC_ID (step 1)
+    - PUBLIC_SUBNET_ID (step 1)
+    - HOSTED_ZONE_ID (step 2)
+    - HOST_DOMAIN (step 2)
+    - SUBDOMAIN (step 2)
+    - NEO4J_AMI_ID (step 3)
+6. Check the [config JSONs](#data-pipeline-config) (parameters and state) and edit the values as desired.
+7. Run `make deploy` to deploy the stacks to AWS.
+8. Run `make database.load.run releases=<version>` to load the Neo4j, or `make database.load.run releases=<version> limit=<limit>` to run with a limited number of alleles.
+9. Run `make database.get-credentials` to get the username and password for Neo4j.
+10. Run `make database.get-url` to get the URL for Neo4j and navigate to the Neo4j browser at the subdomain and host domain, for example `https://gfe-db.cloudftl.com:7473/browser/`.
 
 ### Prerequisites
 Please refer to the respective documentation for specific installation instructions.
@@ -168,15 +175,18 @@ These variables must be defined before running Make. The best way to set these v
 # .env
 STAGE=<dev or prod>
 APP_NAME=gfe-db
-AWS_REGION=<AWS region>
+AWS_REGION=<aws_region>
+VPC_ID=<vpcid> # Available through the console or CLI
+PUBLIC_SUBNET_ID=<publicsubnetid> # Available through the console or CLI; Public subnets have a route to an internet gateway
 GITHUB_PERSONAL_ACCESS_TOKEN=<secret>
-HOST_DOMAIN=<fully qualified domain name>
+HOSTED_ZONE_ID=<hostedzoneid> # Available through the console or CLI
+HOST_DOMAIN=<fully_qualified_domain_name>
 SUBDOMAIN=<subdomain>
 ADMIN_EMAIL=<email>
 SUBSCRIBE_EMAILS=<email>,<email>,<email>,...
 APOC_VERSION=4.4.0.3
 GDS_VERSION=2.0.1
-NEO4J_AMI_ID=<ami ID>
+NEO4J_AMI_ID=<ami_id> # Requires AWS Marketplace subscription
 ```
 
 | Variable Name                | Example Value                      | Type   | Description                                      |
@@ -184,8 +194,11 @@ NEO4J_AMI_ID=<ami ID>
 | STAGE                        | dev                                | string | The stage of the application.                    |
 | APP_NAME                     | gfe-db                             | string | The name of the application.                     |
 | AWS_REGION                   | us-east-1                          | string | The AWS region to deploy to.                     |
+| VPC_ID                       | vpc-1234567890abcdef               | string | The ID of the VPC to deploy to.                  |
+| PUBLIC_SUBNET_ID             | subnet-1234567890abcdef            | string | The ID of the public subnet to deploy to.        |
 | GITHUB_PERSONAL_ACCESS_TOKEN | <secret value>                     | string | GitHub PAT for repository access                 |
-| HOST_DOMAIN                  | mydomain.com                       | string | The domain to deploy to.                         |
+| HOSTED_ZONE_ID               | Z1234567890ABCDEF                  | string | The ID of the hosted zone to deploy to.          |
+| HOST_DOMAIN                  | example.com                        | string | The domain to deploy to.                         |
 | SUBDOMAIN                    | gfe-db                             | string | The subdomain to deploy to.                      |
 | ADMIN_EMAIL                  | user@company.com                   | string | Admin's email required for SSL certificate       |
 | SUBSCRIBE_EMAILS             | user@company.com,user2@company.com | string | Comma-separated list of emails for notifications |
