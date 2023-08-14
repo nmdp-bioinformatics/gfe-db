@@ -118,8 +118,8 @@
         },
         "Load Stage": {
             "Type": "Parallel",
-            "ResultPath": null,
-            "Next": "Post-Execution Backup",
+            "OutputPath": "$.[1]",
+            "Next": "Run Post-Execution Backup",
             "Catch": [
                 {
                     "ErrorEquals": [
@@ -146,6 +146,7 @@
                             "Type": "Task",
                             "Resource": "${LoadReleaseActivityArn}",
                             "HeartbeatSeconds": 60,
+                            "ResultPath": null,
                             "Next": "Run Post-Execution Validation Query"
                         },
                         "Run Post-Execution Validation Query": {
@@ -184,7 +185,7 @@
                 }
             ]
         },
-        "Post-Execution Backup": {
+        "Run Post-Execution Backup": {
             "Type": "Task",
             "Resource": "${InvokeBackupScriptFunctionArn}",
             "ResultPath": "$.backups.post",
