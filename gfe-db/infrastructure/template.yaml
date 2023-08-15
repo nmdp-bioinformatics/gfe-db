@@ -11,6 +11,10 @@ Parameters:
     Type: String
   DataBucketName:
     Type: String
+  VpcId:
+    Type: String
+  PublicSubnetId:
+    Type: String
   GitHubPersonalAccessToken:
     Type: String
     NoEcho: true
@@ -34,54 +38,53 @@ Mappings:
       AvailabilityZone: eu-west-3a
 
 Resources:
-  Vpc:
-    Type: AWS::EC2::VPC
-    Properties:
-      CidrBlock: 10.0.0.0/16
-      EnableDnsHostnames: true
-      EnableDnsSupport: true
-      # TODO remove
-      Tags:
-        - Key: Name
-          Value: !Sub '${Stage}-${AppName}-${AWS::Region}-vpc'
+  # Vpc:
+  #   Type: AWS::EC2::VPC
+  #   Properties:
+  #     CidrBlock: 10.0.0.0/16
+  #     EnableDnsHostnames: true
+  #     EnableDnsSupport: true
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub '${Stage}-${AppName}-${AWS::Region}-vpc'
   
-  PublicSubnet:
-    Type: AWS::EC2::Subnet
-    Properties:
-      CidrBlock: 10.0.0.0/24
-      VpcId: !Ref Vpc
-      AvailabilityZone: !FindInMap [AvailabilityZoneMap, !Ref AWS::Region, AvailabilityZone]
-      MapPublicIpOnLaunch: true
+  # PublicSubnet:
+  #   Type: AWS::EC2::Subnet
+  #   Properties:
+  #     CidrBlock: 10.0.0.0/24
+  #     VpcId: !Ref Vpc
+  #     AvailabilityZone: !FindInMap [AvailabilityZoneMap, !Ref AWS::Region, AvailabilityZone]
+  #     MapPublicIpOnLaunch: true
   
-  InternetGateway:
-    Type: AWS::EC2::InternetGateway
+  # InternetGateway:
+  #   Type: AWS::EC2::InternetGateway
   
-  RouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref Vpc
+  # RouteTable:
+  #   Type: AWS::EC2::RouteTable
+  #   Properties:
+  #     VpcId: !Ref Vpc
   
-  VpcGatewayAttachment:
-    Type: AWS::EC2::VPCGatewayAttachment
-    Properties:
-      VpcId: !Ref Vpc
-      InternetGatewayId: !Ref InternetGateway
+  # VpcGatewayAttachment:
+  #   Type: AWS::EC2::VPCGatewayAttachment
+  #   Properties:
+  #     VpcId: !Ref Vpc
+  #     InternetGatewayId: !Ref InternetGateway
   
-  Route:
-    Type: AWS::EC2::Route
-    DependsOn:
-      - InternetGateway
-      - VpcGatewayAttachment
-    Properties:
-      RouteTableId: !Ref RouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref InternetGateway
+  # Route:
+  #   Type: AWS::EC2::Route
+  #   DependsOn:
+  #     - InternetGateway
+  #     - VpcGatewayAttachment
+  #   Properties:
+  #     RouteTableId: !Ref RouteTable
+  #     DestinationCidrBlock: 0.0.0.0/0
+  #     GatewayId: !Ref InternetGateway
   
-  SubnetRouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: !Ref RouteTable
-      SubnetId: !Ref PublicSubnet
+  # SubnetRouteTableAssociation:
+  #   Type: AWS::EC2::SubnetRouteTableAssociation
+  #   Properties:
+  #     RouteTableId: !Ref RouteTable
+  #     SubnetId: !Ref PublicSubnet
   
   DataBucket:
     Type: AWS::S3::Bucket
@@ -94,16 +97,16 @@ Resources:
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/VpcID'
-      Description: "Name of gfe-db VPC network"
-      Value: !Ref Vpc
+      Description: !Sub "Name of VPC network for ${AppName}"
+      Value: !Ref VpcId
   
   PublicSubnetIDParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID'
-      Description: "Public Subnet for the gfe-db Neo4j server"
-      Value: !Ref PublicSubnet
+      Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
+      Value: !Ref PublicSubnetId
   
   DataBucketNameParameter:
     Type: AWS::SSM::Parameter

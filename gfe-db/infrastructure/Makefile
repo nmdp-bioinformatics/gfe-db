@@ -9,6 +9,17 @@ deploy:
 	$(MAKE) service.deploy
 	$(MAKE) service.monitoring.create-subscriptions
 
+service.deploy.update-dns:
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Updating DNS records" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@config_path=${INFRA_DIR}/change-batch.json && \
+	elastic_ip=$$(aws ssm get-parameters \
+		--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseEndpoint" \
+		--with-decryption \
+		--query "Parameters[0].Value" \
+		--output text) && \
+	sed -e "s/<domain_name>/${SUBDOMAIN}.${HOST_DOMAIN}./g" -e "s/<elastic_ip>/$$elastic_ip/g" $$config_path > $$config_path.tmp && \
+	aws route53 change-resource-record-sets --hosted-zone-id $${HOSTED_ZONE_ID} --change-batch file://$$config_path.tmp
+
 # TODO test AWSCLI output and validate the stack was created successfully
 service.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying CloudFormation" 2>&1 | tee -a $${CFN_LOG_PATH}
@@ -24,6 +35,10 @@ service.deploy:
 			DataBucketName="$$DATA_BUCKET_NAME" \
 			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN" \
 			HostedZoneId="$${HOSTED_ZONE_ID}" 2>&1 | tee -a $${CFN_LOG_PATH} || true
+			VpcId="$${VPC_ID}" \
+			PublicSubnetId="$${PUBLIC_SUBNET_ID}" \
+			2>&1 | tee -a $${CFN_LOG_PATH} || true
+	$(MAKE) service.deploy.update-dns
 
 service.monitoring.create-subscriptions:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Creating SNS topic subscriptions" 2>&1 | tee -a $${CFN_LOG_PATH}
