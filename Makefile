@@ -59,6 +59,24 @@ logs.dirs:
 		"${LOGS_DIR}/database/bootstrap" || true
 
 check.env: check.dependencies
+ifndef STAGE
+$(error STAGE is not set. Please add STAGE to the environment variables.)
+endif
+ifndef APP_NAME
+$(error APP_NAME is not set. Please add APP_NAME to the environment variables.)
+endif
+ifndef ADMIN_EMAIL
+$(error ADMIN_EMAIL is not set. Please add ADMIN_EMAIL to the environment variables.)
+endif
+ifndef SUBSCRIBE_EMAILS
+$(error SUBSCRIBE_EMAILS is not set. Please add SUBSCRIBE_EMAILS to the environment variables.)
+endif
+ifndef GITHUB_REPOSITORY_OWNER
+$(error GITHUB_REPOSITORY_OWNER is not set. Please add GITHUB_REPOSITORY_OWNER to the environment variables.)
+endif
+ifndef GITHUB_REPOSITORY_NAME
+$(error GITHUB_REPOSITORY_NAME is not set. Please add GITHUB_REPOSITORY_NAME to the environment variables.)
+endif
 ifndef AWS_REGION
 $(error AWS_REGION is not set. Please add AWS_REGION to the environment variables.)
 endif
@@ -71,8 +89,26 @@ endif
 ifndef HOST_DOMAIN
 $(error HOST_DOMAIN is not set. Please add HOST_DOMAIN to the environment variables.)
 endif
-ifndef ADMIN_EMAIL
-$(error ADMIN_EMAIL is not set. Please add ADMIN_EMAIL to the environment variables.)
+ifndef VPC_ID
+$(error VPC_ID is not set. Please add VPC_ID to the environment variables.)
+endif
+ifndef PUBLIC_SUBNET_ID
+$(error PUBLIC_SUBNET_ID is not set. Please add PUBLIC_SUBNET_ID to the environment variables.)
+endif
+ifndef HOSTED_ZONE_ID
+$(error HOSTED_ZONE_ID is not set. Please add HOSTED_ZONE_ID to the environment variables.)
+endif
+ifndef SUBDOMAIN
+$(error SUBDOMAIN is not set. Please add SUBDOMAIN to the environment variables.)
+endif
+ifndef NEO4J_AMI_ID
+$(error NEO4J_AMI_ID is not set. Please add NEO4J_AMI_ID to the environment variables.)
+endif
+ifndef APOC_VERSION
+$(error APOC_VERSION is not set. Please add APOC_VERSION to the environment variables.)
+endif
+ifndef GDS_VERSION
+$(error GDS_VERSION is not set. Please add GDS_VERSION to the environment variables.)
 endif
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
 
