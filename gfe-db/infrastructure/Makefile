@@ -34,7 +34,7 @@ service.deploy:
 			AdminEmail="$${ADMIN_EMAIL}" \
 			DataBucketName="$$DATA_BUCKET_NAME" \
 			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN" \
-			HostedZoneId="$${HOSTED_ZONE_ID}" 2>&1 | tee -a $${CFN_LOG_PATH} || true
+			HostedZoneId="$${HOSTED_ZONE_ID}" \
 			VpcId="$${VPC_ID}" \
 			PublicSubnetId="$${PUBLIC_SUBNET_ID}" \
 			2>&1 | tee -a $${CFN_LOG_PATH} || true
