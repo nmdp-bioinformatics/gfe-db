@@ -40,8 +40,26 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-deploy: logs.purge check.env ##=> Deploy services
+var.vpc.set:
+ifeq ($(vpc),true)
+	$(eval VPC := true)
+else ifeq ($(vpc),false)
+	$(eval VPC := false)
+else ifeq ($(vpc),)
+	$(eval VPC := false)
+else
+	$(error Invalid value for vpc: must be true or false)
+endif
+
+# var.vpc.echo: var.vpc.sets
+# 	@echo ${VPC}
+
+deploy: logs.purge check.env var.vpc.set ##=> vpc=true/false ##=> Deploy all services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
+ifeq ($(vpc),true)
+	@echo "Deploying VPC"
+	$(MAKE) vpc.deploy # TODO catch error and abort
+endif
 	$(MAKE) infrastructure.deploy
 	$(MAKE) database.deploy
 	$(MAKE) pipeline.deploy
@@ -111,6 +129,9 @@ check.dependencies.jq:
 	fi
 
 # Deploy specific stacks
+vpc.deploy:
+	$(MAKE) -C ${APP_NAME}/vpc/ deploy
+
 infrastructure.deploy:
 	$(MAKE) -C ${APP_NAME}/infrastructure/ deploy
 
