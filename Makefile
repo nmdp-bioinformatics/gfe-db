@@ -67,6 +67,7 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
+# Only called when vpc=false, checks for VPC_ID in environment
 var.vpc_id.check:
 ifeq ($(VPC_ID),)
 	$(call red, "VPC_ID must be set as an environment variable when \`vpc\` is false")
@@ -75,6 +76,7 @@ else
 	$(call green, "Found VpcId: ${VPC_ID}")
 endif
 
+# Only called when vpc=false, checks for PUBLIC_SUBNET_ID in environment
 var.public_subnet_id.check:
 ifeq ($(PUBLIC_SUBNET_ID),)
 	$(call red, "PUBLIC_SUBNET_ID must be set as an environment variable when \`vpc\` is false")
@@ -83,34 +85,39 @@ else
 	$(call green, "Found PublicSubnetId: ${PUBLIC_SUBNET_ID}")
 endif
 
+# If vpc=true, VPC_ID & PUBLIC_SUBNET_ID are ignored because they will be created
+# If vpc=false, VPC_ID & PUBLIC_SUBNET_ID are required in the environment
+# Both variables are referenced as SSM Parameters in the CloudFormation templates
 var.vpc.set:
 ifeq ($(vpc),true)
 	@echo "vpc=$$vpc"
 	$(call blue, "Creating VPC for this deployment")
-	$(eval VPC := true)
+	$(eval CREATE_VPC := true)
 else ifeq ($(vpc),false)
 	@echo "vpc=$$vpc"
 	$(MAKE) var.vpc_id.check
 	$(MAKE) var.public_subnet_id.check
-	$(eval VPC := false)
+	$(eval CREATE_VPC := false)
 else ifeq ($(vpc),)
 	@echo "vpc not set, defaulting to false"
 	$(MAKE) var.vpc_id.check
 	$(MAKE) var.public_subnet_id.check
-	$(eval VPC := false)
+	$(eval CREATE_VPC := false)
 else
 	$(call red, "Invalid value for \`vpc\`: must be \`true\` or \`false\`")
 	@exit 1
-endif
+endif	
 
+# TODO BOOKMARK 8/16/23
+# TODO Test optional VPC deployment using ONLY vpc=true/false, should deploy smoothly for both
+# TODO use conditional deployment
+# TODO parameterize the deployment environment
+# TODO add user confirmation before deploying
+# TODO need stateful deploy target, subsequent calls to `make deploy` should have the same `vpc` value true/false as the initial
 deploy: logs.purge check.env var.vpc.set ##=> vpc=true/false ##=> Deploy all services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
-ifeq ($(vpc),true)
-	@echo "Deploying VPC"
-	$(MAKE) vpc.deploy # TODO catch error and abort
-endif
-	# $(MAKE) infrastructure.deploy
-	# $(MAKE) database.deploy
+	$(MAKE) infrastructure.deploy
+	$(MAKE) database.deploy
 	# $(MAKE) pipeline.deploy
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished deploying ${APP_NAME}" 2>&1 | tee -a ${CFN_LOG_PATH}
 
