@@ -7,7 +7,9 @@ include .env
 export
 
 # Base settings, these should almost never change
-export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity --query Account --output text)
+export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity \
+	--query Account \
+	--output text)
 
 export ROOT_DIR := $(shell pwd)
 export DATABASE_DIR := ${ROOT_DIR}/${APP_NAME}/database
@@ -36,23 +38,70 @@ export PIPELINE_STATE_PATH := config/IMGTHLA-repository-state.json
 export PIPELINE_PARAMS_PATH := config/pipeline-input.json
 export FUNCTIONS_PATH := ${APP_NAME}/pipeline/functions
 
+# print colors
+define blue
+	@tput setaf 4
+	@echo $1
+	@tput sgr0
+endef
+
+define green
+	@tput setaf 2
+	@echo $1
+	@tput sgr0
+endef
+
+define yellow
+	@tput setaf 3
+	@echo $1
+	@tput sgr0
+endef
+
+define red
+	@tput setaf 1
+	@echo $1
+	@tput sgr0
+endef
+
 target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-var.vpc.set:
-ifeq ($(vpc),true)
-	$(eval VPC := true)
-else ifeq ($(vpc),false)
-	$(eval VPC := false)
-else ifeq ($(vpc),)
-	$(eval VPC := false)
+var.vpc_id.check:
+ifeq ($(VPC_ID),)
+	$(call red, "VPC_ID must be set as an environment variable when \`vpc\` is false")
+	@exit 1
 else
-	$(error Invalid value for vpc: must be true or false)
+	$(call green, "Found VpcId: ${VPC_ID}")
 endif
 
-# var.vpc.echo: var.vpc.sets
-# 	@echo ${VPC}
+var.public_subnet_id.check:
+ifeq ($(PUBLIC_SUBNET_ID),)
+	$(call red, "PUBLIC_SUBNET_ID must be set as an environment variable when \`vpc\` is false")
+	@exit 1
+else
+	$(call green, "Found PublicSubnetId: ${PUBLIC_SUBNET_ID}")
+endif
+
+var.vpc.set:
+ifeq ($(vpc),true)
+	@echo "vpc=$$vpc"
+	$(call blue, "Creating VPC for this deployment")
+	$(eval VPC := true)
+else ifeq ($(vpc),false)
+	@echo "vpc=$$vpc"
+	$(MAKE) var.vpc_id.check
+	$(MAKE) var.public_subnet_id.check
+	$(eval VPC := false)
+else ifeq ($(vpc),)
+	@echo "vpc not set, defaulting to false"
+	$(MAKE) var.vpc_id.check
+	$(MAKE) var.public_subnet_id.check
+	$(eval VPC := false)
+else
+	$(call red, "Invalid value for \`vpc\`: must be \`true\` or \`false\`")
+	@exit 1
+endif
 
 deploy: logs.purge check.env var.vpc.set ##=> vpc=true/false ##=> Deploy all services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
@@ -60,9 +109,9 @@ ifeq ($(vpc),true)
 	@echo "Deploying VPC"
 	$(MAKE) vpc.deploy # TODO catch error and abort
 endif
-	$(MAKE) infrastructure.deploy
-	$(MAKE) database.deploy
-	$(MAKE) pipeline.deploy
+	# $(MAKE) infrastructure.deploy
+	# $(MAKE) database.deploy
+	# $(MAKE) pipeline.deploy
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished deploying ${APP_NAME}" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 logs.purge: logs.dirs
@@ -77,6 +126,9 @@ logs.dirs:
 		"${LOGS_DIR}/database/bootstrap" || true
 
 check.env: check.dependencies
+ifndef AWS_ACCOUNT
+$(error AWS_ACCOUNT is not set. Please add AWS_ACCOUNT to the environment variables.)
+endif
 ifndef AWS_REGION
 $(error AWS_REGION is not set. Please add AWS_REGION to the environment variables.)
 endif
@@ -132,7 +184,7 @@ check.dependencies.jq:
 vpc.deploy:
 	$(MAKE) -C ${APP_NAME}/vpc/ deploy
 
-infrastructure.deploy:
+infrastructure.deploy: 
 	$(MAKE) -C ${APP_NAME}/infrastructure/ deploy
 
 database.deploy:
