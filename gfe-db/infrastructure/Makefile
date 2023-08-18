@@ -29,7 +29,7 @@ service.deploy.update-dns:
 # Add stateful check from SSM Param of vpc=true/false to correctly set CREATE_VPC
 service.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying CloudFormation" 2>&1 | tee -a $${CFN_LOG_PATH}
-	@echo "${CREATE_VPC}"
+	@echo "(infra) CREATE_VPC: ${CREATE_VPC}"
 	@aws cloudformation deploy \
 		--region $${AWS_REGION} \
 		--template-file template.yaml \

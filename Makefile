@@ -67,57 +67,17 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-# Only called when vpc=false, checks for VPC_ID in environment
-var.vpc_id.check:
-ifeq ($(VPC_ID),)
-	$(call red, "VPC_ID must be set as an environment variable when \`vpc\` is false")
-	@exit 1
-else
-	$(call green, "Found VpcId: ${VPC_ID}")
-endif
-
-# Only called when vpc=false, checks for PUBLIC_SUBNET_ID in environment
-var.public_subnet_id.check:
-ifeq ($(PUBLIC_SUBNET_ID),)
-	$(call red, "PUBLIC_SUBNET_ID must be set as an environment variable when \`vpc\` is false")
-	@exit 1
-else
-	$(call green, "Found PublicSubnetId: ${PUBLIC_SUBNET_ID}")
-endif
-
-# If vpc=true, VPC_ID & PUBLIC_SUBNET_ID are ignored because they will be created
-# If vpc=false, VPC_ID & PUBLIC_SUBNET_ID are required in the environment
-# Both variables are referenced as SSM Parameters in the CloudFormation templates
-var.vpc.set:
-ifeq ($(vpc),true)
-	@echo "vpc=$$vpc"
-	$(call blue, "Creating VPC for this deployment")
-	$(eval CREATE_VPC := true)
-else ifeq ($(vpc),false)
-	@echo "vpc=$$vpc"
-	$(MAKE) var.vpc_id.check
-	$(MAKE) var.public_subnet_id.check
-	$(eval CREATE_VPC := false)
-else ifeq ($(vpc),)
-	@echo "vpc not set, defaulting to false"
-	$(MAKE) var.vpc_id.check
-	$(MAKE) var.public_subnet_id.check
-	$(eval CREATE_VPC := false)
-else
-	$(call red, "Invalid value for \`vpc\`: must be \`true\` or \`false\`")
-	@exit 1
-endif	
-
 # TODO BOOKMARK 8/16/23
 # TODO Test optional VPC deployment using ONLY vpc=true/false, should deploy smoothly for both
 # TODO use conditional deployment
 # TODO parameterize the deployment environment
 # TODO add user confirmation before deploying
 # TODO need stateful deploy target, subsequent calls to `make deploy` should have the same `vpc` value true/false as the initial
-deploy: logs.purge check.env var.vpc.set ##=> vpc=true/false ##=> Deploy all services
+deploy: logs.purge env.validate ##=> vpc=true/false ##=> Deploy all services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
+	@echo "(deploy) CREATE_VPC: ${CREATE_VPC}"
 	$(MAKE) infrastructure.deploy
-	$(MAKE) database.deploy
+	# $(MAKE) database.deploy
 	# $(MAKE) pipeline.deploy
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished deploying ${APP_NAME}" 2>&1 | tee -a ${CFN_LOG_PATH}
 
@@ -131,27 +91,6 @@ logs.dirs:
 		"${LOGS_DIR}/pipeline/build" \
 		"${LOGS_DIR}/pipeline/load" \
 		"${LOGS_DIR}/database/bootstrap" || true
-
-check.env: check.dependencies
-ifndef AWS_ACCOUNT
-$(error AWS_ACCOUNT is not set. Please add AWS_ACCOUNT to the environment variables.)
-endif
-ifndef AWS_REGION
-$(error AWS_REGION is not set. Please add AWS_REGION to the environment variables.)
-endif
-ifndef AWS_PROFILE
-$(error AWS_PROFILE is not set. Please select an AWS profile to use.)
-endif
-ifndef GITHUB_PERSONAL_ACCESS_TOKEN
-$(error GITHUB_PERSONAL_ACCESS_TOKEN is not set. Please add GITHUB_PERSONAL_ACCESS_TOKEN to the environment variables.)
-endif
-ifndef HOST_DOMAIN
-$(error HOST_DOMAIN is not set. Please add HOST_DOMAIN to the environment variables.)
-endif
-ifndef ADMIN_EMAIL
-$(error ADMIN_EMAIL is not set. Please add ADMIN_EMAIL to the environment variables.)
-endif
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 check.dependencies:
 	$(MAKE) check.dependencies.docker
@@ -187,9 +126,52 @@ check.dependencies.jq:
 		exit 1; \
 	fi
 
-# Deploy specific stacks
-vpc.deploy:
-	$(MAKE) -C ${APP_NAME}/vpc/ deploy
+env.validate.no-vpc:
+ifeq ($(VPC_ID),)
+	$(call red, "VPC_ID must be set as an environment variable when \`CREATE_VPC\` is false")
+	@exit 1
+else
+	$(call green, "Found VPC_ID: ${VPC_ID}")
+endif
+ifeq ($(PUBLIC_SUBNET_ID),)
+	$(call red, "PUBLIC_SUBNET_ID must be set as an environment variable when \`CREATE_VPC\` is false")
+	@exit 1
+else
+	$(call green, "Found PUBLIC_SUBNET_ID: ${PUBLIC_SUBNET_ID}")
+endif
+
+env.validate: check.dependencies
+ifndef AWS_ACCOUNT
+	$(error AWS_ACCOUNT is not set. Please add AWS_ACCOUNT to the environment variables.)
+endif
+ifndef AWS_REGION
+	$(error AWS_REGION is not set. Please add AWS_REGION to the environment variables.)
+endif
+ifndef AWS_PROFILE
+	$(error AWS_PROFILE is not set. Please select an AWS profile to use.)
+endif
+ifndef GITHUB_PERSONAL_ACCESS_TOKEN
+	$(error GITHUB_PERSONAL_ACCESS_TOKEN is not set. Please add GITHUB_PERSONAL_ACCESS_TOKEN to the environment variables.)
+endif
+ifndef HOST_DOMAIN
+	$(error HOST_DOMAIN is not set. Please add HOST_DOMAIN to the environment variables.)
+endif
+ifndef ADMIN_EMAIL
+	$(error ADMIN_EMAIL is not set. Please add ADMIN_EMAIL to the environment variables.)
+endif
+ifndef CREATE_VPC
+	$(info 'CREATE_VPC' is not set. Defaulting to 'false')
+	$(eval export CREATE_VPC := false)
+	$(call blue, "This deployment uses an existing VPC")
+	$(MAKE) env.validate.no-vpc
+endif
+ifeq ($(CREATE_VPC),false)
+	$(call blue, "This deployment uses an existing VPC")
+	$(MAKE) env.validate.no-vpc
+else ifeq ($(CREATE_VPC),true)
+	$(call blue, "This deployment includes a VPC")
+endif
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 infrastructure.deploy: 
 	$(MAKE) -C ${APP_NAME}/infrastructure/ deploy
