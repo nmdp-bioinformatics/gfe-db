@@ -2,11 +2,11 @@
 # Bootstrapping variables
 ##########################
 
-# Application specific environment variables
+# Environment variables
 include .env
+include .env.${STAGE}
 export
 
-# Base settings, these should almost never change
 export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity \
 	--query Account \
 	--output text)
