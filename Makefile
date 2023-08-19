@@ -68,12 +68,10 @@ target:
 	@exit 0
 
 # TODO BOOKMARK 8/16/23
-# TODO Test optional VPC deployment using ONLY vpc=true/false, should deploy smoothly for both
-# TODO use conditional deployment
-# TODO parameterize the deployment environment
+# TODO use conditional deployment ✅
+# TODO parameterize the deployment environment ✅
 # TODO add user confirmation before deploying
-# TODO need stateful deploy target, subsequent calls to `make deploy` should have the same `vpc` value true/false as the initial
-deploy: logs.purge env.validate ##=> vpc=true/false ##=> Deploy all services
+deploy: logs.purge env.validate.stage env.validate ##=> Deploy all services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	@echo "(deploy) CREATE_VPC: ${CREATE_VPC}"
 	$(MAKE) infrastructure.deploy
@@ -126,6 +124,23 @@ check.dependencies.jq:
 		exit 1; \
 	fi
 
+# TODO use cloudformation list-stacks as alternative to SSM parameter
+env.validate.stage:
+	@res=$$(aws ssm get-parameters \
+		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Stage" \
+		--output json \
+		| jq -r '.Parameters[0].Value') && \
+	echo "Found stage: $${res}" && \
+	if [ "$${res}" = "null" ]; then \
+		echo "\033[0;32m**** Starting new deployment. ****\033[0m"; \
+	elif [ "$${res}" = "${STAGE}" ]; then \
+		echo "\033[0;32m**** Found existing deployment for \`${STAGE}\` ****\033[0m"; \
+	else \
+		echo "\033[0;31m**** STAGE mismatch or bad credential configuration. ****\033[0m" && \
+		echo "\033[0;31m**** Please refer to the documentation for a list of prerequisites. ****\033[0m" && \
+		exit 1; \
+	fi
+	
 env.validate.no-vpc:
 ifeq ($(VPC_ID),)
 	$(call red, "VPC_ID must be set as an environment variable when \`CREATE_VPC\` is false")
