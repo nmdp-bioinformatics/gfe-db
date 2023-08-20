@@ -3,7 +3,7 @@
 ##########################
 
 # Environment variables
-include .env
+# include .env # Optional, include STAGE and AWS_PROFILE
 include .env.${STAGE}
 export
 
@@ -67,16 +67,31 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-# TODO BOOKMARK 8/16/23
-# TODO use conditional deployment ✅
-# TODO parameterize the deployment environment ✅
-# TODO add user confirmation before deploying
-deploy: logs.purge env.validate.stage env.validate ##=> Deploy all services
+app.print:
+	@echo "\033[0;34m                                            "
+	@echo "\033[0;34m           ____                      __ __  "
+	@echo "\033[0;34m   ____ _ / __/___              ____/ // /_ "
+	@echo "\033[0;32m  / __ \`// /_ / _ \   ______   / __  // __ \\"
+	@echo "\033[0;32m / /_/ // __//  __/  /_____/  / /_/ // /_/ /"
+	@echo "\033[0;34m \__, //_/   \___/            \____//_____/ "
+	@echo "\033[0;34m/____/                                      \033[0m"
+	@echo "\033[0;34m                                             \033[0m"
+
+
+env.print:
+	@echo "\033[0;33mReview the contents of the .env file:\033[0m"
+	@echo "+---------------------------------------------------------------------------------+"
+	@awk '{ if (substr($$0, 1, 1) != "#") { line = substr($$0, 1, 76); if (length($$0) > 76) line = line "..."; printf "| %-79s |\n", line }}' .env.${STAGE}
+	@echo "+---------------------------------------------------------------------------------+"
+	@echo "\033[0;33mPlease confirm the above values are correct.\033[0m"
+
+deploy: app.print logs.purge env.validate.stage env.validate ##=> Deploy all services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
-	@echo "(deploy) CREATE_VPC: ${CREATE_VPC}"
+	$(MAKE) env.print
+	@echo "Deploy stack to the \`${STAGE}\` environment? [y/N] \c " && read ans && [ $${ans:-N} = y ]
 	$(MAKE) infrastructure.deploy
-	# $(MAKE) database.deploy
-	# $(MAKE) pipeline.deploy
+	$(MAKE) database.deploy
+	$(MAKE) pipeline.deploy
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished deploying ${APP_NAME}" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 logs.purge: logs.dirs
@@ -177,14 +192,14 @@ endif
 ifndef CREATE_VPC
 	$(info 'CREATE_VPC' is not set. Defaulting to 'false')
 	$(eval export CREATE_VPC := false)
-	$(call blue, "This deployment uses an existing VPC")
+	$(call blue, "**** This deployment uses an existing VPC**** ")
 	$(MAKE) env.validate.no-vpc
 endif
 ifeq ($(CREATE_VPC),false)
-	$(call blue, "This deployment uses an existing VPC")
+	$(call blue, "**** This deployment uses an existing VPC**** ")
 	$(MAKE) env.validate.no-vpc
 else ifeq ($(CREATE_VPC),true)
-	$(call blue, "This deployment includes a VPC")
+	$(call blue, "**** This deployment includes a VPC**** ")
 endif
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
 
