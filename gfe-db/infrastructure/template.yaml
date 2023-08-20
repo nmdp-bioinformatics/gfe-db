@@ -51,9 +51,24 @@ Mappings:
 
 Resources:
 
+  StageParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Stage'
+      Description: "Stage of production"
+      Value: !Ref Stage
+
+  AppParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/AppName'
+      Description: "Name of application"
+      Value: !Ref AppName
+
   CreateVpcParameter:
     Type: AWS::SSM::Parameter
-    Condition: CreateVpc
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/CreateVpc'
