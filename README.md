@@ -193,7 +193,7 @@ For more information visit the documentation page:
 These variables must be defined before running Make. The best way to set these variables is with a `.env.<stage>` file following this structure.
 ```bash
 # .env.<stage>
-AWS_PROFILE=<aws_profile>
+AWS_PROFILE=<aws_profile> # Include profile if stacks are in a different accounts
 STAGE=<dev or prod>
 APP_NAME=<app_name>
 AWS_REGION=<aws_region>
@@ -279,8 +279,8 @@ STAGE=<stage> make get.logs
 # Download CSV data from S3
 STAGE=<stage> make get.data
 
-# Delete all CloudFormation based services and data
-STAGE=<stage> make delete
+# Delete all CloudFormation based services and data, default is data=false
+STAGE=<stage> make delete data=<true/false>
 
 # Delete a specific layer
 STAGE=<stage> make pipeline.delete
@@ -436,7 +436,7 @@ The Lambda function returns the following object which can be viewed in CloudWat
 ### Clean Up
 To tear down resources run the command. You will need to manually delete the data in the S3 bucket first to avoid an error in CloudFormation.
 ```bash
-STAGE=<stage> make delete
+STAGE=<stage> make delete data=<true/false>
 ```
 Use the following commands to tear down individual services. Make sure to [backup](#backup--restore) your data first.
 ```bash

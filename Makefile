@@ -67,7 +67,7 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-app.print:
+splash-screen:
 	@echo "\033[0;34m                                            "
 	@echo "\033[0;34m           ____                      __ __  "
 	@echo "\033[0;34m   ____ _ / __/___              ____/ // /_ "
@@ -85,7 +85,7 @@ env.print:
 	@echo "+---------------------------------------------------------------------------------+"
 	@echo "\033[0;33mPlease confirm the above values are correct.\033[0m"
 
-deploy: app.print logs.purge env.validate.stage env.validate ##=> Deploy all services
+deploy: splash-screen logs.purge env.validate.stage env.validate ##=> Deploy all services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) env.print
 	@echo "Deploy stack to the \`${STAGE}\` environment? [y/N] \c " && read ans && [ $${ans:-N} = y ]
@@ -316,9 +316,14 @@ database.get.credentials:
 database.get.instance-id:
 	@echo "${INSTANCE_ID}"
 
-# TODO add confirmation to proceed
+# TODO add confirmation to proceed BOOKMARK
 delete: # data=true/false ##=> Delete services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${APP_NAME} in ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
+	@[[ $$data != true ]] && echo "Data will not be deleted. To delete pass \`data=true\`" || true
+	@echo "Delete all stacks from the \`${STAGE}\` environment? [y/N] \c " && read ans && [ $${ans:-N} = y ] && \
+	if [ "${data}" = "true" ]; then \
+		aws s3 rm --recursive s3://${DATA_BUCKET_NAME}; \
+	fi
 	$(MAKE) pipeline.delete
 	$(MAKE) database.delete
 	$(MAKE) infrastructure.delete
