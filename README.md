@@ -144,7 +144,7 @@ These list outline the basic steps for deployments. For more details please see 
 6. Check the [config JSONs](#data-pipeline-config) (parameters and state) and edit the values as desired.
 7. Run `STAGE=<stage> make deploy` to deploy the stacks to AWS.
 8. Run `STAGE=<stage> make database.load.run releases=<version>` to load the Neo4j, or `STAGE=<stage> make database.load.run releases=<version> limit=<limit>` to run with a limited number of alleles.
-9. Run `STAGE=<stage> make database.get-credentials` to get the username and password for Neo4j.
+9. Run `STAGE=<stage> make database.get.credentials` to get the username and password for Neo4j.
 10. Run `STAGE=<stage> make database.get.endpoint` to get the URL for Neo4j and navigate to the Neo4j browser at the subdomain and host domain, for example `https://gfe-db.cloudftl.com:7473/browser/`.
 
 **Creating a new VPC**
