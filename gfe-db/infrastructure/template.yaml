@@ -26,6 +26,9 @@ Parameters:
   GitHubPersonalAccessToken:
     Type: String
     NoEcho: true
+  AdminEmail:
+    Type: String
+    Description: Email address for Let's Encrypt SSL certificates
   
 Conditions:
   CreateVpc: !Equals [!Ref createVpc, 'true']

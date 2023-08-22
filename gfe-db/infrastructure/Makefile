@@ -41,7 +41,8 @@ service.deploy:
 			VpcId="$${VPC_ID}" \
 			PublicSubnetId="$${PUBLIC_SUBNET_ID}" \
 			DataBucketName="$${DATA_BUCKET_NAME}" \
-			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN" 2>&1 | tee -a $${CFN_LOG_PATH} || true
+			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN" \
+			AdminEmail="$${ADMIN_EMAIL}" 2>&1 | tee -a $${CFN_LOG_PATH} || true
 	$(MAKE) service.deploy.update-dns
 
 service.monitoring.create-subscriptions:
