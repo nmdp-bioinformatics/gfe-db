@@ -144,7 +144,7 @@ env.validate.stage:
 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Stage" \
 		--output json \
 		| jq -r '.Parameters[0].Value') && \
-	echo "Found stage: $${res}" && \
+	[[ $$res = "null" ]] && echo "No deployed stage found" || echo "Found deployed stage: $$res" && \
 	if [ "$${res}" = "null" ]; then \
 		echo "\033[0;32m**** Starting new deployment. ****\033[0m"; \
 	elif [ "$${res}" = "${STAGE}" ]; then \
