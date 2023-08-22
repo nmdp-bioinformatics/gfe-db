@@ -76,7 +76,7 @@ fil*
 summary_*
 
 # Environment variables
-.env
+.env*
 env.sh
 
 # PyCharm
@@ -88,8 +88,6 @@ packaged.yaml
 samconfig.toml
 
 # Project files
-
-## Miscellaneous
 change-batch.json.tmp
 _cache/
 tags
