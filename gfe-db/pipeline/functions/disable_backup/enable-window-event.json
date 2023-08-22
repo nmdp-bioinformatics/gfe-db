@@ -1,0 +1,22 @@
+{
+    "Records": [
+        {
+            "EventSource": "aws:sns",
+            "EventVersion": "1.0",
+            "EventSubscriptionArn": "arn:aws:sns:us-east-1:531868584498:prod-gfe-db-infrastructure-DataPipelineExecutionTopic-aMXYcftn9ao9:2d7ff42e-63b9-4bae-80f5-9badfca138cd",
+            "Sns": {
+                "Type": "Notification",
+                "MessageId": "f699f4d5-2de7-5728-8cb0-a9ef3fa84a63",
+                "TopicArn": "arn:aws:sns:us-east-1:531868584498:prod-gfe-db-infrastructure-DataPipelineExecutionTopic-aMXYcftn9ao9",
+                "Subject": "OK: \"prod-gfe-db-pipeline-UpdatePipelineStateMachineExecutionAlarm-18D6...\" in US East (N. Virginia)",
+                "Message": "{\"AlarmName\":\"prod-gfe-db-pipeline-UpdatePipelineStateMachineExecutionAlarm-18D64UHLCBHBT\",\"AlarmDescription\":\"arn:aws:states:us-east-1:531868584498:stateMachine:UpdatePipelineStateMachine-bW9DH9yPujvQ state machine execution in progress\",\"AWSAccountId\":\"531868584498\",\"AlarmConfigurationUpdatedTimestamp\":\"2023-07-25T17:58:10.806+0000\",\"NewStateValue\":\"OK\",\"NewStateReason\":\"Threshold Crossed: 1 datapoint [0.0 (24/07/23 18:10:00)] was not greater than the threshold (0.0).\",\"StateChangeTime\":\"2023-07-25T18:10:23.115+0000\",\"Region\":\"US East (N. Virginia)\",\"AlarmArn\":\"arn:aws:cloudwatch:us-east-1:531868584498:alarm:prod-gfe-db-pipeline-UpdatePipelineStateMachineExecutionAlarm-18D64UHLCBHBT\",\"OldStateValue\":\"ALARM\",\"OKActions\":[\"arn:aws:sns:us-east-1:531868584498:prod-gfe-db-infrastructure-DataPipelineExecutionTopic-aMXYcftn9ao9\"],\"AlarmActions\":[\"arn:aws:sns:us-east-1:531868584498:prod-gfe-db-infrastructure-DataPipelineExecutionTopic-aMXYcftn9ao9\"],\"InsufficientDataActions\":[],\"Trigger\":{\"Period\":86400,\"EvaluationPeriods\":1,\"ComparisonOperator\":\"GreaterThanThreshold\",\"Threshold\":0.0,\"TreatMissingData\":\"\",\"EvaluateLowSampleCountPercentile\":\"\",\"Metrics\":[{\"Id\":\"m1\",\"MetricStat\":{\"Metric\":{\"Dimensions\":[{\"value\":\"arn:aws:states:us-east-1:531868584498:stateMachine:UpdatePipelineStateMachine-bW9DH9yPujvQ\",\"name\":\"StateMachineArn\"}],\"MetricName\":\"ExecutionsStarted\",\"Namespace\":\"AWS/States\"},\"Period\":86400,\"Stat\":\"Sum\",\"Unit\":\"Count\"},\"ReturnData\":false},{\"Id\":\"m2\",\"MetricStat\":{\"Metric\":{\"Dimensions\":[{\"value\":\"arn:aws:states:us-east-1:531868584498:stateMachine:UpdatePipelineStateMachine-bW9DH9yPujvQ\",\"name\":\"StateMachineArn\"}],\"MetricName\":\"ExecutionsSucceeded\",\"Namespace\":\"AWS/States\"},\"Period\":86400,\"Stat\":\"Sum\",\"Unit\":\"Count\"},\"ReturnData\":false},{\"Id\":\"m3\",\"MetricStat\":{\"Metric\":{\"Dimensions\":[{\"value\":\"arn:aws:states:us-east-1:531868584498:stateMachine:UpdatePipelineStateMachine-bW9DH9yPujvQ\",\"name\":\"StateMachineArn\"}],\"MetricName\":\"ExecutionsFailed\",\"Namespace\":\"AWS/States\"},\"Period\":86400,\"Stat\":\"Sum\",\"Unit\":\"Count\"},\"ReturnData\":false},{\"Id\":\"m4\",\"MetricStat\":{\"Metric\":{\"Dimensions\":[{\"value\":\"arn:aws:states:us-east-1:531868584498:stateMachine:UpdatePipelineStateMachine-bW9DH9yPujvQ\",\"name\":\"StateMachineArn\"}],\"MetricName\":\"ExecutionsAborted\",\"Namespace\":\"AWS/States\"},\"Period\":86400,\"Stat\":\"Sum\",\"Unit\":\"Count\"},\"ReturnData\":false},{\"Expression\":\"m1 - m2 - m3 - m4\",\"Id\":\"e1\",\"Label\":\"ExecutionsInProgress\",\"ReturnData\":true}]}}",
+                "Timestamp": "2023-07-25T18:10:23.167Z",
+                "SignatureVersion": "1",
+                "Signature": "K5QfFtb+zqF2HwZlfTt3IzHC39+Scw4M4qaCzE+gvDyKoCmUfzF77WbfxovcjBNHG+gNBeflyTI/qgzAqUddA/qCdWOERxBQG70EOLoucN+mcIpu7XO52aoJhH7g45xz0G4ghnIGRULDomYw2CZnRsWPcNfj4OWVD7OEA4+7A/jxtBJY1VyoM8Y/mckukmdBiKSBGc/C9JEq1gmsiPtOOqnQqd0HqPOmu3lY4Y7vAN0bV+Jwg3gir72JW8EfNa2aKupHIyQ4GHLyiH0m32XGPZtN90hwTAZVXsbL3VDoQmud1KDX/DanoByOKTN0pJXZZHs/KSSu39bsQbppKA3vbg==",
+                "SigningCertUrl": "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-01d088a6f77103d0fe307c0069e40ed6.pem",
+                "UnsubscribeUrl": "https://sns.us-east-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-east-1:531868584498:prod-gfe-db-infrastructure-DataPipelineExecutionTopic-aMXYcftn9ao9:2d7ff42e-63b9-4bae-80f5-9badfca138cd",
+                "MessageAttributes": {}
+            }
+        }
+    ]
+}

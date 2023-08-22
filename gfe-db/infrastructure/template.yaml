@@ -13,6 +13,8 @@ Parameters:
     AllowedValues:
       - 'true'
       - 'false'
+  AdminEmail:
+    Type: String
   DataBucketName:
     Type: String
   VpcId:
@@ -201,6 +203,7 @@ Resources:
       Name: !Sub "${AppName}-${Stage}-GitHubPersonalAccessToken"
       Description: GitHub Personal Access Token for repository access
       SecretString: !Sub '{"personal_access_token":"${GitHubPersonalAccessToken}"}'
+      # TODO remove
       Tags:
         - Key: Stage
           Value: !Ref Stage
@@ -250,8 +253,9 @@ Resources:
     Properties:
       DisplayName: !Sub "${AppName} Data Pipeline Errors"
       Subscription:
-        - Endpoint: gclindsey@gmail.com
+        - Endpoint: !Ref AdminEmail
           Protocol: email
+      # TODO remove
       Tags:
         - Key: Stage
           Value: !Ref Stage
@@ -265,6 +269,45 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn'
       Description: !Sub 'ARN for ${AppName} Data Pipeline Errors SNS topic'
       Value: !Ref DataPipelineErrorsTopic
+
+  DataPipelineExecutionTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref DataPipelineExecutionTopic
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudwatch.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref DataPipelineExecutionTopic
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  DataPipelineExecutionTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Sub "${AppName} Data Pipeline Errors"
+      Subscription:
+        - Endpoint: !Ref AdminEmail
+          Protocol: email
+      # TODO remove
+      Tags:
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: AppName 
+          Value: !Ref AppName
+
+  DataPipelineExecutionTopicArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicArn'
+      Description: !Sub 'ARN for ${AppName} Data Pipeline Errors SNS topic'
+      Value: !Ref DataPipelineExecutionTopic
 
 Outputs:
   Neo4jDatabaseElasticIp:

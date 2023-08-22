@@ -1,5 +1,4 @@
-gfe-db
-======
+# gfe-db
 
 Graph database representing IPD-IMGT/HLA sequence data as GFE.
 
@@ -213,24 +212,26 @@ GDS_VERSION=<gds_version>
 GITHUB_PERSONAL_ACCESS_TOKEN=<secret>
 ```
 
-| Variable Name                | Example Value                      | Type   | Description                                      |
-| ---------------------------- | ---------------------------------- | ------ | ------------------------------------------------ |
-| AWS_PROFILE                  | <aws_profile>                      | string | AWS profile for deployment.                      |
-| STAGE                        | dev                                | string | The stage of the application.                    |
-| APP_NAME                     | gfe-db                             | string | The name of the application.                     |
-| AWS_REGION                   | us-east-1                          | string | The AWS region to deploy to.                     |
-| ADMIN_EMAIL                  | user@company.com                   | string | Admin's email required for SSL certificate.      |
-| SUBSCRIBE_EMAILS             | user@company.com,user2@company.com | string | Comma-separated list of emails for notifications |
-| GITHUB_REPOSITORY_OWNER      | <github_owner>                     | string | GitHub repository owner.                         |
-| GITHUB_REPOSITORY_NAME       | <github_repo_name>                 | string | GitHub repository name.                          |
-| HOST_DOMAIN                  | example.com                        | string | The domain to deploy to.                         |
-| CREATE_VPC                   | true or false                      | string | Whether to create a new VPC.                     |
-| HOSTED_ZONE_ID               | Z1234567890ABCDEF                  | string | The ID of the hosted zone to deploy to.          |
-| SUBDOMAIN                    | gfe-db                             | string | The subdomain to deploy to.                      |
-| NEO4J_AMI_ID                 | ami-0b9a2b6b1c5b8b5b9              | string | Bitnami Neo4j AMI ID.                            |
-| APOC_VERSION                 | 4.4.0.3                            | string | APOC version for Neo4j.                          |
-| GDS_VERSION                  | 2.0.1                              | string | GDS version for Neo4j.                           |
-| GITHUB_PERSONAL_ACCESS_TOKEN | <secret value>                     | string | GitHub PAT for repository access.                |
+| Variable Name                | Example Value                      | Type   | Description                                       |
+| ---------------------------- | ---------------------------------- | ------ | ------------------------------------------------- |
+| AWS_PROFILE                  | <aws_profile>                      | string | AWS profile for deployment.                       |
+| AWS_REGION                   | us-east-1                          | string | The AWS region to deploy to.                      |
+| STAGE                        | dev                                | string | The stage of the application.                     |
+| APP_NAME                     | gfe-db                             | string | The name of the application.                      |
+| ADMIN_EMAIL                  | user@company.com                   | string | Admin's email required for SSL certificate.       |
+| SUBSCRIBE_EMAILS             | user@company.com,user2@company.com | string | Comma-separated list of emails for notifications  |
+| GITHUB_REPOSITORY_OWNER      | <github_owner>                     | string | GitHub repository owner.                          |
+| GITHUB_REPOSITORY_NAME       | <github_repo_name>                 | string | GitHub repository name.                           |
+| GITHUB_PERSONAL_ACCESS_TOKEN | <secret value>                     | string | GitHub PAT for repository access.                 |
+| CREATE_VPC                   | true or false                      | string | Whether to create a new VPC.                      |
+| VPC_ID                       | vpc-1234567890abcdef               | string | The ID of the VPC if `CREATE_VPC=false`           |
+| PUBLIC_SUBNET_ID             | subnet-1234567890abcdef            | string | The ID of the public subnet if `CREATE_VPC=false` |
+| HOST_DOMAIN                  | example.com                        | string | The domain to deploy to.                          |
+| HOSTED_ZONE_ID               | Z1234567890ABCDEF                  | string | The ID of the hosted zone to deploy to.           |
+| SUBDOMAIN                    | gfe-db                             | string | The subdomain to deploy to.                       |
+| NEO4J_AMI_ID                 | ami-0b9a2b6b1c5b8b5b9              | string | Bitnami Neo4j AMI ID.                             |
+| APOC_VERSION                 | 4.4.0.3                            | string | APOC version for Neo4j.                           |
+| GDS_VERSION                  | 2.0.1                              | string | GDS version for Neo4j.                            |
 
 ***Important**:* *Always use a `.env` file or AWS SSM Parameter Store or Secrets Manager for sensitive variables like credentials and API keys. Never hard-code them, including when developing. AWS will quarantine an account if any credentials get accidentally exposed and this will cause problems. Make sure to update `.gitignore` to avoid pushing sensitive data to public repositories.*
 
@@ -406,9 +407,9 @@ These commands build an event payload to send to the `invoke-gfe-db-pipeline` La
 ```json
 // Test payload example
 {
-  "align": "False",
-  "kir": "False",
-  "mem_profile": "False",
+  "align": false,
+  "kir": false,
+  "mem_profile": false,
   "limit": "",
   "releases": 3510
 }

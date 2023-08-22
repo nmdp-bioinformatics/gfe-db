@@ -77,7 +77,6 @@ splash-screen:
 	@echo "\033[0;34m/____/                                      \033[0m"
 	@echo "\033[0;34m                                             \033[0m"
 
-
 env.print:
 	@echo "\033[0;33mReview the contents of the .env file:\033[0m"
 	@echo "+---------------------------------------------------------------------------------+"
@@ -171,6 +170,12 @@ else
 endif
 
 env.validate: check.dependencies
+ifndef STAGE
+$(error STAGE is not set. Please add STAGE to the environment variables.)
+endif
+ifndef APP_NAME
+$(error APP_NAME is not set. Please add APP_NAME to the environment variables.)
+endif
 ifndef AWS_ACCOUNT
 	$(error AWS_ACCOUNT is not set. Please add AWS_ACCOUNT to the environment variables.)
 endif
@@ -180,14 +185,35 @@ endif
 ifndef AWS_PROFILE
 	$(error AWS_PROFILE is not set. Please select an AWS profile to use.)
 endif
+ifndef SUBSCRIBE_EMAILS
+$(error SUBSCRIBE_EMAILS is not set. Please add SUBSCRIBE_EMAILS to the environment variables.)
+endif
+ifndef GITHUB_REPOSITORY_OWNER
+$(error GITHUB_REPOSITORY_OWNER is not set. Please add GITHUB_REPOSITORY_OWNER to the environment variables.)
+endif
+ifndef GITHUB_REPOSITORY_NAME
+$(error GITHUB_REPOSITORY_NAME is not set. Please add GITHUB_REPOSITORY_NAME to the environment variables.)
+endif
 ifndef GITHUB_PERSONAL_ACCESS_TOKEN
 	$(error GITHUB_PERSONAL_ACCESS_TOKEN is not set. Please add GITHUB_PERSONAL_ACCESS_TOKEN to the environment variables.)
 endif
 ifndef HOST_DOMAIN
 	$(error HOST_DOMAIN is not set. Please add HOST_DOMAIN to the environment variables.)
 endif
+ifndef SUBDOMAIN
+$(error SUBDOMAIN is not set. Please add SUBDOMAIN to the environment variables.)
+endif
 ifndef ADMIN_EMAIL
 	$(error ADMIN_EMAIL is not set. Please add ADMIN_EMAIL to the environment variables.)
+endif
+ifndef NEO4J_AMI_ID
+$(error NEO4J_AMI_ID is not set. Please add NEO4J_AMI_ID to the environment variables.)
+endif
+ifndef APOC_VERSION
+$(error APOC_VERSION is not set. Please add APOC_VERSION to the environment variables.)
+endif
+ifndef GDS_VERSION
+$(error GDS_VERSION is not set. Please add GDS_VERSION to the environment variables.)
 endif
 ifndef CREATE_VPC
 	$(info 'CREATE_VPC' is not set. Defaulting to 'false')
@@ -209,11 +235,14 @@ infrastructure.deploy:
 database.deploy:
 	$(MAKE) -C ${APP_NAME}/database/ deploy
 
+database.service.deploy:
+	$(MAKE) -C ${APP_NAME}/database/ service.deploy
+
 pipeline.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ deploy
 
-pipeline.functions.deploy:
-	$(MAKE) -C ${APP_NAME}/pipeline/ service.functions.deploy
+pipeline.service.deploy:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.deploy
 
 pipeline.jobs.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.jobs.deploy
@@ -231,11 +260,11 @@ monitoring.subscribe-email:
 # TODO fix output & error handling
 database.load.run: # args: align, kir, limit, releases
 	@echo "Confirm payload:" && \
-	[ "$$align" ] && align="$$align" || align="False" && \
-	[ "$$kir" ] && kir="$$kir" || kir="False" && \
+	[ "$$align" ] && align="$$align" || align=false && \
+	[ "$$kir" ] && kir="$$kir" || kir=false && \
 	[ "$$limit" ] && limit="$$limit" || limit="" && \
 	[ "$$releases" ] && releases="$$releases" || releases="" && \
-	payload="{ \"align\": \"$$align\", \"kir\": \"$$kir\", \"limit\": \"$$limit\", \"releases\": \"$$releases\", \"mem_profile\": \"False\" }" && \
+	payload="{ \"align\": $$align, \"kir\": $$kir, \"limit\": \"$$limit\", \"releases\": \"$$releases\", \"mem_profile\": false }" && \
 	echo "$$payload" | jq -r && \
 	echo "$$payload" | jq > payload.json
 	@echo "Run pipeline with this payload? [y/N] \c " && read ans && [ $${ans:-N} = y ]
@@ -248,8 +277,10 @@ database.load.run: # args: align, kir, limit, releases
 		--function-name "$$function_name" \
 		--payload file://payload.json \
 		response.json \
-		--output json  >/dev/null 2>&1 && \
+		--output json  >> ${CFN_LOG_PATH} && \
+	echo "Response:" && \
 	echo "Response:" >> ${CFN_LOG_PATH} && \
+	cat response.json | jq -r && \
 	cat response.json | jq -r >> ${CFN_LOG_PATH} && \
 	rm payload.json response.json
 	
