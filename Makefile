@@ -3,7 +3,7 @@
 ##########################
 
 # Application specific environment variables
-include .env
+include .env.${STAGE}
 export
 
 # Base settings, these should almost never change
