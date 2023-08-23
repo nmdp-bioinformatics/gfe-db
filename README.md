@@ -401,7 +401,6 @@ STAGE=<stage> make database.load.run releases="3510" limit="1000"
 
 # Example with all arguments included
 STAGE=<stage> make database.load.run releases="3510" limit="" align="False" kir="False"
-```
 
 These commands build an event payload to send to the `invoke-gfe-db-pipeline` Lambda.
 ```json
