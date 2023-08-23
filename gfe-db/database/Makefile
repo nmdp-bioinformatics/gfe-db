@@ -35,11 +35,11 @@ service.config.neo4j.deploy: service.config.neo4j.update-dns
 	@aws s3 cp config/neo4j/neo4j.conf s3://$$DATA_BUCKET_NAME/$${CONFIG_S3_PATH}/${SERVICE}/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws s3 cp --recursive config/neo4j/cypher/ s3://$$DATA_BUCKET_NAME/$${CONFIG_S3_PATH}/${SERVICE}/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
 
-# # This target will configure the database to use the correct DNS name using env vars
-# service.config.neo4j.update-dns:
-# 	@[ "${HOST_DOMAIN}" != "" ] && \
-# 	cat neo4j/neo4j.template | \
-# 	sed s"/# dbms.default_advertised_address=.*/dbms.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > neo4j/neo4j.conf
+# This target will configure the database to use the correct DNS name using env vars
+service.config.update-dns:
+	@[ "${HOST_DOMAIN}" != "" ] && \
+	cat neo4j/neo4j.template | \
+	sed s"/# dbms.default_advertised_address=.*/dbms.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > neo4j/neo4j.conf
 
 service.config.scripts.deploy:
 	@script_s3_path=s3://$$DATA_BUCKET_NAME/$${CONFIG_S3_PATH}/${SERVICE}/scripts/ && \
@@ -82,7 +82,7 @@ service.deploy:
 		--region $${AWS_REGION} \
 		--template-file template.yaml \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" \
-		--tags stage="$${STAGE}" app="$${APP_NAME}" service="${SERVICE}" release_branch="$$(git branch --show-current)" \
+		--tags stage="$${STAGE}" app="$${APP_NAME}" service="${SERVICE}" branch="$$(git branch --show-current)" commit=$$(git rev-parse HEAD) \
 		--capabilities CAPABILITY_IAM \
 		--parameter-overrides \
 			Stage="$${STAGE}" \
@@ -91,11 +91,9 @@ service.deploy:
 			DataBucketName="$${DATA_BUCKET_NAME}" \
 			ConfigS3Path="$${CONFIG_S3_PATH}" \
 			Neo4jAmiId="$${NEO4J_AMI_ID}" \
-			Neo4jPassword="$${NEO4J_PASSWORD}" \
 			DatabaseVolumeSize="$${DATABASE_VOLUME_SIZE}" \
 			HostDomain="$${HOST_DOMAIN}" \
 			Subdomain="$${SUBDOMAIN}" \
-			HostedZoneId="$${HOSTED_ZONE_ID}" \
 			AdminEmail="$${ADMIN_EMAIL}" \
 			APOCVersion="$${APOC_VERSION}" \
 			GDSVersion="$${GDS_VERSION}" 2>&1 | tee -a $$CFN_LOG_PATH || true

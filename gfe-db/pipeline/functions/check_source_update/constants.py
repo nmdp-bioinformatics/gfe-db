@@ -17,7 +17,7 @@ data_bucket_name = infra.params.DataBucketName
 ) = (
     pipeline.params.GitHubSourceRepository["owner"],
     pipeline.params.GitHubSourceRepository["name"],
-    pipeline.params.ExecutionStateTableName,
+    pipeline.params.GfeDbExecutionStateTableName,
     pipeline.params.GfeDbProcessingQueueUrl,
-    pipeline.params.ExecutionStateTableFields
+    pipeline.params.GfeDbExecutionStateTableFields
 )

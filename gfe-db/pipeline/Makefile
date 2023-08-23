@@ -5,7 +5,7 @@ target:
 	@exit 0
 
 # TODO: Don't deploy jobs if pipeline stack fails to create (exit Make)
-deploy:
+service.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
 	$(MAKE) service.functions.deploy
 	$(MAKE) service.jobs.deploy
@@ -27,7 +27,7 @@ service.functions.deploy:
 		--region "$${AWS_REGION}" \
 		--template-file packaged.yaml \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" \
-		--tags stage="$${STAGE}" app="$${APP_NAME}" service="${SERVICE}" release_branch="$$(git branch --show-current)" \
+		--tags stage="$${STAGE}" app="$${APP_NAME}" service="${SERVICE}" branch="$$(git branch --show-current)" commit=$$(git rev-parse HEAD) \
 		--capabilities CAPABILITY_IAM \
 		--parameter-overrides \
 			Stage="$${STAGE}" \
@@ -46,6 +46,7 @@ service.functions.deploy:
 			ValidateBuildOutputFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.ValidateBuildOutput.FunctionConfiguration.FunctionName')" \
 			ValidateBuildOutputFunctionMemorySize="$$(cat functions/environment.json | jq -r '.Functions.ValidateBuildOutput.FunctionConfiguration.MemorySize')" \
 			ValidateBuildOutputFunctionTimeout="$$(cat functions/environment.json | jq -r '.Functions.ValidateBuildOutput.FunctionConfiguration.Timeout')" \
+			DisableBackupFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.DisableBackup.FunctionConfiguration.FunctionName')" \
 			InvokeLoadScriptFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokeLoadScript.FunctionConfiguration.FunctionName')" \
 			InvokeUpdatePipelineFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokeUpdatePipeline.FunctionConfiguration.FunctionName')" \
 			ECRBaseUri="${ECR_BASE_URI}" \

@@ -42,6 +42,7 @@ Resources:
       Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentials"
       Description: Must match the username/password specified in the Neo4j Dockerfile. Empty until the database is created.
       SecretString: '{"NEO4J_USERNAME":"","NEO4J_PASSWORD":""}'
+      # TODO remove
       Tags:
         - Key: Stage
           Value: !Ref Stage
@@ -55,6 +56,7 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn'
       Description: "ARN for Neo4jCredentialsSecret"
       Value: !Ref Neo4jCredentialsSecret
+      # TODO remove
       Tags:
         Stage: !Ref Stage
         AppName: !Ref AppName
@@ -104,6 +106,7 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupName'
       Description: "Name of the Neo4jDatabaseSecurityGroup"
       Value: !Ref Neo4jDatabaseSecurityGroup
+      # TODO remove
       Tags:
         Stage: !Ref Stage
         AppName: !Ref AppName
@@ -208,6 +211,7 @@ Resources:
           sudo journalctl -b > logs/boot.log
           cat /opt/bitnami/neo4j/logs/neo4j.log > logs/neo4j.log
           cat /opt/bitnami/neo4j/logs/debug.log > logs/debug.log
+      # TODO remove
       Tags:
         - Key: Name
           Value: !Sub '${AppName}-${Stage}'
@@ -295,6 +299,15 @@ Resources:
       Description: "Instance ID for gfe-db Neo4j database instance"
       Value: !Ref Neo4jDatabaseInstance
 
+  Neo4jUriParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jUri'
+      Description: "Connection URI for Neo4j"
+      # "https://${SUBDOMAIN}.${HOST_DOMAIN}:7473/browser/"
+      Value: !Sub "https://${Subdomain}.${HostDomain}:7473/browser/"
+
   Neo4jBackupDocument: 
     Type: AWS::SSM::Document
     Properties:
@@ -322,6 +335,14 @@ Resources:
                 - "directory=$(pwd)"
                 - "export PATH=$PATH:$directory"
                 - "cd {{ workingDirectory }} && {{ commandLine }}"
+                
+  Neo4jBackupDocumentNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jBackupDocumentName'
+      Description: "Name of SSM document for backing up Neo4j"
+      Value: !Ref Neo4jBackupDocument
 
   Neo4jBackupMaintenanceWindow:
     Type: AWS::SSM::MaintenanceWindow
@@ -333,6 +354,14 @@ Resources:
       Name: BackupNeo4jMaintenanceWindow
       Schedule: cron(0 0 ? * * *)
       ScheduleTimezone: US/Central
+
+  Neo4jBackupMaintenanceWindowIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jBackupMaintenanceWindowId'
+      Description: "ID for Neo4jBackupMaintenanceWindow"
+      Value: !Ref Neo4jBackupMaintenanceWindow
 
   Neo4jBackupMaintenanceWindowTask:
     Type: AWS::SSM::MaintenanceWindowTask
@@ -371,7 +400,10 @@ Resources:
           "ssm": [
               "/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn",
               "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupName",
-              "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId"
+              "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId",
+              "/${AppName}/${Stage}/${AWS::Region}/Neo4jUri",
+              "/${AppName}/${Stage}/${AWS::Region}/Neo4jBackupDocumentName",
+              "/${AppName}/${Stage}/${AWS::Region}/Neo4jBackupMaintenanceWindowId"
           ],
           "secretsmanager": [
               "/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentials"

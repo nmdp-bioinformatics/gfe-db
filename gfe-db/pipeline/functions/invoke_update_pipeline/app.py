@@ -33,14 +33,16 @@ update_pipeline_state_machine_arn = pipeline.params.UpdatePipelineStateMachineAr
 gfe_db_processing_queue_url = pipeline.params.GfeDbProcessingQueueUrl
 
 # Check that database is running, abort if not
-
 response = ec2.describe_instance_status(InstanceIds=[neo4j_database_instance_id])
-if response["InstanceStatuses"][0]["InstanceState"]["Name"] != "running":
-    raise Exception(
-        f"Instance {neo4j_database_instance_id} is not running, aborting..."
-    )
+if len(response["InstanceStatuses"]) > 0:
+    if response["InstanceStatuses"][0]["InstanceState"]["Name"] != "running":
+        raise Exception(
+            f"Instance {neo4j_database_instance_id} is not running, aborting..."
+        )
+    else:
+        logger.info(f"Instance {neo4j_database_instance_id} is running")
 else:
-    logger.info(f"Instance {neo4j_database_instance_id} is running")
+    raise Exception(f"Instance {neo4j_database_instance_id} not found, aborting...")
 
 
 def lambda_handler(event, context):
@@ -56,10 +58,14 @@ def lambda_handler(event, context):
             logger.info(
                 f"Received message for version {message['version']} and commit {message['commit_sha']}"
             )
+
+            payload = {
+                "input": message
+            }
             response = states.start_execution(
                 stateMachineArn=update_pipeline_state_machine_arn,
-                name=generate_execution_id(message),
-                input=json.dumps(message),
+                name=generate_execution_id(payload["input"]), # {version}_{commit_sha}_{YYYYMMDD_HHMMSS}
+                input=json.dumps(payload),
             )
 
             execution_arns.append(response["executionArn"])
@@ -83,16 +89,16 @@ def lambda_handler(event, context):
 
     return_msg = f'{len(event["Records"])-errors} of {len(event["Records"])} messages processed successfully, {errors} error(s)'
     if errors > 0:
-        logger.error(
-            json.dumps({"message": return_msg, "execution_arns": execution_arns})
-        )
+        message = json.dumps({"message": return_msg, "execution_arns": execution_arns})
+        logger.error(message)
         logger.error(json.dumps(event))
         raise Exception(return_msg)
-
-    return {
-        "statusCode": 200,
-        "body": json.dumps({"message": return_msg, "execution_arns": execution_arns}),
-    }
+    else:
+        message = json.dumps({"message": return_msg, "execution_arns": execution_arns})
+        return {
+            "statusCode": 200,
+            "body": json.dumps({"message": return_msg, "execution_arns": execution_arns}),
+        }
 
 
 def generate_execution_id(message: dict) -> str:

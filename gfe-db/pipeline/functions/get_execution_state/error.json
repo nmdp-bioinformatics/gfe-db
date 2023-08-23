@@ -1,0 +1,54 @@
+{
+    "input": {
+        "version": 3460,
+        "commit_sha": "3fb27698fe4ebbd5ec4a0e565d97a53fe48c7cdd",
+        "input_parameters": {
+            "align": false,
+            "kir": false,
+            "mem_profile": false,
+            "limit": 1000
+        },
+        "s3_path": "s3://dev-gfe-db-810526023897-us-east-1/data/3460",
+        "receipt_handle": "AQEB17O74x6z25vq5Dc3dW9m9fbXY1MKeC3+qql2vNdrMLBdZ9VznY02YldgQF+xNKtBiuucTcE2B8PY/PkbKzkzW0c9K2njhBJcAlVTZE3BgFhtdItga8ey0E+1QuyelT2SS89q1msIqtghhlZrngNX8E22dNnXgTt7EPSRXtSi4iRnP8tb8oh0A35/8A6QDQU52yN/Sug7INbQP48Yn2k8phhN0dYmZemRELjPYZdWbHgwCfH1pcv0W1ua0LHMiGTxphIxC3+MkW9eal4YzbhOy2zxROGF2wENVYeIoeZNS9u2oFsbOlEqIUpG45jV3YS7Rw2D+iGjyflV29CnPG41KInKAGrqf7ktYDtyZYLyhzGallEGkp01OJA1UAGEr8qIqzVp2F3nYi1cPrQjJg49FfrSKDhtXsO60IVthJvUF2AzW6rqv2m0y/+UCVGopQWo"
+    },
+    "validations": {
+        "queries": {
+            "pre": {
+                "node_counts": [
+                    {
+                        "node": "GFE",
+                        "count": 0
+                    },
+                    {
+                        "node": "IPD_Accession",
+                        "count": 0
+                    },
+                    {
+                        "node": "IPD_Allele",
+                        "count": 0
+                    },
+                    {
+                        "node": "Sequence",
+                        "count": 0
+                    },
+                    {
+                        "node": "Feature",
+                        "count": 0
+                    },
+                    {
+                        "node": "Submitter",
+                        "count": 0
+                    }
+                ],
+                "has_ipd_allele_release_counts": [],
+                "ipd_accession_release_counts": []
+            }
+        }
+    },
+    "backups": {
+        "pre": {
+            "document_name": "dev-gfe-db-database-Neo4jBackupDocument-R2Z1VvGkCXtn",
+            "command_id": "8c88880c-17a7-4335-baa1-38e639a625c0"
+        }
+    }
+}

@@ -1,59 +1,33 @@
 {
-    "version": 3470,
-    "commit_sha": "cada41a6bfac5a8bf88ed2107a0b856b9b9785a0",
-    "input_parameters": {
-      "align": false,
-      "kir": false,
-      "mem_profile": false,
-      "limit": -1
-    },
-    "s3_path": "s3://dev-gfe-db-531868584498-us-east-1/data/3470/csv/",
-    "state": {
-      "commit__sha": "cada41a6bfac5a8bf88ed2107a0b856b9b9785a0",
-      "commit__date_utc": "2022-03-15T14:27:59Z",
-      "commit__html_url": "https://github.com/ANHIG/IMGTHLA/commit/cada41a6bfac5a8bf88ed2107a0b856b9b9785a0",
-      "commit__message": "Merge pull request #299 from ANHIG/3470\n\nUpdate to xml/hla.xml.zip correcting meta data",
-      "repository__name": "IMGTHLA",
-      "created_utc": "2023-06-13T23:31:50Z",
-      "repository__owner": "ANHIG",
-      "repository__url": "https://github.com/ANHIG/IMGTHLA",
-      "execution__version": "3470"
-    },
-    "s3_response": {
-      "Contents": [
-        {
-          "ETag": "\"9ad1c1a9c1ec4aab46150ae20c964f3c\"",
-          "Key": "data/3470/csv/all_cds.3470.csv",
-          "LastModified": "2023-06-11T03:09:55Z",
-          "Size": 6655389,
-          "StorageClass": "STANDARD"
+    "execution_context": {
+        "Execution": {
+            "Id": "arn:aws:states:us-east-1:810526023897:execution:UpdatePipelineStateMachine-m3OzNjleU6K3:3460_3fb27698fe4ebbd5ec4a0e565d97a53fe48c7cdd_230807_201926",
+            "Input": {
+                "input": {
+                    "version": 3460,
+                    "commit_sha": "3fb27698fe4ebbd5ec4a0e565d97a53fe48c7cdd",
+                    "input_parameters": {
+                        "align": false,
+                        "kir": false,
+                        "mem_profile": false,
+                        "limit": 1000
+                    },
+                    "s3_path": "s3://dev-gfe-db-810526023897-us-east-1/data/3460",
+                    "receipt_handle": "AQEBEIHj7vaSCoNylFEiwvfgkBJZC/m0VkVq63e+PGH0hLb3CiirqqXIFI+j/LEbuJKpMaX8/pAfgNQVbomH+TO/1zljispbeLEdBL/ty/1VPsPUnw24rp2noTowwFCKgCFr7huUf7xPcMkQ/xvS7yIIwb6ASMveCTNFpJHNt7TCvJHAkzpSEQ+ZRAecNHwPzK/PfbTTc5yYYt2SgsQyr+LVzE6hH6h4PCH8NY/KlEP2shy+8n0j8mItx6anb36R5BInAdJr514MBILb6CaW+ZuwiNzDxXW0SSubyg82WOJq4QVXGREGxDBWEdpLeMCud+ZPvSH5zl5QBHjaGi3PQZg9Yd5N3BtPehzvWQpM4baQgpTb2uAoSvidHKWeRNMB7M9sS4xUiX/E77iP7rWSBWDxnVK1NjnKfJLNU9oOWN33p0ANRtkRYTTQJ3PtPFqecNuP"
+                }
+            },
+            "StartTime": "2023-08-07T20:19:26.927Z",
+            "Name": "3460_3fb27698fe4ebbd5ec4a0e565d97a53fe48c7cdd_230807_201926",
+            "RoleArn": "arn:aws:iam::810526023897:role/dev-gfe-db-pipeline-UpdatePipelineStateMachineRole-17PZ6RJ4Z9AVF"
         },
-        {
-          "ETag": "\"c2adce77dbf50e0f2d20ffb2b88cbb6c\"",
-          "Key": "data/3470/csv/all_features.3470.csv",
-          "LastModified": "2023-06-11T03:09:55Z",
-          "Size": 1573207,
-          "StorageClass": "STANDARD"
+        "StateMachine": {
+            "Id": "arn:aws:states:us-east-1:810526023897:stateMachine:UpdatePipelineStateMachine-m3OzNjleU6K3",
+            "Name": "UpdatePipelineStateMachine-m3OzNjleU6K3"
         },
-        {
-          "ETag": "\"3f9485e640c8b94beef3ea6fc27a0954\"",
-          "Key": "data/3470/csv/all_groups.3470.csv",
-          "LastModified": "2023-06-11T03:09:55Z",
-          "Size": 566361,
-          "StorageClass": "STANDARD"
-        },
-        {
-          "ETag": "\"cfa15885630eb85cb00bba748091a59b-2\"",
-          "Key": "data/3470/csv/gfe_sequences.3470.csv",
-          "LastModified": "2023-06-11T03:09:55Z",
-          "Size": 11022516,
-          "StorageClass": "STANDARD"
+        "State": {
+            "Name": "Validate Build",
+            "EnteredTime": "2023-08-07T20:22:06.574Z",
+            "RetryCount": 0
         }
-      ],
-      "IsTruncated": false,
-      "Marker": "",
-      "MaxKeys": 1000,
-      "Name": "dev-gfe-db-531868584498-us-east-1",
-      "Prefix": "data/3470/csv/"
     }
-  }
+}

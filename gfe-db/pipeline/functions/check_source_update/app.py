@@ -76,6 +76,7 @@ source_repo_config = read_source_config(
 
 gfedb_processing_queue = queue.Queue(gfedb_processing_queue_url)
 
+# TODO validate commits against tracked source files requiring ingestion
 def lambda_handler(event, context):
     utc_now = get_utc_now()
     logger.info(json.dumps(event))
@@ -251,15 +252,21 @@ def lambda_handler(event, context):
         execution_payload = sorted(
             execution_payload, key=lambda x: x["version"], reverse=False
         )
+
+        # Send the payload to the processing queue for the state machine 
         for item in execution_payload:
             gfedb_processing_queue.send_message(MessageBody=json.dumps(item))
 
-        message = f"Queued {len(execution_payload)} release(s) for processing\n{execution_payload}"
+        message = f"Queued {len(execution_payload)} release(s) for processing"
         logger.info(message)
         return {
             "statusCode": 200,
-            "body": json.dumps({"message": message}),
+            "body": json.dumps({
+                "message": message,
+                "payload": execution_payload
+            }),
         }
+    
     except Exception as e:
         import traceback
 

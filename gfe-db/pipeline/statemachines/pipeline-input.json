@@ -1,0 +1,11 @@
+{
+    "version": 3510,
+    "commit_sha": "5f2c562056f8ffa89aeea0631f2a52300ee0de17",
+    "input_parameters": {
+        "align": false,
+        "kir": false,
+        "mem_profile": false,
+        "limit": -1
+    },
+    "s3_path": "s3://dev-gfe-db-531868584498-us-east-1/data/3510/csv/"
+}
