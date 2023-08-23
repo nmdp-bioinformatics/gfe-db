@@ -18,9 +18,15 @@ service.deploy.update-dns:
 		--query "Parameters[0].Value" \
 		--output text) && \
 	sed -e "s/<domain_name>/${SUBDOMAIN}.${HOST_DOMAIN}./g" -e "s/<elastic_ip>/$$elastic_ip/g" $$config_path > $$config_path.tmp && \
-	aws route53 change-resource-record-sets --hosted-zone-id $${HOSTED_ZONE_ID} --change-batch file://$$config_path.tmp
+	echo "Updating DNS records with:" && \
+	cat $$config_path.tmp | jq -r && \
+	res=$$(aws route53 change-resource-record-sets --hosted-zone-id $${HOSTED_ZONE_ID} --change-batch file://$$config_path.tmp) && \
+	echo && \
+	echo "Response:" && \
+	echo $$res | jq -r
 
 # TODO test AWSCLI output and validate the stack was created successfully
+# Add stateful check from SSM Param of vpc=true/false to correctly set CREATE_VPC
 service.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying CloudFormation" 2>&1 | tee -a $${CFN_LOG_PATH}
 	@aws cloudformation deploy \
@@ -31,11 +37,12 @@ service.deploy:
 		--parameter-overrides \
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
-			AdminEmail="$${ADMIN_EMAIL}" \
-			DataBucketName="$${DATA_BUCKET_NAME}" \
+			createVpc="$${CREATE_VPC}" \
 			VpcId="$${VPC_ID}" \
 			PublicSubnetId="$${PUBLIC_SUBNET_ID}" \
-			2>&1 | tee -a $${CFN_LOG_PATH} || true
+			DataBucketName="$${DATA_BUCKET_NAME}" \
+			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN" \
+			AdminEmail="$${ADMIN_EMAIL}" 2>&1 | tee -a $${CFN_LOG_PATH} || true
 	$(MAKE) service.deploy.update-dns
 
 service.monitoring.create-subscriptions:
