@@ -175,36 +175,42 @@ These variables must be defined before running Make. The best way to set these v
 # .env
 STAGE=<dev or prod>
 APP_NAME=gfe-db
-AWS_REGION=<aws_region>
-VPC_ID=<vpcid> # Available through the console or CLI
-PUBLIC_SUBNET_ID=<publicsubnetid> # Available through the console or CLI; Public subnets have a route to an internet gateway
-GITHUB_PERSONAL_ACCESS_TOKEN=<secret>
-HOSTED_ZONE_ID=<hostedzoneid> # Available through the console or CLI
-HOST_DOMAIN=<fully_qualified_domain_name>
-SUBDOMAIN=<subdomain>
 ADMIN_EMAIL=<email>
 SUBSCRIBE_EMAILS=<email>,<email>,<email>,...
+GITHUB_REPOSITORY_OWNER=<owner>
+GITHUB_REPOSITORY_NAME=<repository_name>
+AWS_REGION=<aws_region>
+AWS_PROFILE=<aws_profile>
+GITHUB_PERSONAL_ACCESS_TOKEN=<secret>
+HOST_DOMAIN=<fully_qualified_domain_name>
+VPC_ID=<vpcid> # Available through the console or CLI
+PUBLIC_SUBNET_ID=<publicsubnetid> # Available through the console or CLI; Public subnets have a route to an internet gateway
+HOSTED_ZONE_ID=<hostedzoneid> # Available through the console or CLI
+SUBDOMAIN=<subdomain>
+NEO4J_AMI_ID=<ami_id> # Requires AWS Marketplace subscription
 APOC_VERSION=4.4.0.3
 GDS_VERSION=2.0.1
-NEO4J_AMI_ID=<ami_id> # Requires AWS Marketplace subscription
 ```
 
 | Variable Name                | Example Value                      | Type   | Description                                      |
 | ---------------------------- | ---------------------------------- | ------ | ------------------------------------------------ |
 | STAGE                        | dev                                | string | The stage of the application.                    |
 | APP_NAME                     | gfe-db                             | string | The name of the application.                     |
+| ADMIN_EMAIL                  | user@company.com                   | string | Admin's email required for SSL certificate.      |
+| SUBSCRIBE_EMAILS             | user@company.com,user2@company.com | string | Comma-separated list of emails for notifications |
+| GITHUB_REPOSITORY_OWNER      | owner                              | string | GitHub repository owner.                         |
+| GITHUB_REPOSITORY_NAME       | repository_name                    | string | GitHub repository name.                          |
 | AWS_REGION                   | us-east-1                          | string | The AWS region to deploy to.                     |
+| AWS_PROFILE                  | default                            | string | The AWS profile to use.                          |
+| GITHUB_PERSONAL_ACCESS_TOKEN | <secret value>                     | string | GitHub PAT for repository access.                |
+| HOST_DOMAIN                  | example.com                        | string | The domain to deploy to.                         |
 | VPC_ID                       | vpc-1234567890abcdef               | string | The ID of the VPC to deploy to.                  |
 | PUBLIC_SUBNET_ID             | subnet-1234567890abcdef            | string | The ID of the public subnet to deploy to.        |
-| GITHUB_PERSONAL_ACCESS_TOKEN | <secret value>                     | string | GitHub PAT for repository access                 |
 | HOSTED_ZONE_ID               | Z1234567890ABCDEF                  | string | The ID of the hosted zone to deploy to.          |
-| HOST_DOMAIN                  | example.com                        | string | The domain to deploy to.                         |
 | SUBDOMAIN                    | gfe-db                             | string | The subdomain to deploy to.                      |
-| ADMIN_EMAIL                  | user@company.com                   | string | Admin's email required for SSL certificate       |
-| SUBSCRIBE_EMAILS             | user@company.com,user2@company.com | string | Comma-separated list of emails for notifications |
-| APOC_VERSION                 | 4.4.0.3                            | string | APOC version for Neo4j                           |
-| GDS_VERSION                  | 2.0.1                              | string | GDS version for Neo4j                            |
-| NEO4J_AMI_ID                 | ami-0b9a2b6b1c5b8b5b9              | string | Bitnami Neo4j AMI ID                             |
+| NEO4J_AMI_ID                 | ami-0b9a2b6b1c5b8b5b9              | string | Bitnami Neo4j AMI ID.                            |
+| APOC_VERSION                 | 4.4.0.3                            | string | APOC version for Neo4j.                          |
+| GDS_VERSION                  | 2.0.1                              | string | GDS version for Neo4j.                           |
 
 ***Important**:* *Always use a `.env` file or AWS SSM Parameter Store or Secrets Manager for sensitive variables like credentials and API keys. Never hard-code them, including when developing. AWS will quarantine an account if any credentials get accidentally exposed and this will cause problems. Make sure to update `.gitignore` to avoid pushing sensitive data to public repositories.*
 
@@ -361,25 +367,25 @@ For each invocation the data pipeline will download raw data from [ANHIG/IMGTHLA
 make database.load.run releases="<version>"
 
 # Example for single version
-make database.load.run releases="3510"
+make database.load.run releases=3510
 
 # Example for multiple versions
-make database.load.run releases="3490,3500,3510"
+make database.load.run releases=3490,3500,3510
 
 # Example with limit
-make database.load.run releases="3510" limit="1000"
+make database.load.run releases=3510 limit=1000
 
 # Example with all arguments included
-make database.load.run releases="3510" limit="" align="False" kir="False"
+make database.load.run releases=3510 limit="" align=false kir=false
 ```
 
 These commands build an event payload to send to the `invoke-gfe-db-pipeline` Lambda.
 ```json
 // Test payload example
 {
-  "align": "False",
-  "kir": "False",
-  "mem_profile": "False",
+  "align": false,
+  "kir": false,
+  "mem_profile": false,
   "limit": "",
   "releases": 3510
 }

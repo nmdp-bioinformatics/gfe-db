@@ -1,24 +1,23 @@
 {
-    "StartAt": "Pre-Execution Validation Query",
+    "StartAt": "Init",
     "States": {
-        "Pre-Execution Validation Query": {
-            "Type": "Task",
-            "Resource": "${ExecuteValidationQueriesFunctionArn}",
-            "ResultPath": "$.validations.queries.pre",
-            "Next": "Pre-Execution Backup"
+      "Init": {
+        "Type": "Pass",
+        "Result": {
+          "errorOccurred": false
         },
-        "Pre-Execution Backup": {
-            "Type": "Task",
-            "Resource": "${InvokeBackupScriptFunctionArn}",
-            "ResultPath": "$.backups.pre",
-            "Next": "Build Stage"
-        },
+        "ResultPath": "$.error_status",
+        "Next": "Pre-Execution Backup"
+      },
+      "Pre-Execution Backup": {
+        "Type": "Pass",
+        "ResultPath": null,
+        "Next": "Build Stage"
+      },
         "Build Stage": {
             "Type": "Map",
-            "Next": "Validate Build",
+            "Next": "Load Stage",
             "MaxConcurrency": 0,
-            "ItemsPath": "$.input",
-            "ResultPath": null,
             "Iterator": {
                 "StartAt": "Generate CSV files",
                 "States": {
@@ -26,13 +25,13 @@
                         "Type": "Task",
                         "Resource": "arn:aws:states:::batch:submitJob.sync",
                         "ResultPath": null,
-                        "End": true,
+                        "Next": "Build Success",
                         "Catch": [
                             {
                                 "ErrorEquals": [
                                     "States.ALL"
                                 ],
-                                "Next": "Fail Build"
+                                "Next": "Build Error"
                             }
                         ],
                         "Parameters": {
@@ -65,52 +64,35 @@
                             }
                         }
                     },
-                    "Fail Build": {
+                    "Build Error": {
                         "Type": "Pass",
-                        "ResultPath": null,
+                        "End": true
+                    },
+                    "Build Success": {
+                        "Type": "Pass",
                         "End": true
                     }
                 }
             }
         },
-        "Validate Build": {
-            "Type": "Task",
-            "Resource": "${ValidateBuildOutputFunctionArn}",
-            "Parameters": {
-                "execution_context.$": "$$"
-            },
-            "ResultPath": "$.validations.build",
-            "Next": "Evaluate Payload"
-        },
-        "Evaluate Payload": {
-            "Type": "Choice",
-            "Choices": [
-                {
-                    "Variable": "$.validations.build.has_valid_payload",
-                    "BooleanEquals": true,
-                    "Next": "Load Stage"
-                }
-            ],
-            "Default": "Execution Failed"
-        },
-        "Execution Failed": {
-            "Type": "Fail",
-            "Error": "ExecutionFailed",
-            "Cause": "No valid payload was generated"
-        },
         "Load Stage": {
             "Type": "Map",
-            "Next": "Post-Execution Validation Query",
+            "End": true,
             "MaxConcurrency": 1,
-            "ItemsPath": "$.validations.build.validated",
-            "ResultPath": null,
             "Iterator": {
                 "StartAt": "Load Data",
                 "States": {
                     "Load Data": {
                         "Type": "Parallel",
-                        "ResultPath": null,
-                        "End": true,
+                        "Next": "Load Success",
+                        "Catch": [
+                            {
+                                "ErrorEquals": [
+                                    "States.ALL"
+                                ],
+                                "Next": "Load Error"
+                            }
+                        ],
                         "Branches": [
                             {
                                 "StartAt": "Invoke Load Script",
@@ -118,7 +100,6 @@
                                     "Invoke Load Script": {
                                         "Type": "Task",
                                         "Resource": "${InvokeLoadScriptFunctionArn}",
-                                        "ResultPath": null,
                                         "End": true
                                     }
                                 }
@@ -130,40 +111,22 @@
                                         "Type": "Task",
                                         "Resource": "${LoadNeo4jActivityArn}",
                                         "HeartbeatSeconds": 60,
-                                        "ResultPath": null,
-                                        "End": true,
-                                        "Catch": [
-                                            {
-                                                "ErrorEquals": [
-                                                    "States.ALL"
-                                                ],
-                                                "Next": "Fail Load"
-                                            }
-                                        ]
-                                    },
-                                    "Fail Load": {
-                                        "Type": "Pass",
-                                        "ResultPath": null,
                                         "End": true
                                     }
                                 }
                             }
                         ]
+                    },
+                    "Load Error": {
+                        "Type": "Pass",
+                        "End": true
+                    },
+                    "Load Success": {
+                        "Type": "Pass",
+                        "End": true
                     }
                 }
             }
-        },
-        "Post-Execution Validation Query": {
-            "Type": "Task",
-            "Resource": "${ExecuteValidationQueriesFunctionArn}",
-            "ResultPath": "$.validations.queries.post",
-            "Next": "Post-Execution Backup"
-        },
-        "Post-Execution Backup": {
-            "Type": "Task",
-            "Resource": "${InvokeBackupScriptFunctionArn}",
-            "ResultPath": "$.backups.post",
-            "End": true
         }
     }
 }

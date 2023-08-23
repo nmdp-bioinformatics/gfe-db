@@ -92,7 +92,7 @@ fi
 
 # Build csv files
 RELEASES=$(echo "${RELEASES}" | sed s'/"//'g | sed s'/,/ /g')
-
+# exit 1 # TODO test state machine error handling
 for release in ${RELEASES}; do
 
 	release=$(echo "$release" | sed s'/,//g')
