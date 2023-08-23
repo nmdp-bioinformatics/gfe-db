@@ -2,12 +2,14 @@
 # Bootstrapping variables
 ##########################
 
-# Application specific environment variables
-include .env
+# Environment variables
+# include .env # Optional, include STAGE and AWS_PROFILE
+include .env.${STAGE}
 export
 
-# Base settings, these should almost never change
-export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity --query Account --output text)
+export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity \
+	--query Account \
+	--output text)
 
 export ROOT_DIR := $(shell pwd)
 export DATABASE_DIR := ${ROOT_DIR}/${APP_NAME}/database
@@ -36,12 +38,56 @@ export PIPELINE_STATE_PATH := config/IMGTHLA-repository-state.json
 export PIPELINE_PARAMS_PATH := config/pipeline-input.json
 export FUNCTIONS_PATH := ${APP_NAME}/pipeline/functions
 
+# print colors
+define blue
+	@tput setaf 4
+	@echo $1
+	@tput sgr0
+endef
+
+define green
+	@tput setaf 2
+	@echo $1
+	@tput sgr0
+endef
+
+define yellow
+	@tput setaf 3
+	@echo $1
+	@tput sgr0
+endef
+
+define red
+	@tput setaf 1
+	@echo $1
+	@tput sgr0
+endef
+
 target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-deploy: logs.purge check.env ##=> Deploy services
+splash-screen:
+	@echo "\033[0;34m                                            "
+	@echo "\033[0;34m           ____                      __ __  "
+	@echo "\033[0;34m   ____ _ / __/___              ____/ // /_ "
+	@echo "\033[0;32m  / __ \`// /_ / _ \   ______   / __  // __ \\"
+	@echo "\033[0;32m / /_/ // __//  __/  /_____/  / /_/ // /_/ /"
+	@echo "\033[0;34m \__, //_/   \___/            \____//_____/ "
+	@echo "\033[0;34m/____/                                      \033[0m"
+	@echo "\033[0;34m                                             \033[0m"
+
+env.print:
+	@echo "\033[0;33mReview the contents of the .env file:\033[0m"
+	@echo "+---------------------------------------------------------------------------------+"
+	@awk '{ if (substr($$0, 1, 1) != "#") { line = substr($$0, 1, 76); if (length($$0) > 76) line = line "..."; printf "| %-79s |\n", line }}' .env.${STAGE}
+	@echo "+---------------------------------------------------------------------------------+"
+	@echo "\033[0;33mPlease confirm the above values are correct.\033[0m"
+
+deploy: splash-screen logs.purge env.validate.stage env.validate ##=> Deploy all services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
+	$(MAKE) env.print
+	@echo "Deploy stack to the \`${STAGE}\` environment? [y/N] \c " && read ans && [ $${ans:-N} = y ]
 	$(MAKE) infrastructure.deploy
 	$(MAKE) database.deploy
 	$(MAKE) pipeline.deploy
@@ -57,60 +103,6 @@ logs.dirs:
 		"${LOGS_DIR}/pipeline/build" \
 		"${LOGS_DIR}/pipeline/load" \
 		"${LOGS_DIR}/database/bootstrap" || true
-
-check.env: check.dependencies
-ifndef STAGE
-$(error STAGE is not set. Please add STAGE to the environment variables.)
-endif
-ifndef APP_NAME
-$(error APP_NAME is not set. Please add APP_NAME to the environment variables.)
-endif
-ifndef ADMIN_EMAIL
-$(error ADMIN_EMAIL is not set. Please add ADMIN_EMAIL to the environment variables.)
-endif
-ifndef SUBSCRIBE_EMAILS
-$(error SUBSCRIBE_EMAILS is not set. Please add SUBSCRIBE_EMAILS to the environment variables.)
-endif
-ifndef GITHUB_REPOSITORY_OWNER
-$(error GITHUB_REPOSITORY_OWNER is not set. Please add GITHUB_REPOSITORY_OWNER to the environment variables.)
-endif
-ifndef GITHUB_REPOSITORY_NAME
-$(error GITHUB_REPOSITORY_NAME is not set. Please add GITHUB_REPOSITORY_NAME to the environment variables.)
-endif
-ifndef AWS_REGION
-$(error AWS_REGION is not set. Please add AWS_REGION to the environment variables.)
-endif
-ifndef AWS_PROFILE
-$(error AWS_PROFILE is not set. Please select an AWS profile to use.)
-endif
-ifndef GITHUB_PERSONAL_ACCESS_TOKEN
-$(error GITHUB_PERSONAL_ACCESS_TOKEN is not set. Please add GITHUB_PERSONAL_ACCESS_TOKEN to the environment variables.)
-endif
-ifndef HOST_DOMAIN
-$(error HOST_DOMAIN is not set. Please add HOST_DOMAIN to the environment variables.)
-endif
-ifndef VPC_ID
-$(error VPC_ID is not set. Please add VPC_ID to the environment variables.)
-endif
-ifndef PUBLIC_SUBNET_ID
-$(error PUBLIC_SUBNET_ID is not set. Please add PUBLIC_SUBNET_ID to the environment variables.)
-endif
-ifndef HOSTED_ZONE_ID
-$(error HOSTED_ZONE_ID is not set. Please add HOSTED_ZONE_ID to the environment variables.)
-endif
-ifndef SUBDOMAIN
-$(error SUBDOMAIN is not set. Please add SUBDOMAIN to the environment variables.)
-endif
-ifndef NEO4J_AMI_ID
-$(error NEO4J_AMI_ID is not set. Please add NEO4J_AMI_ID to the environment variables.)
-endif
-ifndef APOC_VERSION
-$(error APOC_VERSION is not set. Please add APOC_VERSION to the environment variables.)
-endif
-ifndef GDS_VERSION
-$(error GDS_VERSION is not set. Please add GDS_VERSION to the environment variables.)
-endif
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 check.dependencies:
 	$(MAKE) check.dependencies.docker
@@ -146,8 +138,98 @@ check.dependencies.jq:
 		exit 1; \
 	fi
 
-# Deploy specific stacks
-infrastructure.deploy:
+# TODO use cloudformation list-stacks as alternative to SSM parameter
+env.validate.stage:
+	@res=$$(aws ssm get-parameters \
+		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Stage" \
+		--output json \
+		| jq -r '.Parameters[0].Value') && \
+	[[ $$res = "null" ]] && echo "No deployed stage found" || echo "Found deployed stage: $$res" && \
+	if [ "$${res}" = "null" ]; then \
+		echo "\033[0;32m**** Starting new deployment. ****\033[0m"; \
+	elif [ "$${res}" = "${STAGE}" ]; then \
+		echo "\033[0;32m**** Found existing deployment for \`${STAGE}\` ****\033[0m"; \
+	else \
+		echo "\033[0;31m**** STAGE mismatch or bad credential configuration. ****\033[0m" && \
+		echo "\033[0;31m**** Please refer to the documentation for a list of prerequisites. ****\033[0m" && \
+		exit 1; \
+	fi
+	
+env.validate.no-vpc:
+ifeq ($(VPC_ID),)
+	$(call red, "VPC_ID must be set as an environment variable when \`CREATE_VPC\` is false")
+	@exit 1
+else
+	$(call green, "Found VPC_ID: ${VPC_ID}")
+endif
+ifeq ($(PUBLIC_SUBNET_ID),)
+	$(call red, "PUBLIC_SUBNET_ID must be set as an environment variable when \`CREATE_VPC\` is false")
+	@exit 1
+else
+	$(call green, "Found PUBLIC_SUBNET_ID: ${PUBLIC_SUBNET_ID}")
+endif
+
+env.validate: check.dependencies
+ifndef STAGE
+$(error STAGE is not set. Please add STAGE to the environment variables.)
+endif
+ifndef APP_NAME
+$(error APP_NAME is not set. Please add APP_NAME to the environment variables.)
+endif
+ifndef AWS_ACCOUNT
+	$(error AWS_ACCOUNT is not set. Please add AWS_ACCOUNT to the environment variables.)
+endif
+ifndef AWS_REGION
+	$(error AWS_REGION is not set. Please add AWS_REGION to the environment variables.)
+endif
+ifndef AWS_PROFILE
+	$(error AWS_PROFILE is not set. Please select an AWS profile to use.)
+endif
+ifndef SUBSCRIBE_EMAILS
+$(error SUBSCRIBE_EMAILS is not set. Please add SUBSCRIBE_EMAILS to the environment variables.)
+endif
+ifndef GITHUB_REPOSITORY_OWNER
+$(error GITHUB_REPOSITORY_OWNER is not set. Please add GITHUB_REPOSITORY_OWNER to the environment variables.)
+endif
+ifndef GITHUB_REPOSITORY_NAME
+$(error GITHUB_REPOSITORY_NAME is not set. Please add GITHUB_REPOSITORY_NAME to the environment variables.)
+endif
+ifndef GITHUB_PERSONAL_ACCESS_TOKEN
+	$(error GITHUB_PERSONAL_ACCESS_TOKEN is not set. Please add GITHUB_PERSONAL_ACCESS_TOKEN to the environment variables.)
+endif
+ifndef HOST_DOMAIN
+	$(error HOST_DOMAIN is not set. Please add HOST_DOMAIN to the environment variables.)
+endif
+ifndef SUBDOMAIN
+$(error SUBDOMAIN is not set. Please add SUBDOMAIN to the environment variables.)
+endif
+ifndef ADMIN_EMAIL
+	$(error ADMIN_EMAIL is not set. Please add ADMIN_EMAIL to the environment variables.)
+endif
+ifndef NEO4J_AMI_ID
+$(error NEO4J_AMI_ID is not set. Please add NEO4J_AMI_ID to the environment variables.)
+endif
+ifndef APOC_VERSION
+$(error APOC_VERSION is not set. Please add APOC_VERSION to the environment variables.)
+endif
+ifndef GDS_VERSION
+$(error GDS_VERSION is not set. Please add GDS_VERSION to the environment variables.)
+endif
+ifndef CREATE_VPC
+	$(info 'CREATE_VPC' is not set. Defaulting to 'false')
+	$(eval export CREATE_VPC := false)
+	$(call blue, "**** This deployment uses an existing VPC**** ")
+	$(MAKE) env.validate.no-vpc
+endif
+ifeq ($(CREATE_VPC),false)
+	$(call blue, "**** This deployment uses an existing VPC**** ")
+	$(MAKE) env.validate.no-vpc
+else ifeq ($(CREATE_VPC),true)
+	$(call blue, "**** This deployment includes a VPC**** ")
+endif
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
+
+infrastructure.deploy: 
 	$(MAKE) -C ${APP_NAME}/infrastructure/ deploy
 
 database.deploy:
@@ -265,9 +347,14 @@ database.get.credentials:
 database.get.instance-id:
 	@echo "${INSTANCE_ID}"
 
-# TODO add confirmation to proceed
+# TODO add confirmation to proceed BOOKMARK
 delete: # data=true/false ##=> Delete services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${APP_NAME} in ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
+	@[[ $$data != true ]] && echo "Data will not be deleted. To delete pass \`data=true\`" || true
+	@echo "Delete all stacks from the \`${STAGE}\` environment? [y/N] \c " && read ans && [ $${ans:-N} = y ] && \
+	if [ "${data}" = "true" ]; then \
+		aws s3 rm --recursive s3://${DATA_BUCKET_NAME}; \
+	fi
 	$(MAKE) pipeline.delete
 	$(MAKE) database.delete
 	$(MAKE) infrastructure.delete

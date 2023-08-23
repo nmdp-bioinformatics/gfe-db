@@ -76,7 +76,7 @@ fil*
 summary_*
 
 # Environment variables
-.env
+.env*
 env.sh
 
 # PyCharm

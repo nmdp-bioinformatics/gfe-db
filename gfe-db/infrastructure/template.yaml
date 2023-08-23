@@ -7,18 +7,32 @@ Parameters:
     Description: Stage of production
   AppName:
     Type: String
+  createVpc:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
   AdminEmail:
     Type: String
   DataBucketName:
     Type: String
   VpcId:
     Type: String
+    Description: Required if createVpc is false
+    Default: ''
   PublicSubnetId:
     Type: String
+    Description: Required if createVpc is false
+    Default: ''
   GitHubPersonalAccessToken:
     Type: String
     NoEcho: true
-    
+  
+Conditions:
+  CreateVpc: !Equals [!Ref createVpc, 'true']
+  UseExternalVpc: !Equals [!Ref createVpc, 'false']
+
 Mappings:
   # AvailabilityZoneMap defines availability zones where an m5d.xlarge instance is available (used for Neo4j server).
   AvailabilityZoneMap:
@@ -38,76 +52,127 @@ Mappings:
       AvailabilityZone: eu-west-3a
 
 Resources:
-  # Vpc:
-  #   Type: AWS::EC2::VPC
-  #   Properties:
-  #     CidrBlock: 10.0.0.0/16
-  #     EnableDnsHostnames: true
-  #     EnableDnsSupport: true
-  #     Tags:
-  #       - Key: Name
-  #         Value: !Sub '${Stage}-${AppName}-${AWS::Region}-vpc'
-  
-  # PublicSubnet:
-  #   Type: AWS::EC2::Subnet
-  #   Properties:
-  #     CidrBlock: 10.0.0.0/24
-  #     VpcId: !Ref Vpc
-  #     AvailabilityZone: !FindInMap [AvailabilityZoneMap, !Ref AWS::Region, AvailabilityZone]
-  #     MapPublicIpOnLaunch: true
-  
-  # InternetGateway:
-  #   Type: AWS::EC2::InternetGateway
-  
-  # RouteTable:
-  #   Type: AWS::EC2::RouteTable
-  #   Properties:
-  #     VpcId: !Ref Vpc
-  
-  # VpcGatewayAttachment:
-  #   Type: AWS::EC2::VPCGatewayAttachment
-  #   Properties:
-  #     VpcId: !Ref Vpc
-  #     InternetGatewayId: !Ref InternetGateway
-  
-  # Route:
-  #   Type: AWS::EC2::Route
-  #   DependsOn:
-  #     - InternetGateway
-  #     - VpcGatewayAttachment
-  #   Properties:
-  #     RouteTableId: !Ref RouteTable
-  #     DestinationCidrBlock: 0.0.0.0/0
-  #     GatewayId: !Ref InternetGateway
-  
-  # SubnetRouteTableAssociation:
-  #   Type: AWS::EC2::SubnetRouteTableAssociation
-  #   Properties:
-  #     RouteTableId: !Ref RouteTable
-  #     SubnetId: !Ref PublicSubnet
-  
-  DataBucket:
-    Type: AWS::S3::Bucket
-    # Condition: CreateDataBucket
-    Properties:
-      BucketName: !Ref DataBucketName
-  
-  VpcIDParameter:
+
+  StageParameter:
     Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Stage'
+      Description: "Stage of production"
+      Value: !Ref Stage
+
+  AppParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/AppName'
+      Description: "Name of application"
+      Value: !Ref AppName
+
+  CreateVpcParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/CreateVpc'
+      Description: !Sub "True if stack creates a VPC, false if stack uses an existing VPC"
+      Value: !Ref createVpc
+
+  Vpc:
+    Type: AWS::EC2::VPC
+    Condition: CreateVpc
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${Stage}-${AppName}-${AWS::Region}-vpc'
+  
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Condition: CreateVpc
+    Properties:
+      CidrBlock: 10.0.0.0/24
+      VpcId: !Ref Vpc
+      AvailabilityZone: !FindInMap [AvailabilityZoneMap, !Ref AWS::Region, AvailabilityZone]
+      MapPublicIpOnLaunch: true
+  
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Condition: CreateVpc
+  
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Condition: CreateVpc
+    Properties:
+      VpcId: !Ref Vpc
+  
+  VpcGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Condition: CreateVpc
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+  
+  Route:
+    Type: AWS::EC2::Route
+    Condition: CreateVpc
+    DependsOn:
+      - InternetGateway
+      - VpcGatewayAttachment
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateVpc
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref PublicSubnet
+  
+  CreateVpcConditionVpcIDParameter:
+    Type: AWS::SSM::Parameter
+    Condition: CreateVpc
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/VpcID'
+      Description: !Sub "Name of VPC network for ${AppName}"
+      Value: !Ref Vpc
+  
+  CreateVpcConditionPublicSubnetIDParameter:
+    Type: AWS::SSM::Parameter
+    Condition: CreateVpc
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID'
+      Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
+      Value: !Ref PublicSubnet
+  
+  UseExternalVpcConditionVpcIDParameter:
+    Type: AWS::SSM::Parameter
+    Condition: UseExternalVpc
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/VpcID'
       Description: !Sub "Name of VPC network for ${AppName}"
       Value: !Ref VpcId
   
-  PublicSubnetIDParameter:
+  UseExternalVpcConditionPublicSubnetIDParameter:
     Type: AWS::SSM::Parameter
+    Condition: UseExternalVpc
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID'
       Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
       Value: !Ref PublicSubnetId
   
+  DataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref DataBucketName
+
   DataBucketNameParameter:
     Type: AWS::SSM::Parameter
     Properties:
