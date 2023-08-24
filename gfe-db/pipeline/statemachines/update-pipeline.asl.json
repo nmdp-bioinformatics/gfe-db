@@ -11,7 +11,7 @@
                     "ErrorEquals": [
                         "States.ALL"
                     ],
-                    "Next": "Execution Failed"
+                    "Next": "Report Failure"
                 }
             ]
         },
@@ -25,7 +25,7 @@
                     "ErrorEquals": [
                         "States.ALL"
                     ],
-                    "Next": "Execution Failed"
+                    "Next": "Report Failure"
                 }
             ]
         },
@@ -39,7 +39,7 @@
                     "ErrorEquals": [
                         "States.ALL"
                     ],
-                    "Next": "Execution Failed"
+                    "Next": "Report Failure"
                 }
             ]
         },
@@ -52,10 +52,56 @@
                     "ErrorEquals": [
                         "States.ALL"
                     ],
-                    "Next": "Execution Failed"
+                    "Next": "Report Failure"
                 }
             ],
             "Branches": [
+                {
+                    "StartAt": "Update Execution State - IN_PROGRESS",
+                    "States": {
+                        "Update Execution State - IN_PROGRESS": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::dynamodb:updateItem",
+                            "ResultPath": null,
+                            "End": true,
+                            "Parameters": {
+                                "TableName": "${GfeDbExecutionStateTable}",
+                                "Key": {
+                                    "commit__sha": {
+                                        "S.$": "$.input.commit_sha"
+                                    },
+                                    "execution__version": {
+                                        "N.$": "States.Format('{}', $.input.version)"
+                                    }
+                                },
+                                "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
+                                "ExpressionAttributeValues": {
+                                    ":execution_date_utc": {
+                                        "S.$": "$$.Execution.StartTime"
+                                    },
+                                    ":status": {
+                                        "S": "IN_PROGRESS"
+                                    },
+                                    ":align": {
+                                        "BOOL.$": "$.input.input_parameters.align"
+                                    },
+                                    ":kir": {
+                                        "BOOL.$": "$.input.input_parameters.kir"
+                                    },
+                                    ":mem_profile": {
+                                        "BOOL.$": "$.input.input_parameters.mem_profile"
+                                    },
+                                    ":limit": {
+                                        "N.$": "States.Format('{}', $.input.input_parameters.limit)"
+                                    },
+                                    ":updated_utc": {
+                                        "S.$": "$$.State.EnteredTime"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
                 {
                     "StartAt": "Build IMGT Release",
                     "States": {
@@ -112,7 +158,62 @@
                 }
             ]
         },
-        "Execution Failed": {
+        "Report Failure": {
+            "Type": "Parallel",
+            "Next": "Pipeline Failure",
+            "InputPath": "$$.Execution.Input",
+            "Branches": [
+                {
+                    "StartAt": "Update Execution State - FAILED",
+                    "States": {
+                        "Update Execution State - FAILED": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::dynamodb:updateItem",
+                            "ResultPath": null,
+                            "End": true,
+                            "Parameters": {
+                                "TableName": "${GfeDbExecutionStateTable}",
+                                "Key": {
+                                    "commit__sha": {
+                                        "S.$": "$.input.commit_sha"
+                                    },
+                                    "execution__version": {
+                                        "N.$": "States.Format('{}', $.input.version)"
+                                    }
+                                },
+                                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc",
+                                "ExpressionAttributeValues": {
+                                    ":status": {
+                                        "S": "FAILED"
+                                    },
+                                    ":updated_utc": {
+                                        "S.$": "$$.State.EnteredTime"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "StartAt": "Publish Failure",
+                    "States": {
+                        "Publish Failure": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::sns:publish",
+                            "Parameters": {
+                                "TopicArn": "${GfeDbExecutionResultTopicArn}",
+                                "Message": {
+                                    "result": "FAILED",
+                                    "input_parameters.$": "$"
+                                }
+                            },
+                            "End": true
+                        }
+                    }
+                }
+            ]
+        },
+        "Pipeline Failure": {
             "Type": "Fail",
             "Error": "ExecutionFailed"
         },
@@ -125,7 +226,7 @@
                     "ErrorEquals": [
                         "States.ALL"
                     ],
-                    "Next": "Execution Failed"
+                    "Next": "Report Failure"
                 }
             ],
             "Branches": [
@@ -189,15 +290,82 @@
             "Type": "Task",
             "Resource": "${InvokeBackupScriptFunctionArn}",
             "ResultPath": "$.backups.post",
-            "End": true,
+            "Next": "Report Success",
             "Catch": [
                 {
                     "ErrorEquals": [
                         "States.ALL"
                     ],
-                    "Next": "Execution Failed"
+                    "Next": "Report Failure"
                 }
             ]
+        },
+        "Report Success": {
+            "Type": "Parallel",
+            "Next": "Pipeline Success",
+            "ResultPath": null,
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "Next": "Report Failure"
+                }
+            ],
+            "Branches": [
+                {
+                    "StartAt": "Update Execution State - SUCCESS",
+                    "States": {
+                        "Update Execution State - SUCCESS": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::dynamodb:updateItem",
+                            "ResultPath": null,
+                            "End": true,
+                            "Parameters": {
+                                "TableName": "${GfeDbExecutionStateTable}",
+                                "Key": {
+                                    "commit__sha": {
+                                        "S.$": "$.input.commit_sha"
+                                    },
+                                    "execution__version": {
+                                        "N.$": "States.Format('{}', $.input.version)"
+                                    }
+                                },
+                                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc",
+                                "ExpressionAttributeValues": {
+                                    ":status": {
+                                        "S": "SUCCESS"
+                                    },
+                                    ":updated_utc": {
+                                        "S.$": "$$.State.EnteredTime"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "StartAt": "Publish Success",
+                    "States": {
+                        "Publish Success": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::sns:publish",
+                            "ResultPath": null,
+                            "Parameters": {
+                                "TopicArn": "${GfeDbExecutionResultTopicArn}",
+                                "Message": {
+                                    "result": "SUCCESS",
+                                    "input_parameters.$": "$"
+                                }
+                            },
+                            "End": true
+                        }
+                    }
+                }
+            ]
+        },
+        "Pipeline Success": {
+            "Type": "Succeed"
         }
     }
 }

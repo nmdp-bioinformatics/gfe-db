@@ -756,8 +756,8 @@ Resources:
       DefinitionSubstitutions:
         InvokeBackupScriptFunctionArn: !GetAtt InvokeBackupScriptFunction.Arn
         GetExecutionStateFunctionArn: !GetAtt GetExecutionStateFunction.Arn
-        # GfeDbExecutionStateTable: !Ref GfeDbExecutionStateTable
-        # GfeDbExecutionResultTopicArn: !GetAtt GfeDbExecutionResultTopic.TopicArn
+        GfeDbExecutionStateTable: !Ref GfeDbExecutionStateTable
+        GfeDbExecutionResultTopicArn: !GetAtt GfeDbExecutionResultTopic.TopicArn
         ValidateBuildOutputFunctionArn: !GetAtt ValidateBuildOutputFunction.Arn
         BuildJobDefinition: !Ref BuildJobDefinition
         # TODO use SSM Parameter
@@ -773,12 +773,12 @@ Resources:
             FunctionName: !Ref ValidateBuildOutputFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref InvokeLoadScriptFunction
-        # - DynamoDBReadPolicy:
-        #     TableName: !Ref GfeDbExecutionStateTable
-        # - DynamoDBWritePolicy:
-        #     TableName: !Ref GfeDbExecutionStateTable
-        # - SNSPublishMessagePolicy:
-        #     TopicName: !GetAtt GfeDbExecutionResultTopic.TopicName
+        - DynamoDBReadPolicy:
+            TableName: !Ref GfeDbExecutionStateTable
+        - DynamoDBWritePolicy:
+            TableName: !Ref GfeDbExecutionStateTable
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt GfeDbExecutionResultTopic.TopicName
         - LambdaInvokePolicy:
             FunctionName: !Ref ExecuteValidationQueriesFunction
         - LambdaInvokePolicy:
