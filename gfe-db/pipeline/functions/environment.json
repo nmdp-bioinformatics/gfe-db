@@ -22,6 +22,18 @@
                 "Timeout": 60,
                 "MemorySize": 256
             }
+        },
+        "InvokeBackupScript": {
+            "FunctionConfiguration": {
+                "FunctionName": "invoke-backup-script",
+                "Timeout": 60,
+                "MemorySize": 128
+            }
+        },
+        "DisableBackup": {
+            "FunctionConfiguration": {
+                "FunctionName": "disable-backup"
+            }
         }
     }
 }

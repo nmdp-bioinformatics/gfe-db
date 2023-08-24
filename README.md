@@ -1,5 +1,4 @@
-gfe-db
-======
+# gfe-db
 
 Graph database representing IPD-IMGT/HLA sequence data as GFE.
 
@@ -53,7 +52,7 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
 ├── Makefile                                        # Use the root Makefile to deploy, delete and manage resources and configuration
 ├── README.md
 ├── docs                                            # Sphinx documentation
-├── (<stage>-gfe-db-<region>-neo4j-key.pem)         # EC2 key pair for SSH access to Neo4j server, ccreated on deployment
+├── (<stage>-gfe-db-<region>-neo4j-key.pem)         # EC2 key pair for SSH access to Neo4j server, created on deployment
 ├── requirements-dev.txt                                # Python requirements for local development
 ├── requirements-docs.txt                                    # Python requirements for documentation
 └── gfe-db
@@ -110,43 +109,63 @@ The `gfe-db` represents IPD-IMGT/HLA sequence data as GFE nodes and relationship
 This allows the database and pipeline layers to be decoupled from each other and deployed or destroyed independently without affecting the other. Common configuration parameters are shared between resources using environment variables, JSON files, AWS SSM Paramter Store and Secrets Manager.
 
 ### Base Infrastructure
-The base infrastructure layer deploys a VPC, public subnet, S3 bucket, Elastic IP and common SSM parameters and secrets for the other services to use.
+The base infrastructure layer deploys a VPC (optional), public subnet (optional), S3 bucket, Elastic IP and common SSM parameters and secrets for the other services to use.
 
 ### Database
-The database layer deploys an EC2 instance running the Bitnami Neo4j AMI (Ubuntu 18.04) into a public subnet. CloudFormation also creates an A record for a Route53 domain under a pre-existing Route53 domain and hosted zone so that SSL can be used to connect to Neo4j. During database deploymeny the SSL certificate is created and Cypher queries are run to create constraints and indexes, which help speed up loading and ensure data integrity. Neo4j is ready to be accessed through a browser once the instance has booted sucessfully.
+The database layer deploys an EC2 instance running the Bitnami Neo4j AMI (Ubuntu 18.04) into a public subnet. An A record is required for a pre-existing Route53 domain and hosted zone so that SSL can be used to connect to Neo4j. During database deployment the SSL certificate is created and Cypher queries are run to create constraints and indexes, which help speed up loading and ensure data integrity. Neo4j is ready to be accessed through a browser once the instance has booted sucessfully.
 
-During loading, the `invoke_load_script` Lambda function uses SSM Run Command to execute bash scripts on the daatabase instance. These scripts communicate with the Step Functions API to retrieve the job parameters, fetch the CSVs from S3 and load the alleles into Neo4j.
+During loading, a Lambda function calls the SSM Run Command API to execute bash scripts on the database instance. These scripts communicate with the Step Functions API to retrieve the job parameters, fetch the CSVs from S3 and populate the graph in Neo4j.
 
 It is also possible to backup & restore to and from S3 by specific date checkpoints.
 
 ### Data Pipeline
-The data pipeline layer automates integration of newly released IMGT/HLA data into Neo4j using a scheduled Lambda which watches the source data repository and invokes the build and load processes when it detects a new IMGT/HLA version. The pipeline consists of a Step Functions state machine which orchestrates two basic processes: build and load. The build process employs a Batch job which produces an intermediate set of CSV files. The load process leverages SSM Run Command to copy the CSV files to the Neo4j server and execute Cypher statements directly on the server (server-side loading). When loading the full dataset of 35,000+ alleles, the build step will generally take around 15 minutes, however the load step can take an hour or more.
+The data pipeline layer automates integration of newly released IMGT/HLA data into Neo4j using a scheduled Lambda which watches the source data repository and invokes the build and load processes when it detects a new IMGT/HLA version in the upstream repository. The pipeline consists of a Step Functions state machine which orchestrates the build and load stages. The build process employs a Batch jobs to generate an intermediate set of CSV files. The load process leverages SSM Run Command to copy the CSV files to the Neo4j server and execute Cypher statements directly on the server (server-side loading). When loading the full dataset of 35,000+ alleles, the build step will generally take around 15 minutes, however the load step can take an hour or more.
 
 ## Deployment
-Follow the steps to build and deploy the application to AWS.
+It is possible to deploy gfe-db within it's own VPC, or to connect it to an external VPC by specigying `CREATE_VPC=true/false`.
 
 ### Quick Start
+These list outline the basic steps for deployments. For more details please see the following sections.
+
+**Using external VPC**
 1. Retrieve the VPC ID and subnet ID from the AWS console or using the AWS CLI.
-This list outlines the basic steps for deployment. For more details please see the following sections.
-2. Purchase or designate a domain in Route53 and create a hosted zone with an A record for the subdomain. You can use the VPC's IP address for the A record because it will be updated later by the deployment script.
+2. Purchase or designate a domain in Route53 and create a hosted zone with an A record for the subdomain. You can use `0.0.0.0` for the A record because it will be updated later by the deployment script.
 3. Acquire a subscription for the Bitnami Neo4j AMI through [AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-v47qqrn2yy7ie?sr=0-4&ref_=beagle&applicationId=AWSMPContessa).
 4. [Install prerequisites](#Prerequisites).
-5. [Set environment variables](#environment) including the ones from the previous steps:
-    - VPC_ID (step 1)
-    - PUBLIC_SUBNET_ID (step 1)
-    - HOSTED_ZONE_ID (step 2)
-    - HOST_DOMAIN (step 2)
-    - SUBDOMAIN (step 2)
-    - NEO4J_AMI_ID (step 3)
+5. [Set environment variables](#environment) including the ones from the previous steps. You must store these in a file named `.env.<stage>`, for example `.env.dev` or `.env.prod`:
+    - CREATE_VPC=false
+    - VPC_ID
+    - PUBLIC_SUBNET_ID
+    - HOSTED_ZONE_ID
+    - HOST_DOMAIN
+    - SUBDOMAIN
+    - NEO4J_AMI_ID
 6. Check the [config JSONs](#data-pipeline-config) (parameters and state) and edit the values as desired.
-7. Run `make deploy` to deploy the stacks to AWS.
-8. Run `make database.load.run releases=<version>` to load the Neo4j, or `make database.load.run releases=<version> limit=<limit>` to run with a limited number of alleles.
-9. Run `make database.get-credentials` to get the username and password for Neo4j.
-10. Run `make database.get-url` to get the URL for Neo4j and navigate to the Neo4j browser at the subdomain and host domain, for example `https://gfe-db.cloudftl.com:7473/browser/`.
+7. Run `STAGE=<stage> make deploy` to deploy the stacks to AWS.
+8. Run `STAGE=<stage> make database.load.run releases=<version>` to load the Neo4j, or `STAGE=<stage> make database.load.run releases=<version> limit=<limit>` to run with a limited number of alleles.
+9. Run `STAGE=<stage> make database.get.credentials` to get the username and password for Neo4j.
+10. Run `STAGE=<stage> make database.get.endpoint` to get the URL for Neo4j and navigate to the Neo4j browser at the subdomain and host domain, for example `https://gfe-db.cloudftl.com:7473/browser/`.
+
+**Creating a new VPC**
+1. Purchase or designate a domain in Route53 and create a hosted zone with an A record for the subdomain. You can use `0.0.0.0` for the A record because it will be updated later by the deployment script.
+2. Acquire a subscription for the Bitnami Neo4j AMI through [AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-v47qqrn2yy7ie?sr=0-4&ref_=beagle&applicationId=AWSMPContessa).
+3. [Install prerequisites](#Prerequisites).
+4. [Set environment variables](#environment) including the ones from the previous steps. You must store these in a file named `.env.<stage>`, for example `.env.dev` or `.env.prod`:
+    - CREATE_VPC=true
+    - HOSTED_ZONE_ID
+    - HOST_DOMAIN
+    - SUBDOMAIN
+    - NEO4J_AMI_ID
+5. Check the [config JSONs](#data-pipeline-config) (parameters and state) and edit the values as desired.
+6. Run `STAGE=<stage> make deploy` to deploy the stacks to AWS.
+7. Run `STAGE=<stage> make database.load.run releases=<version>` to load the Neo4j, or `STAGE=<stage> make database.load.run releases=<version> limit=<limit>` to run with a limited number of alleles.
+8. Run `STAGE=<stage> make database.get-credentials` to get the username and password for Neo4j.
+9. Run `STAGE=<stage> make database.get.endpoint` to get the URL for Neo4j and navigate to the Neo4j browser at the subdomain and host domain, for example `https://gfe-db.cloudftl.com:7473/browser/`.
 
 ### Prerequisites
 Please refer to the respective documentation for specific installation instructions.
-* Route53 domain and hosted zone
+* Route53 domain, hosted zone, and A record
+* VPC & Public Subnet (if using external VPC)
 * Bitnami Neo4j AMI subscription and AMI ID
 * GNU Make 3.81
 * coreutils (optional but recommended)
@@ -154,7 +173,7 @@ Please refer to the respective documentation for specific installation instructi
 * SAM CLI
 * Docker
 * jq
-* Python 3.9 (if developing locally)
+* Python 3.9+ (if developing locally)
 
 ### Environment
 
@@ -170,56 +189,70 @@ For more information visit the documentation page:
 [Configuration and credential file settings](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)
 
 #### Shell Variables
-These variables must be defined before running Make. The best way to set these variables is with a `.env` file following this structure.
+These variables must be defined before running Make. The best way to set these variables is with a `.env.<stage>` file following this structure.
 ```bash
-# .env
+# .env.<stage>
+AWS_PROFILE=<aws_profile> # Include profile if stacks are in a different accounts
 STAGE=<dev or prod>
-APP_NAME=gfe-db
+APP_NAME=<app_name>
 AWS_REGION=<aws_region>
-VPC_ID=<vpcid> # Available through the console or CLI
-PUBLIC_SUBNET_ID=<publicsubnetid> # Available through the console or CLI; Public subnets have a route to an internet gateway
-GITHUB_PERSONAL_ACCESS_TOKEN=<secret>
-HOSTED_ZONE_ID=<hostedzoneid> # Available through the console or CLI
-HOST_DOMAIN=<fully_qualified_domain_name>
-SUBDOMAIN=<subdomain>
 ADMIN_EMAIL=<email>
 SUBSCRIBE_EMAILS=<email>,<email>,<email>,...
-APOC_VERSION=4.4.0.3
-GDS_VERSION=2.0.1
+GITHUB_REPOSITORY_OWNER=<github_owner>
+GITHUB_REPOSITORY_NAME=<github_repo_name>
+HOST_DOMAIN=<fully_qualified_domain_name>
+CREATE_VPC=<true or false>
+VPC_ID=<vpc_id> # if CREATE_VPC=false
+PUBLIC_SUBNET_ID=<public_subnet_id> # if CREATE_VPC=false
+HOSTED_ZONE_ID=<hosted_zone_id>
+SUBDOMAIN=<subdomain>
 NEO4J_AMI_ID=<ami_id> # Requires AWS Marketplace subscription
+APOC_VERSION=<apoc_version>
+GDS_VERSION=<gds_version>
+GITHUB_PERSONAL_ACCESS_TOKEN=<secret>
 ```
 
-| Variable Name                | Example Value                      | Type   | Description                                      |
-| ---------------------------- | ---------------------------------- | ------ | ------------------------------------------------ |
-| STAGE                        | dev                                | string | The stage of the application.                    |
-| APP_NAME                     | gfe-db                             | string | The name of the application.                     |
-| AWS_REGION                   | us-east-1                          | string | The AWS region to deploy to.                     |
-| VPC_ID                       | vpc-1234567890abcdef               | string | The ID of the VPC to deploy to.                  |
-| PUBLIC_SUBNET_ID             | subnet-1234567890abcdef            | string | The ID of the public subnet to deploy to.        |
-| GITHUB_PERSONAL_ACCESS_TOKEN | <secret value>                     | string | GitHub PAT for repository access                 |
-| HOSTED_ZONE_ID               | Z1234567890ABCDEF                  | string | The ID of the hosted zone to deploy to.          |
-| HOST_DOMAIN                  | example.com                        | string | The domain to deploy to.                         |
-| SUBDOMAIN                    | gfe-db                             | string | The subdomain to deploy to.                      |
-| ADMIN_EMAIL                  | user@company.com                   | string | Admin's email required for SSL certificate       |
-| SUBSCRIBE_EMAILS             | user@company.com,user2@company.com | string | Comma-separated list of emails for notifications |
-| APOC_VERSION                 | 4.4.0.3                            | string | APOC version for Neo4j                           |
-| GDS_VERSION                  | 2.0.1                              | string | GDS version for Neo4j                            |
-| NEO4J_AMI_ID                 | ami-0b9a2b6b1c5b8b5b9              | string | Bitnami Neo4j AMI ID                             |
+| Variable Name                | Example Value                      | Type   | Description                                       |
+| ---------------------------- | ---------------------------------- | ------ | ------------------------------------------------- |
+| AWS_PROFILE                  | <aws_profile>                      | string | AWS profile for deployment.                       |
+| AWS_REGION                   | us-east-1                          | string | The AWS region to deploy to.                      |
+| STAGE                        | dev                                | string | The stage of the application.                     |
+| APP_NAME                     | gfe-db                             | string | The name of the application.                      |
+| ADMIN_EMAIL                  | user@company.com                   | string | Admin's email required for SSL certificate.       |
+| SUBSCRIBE_EMAILS             | user@company.com,user2@company.com | string | Comma-separated list of emails for notifications  |
+| GITHUB_REPOSITORY_OWNER      | <github_owner>                     | string | GitHub repository owner.                          |
+| GITHUB_REPOSITORY_NAME       | <github_repo_name>                 | string | GitHub repository name.                           |
+| GITHUB_PERSONAL_ACCESS_TOKEN | <secret value>                     | string | GitHub PAT for repository access.                 |
+| CREATE_VPC                   | true or false                      | string | Whether to create a new VPC.                      |
+| VPC_ID                       | vpc-1234567890abcdef               | string | The ID of the VPC if `CREATE_VPC=false`           |
+| PUBLIC_SUBNET_ID             | subnet-1234567890abcdef            | string | The ID of the public subnet if `CREATE_VPC=false` |
+| HOST_DOMAIN                  | example.com                        | string | The domain to deploy to.                          |
+| HOSTED_ZONE_ID               | Z1234567890ABCDEF                  | string | The ID of the hosted zone to deploy to.           |
+| SUBDOMAIN                    | gfe-db                             | string | The subdomain to deploy to.                       |
+| NEO4J_AMI_ID                 | ami-0b9a2b6b1c5b8b5b9              | string | Bitnami Neo4j AMI ID.                             |
+| APOC_VERSION                 | 4.4.0.3                            | string | APOC version for Neo4j.                           |
+| GDS_VERSION                  | 2.0.1                              | string | GDS version for Neo4j.                            |
 
 ***Important**:* *Always use a `.env` file or AWS SSM Parameter Store or Secrets Manager for sensitive variables like credentials and API keys. Never hard-code them, including when developing. AWS will quarantine an account if any credentials get accidentally exposed and this will cause problems. Make sure to update `.gitignore` to avoid pushing sensitive data to public repositories.*
 
 ### Makefile Usage
-Once an AWS profile is configured and environment variables are exported, the application can be deployed using `make`.
+Once an AWS profile is configured and environment variables are exported, the application can be deployed using `make`. You are required to specify the `STAGE` variable everytime `make` is called to ensure that the correct environment is selected when there are multiple deployments.
 ```bash
-make deploy
+STAGE=<stage> make deploy
 ```
 It is also possible to deploy or update the database or pipeline services.
 ```bash
 # Deploy/update only the database service
-make database.deploy
+STAGE=<stage> make database.deploy
 
 # Deploy/update only the pipeline service
-make pipeline.deploy
+STAGE=<stage> make pipeline.deploy
+
+# Deploy/update only the pipeline serverless stack
+STAGE=<stage> make pipeline.functions.deploy
+
+# Deploy/update only the Docker image for the build job
+STAGE=<stage> make pipeline.jobs.deploy
 ```
 *Note:* It is recommended to only deploy from the project root. This is because common parameters are passed from the root Makefile to nested Makefiles. If a stack has not been changed, the deployment script will continue until it reaches a stack with changes and deploy that.
 
@@ -227,40 +260,40 @@ make pipeline.deploy
 To see a list of possible commands using Make, run `make` on the command line. You can also refer to the `Makefile Usage` section in the [Sphinx documentation](#documentation).
 ```bash
 # Deploy all CloudFormation based services
-make deploy
+STAGE=<stage> make deploy
 
 # Deploy config files and scripts to S3
-make config.deploy
+STAGE=<stage> make config.deploy
 
 # Run the StepFunctions State Machine to load Neo4j
-make database.load.run releases=<version> align=<boolean> kir=<boolean> limit=<int>
+STAGE=<stage> make database.load.run releases=<version> align=<boolean> kir=<boolean> limit=<int>
 
 # Retrieve Neo4j credentials after deployment
-make database.get-credentials
+STAGE=<stage> make database.get.credentials
 
 # Retrieve Neo4j URL after deployment
-make database.get-url
+STAGE=<stage> make database.get.endpoint
 
 # Download logs from EC2
-make get.logs
+STAGE=<stage> make get.logs
 
 # Download CSV data from S3
-make get.data
+STAGE=<stage> make get.data
 
-# Delete all CloudFormation based services and data
-make delete
+# Delete all CloudFormation based services and data, default is data=false
+STAGE=<stage> make delete data=<true/false>
 
 # Delete a specific layer
-make pipeline.delete
+STAGE=<stage> make pipeline.delete
 
 # Subscribe an email for notifications (unsubscribe using console)
-make monitoring.subscribe-email email=<email>
+STAGE=<stage> make monitoring.subscribe-email email=<email>
 ```
 
 ## Managing Configuration
 Configuration is managed using JSON files, SSM Parameter Store, Secrets Manager, and shell variables. To deploy changes in these files, run the command.
 ```bash
-make config.deploy
+STAGE=<stage> make config.deploy
 ```
 
 ### Database Configuration
@@ -282,13 +315,10 @@ gfe-db/database/scripts
 └── start_task.sh             # Coordinates database loading with the Step Functions API
 ```
 
-To update shell scripts on the Neo4j instance, run the following commands in sequence.
+To update shell scripts on the Neo4j instance, run the following command.
 ```bash
-# sync the scripts to S3
-make config.deploy
-
 # sync the scripts from S3 to the instance (using Systems Manager Run Command)
-make database.sync-scripts
+STAGE=<stage> make database.sync-scripts
 ```
 
 #### Cypher Scripts
@@ -330,7 +360,7 @@ Base input parameters (excluding the `releases` value) are passed to the Step Fu
 
 The data pipeline can also be invoked from the command line:
 ```bash
-make database.load.run releases=<version> align=<boolean> kir=<boolean> limit=<int>
+STAGE=<stage> make database.load.run releases=<version> align=<boolean> kir=<boolean> limit=<int>
 ```
 
 #### IMGT/HLA Release Versions State
@@ -358,28 +388,27 @@ The application's state tracks which releases have been processed and added to t
 ## Loading Neo4j
 For each invocation the data pipeline will download raw data from [ANHIG/IMGTHLA](https://github.com/ANHIG/IMGTHLA) GitHub repository, build a set of intermediate CSV files and load these into Neo4j via S3. To invoke the pipeline, run the following command.
 ```bash
-make database.load.run releases="<version>"
+STAGE=<stage> make database.load.run releases="<version>"
 
 # Example for single version
-make database.load.run releases="3510"
+STAGE=<stage> make database.load.run releases="3510"
 
 # Example for multiple versions
-make database.load.run releases="3490,3500,3510"
+STAGE=<stage> make database.load.run releases="3490,3500,3510"
 
 # Example with limit
-make database.load.run releases="3510" limit="1000"
+STAGE=<stage> make database.load.run releases="3510" limit="1000"
 
 # Example with all arguments included
-make database.load.run releases="3510" limit="" align="False" kir="False"
-```
+STAGE=<stage> make database.load.run releases="3510" limit="" align="False" kir="False"
 
 These commands build an event payload to send to the `invoke-gfe-db-pipeline` Lambda.
 ```json
 // Test payload example
 {
-  "align": "False",
-  "kir": "False",
-  "mem_profile": "False",
+  "align": false,
+  "kir": false,
+  "mem_profile": false,
   "limit": "",
   "releases": 3510
 }
@@ -407,15 +436,15 @@ The Lambda function returns the following object which can be viewed in CloudWat
 ### Clean Up
 To tear down resources run the command. You will need to manually delete the data in the S3 bucket first to avoid an error in CloudFormation.
 ```bash
-make delete
+STAGE=<stage> make delete data=<true/false>
 ```
 Use the following commands to tear down individual services. Make sure to [backup](#backup--restore) your data first.
 ```bash
 # Delete only the database service
-make database.delete
+STAGE=<stage> make database.delete
 
 # Delete only the pipeline service
-make pipeline.delete
+STAGE=<stage> make pipeline.delete
 ```
 
 ## Backup & Restore
@@ -425,7 +454,7 @@ make pipeline.delete
 Backups are orchestrated by Systems Manager and automated everyday at midnight US/Central time by default. To create a backup, run the command.
 
 ```bash
-make database.backup
+STAGE=<stage> make database.backup
 ```
 
 This will create a backup of the Neo4j database and store it in S3 under the path `s3://<data bucket name>/backups/neo4j/YYYY/MM/DD/HH/gfedb.zip`.
@@ -435,13 +464,13 @@ This will create a backup of the Neo4j database and store it in S3 under the pat
 To see a list of available backup dates that can be restored, run the command.
 
 ```bash
-make database.backup.list
+STAGE=<stage> make database.backup.list
 ```
 
 To restore from a backup, pass the date of the backup you wish to restore using the format YYYY/MM/DD/HH.
 
 ```bash
-make database.restore from_date=<YYYY/MM/DD/HH>
+STAGE=<stage> make database.restore from_date=<YYYY/MM/DD/HH>
 ```
 
 ## Local Development
@@ -471,7 +500,7 @@ jupyter kernelspec uninstall <environment name>
 It is not necessary to install Sphinx to view `gfe-db` documentation because it is already built and available in the `docs/` folder, but you will need it to edit them. To get the local `index.html` path run the command and navigate to the URL in a browser.
 
 ```bash
-make docs.url
+STAGE=<stage> make docs.url
 ```
 
 ### Editing and Building the Documentation
@@ -485,7 +514,7 @@ pip install -r requirements-docs.txt
 
 After making your edits, you can build the HTML assets by running the command.
 ```bash
-make docs.build
+STAGE=<stage> make docs.build
 ```
 
 ## Troubleshooting

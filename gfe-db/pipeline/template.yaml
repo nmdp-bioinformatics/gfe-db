@@ -27,6 +27,8 @@ Parameters:
     Type: String
   PipelineParamsPath:
     Type: String
+  DisableBackupFunctionName:
+    Type: String
   InvokeLoadScriptFunctionName:
     Type: String
   ECRBaseUri:
@@ -46,6 +48,7 @@ Resources:
       #     FromPort: 22
       #     IpProtocol: tcp
       #     ToPort: 22
+      # TODO remove
       Tags:
         - Key: Name
           Value: !Sub '${Stage}-${AppName}-build-server-sg'
@@ -198,7 +201,8 @@ Resources:
         InstanceRole: !Ref BatchWorkerInstanceProfile
         LaunchTemplate:
           LaunchTemplateId: !Ref BuildLaunchTemplate
-        Tags: { "Name": "gfe-db-build-worker" }
+        # TODO remove
+      Tags: { "Name": "gfe-db-build-worker" }
       ServiceRole: !GetAtt BatchServiceRole.Arn
 
   BuildLaunchTemplate:
@@ -316,7 +320,7 @@ Resources:
     Properties:
       FunctionName: !Ref InvokePipelineFunctionName
       Description: !Sub '${AppName} update pipeline trigger: checks for new IMGT/HLA releases and starts the loading process'
-      CodeUri: functions/invoke_pipeline/src/
+      CodeUri: functions/invoke_pipeline/
       Handler: app.lambda_handler
       Runtime: python3.9
       MemorySize: !Ref InvokePipelineFunctionMemorySize
@@ -328,7 +332,7 @@ Resources:
           GITHUB_PERSONAL_ACCESS_TOKEN: !Sub '{{resolve:secretsmanager:${AppName}-${Stage}-GitHubPersonalAccessToken:SecretString:personal_access_token:AWSCURRENT}}'
           GITHUB_REPOSITORY_OWNER: !Ref GitHubRepositoryOwner
           GITHUB_REPOSITORY_NAME: !Ref GitHubRepositoryName
-          GFE_BUCKET: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
+          DATA_BUCKET_NAME: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
           UPDATE_PIPELINE_STATE_MACHINE_ARN: !GetAtt UpdatePipelineStateMachine.Arn
           PIPELINE_STATE_PATH: !Ref PipelineStatePath
           PIPELINE_PARAMS_PATH: !Ref PipelineParamsPath
@@ -374,6 +378,73 @@ Resources:
         - Name: FunctionName
           Value: !Ref InvokePipelineFunctionName
 
+  ExecuteValidationQueriesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub "Invoke backup for Neo4j for ${AppName}"
+      CodeUri: functions/execute_validation_queries/
+      Handler: app.lambda_handler
+      Runtime: python3.10
+      MemorySize: 256
+      Timeout: 60
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          STAGE: !Ref Stage
+          APP_NAME: !Ref AppName
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action: 
+                - "ssm:GetParameters"
+                - "ssm:GetParameter"
+              Resource: 
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*'
+            - Effect: "Allow"
+              Action:
+                  - "secretsmanager:GetSecretValue"
+                  - "secretsmanager:DescribeSecret"
+                  - "secretsmanager:ListSecretVersionIds"
+                  - "secretsmanager:ListSecrets"
+              Resource:
+                - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn}}'
+
+  InvokeBackupScriptFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub "Invoke backup for Neo4j for ${AppName}"
+      CodeUri: functions/invoke_backup_script/
+      Handler: app.lambda_handler
+      Runtime: python3.10
+      MemorySize: 128
+      Timeout: 60
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          STAGE: !Ref Stage
+          APP_NAME: !Ref AppName
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action: 
+                - "ssm:SendCommand"
+                - "ssm:GetDocument"
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${Stage}-${AppName}-database-Neo4jBackupDocument*'
+                - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*'
+            - Effect: "Allow"
+              Action: 
+                - "ssm:GetParameters"
+                - "ssm:GetParameter"
+              Resource: 
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*'
+
   InvokeLoadScriptFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -408,7 +479,7 @@ Resources:
                 - "ssm:GetParameters"
                 - "ssm:GetParameter"
               Resource: 
-                - "*"
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*'
 
   InvokeLoadScriptFunctionAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -428,6 +499,42 @@ Resources:
         - Name: FunctionName
           Value: !Ref InvokeLoadScriptFunctionName
 
+  ValidateBuildOutputFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub "Validate build output for ${AppName}"
+      CodeUri: functions/validate_build_output/
+      Handler: app.lambda_handler
+      Runtime: python3.10
+      MemorySize: 256
+      Timeout: 60
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          STAGE: !Ref Stage
+          APP_NAME: !Ref AppName
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action: 
+                - "ssm:GetParameters"
+                - "ssm:GetParameter"
+              Resource: 
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*'
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action: 
+                - "s3:GetObject"
+                - "s3:ListBucket"
+                - "s3:ListObjects"
+              Resource: 
+                - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
+                - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
+
   UpdatePipelineStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
@@ -437,11 +544,20 @@ Resources:
         BuildJobDefinition: !Ref BuildJobDefinition
         BuildJobName: !Sub '${Stage}-${AppName}-build-job'
         BuildJobQueue: !Ref BuildJobQueue
+        ExecuteValidationQueriesFunctionArn: !GetAtt ExecuteValidationQueriesFunction.Arn
+        ValidateBuildOutputFunctionArn: !GetAtt ValidateBuildOutputFunction.Arn
         InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
+        InvokeBackupScriptFunctionArn: !GetAtt InvokeBackupScriptFunction.Arn
         LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
       Policies:
         - LambdaInvokePolicy:
+            FunctionName: !Ref ExecuteValidationQueriesFunction
+        - LambdaInvokePolicy:
             FunctionName: !Ref InvokeLoadScriptFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref InvokeBackupScriptFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ValidateBuildOutputFunction
         - Version: "2012-10-17"
           Statement:
             - Effect: "Allow"
@@ -496,8 +612,113 @@ Resources:
       Description: "ARN of gfe-db update pipeline state machine"
       Value: !GetAtt UpdatePipelineStateMachine.Arn
 
-# CloudWatch Alarm for failed pipeline executions
+  # CloudWatch Alarm for state machine execution in progress
   UpdatePipelineStateMachineExecutionAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub '${UpdatePipelineStateMachine} state machine execution in progress'
+      ActionsEnabled: true
+      AlarmActions:
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicArn}}'
+      OKActions:
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicArn}}'
+      Metrics: 
+        - Id: m1
+          MetricStat: 
+            Metric: 
+              MetricName: ExecutionsStarted
+              Namespace: AWS/States
+              Dimensions:
+                - Name: StateMachineArn
+                  Value: !GetAtt UpdatePipelineStateMachine.Arn
+            Period: 86400
+            Stat: Sum
+            Unit: Count
+          ReturnData: false
+        - Id: m2
+          MetricStat: 
+            Metric: 
+              MetricName: ExecutionsSucceeded
+              Namespace: AWS/States
+              Dimensions:
+                - Name: StateMachineArn
+                  Value: !GetAtt UpdatePipelineStateMachine.Arn
+            Period: 86400
+            Stat: Sum
+            Unit: Count
+          ReturnData: false
+        - Id: m3
+          MetricStat: 
+            Metric: 
+              MetricName: ExecutionsFailed
+              Namespace: AWS/States
+              Dimensions:
+                - Name: StateMachineArn
+                  Value: !GetAtt UpdatePipelineStateMachine.Arn
+            Period: 86400
+            Stat: Sum
+            Unit: Count
+          ReturnData: false
+        - Id: m4
+          MetricStat: 
+            Metric: 
+              MetricName: ExecutionsAborted
+              Namespace: AWS/States
+              Dimensions:
+                - Name: StateMachineArn
+                  Value: !GetAtt UpdatePipelineStateMachine.Arn
+            Period: 86400
+            Stat: Sum
+            Unit: Count
+          ReturnData: false
+        - Id: e1
+          Expression: "m1 - m2 - m3 - m4"
+          Label: ExecutionsInProgress
+          ReturnData: true
+      ComparisonOperator: GreaterThanThreshold
+      Threshold: 0
+      EvaluationPeriods: 1
+
+  DisableBackupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Ref DisableBackupFunctionName
+      CodeUri: functions/disable_backup/
+      Handler: app.lambda_handler
+      Runtime: python3.10
+      MemorySize: 128
+      Timeout: 60
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          STAGE: !Ref Stage
+          APP_NAME: !Ref AppName
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action: 
+                - "ssm:GetParameters"
+                - "ssm:GetParameter"
+              Resource: 
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*'
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action: 
+                - "ssm:UpdateMaintenanceWindow"
+              Resource: 
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:maintenancewindow/*'
+      Events:
+        PipelineExecutionTopic:
+          Type: SNS
+          Properties:
+            Topic: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicArn}}'
+
+  # CloudWatch Alarm for failed pipeline executions
+  UpdatePipelineStateMachineExecutionErrorsAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmDescription: !Sub '${UpdatePipelineStateMachine} state machine errors'
@@ -515,7 +736,7 @@ Resources:
         - Name: StateMachineArn
           Value: !GetAtt UpdatePipelineStateMachine.Arn
 
-# CloudWatch Alarm for failed pipeline integrations (Batch jobs)
+  # CloudWatch Alarm for failed pipeline integrations (Batch jobs)
   UpdatePipelineStateMachineIntegrationAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:

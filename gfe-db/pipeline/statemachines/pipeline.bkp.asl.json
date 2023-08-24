@@ -1,0 +1,392 @@
+{
+    "StartAt": "Init",
+    "States": {
+        "Init": {
+            "Type": "Parallel",
+            "Next": "BuildRelease",
+            "Branches": [
+                {                
+                    "StartAt": "GetExecutionState",
+                    "States": {
+                        "GetExecutionState": {
+                            "Type": "Task",
+                            "Resource": "${GetExecutionStateFunctionArn}",
+                            "ResultPath": "$.state",
+                            "Catch": [
+                                {
+                                    "ErrorEquals": [
+                                        "States.ALL"
+                                    ],
+                                    "Next": "ReportFailure"
+                                }
+                            ],
+                            "End": true
+                        }
+                    }
+                },
+                {                
+                    "StartAt": "Pre-Execution Validation Query",
+                    "States": {
+                        "Pre-Execution Validation Query": {
+                            "Type": "Task",
+                            "Resource": "${ExecuteValidationQueriesFunctionArn}",
+                            "ResultPath": "$.validations.queries.pre",
+                            "Next": "Pre-Execution Backup"
+                        },
+                        "Pre-Execution Backup": {
+                            "Type": "Task",
+                            "Resource": "${InvokeBackupScriptFunctionArn}",
+                            "ResultPath": "$.backups.pre",
+                            "End": true
+                        }
+                    }
+                }
+            ]
+        }
+        "BuildRelease": {
+            "Type": "Parallel",
+            "Next": "LoadRelease",
+            "OutputPath": "$.[1]",
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "Next": "ReportFailure"
+                }
+            ],
+            "Branches": [
+                {
+                    "StartAt": "UpdateStateExecutionInProgress",
+                    "States": {
+                        "UpdateStateExecutionInProgress": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::dynamodb:updateItem",
+                            "ResultPath": null,
+                            "End": true,
+                            "Parameters": {
+                                "TableName": "${ExecutionStateTable}",
+                                "Key": {
+                                    "commit__sha": {
+                                        "S.$": "$.commit_sha"
+                                    },
+                                    "execution__version": {
+                                        "N.$": "States.Format('{}', $.version)"
+                                    }
+                                },
+                                "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
+                                "ExpressionAttributeValues": {
+                                    ":execution_date_utc": {
+                                        "S.$": "$$.Execution.StartTime"
+                                    },
+                                    ":status": {
+                                        "S": "IN_PROGRESS"
+                                    },
+                                    ":align": {
+                                        "BOOL.$": "$.input_parameters.align"
+                                    },
+                                    ":kir": {
+                                        "BOOL.$": "$.input_parameters.kir"
+                                    },
+                                    ":mem_profile": {
+                                        "BOOL.$": "$.input_parameters.mem_profile"
+                                    },
+                                    ":limit": {
+                                        "N.$": "States.Format('{}', $.input_parameters.limit)"
+                                    },
+                                    ":updated_utc": {
+                                        "S.$": "$$.State.EnteredTime"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "StartAt": "GfeDbBuildJob",
+                    "States": {
+                        "GfeDbBuildJob": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::batch:submitJob.sync",
+                            "ResultPath": null,
+                            "Next": "ListFiles",
+                            "Parameters": {
+                                "JobDefinition": "${BuildJobDefinition}",
+                                "JobName": "${BuildJobName}",
+                                "JobQueue": "${BuildJobQueue}",
+                                "ContainerOverrides": {
+                                    "Environment": [
+                                        {
+                                            "Name": "EVENT",
+                                            "Value.$": "States.JsonToString($)"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "ListFiles": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::aws-sdk:s3:listObjects",
+                            "Parameters": {
+                                "Bucket": "${DataBucketName}",
+                                "Prefix.$": "States.Format('data/{}/csv/', $.version)"
+                            },
+                            "ResultPath": "$.s3_response",
+                            "Next": "ValidateBuildOutput"
+                        },
+                        "ValidateBuildOutput": {
+                            "Type": "Task",
+                            "Resource": "${ValidateBuildOutputFunctionArn}",
+                            "End": true
+                        }
+                    },
+                    "Fail Build": {
+                        "Type": "Pass",
+                        "ResultPath": null,
+                        "End": true
+                    }
+                }
+            ]
+        },
+        "LoadRelease": {
+            "Type": "Parallel",
+            "OutputPath": "$.[1]",
+            "Next": "ReportSuccess",
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "Next": "ReportFailure"
+                }
+            ],
+            "Branches": [
+                {
+                    "StartAt": "InvokeLoadScript",
+                    "States": {
+                        "InvokeLoadScript": {
+                            "Type": "Task",
+                            "Resource": "${InvokeLoadScriptFunctionArn}",
+                            "End": true
+                        }
+                    }
+                },
+                {
+                    "StartAt": "LoadReleaseActivity",
+                    "States": {
+                        "LoadReleaseActivity": {
+                            "Type": "Task",
+                            "Resource": "${LoadReleaseActivityArn}",
+                            "HeartbeatSeconds": 60,
+                            "End": true
+                        }
+                    }
+                }
+            ]
+        },
+        "ReportFailure": {
+            "Type": "Parallel",
+            "Next": "PipelineFailure",
+            "InputPath": "$$.Execution.Input",
+            "Branches": [
+                {
+                    "StartAt": "UpdateStateExecutionFailure",
+                    "States": {
+                        "UpdateStateExecutionFailure": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::dynamodb:updateItem",
+                            "ResultPath": null,
+                            "End": true,
+                            "Parameters": {
+                                "TableName": "${ExecutionStateTable}",
+                                "Key": {
+                                    "commit__sha": {
+                                        "S.$": "$.commit_sha"
+                                    },
+                                    "execution__version": {
+                                        "N.$": "States.Format('{}', $.version)"
+        "Validate Build": {
+            "Type": "Task",
+            "Resource": "${ValidateBuildOutputFunctionArn}",
+            "Parameters": {
+                "execution_context.$": "$$"
+            },
+            "ResultPath": "$.validations.build",
+            "Next": "Evaluate Payload"
+        },
+        "Evaluate Payload": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.validations.build.has_valid_payload",
+                    "BooleanEquals": true,
+                    "Next": "Load Stage"
+                }
+            ],
+            "Default": "Execution Failed"
+        },
+        "Execution Failed": {
+            "Type": "Fail",
+            "Error": "ExecutionFailed",
+            "Cause": "No valid payload was generated"
+        },
+        "Load Stage": {
+            "Type": "Map",
+            "Next": "Post-Execution Validation Query",
+            "MaxConcurrency": 1,
+            "ItemsPath": "$.validations.build.validated",
+            "ResultPath": null,
+            "Iterator": {
+                "StartAt": "Load Data",
+                "States": {
+                    "Load Data": {
+                        "Type": "Parallel",
+                        "ResultPath": null,
+                        "End": true,
+                        "Branches": [
+                            {
+                                "StartAt": "Invoke Load Script",
+                                "States": {
+                                    "Invoke Load Script": {
+                                        "Type": "Task",
+                                        "Resource": "${InvokeLoadScriptFunctionArn}",
+                                        "ResultPath": null,
+                                        "End": true
+                                    }
+                                },
+                                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc",
+                                "ExpressionAttributeValues": {
+                                    ":status": {
+                                        "S": "FAILED"
+                                    },
+                                    ":updated_utc": {
+                                        "S.$": "$$.State.EnteredTime"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "StartAt": "PublishFailure",
+                    "States": {
+                        "PublishFailure": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::sns:publish",
+                            "Parameters": {
+                                "TopicArn": "${GfeDbExecutionResultTopicArn}",
+                                "Message": {
+                                    "result": "FAILED",
+                                    "input_parameters.$": "$"
+                                }
+                            },
+                            "End": true
+                        }
+                    }
+                }
+            ]
+        },
+        "PipelineFailure": {
+            "Type": "Fail"
+        },
+        "ReportSuccess": {
+            "Type": "Parallel",
+            "Next": "PipelineSuccess",
+            "InputPath": "$$.Execution.Input",
+            "Branches": [
+                {
+                    "StartAt": "UpdateStateExecutionSuccess",
+                    "States": {
+                        "UpdateStateExecutionSuccess": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::dynamodb:updateItem",
+                            "ResultPath": null,
+                            "End": true,
+                            "Parameters": {
+                                "TableName": "${ExecutionStateTable}",
+                                "Key": {
+                                    "commit__sha": {
+                                        "S.$": "$.commit_sha"
+                                    },
+                                    "execution__version": {
+                                        "N.$": "States.Format('{}', $.version)"
+                                    }
+                                },
+                                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc",
+                                "ExpressionAttributeValues": {
+                                    ":status": {
+                                        "S": "SUCCESS"
+                                    },
+                                    ":updated_utc": {
+                                        "S.$": "$$.State.EnteredTime"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "StartAt": "PublishSuccess",
+                    "States": {
+                        "PublishSuccess": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::sns:publish",
+                            "Parameters": {
+                                "TopicArn": "${GfeDbExecutionResultTopicArn}",
+                                "Message": {
+                                    "result": "SUCCESS",
+                                    "input_parameters.$": "$"
+                                }
+                            },
+                            "End": true
+                        }
+                    }
+                }
+            ]
+        },
+        "PipelineSuccess": {
+            "Type": "Succeed"
+                            {
+                                "StartAt": "Load GFEs",
+                                "States": {
+                                    "Load GFEs": {
+                                        "Type": "Task",
+                                        "Resource": "${LoadNeo4jActivityArn}",
+                                        "HeartbeatSeconds": 60,
+                                        "ResultPath": null,
+                                        "End": true,
+                                        "Catch": [
+                                            {
+                                                "ErrorEquals": [
+                                                    "States.ALL"
+                                                ],
+                                                "Next": "Fail Load"
+                                            }
+                                        ]
+                                    },
+                                    "Fail Load": {
+                                        "Type": "Pass",
+                                        "ResultPath": null,
+                                        "End": true
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        "Post-Execution Validation Query": {
+            "Type": "Task",
+            "Resource": "${ExecuteValidationQueriesFunctionArn}",
+            "ResultPath": "$.validations.queries.post",
+            "Next": "Post-Execution Backup"
+        },
+        "Post-Execution Backup": {
+            "Type": "Task",
+            "Resource": "${InvokeBackupScriptFunctionArn}",
+            "ResultPath": "$.backups.post",
+            "End": true
+        }
+    }
+}
