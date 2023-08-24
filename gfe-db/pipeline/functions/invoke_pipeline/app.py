@@ -49,8 +49,10 @@ def lambda_handler(event, context):
 
             # limit is an integer
             try:
-                if not isinstance(int(event['limit']), int):
-                    raise ValueError('limit must be an integer')
+                # empty limit implies no limit
+                if event['limit']:
+                    if not isinstance(int(event['limit']), int):
+                        raise ValueError('limit must be an integer')
             except ValueError:
                 raise ValueError('limit must be an integer')
 
