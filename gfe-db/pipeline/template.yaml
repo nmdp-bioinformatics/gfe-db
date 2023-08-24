@@ -506,7 +506,7 @@ Resources:
       CodeUri: functions/validate_build_output/
       Handler: app.lambda_handler
       Runtime: python3.10
-      MemorySize: 256
+      MemorySize: 1024
       Timeout: 60
       Architectures:
         - x86_64
