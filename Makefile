@@ -249,7 +249,7 @@ pipeline.jobs.deploy:
 
 config.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.config.deploy
-	$(MAKE) -C ${APP_NAME}/database/ config.deploy
+	$(MAKE) -C ${APP_NAME}/database/ service.config.deploy
 
 monitoring.create-subscriptions:
 	$(MAKE) -C ${APP_NAME}/infrastructure service.monitoring.create-subscriptions
