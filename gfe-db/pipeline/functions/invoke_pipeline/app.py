@@ -49,8 +49,10 @@ def lambda_handler(event, context):
 
             # limit is an integer
             try:
-                if not isinstance(int(event['limit']), int):
-                    raise ValueError('limit must be an integer')
+                # empty limit implies no limit
+                if event['limit']:
+                    if not isinstance(int(event['limit']), int):
+                        raise ValueError('limit must be an integer')
             except ValueError:
                 raise ValueError('limit must be an integer')
 
@@ -150,7 +152,7 @@ def get_branches(owner, repo):
     return [branch["name"] for branch in branches]
 
 
-def is_valid_release(branch, release_pattern=r"^\d{3}0$"):
+def is_valid_release(branch, release_pattern=r"^\d{2,3}0$"):
     """Returns True if the branch is a valid release, False if not"""
 
     # IMGT/HLA release format string
