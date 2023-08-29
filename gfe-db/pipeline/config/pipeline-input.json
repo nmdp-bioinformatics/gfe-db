@@ -1,6 +1,6 @@
 {
-  "align": "False",
-  "kir": "False",
-  "mem_profile": "False",
+  "align": false,
+  "kir": false,
+  "mem_profile": false,
   "limit": ""
 }
