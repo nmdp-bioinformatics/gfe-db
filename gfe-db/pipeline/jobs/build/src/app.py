@@ -3,9 +3,11 @@ import os
 from pathlib import Path
 import sys
 import logging
+import traceback
 import argparse
 import ast
 import time
+from datetime import datetime
 import json
 import hashlib
 from csv import DictWriter
@@ -535,6 +537,10 @@ if __name__ == '__main__':
     dbversion = args.release #if args.release else pd.read_html(imgt_hla)[0]['Release'][0].replace(".", "")
     out_dir = args.out_dir
 
+    # set errors directory
+    errors_dir = Path(args.out_dir).parent / "errors"
+    errors_dir.mkdir(parents=True, exist_ok=True)
+
     # Pipeline parameters
     # 3 digits: 300 - 390
     # 4 digits: 3100 - 
@@ -580,6 +586,7 @@ if __name__ == '__main__':
         loci=load_loci)
 
     errors = []
+    allele_error_fields = ["annotations", "molecule_type", "data_file_division", "accessions", "keywords", "organism", "taxonomy", "comment", "dbxrefs", "description", "id", "name"]
     max_errors = 10
     for idx, allele in enumerate(alleles):
         if idx == limit:
@@ -613,39 +620,54 @@ if __name__ == '__main__':
                 
             else:
                 logger.warn(f'Skipping allele {hla_name} for locus {locus}')
-        except:
-            errors.append(allele.id)
-            try:
-                logger.info(f'Sending message to {failed_alleles_queue_name}')
-                response = sqs.send_message(
-                    QueueUrl=failed_alleles_queue,
-                    MessageBody=json.dumps({
-                        "allele_id": allele.id,
-                        "release": dbversion,
-                        "params": {
-                            "align": align,
-                            "kir": kir
-                        }
-                    }))
+        except Exception as e:
+            errors.append({
+                "timestamp": datetime.utcnow().isoformat()[:-3],
+                "allele_id": allele.id,
+                "data": { k: v for k, v in allele.__dict__.items() if k in allele_error_fields },
+                "index": idx,
+                "release": dbversion,
+                "error": str(e),
+                "stack_trace": traceback.format_exc(),
+            })
+            
+            # try:
+            #     logger.info(f'Sending message to {failed_alleles_queue_name}')
+            #     response = sqs.send_message(
+            #         QueueUrl=failed_alleles_queue,
+            #         MessageBody=json.dumps({
+            #             "allele_id": allele.id,
+            #             "release": dbversion,
+            #             "params": {
+            #                 "align": align,
+            #                 "kir": kir
+            #             }
+            #         }))
                     
-                if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-                    logger.error(json.dumps(response))
-                    raise Exception("Failed to process message")
-                else:
-                    logger.info(json.dumps(
-                        response['ResponseMetadata']))
+            #     if response['ResponseMetadata']['HTTPStatusCode'] != 200:
+            #         logger.error(json.dumps(response))
+            #         raise Exception("Failed to process message")
+            #     else:
+            #         logger.info(json.dumps(
+            #             response['ResponseMetadata']))
 
-            except Exception as err:
-                logger.error("Failed to send message")
-                raise err
+            # except Exception as err:
+            #     logger.error("Failed to send message")
+            #     raise err
             
             if len(errors) > max_errors:
                 logger.error(f'Max errors ({max_errors}) reached. Exiting...')
                 break
 
     logging.info(f'Finished build for version {imgt_release}')
+
     if len(errors) > 0:
-        logging.error(f'{len(errors)} errors: {errors}')
+        logging.error(f'{len(errors)} errors: {[ error["allele_id"] for error in errors ]}')
+        # write errors to file as ndjson
+        with open(f'{errors_dir}/errors.{dbversion}.ndjson', 'w') as f:
+            for error in errors:
+                f.write(json.dumps(error) + '\n')
+
         exit_code = 1
     end = time.time()
     errors_msg_fragment = f'with {len(errors)} error(s)' if len(errors) > 0 else ''
