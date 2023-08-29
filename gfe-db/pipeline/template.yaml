@@ -506,8 +506,9 @@ Resources:
       CodeUri: functions/validate_build_output/
       Handler: app.lambda_handler
       Runtime: python3.10
-      MemorySize: 256
-      Timeout: 60
+      MemorySize: 2048
+      # 15 minutes should be enough to validate the build output
+      Timeout: 900
       Architectures:
         - x86_64
       Environment:
