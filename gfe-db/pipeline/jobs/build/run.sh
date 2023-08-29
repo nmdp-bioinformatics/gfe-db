@@ -135,7 +135,7 @@ for release in ${RELEASES}; do
 		$MEM_PROFILE_FLAG \
 		-v \
 		-l $LIMIT
-	[ $? -ne 0 ] && exit 1;
+	[ $? -ne 0 ] && echo "Build completed with errors, please see logs"
 
 	# TODO: Use this S3 hierarchy: root/release/csv | logs
 	echo -e "Uploading CSVs to s3://$GFE_BUCKET/data/$release/csv/:\n$(ls $DATA_DIR/$release/csv/)"

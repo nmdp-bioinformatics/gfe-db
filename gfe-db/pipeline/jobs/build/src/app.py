@@ -470,6 +470,7 @@ if __name__ == '__main__':
     into interactive python, and still able to execute the
     function for testing"""
 
+    exit_code = 0
     start = time.time()
 
     parser = argparse.ArgumentParser()
@@ -644,7 +645,9 @@ if __name__ == '__main__':
 
     logging.info(f'Finished build for version {imgt_release}')
     if len(errors) > 0:
-        logging.info(f'{len(errors)} errors: {errors}')
-        exit(1)
+        logging.error(f'{len(errors)} errors: {errors}')
+        exit_code = 1
     end = time.time()
-    logging.info(f'****** Build finished in {round(end - start, 2)} seconds ******')
+    errors_msg_fragment = f'with {len(errors)} error(s)' if len(errors) > 0 else ''
+    logging.info(f'****** Build finished {errors_msg_fragment} in {round(end - start, 2)} seconds ******')
+    sys.exit(exit_code)
