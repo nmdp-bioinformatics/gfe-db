@@ -48,11 +48,11 @@ def lambda_handler(event, context):
             event = { arg: str(val) for arg, val in event.items() }
 
             # limit is an integer
-            try:
-                if not isinstance(int(event['limit']), int):
-                    raise ValueError('limit must be an integer')
-            except ValueError:
-                raise ValueError('limit must be an integer')
+            # try:
+            #     if not isinstance(int(event['limit']), int):
+            #         raise ValueError('limit must be an integer')
+            # except ValueError:
+            #     raise ValueError('limit must be an integer')
 
             # release is a string that matches regex
             if not all([ is_valid_release(release, release_pattern) for release in event['releases'].split(',') ]):
@@ -302,7 +302,7 @@ if __name__ == "__main__":
     import os
     from pathlib import Path
 
-    path = Path(__file__).parent / "bad-event.json"
+    path = Path(__file__).parent / "error-event.json"
     with open(path, "r") as f:
         event = json.load(f)
 
