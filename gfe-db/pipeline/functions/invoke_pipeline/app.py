@@ -29,7 +29,7 @@ session = boto3.session.Session(region_name=AWS_REGION)
 s3 = session.client('s3')
 sfn = session.client('stepfunctions')
 
-release_pattern = r"^\d{3}0$"
+release_pattern = r"^\d{2,3}0$"
 
 def lambda_handler(event, context):
     """Checks for new IMGT/HLA releases and triggers the update
