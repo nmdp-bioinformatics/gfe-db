@@ -130,19 +130,19 @@ Resources:
                   - "secretsmanager:ListSecrets"
                 Resource: 
                   - "*"
-        - PolicyName: !Sub '${Stage}-${AppName}-SQSPolicy'
-          PolicyDocument:
-            Version: '2012-10-17' 
-            Statement:
-              - Effect: Allow
-                Action:
-                  - "sqs:GetQueueAttributes"
-                  - "sqs:SendMessageBatch"
-                  - "sqs:SendMessage"
-                  - "sqs:ReceiveMessage"
-                  - "sqs:DeleteMessage"
-                Resource:
-                  - !GetAtt FailedAllelesQueue.Arn
+        # - PolicyName: !Sub '${Stage}-${AppName}-SQSPolicy'
+        #   PolicyDocument:
+        #     Version: '2012-10-17' 
+        #     Statement:
+        #       - Effect: Allow
+        #         Action:
+        #           - "sqs:GetQueueAttributes"
+        #           - "sqs:SendMessageBatch"
+        #           - "sqs:SendMessage"
+        #           - "sqs:ReceiveMessage"
+        #           - "sqs:DeleteMessage"
+        #         Resource:
+        #           - !GetAtt FailedAllelesQueue.Arn
 
   BuildJobDefinition:
     Type: AWS::Batch::JobDefinition
@@ -163,8 +163,8 @@ Resources:
         Environment:
           - Name: GFE_BUCKET
             Value: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
-          - Name: FAILED_ALLELES_QUEUE
-            Value: !Ref FailedAllelesQueue
+          # - Name: FAILED_ALLELES_QUEUE
+          #   Value: !Ref FailedAllelesQueue
           - Name: AWS_REGION
             Value: !Ref AWS::Region
       RetryStrategy:
@@ -755,15 +755,15 @@ Resources:
         - Name: ServiceIntegrationResourceArn
           Value: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:batch:submitJob.sync'
 
-  FailedAllelesQueue:
-    Type: AWS::SQS::Queue
-    Properties:
-      VisibilityTimeout: 20
-      RedrivePolicy:
-        deadLetterTargetArn: !GetAtt FailedAllelesDeadLetterQueue.Arn
-        maxReceiveCount: 5
-  FailedAllelesDeadLetterQueue:
-    Type: AWS::SQS::Queue
+  # FailedAllelesQueue:
+  #   Type: AWS::SQS::Queue
+  #   Properties:
+  #     VisibilityTimeout: 20
+  #     RedrivePolicy:
+  #       deadLetterTargetArn: !GetAtt FailedAllelesDeadLetterQueue.Arn
+  #       maxReceiveCount: 5
+  # FailedAllelesDeadLetterQueue:
+  #   Type: AWS::SQS::Queue
 
   Neo4jLoadQueryDocument: 
     Type: AWS::SSM::Document
