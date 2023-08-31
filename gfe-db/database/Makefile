@@ -118,10 +118,10 @@ service.restore: #from_date=<YYYY/MM/DD/HH>
 
 service.restore.pre-validate:
 	@echo "Validating restore pre-conditions"
-	@echo "Checking if backup exists"
-	@backup_object=$$(aws s3 ls --recursive s3://${DATA_BUCKET_NAME}/backups/neo4j/$$from_date/ | cut -d' ' -f7 | cut -d'/' -f3-6) && \
+	@echo "Checking if backup exists for \`s3://${DATA_BUCKET_NAME}/backups/neo4j/$$from_date/\`"
+	@backup_object=$$(aws s3 ls --recursive s3://${DATA_BUCKET_NAME}/backups/neo4j/$$from_date/ | cut -d ' ' -f 6-) && \
 	[ "$$backup_object" != "" ] || (echo "ERROR: Backup does not exist" && exit 1) && \
-	echo "Found backup for $$backup_object"
+	echo "Found backup target for $$backup_object"
 
 delete: ##=> Delete resources
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
