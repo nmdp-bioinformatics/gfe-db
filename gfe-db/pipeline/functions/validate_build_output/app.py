@@ -30,139 +30,133 @@ def lambda_handler(event, context):
     """Validates the build output artifacts against the original execution input object."""
 
     logger.info(json.dumps(event))
-    execution_start_time = datetime.strptime(event['execution_context']['Execution']['StartTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=tz.tzutc())
 
+    execution_start_time = datetime.strptime(event['execution_start_time'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=tz.tzutc())
+        
     # TODO get the expected input from execution context and validate against this
     # TODO Remove this and use the output of validation against the expected input
-    # # In other words, the validation shoudl be "blind" to what the build output is, it should only
+    # # In other words, the validation should be "blind" to what the build output is, it should only
     # # tells us how it's different from the expected. Therefore the expected output is constructed from $$.Execution.Input
 
     # expected input is the execution input
-    execution_input = event['execution_context']['Execution']['Input']['input']
-
-    releases = list(set([ item['RELEASES'] for item in execution_input ]))
-
-    # reports for all release builds
-    reports = []
+    # execution_input = event['execution_context']['Execution']['Input']['input']
+    release = event['input']['RELEASES']
 
     # errors for all release builds used only for logging, not used for validation logic
     errors = []
-    for release in releases:
 
-        release_report = {
-            "release": release,
-            "details": [],
-            "errors": []
-        }
+    release_report = {
+        "release_version": release,
+        "details": [],
+        "errors": []
+    }
 
-        # TODO hard-coded S3 paths should be replaced with SSM parameters at some point
-        # build path to CSV directory
-        csv_dir = f"data/{release}/csv"
-        
-        # expected artifacts from state machine input
-        release_report["expected_artifacts"] = [ f"{key}.{release}.csv" for key in csv_headers.keys() ]
-
-        # Validate that the S3 prefix exists and has data
-        try:
-            csv_file_objs = list_s3_objects(data_bucket_name, csv_dir)
-        except KeyError:
-            error_msg = f"CSV directory does not exist: {csv_dir}"
-            logger.error(error_msg)
-            release_report["errors"].append(error_msg)
-            release_report["is_valid_build"] = False
-            reports.append(release_report)
-            errors.append(error_msg)
-            continue
-
-        # Validate that all expected files are present
-        if set(csv_file_objs.keys()) != set(release_report["expected_artifacts"]):
-            error_msg = f"CSV files do not match expected artifacts: {csv_dir}"
-            logger.error(error_msg)
-            release_report["errors"].append(error_msg)
-            release_report["is_valid_build"] = False
-            reports.append(release_report)
-            errors.append(error_msg)
-            continue
-
-        for key, obj in csv_file_objs.items():
-            obj_errors = []
-
-            obj['data'] = pl.read_csv(f"s3://{data_bucket_name}/{csv_dir}/{key}", infer_schema_length=0)
-            obj["details"] = {}
-
-            # Validate the file's timestamp is after the execution start time
-            obj["details"]["is_valid_csv_timestamp"] = obj['created_utc'] > execution_start_time
-            if not obj["details"]["is_valid_csv_timestamp"]:
-                error_msg = f"CSV file timestamp ({str(obj['created_utc'])}) preceeds execution start time ({execution_start_time}): {key}"
-                logger.error(error_msg)
-                obj_errors.append(error_msg)
-
-            # Validate the file name is correct
-            obj["details"]["is_valid_csv_filename"] = is_valid_csv_filename(key, release)
-            if not obj["details"]["is_valid_csv_filename"]:
-                error_msg = f"CSV file name is incorrect: {key}"
-                logger.error(error_msg)
-                obj_errors.append(error_msg)
-
-            # Validate the headers are correct
-            obj["details"]["is_valid_csv_headers"] = set(obj['data'].columns) == set(csv_headers[key.split('.')[0]])
-            if not obj["details"]["is_valid_csv_headers"]:
-                error_msg = f"CSV file headers are incorrect: {key}\n\tExpected: {csv_headers[key.split('.')[0]]}\n\tActual: {obj['data'].columns}"
-                logger.error(error_msg)
-                obj_errors.append(error_msg)
-
-            # Validate rows are present
-            obj["details"]["is_valid_csv_rows"] = obj['data'].shape[0] > 0
-            if not obj["details"]["is_valid_csv_rows"]:
-                error_msg = f"CSV file has no rows: {key}"
-                logger.error(error_msg)
-                obj_errors.append(error_msg)
-
-            # TODO get the expected total number of rows from hla.dat and validate the row count against that
-            # # # Validate expected number of rows and replace is_valid_csv_rows
-            # obj["details"]["is_valid_csv_num_rows"] = None
-
-            # TODO Validate the data types of each column
-            # # # Validate data types
-            # obj["details"]["is_valid_csv_data_types"] = None
-
-            obj_report = {
-                "schema": key.split('.')[0],
-                "release": release,
-                "file_path": f"s3://{data_bucket_name}/{csv_dir}/{key}",
-                "cols": obj['data'].columns,
-                "num_rows": len(obj['data']),
-                **{k: v.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]+"Z" if isinstance(v, datetime) else v for k, v in obj.items() if k != 'data'},
-                "num_errors": len(obj_errors),
-                "is_valid_csv": all(obj["details"].values()),
-            }
-            if obj_errors:
-                obj_report["errors"] = obj_errors
-                obj_report["num_errors"] = len(obj_errors)
-                errors.extend(obj_errors)
-
-            release_report["details"].append(obj_report)
-            if obj_errors:
-                release_report["errors"].append(obj_errors)
+    # TODO hard-coded S3 paths should be replaced with SSM parameters at some point
+    # build path to CSV directory
+    csv_dir = f"data/{release}/csv"
     
-        release_report["is_valid_build"] = all([obj_report["is_valid_csv"] for obj_report in release_report["details"]])
-        reports.append(release_report)
+    # expected artifacts from state machine input
+    release_report["expected_artifacts"] = [ f"{key}.{release}.csv" for key in csv_headers.keys() ]
 
-    logger.info(json.dumps(reports))
+    # Validate that the S3 prefix exists and has data
+    try:
+        csv_file_objs = list_s3_objects(data_bucket_name, csv_dir)
+    except KeyError:
+        error_msg = f"CSV directory does not exist: {csv_dir}"
+        logger.error(error_msg)
+        release_report["errors"].append(error_msg)
+        release_report["is_valid_build"] = False
+        # reports.append(release_report)
+        errors.append(error_msg)
+        # continue
+
+    # Validate that all expected files are present
+    if set(csv_file_objs.keys()) != set(release_report["expected_artifacts"]):
+        error_msg = f"CSV files do not match expected artifacts: {csv_dir}"
+        logger.error(error_msg)
+        release_report["errors"].append(error_msg)
+        release_report["is_valid_build"] = False
+        # reports.append(release_report)
+        errors.append(error_msg)
+        # continue
+
+    for key, obj in csv_file_objs.items():
+        obj_errors = []
+
+        obj['data'] = pl.read_csv(f"s3://{data_bucket_name}/{csv_dir}/{key}", infer_schema_length=0)
+        obj["details"] = {}
+
+        # Validate the file's timestamp is after the execution start time
+        obj["details"]["is_valid_csv_timestamp"] = obj['created_utc'] > execution_start_time
+        if not obj["details"]["is_valid_csv_timestamp"]:
+            error_msg = f"CSV file timestamp ({str(obj['created_utc'])}) preceeds execution start time ({execution_start_time}): {key}"
+            logger.error(error_msg)
+            obj_errors.append(error_msg)
+
+        # Validate the file name is correct
+        obj["details"]["is_valid_csv_filename"] = is_valid_csv_filename(key, release)
+        if not obj["details"]["is_valid_csv_filename"]:
+            error_msg = f"CSV file name is incorrect: {key}"
+            logger.error(error_msg)
+            obj_errors.append(error_msg)
+
+        # Validate the headers are correct
+        obj["details"]["is_valid_csv_header"] = set(obj['data'].columns) == set(csv_headers[key.split('.')[0]])
+        if not obj["details"]["is_valid_csv_header"]:
+            error_msg = f"CSV file headers are incorrect: {key}\n\tExpected: {csv_headers[key.split('.')[0]]}\n\tActual: {obj['data'].columns}"
+            logger.error(error_msg)
+            obj_errors.append(error_msg)
+
+        # Validate rows are present
+        obj["details"]["is_valid_csv_rows"] = obj['data'].shape[0] > 0
+        if not obj["details"]["is_valid_csv_rows"]:
+            error_msg = f"CSV file has no rows: {key}"
+            logger.error(error_msg)
+            obj_errors.append(error_msg)
+
+        # TODO get the expected total number of rows from hla.dat and validate the row count against that
+        # # # Validate expected number of rows and replace is_valid_csv_rows
+        # obj["details"]["is_valid_csv_num_rows"] = None
+
+        # TODO Validate the data types of each column
+        # # # Validate data types
+        # obj["details"]["is_valid_csv_data_types"] = None
+
+        obj_report = {
+            "schema": key.split('.')[0],
+            "release": release,
+            "file_path": f"s3://{data_bucket_name}/{csv_dir}/{key}",
+            "cols": obj['data'].columns,
+            "num_rows": len(obj['data']),
+            **{k: v.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]+"Z" if isinstance(v, datetime) else v for k, v in obj.items() if k != 'data'},
+            "num_errors": len(obj_errors),
+            "is_valid_csv": all(obj["details"].values()),
+        }
+        if obj_errors:
+            obj_report["errors"] = obj_errors
+            obj_report["num_errors"] = len(obj_errors)
+            errors.extend(obj_errors)
+
+        release_report["details"].append(obj_report)
+        if obj_errors:
+            release_report["errors"].append(obj_errors)
+
+    release_report["is_valid_build"] = all([obj_report["is_valid_csv"] for obj_report in release_report["details"]])
+    # reports.append(release_report)
+
+    logger.info(json.dumps(release_report))
     if errors:
         error_msg = f'Validation failed:\n{json.dumps(errors)}'
         logger.error(error_msg)
 
-    ### Update output ###
-    valid_release_builds = [ release['release'] for release in reports if release['is_valid_build'] ]
-    payload = list(filter(lambda x: x["RELEASES"] in valid_release_builds, execution_input))
-
-
-    return {
-        "validated": payload,
-        "build_details": reports,
-        "has_valid_payload": len(payload) > 0,
+    payload = {
+        "execution_id": event['execution_id'],
+        "execution_start_time": event['execution_start_time'],
+        "input": event['input'],
+        **release_report
     }
+
+    return payload
 
 # TODO implement Pydantic classes for managing and validating CSV schemas
 # Schema map
