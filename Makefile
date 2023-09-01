@@ -370,7 +370,7 @@ database.delete:
 pipeline.delete:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.delete
 
-pipeline.functions.delete:
+pipeline.service.delete:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.functions.delete
 
 pipeline.jobs.delete:

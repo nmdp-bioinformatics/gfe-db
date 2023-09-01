@@ -132,6 +132,7 @@
                                     "Invoke Load Script": {
                                         "Type": "Task",
                                         "Resource": "${InvokeLoadScriptFunctionArn}",
+                                        "InputPath": "$.input",
                                         "ResultPath": null,
                                         "End": true
                                     }
@@ -144,6 +145,7 @@
                                         "Type": "Task",
                                         "Resource": "${LoadNeo4jActivityArn}",
                                         "HeartbeatSeconds": 60,
+                                        "InputPath": "$.input",
                                         "ResultPath": null,
                                         "End": true,
                                         "Catch": [
