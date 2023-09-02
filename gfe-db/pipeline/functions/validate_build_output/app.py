@@ -86,12 +86,13 @@ def lambda_handler(event, context):
         obj['data'] = pl.read_csv(f"s3://{data_bucket_name}/{csv_dir}/{key}", infer_schema_length=0)
         obj["details"] = {}
 
-        # Validate the file's timestamp is after the execution start time
-        obj["details"]["is_valid_csv_timestamp"] = obj['created_utc'] > execution_start_time
-        if not obj["details"]["is_valid_csv_timestamp"]:
-            error_msg = f"CSV file timestamp ({str(obj['created_utc'])}) preceeds execution start time ({execution_start_time}): {key}"
-            logger.error(error_msg)
-            obj_errors.append(error_msg)
+        # # Note: the state machine can now use existing CSV files as input, so the timestamp validation is no longer needed
+        # # Validate the file's timestamp is after the execution start time
+        # obj["details"]["is_valid_csv_timestamp"] = obj['created_utc'] > execution_start_time
+        # if not obj["details"]["is_valid_csv_timestamp"]:
+        #     error_msg = f"CSV file timestamp ({str(obj['created_utc'])}) preceeds execution start time ({execution_start_time}): {key}"
+        #     logger.error(error_msg)
+        #     obj_errors.append(error_msg)
 
         # Validate the file name is correct
         obj["details"]["is_valid_csv_filename"] = is_valid_csv_filename(key, release)

@@ -28,8 +28,29 @@
                 }
             ],
             "Iterator": {
-                "StartAt": "Generate CSV files",
+                "StartAt": "Check Existing Build",
                 "States": {
+                    "Check Existing Build": {
+                        "Type": "Task",
+                        "Resource": "arn:aws:states:::aws-sdk:s3:listObjects",
+                        "Parameters": {
+                            "Bucket": "${DataBucketName}",
+                            "Prefix.$": "States.Format('data/{}/csv/', $.RELEASES)"
+                        },
+                        "ResultPath": "$.check_existing_build",
+                        "Next": "Files Exist?"
+                    },
+                    "Files Exist?": {
+                        "Type": "Choice",
+                        "Choices": [
+                            {
+                                "Variable": "$.check_existing_build.Contents",
+                                "IsPresent": false,
+                                "Next": "Generate CSV files"
+                            }
+                        ],
+                        "Default": "Validate Build"
+                    },
                     "Generate CSV files": {
                         "Type": "Task",
                         "Resource": "arn:aws:states:::batch:submitJob.sync",

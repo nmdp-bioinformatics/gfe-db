@@ -541,6 +541,7 @@ Resources:
       DefinitionUri: statemachines/pipeline.asl.json
       DefinitionSubstitutions:
         AppName: !Ref AppName
+        DataBucketName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
         BuildJobDefinition: !Ref BuildJobDefinition
         BuildJobName: !Sub '${Stage}-${AppName}-build-job'
         BuildJobQueue: !Ref BuildJobQueue
@@ -558,6 +559,8 @@ Resources:
             FunctionName: !Ref InvokeBackupScriptFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref ValidateBuildOutputFunction
+        - S3ReadPolicy:
+            BucketName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
         - Version: "2012-10-17"
           Statement:
             - Effect: "Allow"
