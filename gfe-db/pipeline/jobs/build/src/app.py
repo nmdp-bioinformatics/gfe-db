@@ -12,7 +12,6 @@ import json
 import hashlib
 from csv import DictWriter
 import boto3
-# import pandas as pd
 from Bio import AlignIO
 from Bio.SeqFeature import SeqFeature
 from Bio.SeqRecord import SeqRecord
@@ -37,8 +36,8 @@ logging.basicConfig(
         ])
 
 region = os.environ["AWS_REGION"]
-failed_alleles_queue = os.environ["FAILED_ALLELES_QUEUE"]
-failed_alleles_queue_name = failed_alleles_queue.split("/")[-1]
+# failed_alleles_queue = os.environ["FAILED_ALLELES_QUEUE"]
+# failed_alleles_queue_name = failed_alleles_queue.split("/")[-1]
 
 sqs = boto3.client('sqs', region_name=region)
 
@@ -674,7 +673,7 @@ if __name__ == '__main__':
                     f.write(json.dumps(error) + '\n')
                     logger.info('Success')
 
-        exit_code = 1
+        exit_code = 2
     end = time.time()
     errors_msg_fragment = f'with {len(errors)} error(s)' if len(errors) > 0 else ''
     logging.info(f'****** Build finished {errors_msg_fragment} in {round(end - start, 2)} seconds ******')
