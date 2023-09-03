@@ -18,6 +18,9 @@
             "Next": "Load Stage",
             "MaxConcurrency": 0,
             "ItemsPath": "$.input",
+            "ItemSelector": {
+                "input.$": "$$.Map.Item.Value"
+            },
             "ResultPath": "$.validations.build",
             "Catch": [
                 {
@@ -27,7 +30,7 @@
                     "Next": "Execution Failed"
                 }
             ],
-            "Iterator": {
+            "ItemProcessor": {
                 "StartAt": "Check Existing Build",
                 "States": {
                     "Check Existing Build": {
@@ -35,7 +38,7 @@
                         "Resource": "arn:aws:states:::aws-sdk:s3:listObjects",
                         "Parameters": {
                             "Bucket": "${DataBucketName}",
-                            "Prefix.$": "States.Format('data/{}/csv/', $.RELEASES)"
+                            "Prefix.$": "States.Format('data/{}/csv/', $.input.RELEASES)"
                         },
                         "ResultPath": "$.check_existing_build",
                         "Next": "Files Exist?"
@@ -72,23 +75,23 @@
                                 "Environment": [
                                     {
                                         "Name": "RELEASES",
-                                        "Value.$": "$.RELEASES"
+                                        "Value.$": "$.input.RELEASES"
                                     },
                                     {
                                         "Name": "ALIGN",
-                                        "Value.$": "$.ALIGN"
+                                        "Value.$": "$.input.ALIGN"
                                     },
                                     {
                                         "Name": "KIR",
-                                        "Value.$": "$.KIR"
+                                        "Value.$": "$.input.KIR"
                                     },
                                     {
                                         "Name": "MEM_PROFILE",
-                                        "Value.$": "$.MEM_PROFILE"
+                                        "Value.$": "$.input.MEM_PROFILE"
                                     },
                                     {
                                         "Name": "LIMIT",
-                                        "Value.$": "$.LIMIT"
+                                        "Value.$": "$.input.LIMIT"
                                     }
                                 ]
                             }
@@ -100,7 +103,7 @@
                         "Parameters": {
                             "execution_id.$": "$$.Execution.Id",
                             "execution_start_time.$": "$$.Execution.StartTime",
-                            "input.$": "$"
+                            "input.$": "$.input"
                         },
                         "Next": "Evaluate Payload"
                     },
