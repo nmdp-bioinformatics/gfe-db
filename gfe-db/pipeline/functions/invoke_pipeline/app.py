@@ -41,8 +41,14 @@ def lambda_handler(event, context):
         if "releases" in event:
 
             # align, kir, mem_profile are booleans
-            if not all([ isinstance(event[arg], bool) for arg in [ 'align', 'kir', 'mem_profile' ] ]):
-                raise ValueError('align, kir, and mem_profile must be boolean values')
+            execution_input_bool_keys = [ 
+                'align', 
+                'kir', 
+                'mem_profile' ,
+                'use_existing_build'
+            ]
+            if not all([ isinstance(event[arg], bool) for arg in execution_input_bool_keys if arg in event ]):
+                raise ValueError('`align`, `kir`, `mem_profile` and `use_existing_build` must be boolean values')
 
             # conform booleans to the current argument format
             event = { arg: str(val) for arg, val in event.items() }
@@ -271,6 +277,10 @@ def check_current_executions(state_machine_arn):
 def parse_event(event):
     """Restructures the event and returns pipeline execution parameters"""
 
+    # set use_existing_build to False if not specified
+    if "use_existing_build" not in event:
+        event["use_existing_build"] = False
+
     new_releases = str(event["releases"]).replace(" ", "").split(",")
     params = {k:v for k,v in event.items() if k != "releases"}
 
@@ -304,7 +314,7 @@ if __name__ == "__main__":
     import os
     from pathlib import Path
 
-    path = Path(__file__).parent / "error-event.json"
+    path = Path(__file__).parent / "event-use-existing-true.json"
     with open(path, "r") as f:
         event = json.load(f)
 
