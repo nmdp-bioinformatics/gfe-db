@@ -419,8 +419,8 @@ Resources:
       CodeUri: functions/invoke_backup_script/
       Handler: app.lambda_handler
       Runtime: python3.10
-      MemorySize: 128
-      Timeout: 60
+      MemorySize: 256
+      Timeout: 300
       Architectures:
         - x86_64
       Environment:
@@ -444,6 +444,11 @@ Resources:
                 - "ssm:GetParameter"
               Resource: 
                 - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*'
+            - Effect: "Allow"
+              Action: 
+                - "ssm:GetCommandInvocation"
+              Resource: 
+                - !Sub '*'
 
   InvokeLoadScriptFunction:
     Type: AWS::Serverless::Function
