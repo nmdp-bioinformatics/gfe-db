@@ -45,10 +45,11 @@ def lambda_handler(event, context):
                 'align', 
                 'kir', 
                 'mem_profile' ,
-                'use_existing_build'
+                'use_existing_build',
+                'skip_load'
             ]
             if not all([ isinstance(event[arg], bool) for arg in execution_input_bool_keys if arg in event ]):
-                raise ValueError('`align`, `kir`, `mem_profile` and `use_existing_build` must be boolean values')
+                raise ValueError(f'{", ".join(execution_input_bool_keys)} must be boolean values')
 
             # conform booleans to the current argument format
             event = { arg: str(val) for arg, val in event.items() }
@@ -276,10 +277,6 @@ def check_current_executions(state_machine_arn):
 
 def parse_event(event):
     """Restructures the event and returns pipeline execution parameters"""
-
-    # set use_existing_build to False if not specified
-    if "use_existing_build" not in event:
-        event["use_existing_build"] = False
 
     new_releases = str(event["releases"]).replace(" ", "").split(",")
     params = {k:v for k,v in event.items() if k != "releases"}

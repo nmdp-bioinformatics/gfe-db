@@ -227,7 +227,8 @@ database.load.run: # args: align, kir, limit, releases
 	[ "$$limit" ] && limit="$$limit" || limit="" && \
 	[ "$$releases" ] && releases="$$releases" || releases="" && \
 	[ "$$use_existing_build" ] && use_existing_build="$$use_existing_build" || use_existing_build=false && \
-	payload="{ \"align\": $$align, \"kir\": $$kir, \"limit\": \"$$limit\", \"releases\": \"$$releases\", \"mem_profile\": false, \"use_existing_build\": $$use_existing_build }" && \
+	[ "$$skip_load" ] && skip_load="$$skip_load" || skip_load=false && \
+	payload="{\"align\":$$align,\"kir\":$$kir,\"limit\":\"$$limit\",\"releases\":\"$$releases\",\"mem_profile\":false,\"use_existing_build\":$$use_existing_build,\"skip_load\":$$skip_load}"&&\
 	echo "$$payload" | jq -r && \
 	echo "$$payload" | jq > payload.json
 	@echo "Run pipeline with this payload? [y/N] \c " && read ans && [ $${ans:-N} = y ]

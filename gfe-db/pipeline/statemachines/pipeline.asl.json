@@ -154,8 +154,24 @@
             "ItemsPath": "$.validations.build",
             "ResultPath": null,
             "Iterator": {
-                "StartAt": "Load Data",
+                "StartAt": "Skip Load?",
                 "States": {
+                    "Skip Load?": {
+                        "Type": "Choice",
+                        "Choices": [
+                            {
+                                "Variable": "$.input.SKIP_LOAD",
+                                "StringEquals": "True",
+                                "Next": "Skipped"
+                            }
+                        ],
+                        "Default": "Load Data"
+                    },
+                    "Skipped": {
+                        "Type": "Pass",
+                        "ResultPath": null,
+                        "End": true
+                    },
                     "Load Data": {
                         "Type": "Parallel",
                         "ResultPath": null,

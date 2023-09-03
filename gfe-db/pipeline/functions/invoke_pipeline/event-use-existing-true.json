@@ -4,5 +4,6 @@
     "limit": "",
     "releases": "310",
     "mem_profile": false,
-    "use_existing_build": true
+    "use_existing_build": true,
+    "skip_load": false
 }

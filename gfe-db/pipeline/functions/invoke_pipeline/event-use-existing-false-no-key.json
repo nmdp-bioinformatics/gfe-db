@@ -3,5 +3,6 @@
     "kir": false,
     "limit": "",
     "releases": "310",
-    "mem_profile": false
+    "mem_profile": false,
+    "skip_load": true
 }
