@@ -52,6 +52,17 @@
                                 "Next": "Generate CSV files"
                             }
                         ],
+                        "Default": "Use Existing Build?"
+                    },
+                    "Use Existing Build?": {
+                        "Type": "Choice",
+                        "Choices": [
+                            {
+                                "Variable": "$.input.USE_EXISTING_BUILD",
+                                "StringEquals": "False",
+                                "Next": "Generate CSV files"
+                            }
+                        ],
                         "Default": "Validate Build"
                     },
                     "Generate CSV files": {
