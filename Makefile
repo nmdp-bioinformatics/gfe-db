@@ -38,6 +38,11 @@ export PIPELINE_STATE_PATH := config/IMGTHLA-repository-state.json
 export PIPELINE_PARAMS_PATH := config/pipeline-input.json
 export FUNCTIONS_PATH := ${APP_NAME}/pipeline/functions
 
+# Required environment variables
+REQUIRED_VARS := STAGE APP_NAME AWS_ACCOUNT AWS_REGION AWS_PROFILE SUBSCRIBE_EMAILS \
+                 GITHUB_REPOSITORY_OWNER GITHUB_REPOSITORY_NAME GITHUB_PERSONAL_ACCESS_TOKEN \
+                 HOST_DOMAIN SUBDOMAIN ADMIN_EMAIL NEO4J_AMI_ID APOC_VERSION GDS_VERSION
+
 # print colors
 define blue
 	@tput setaf 4
@@ -170,51 +175,8 @@ else
 endif
 
 env.validate: check.dependencies
-ifndef STAGE
-$(error STAGE is not set. Please add STAGE to the environment variables.)
-endif
-ifndef APP_NAME
-$(error APP_NAME is not set. Please add APP_NAME to the environment variables.)
-endif
-ifndef AWS_ACCOUNT
-	$(error AWS_ACCOUNT is not set. Please add AWS_ACCOUNT to the environment variables.)
-endif
-ifndef AWS_REGION
-	$(error AWS_REGION is not set. Please add AWS_REGION to the environment variables.)
-endif
-ifndef AWS_PROFILE
-	$(error AWS_PROFILE is not set. Please select an AWS profile to use.)
-endif
-ifndef SUBSCRIBE_EMAILS
-$(error SUBSCRIBE_EMAILS is not set. Please add SUBSCRIBE_EMAILS to the environment variables.)
-endif
-ifndef GITHUB_REPOSITORY_OWNER
-$(error GITHUB_REPOSITORY_OWNER is not set. Please add GITHUB_REPOSITORY_OWNER to the environment variables.)
-endif
-ifndef GITHUB_REPOSITORY_NAME
-$(error GITHUB_REPOSITORY_NAME is not set. Please add GITHUB_REPOSITORY_NAME to the environment variables.)
-endif
-ifndef GITHUB_PERSONAL_ACCESS_TOKEN
-	$(error GITHUB_PERSONAL_ACCESS_TOKEN is not set. Please add GITHUB_PERSONAL_ACCESS_TOKEN to the environment variables.)
-endif
-ifndef HOST_DOMAIN
-	$(error HOST_DOMAIN is not set. Please add HOST_DOMAIN to the environment variables.)
-endif
-ifndef SUBDOMAIN
-$(error SUBDOMAIN is not set. Please add SUBDOMAIN to the environment variables.)
-endif
-ifndef ADMIN_EMAIL
-	$(error ADMIN_EMAIL is not set. Please add ADMIN_EMAIL to the environment variables.)
-endif
-ifndef NEO4J_AMI_ID
-$(error NEO4J_AMI_ID is not set. Please add NEO4J_AMI_ID to the environment variables.)
-endif
-ifndef APOC_VERSION
-$(error APOC_VERSION is not set. Please add APOC_VERSION to the environment variables.)
-endif
-ifndef GDS_VERSION
-$(error GDS_VERSION is not set. Please add GDS_VERSION to the environment variables.)
-endif
+	$(foreach var,$(REQUIRED_VARS),\
+		$(if $(value $(var)),,$(error $(var) is not set. Please add $(var) to the environment variables.)))
 ifndef CREATE_VPC
 	$(info 'CREATE_VPC' is not set. Defaulting to 'false')
 	$(eval export CREATE_VPC := false)
