@@ -7,13 +7,11 @@ target:
 # TODO: Don't deploy jobs if pipeline stack fails to create (exit Make)
 service.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
-	$(MAKE) service.functions.deploy
+	$(MAKE) service.deploy
 	$(MAKE) service.jobs.deploy
 	$(MAKE) service.config.deploy
 
-# TODO update S3 config parameters GitHubRepositoryOwner, GitHubRepositoryName, PipelineStatePath, PipelineParamsPath
-# TODO add error handling for bash commands by checking $? after each command
-service.functions.deploy:
+service.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} - functions" 2>&1 | tee -a $$CFN_LOG_PATH
 	@sam build \
 		--region "$${AWS_REGION}" \

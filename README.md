@@ -1,5 +1,4 @@
-gfe-db
-======
+# gfe-db
 
 Graph database representing IPD-IMGT/HLA sequence data as GFE.
 
@@ -213,24 +212,26 @@ GDS_VERSION=<gds_version>
 GITHUB_PERSONAL_ACCESS_TOKEN=<secret>
 ```
 
-| Variable Name                | Example Value                      | Type   | Description                                      |
-| ---------------------------- | ---------------------------------- | ------ | ------------------------------------------------ |
-| AWS_PROFILE                  | <aws_profile>                      | string | AWS profile for deployment.                      |
-| STAGE                        | dev                                | string | The stage of the application.                    |
-| APP_NAME                     | gfe-db                             | string | The name of the application.                     |
-| AWS_REGION                   | us-east-1                          | string | The AWS region to deploy to.                     |
-| ADMIN_EMAIL                  | user@company.com                   | string | Admin's email required for SSL certificate.      |
-| SUBSCRIBE_EMAILS             | user@company.com,user2@company.com | string | Comma-separated list of emails for notifications |
-| GITHUB_REPOSITORY_OWNER      | <github_owner>                     | string | GitHub repository owner.                         |
-| GITHUB_REPOSITORY_NAME       | <github_repo_name>                 | string | GitHub repository name.                          |
-| HOST_DOMAIN                  | example.com                        | string | The domain to deploy to.                         |
-| CREATE_VPC                   | true or false                      | string | Whether to create a new VPC.                     |
-| HOSTED_ZONE_ID               | Z1234567890ABCDEF                  | string | The ID of the hosted zone to deploy to.          |
-| SUBDOMAIN                    | gfe-db                             | string | The subdomain to deploy to.                      |
-| NEO4J_AMI_ID                 | ami-0b9a2b6b1c5b8b5b9              | string | Bitnami Neo4j AMI ID.                            |
-| APOC_VERSION                 | 4.4.0.3                            | string | APOC version for Neo4j.                          |
-| GDS_VERSION                  | 2.0.1                              | string | GDS version for Neo4j.                           |
-| GITHUB_PERSONAL_ACCESS_TOKEN | <secret value>                     | string | GitHub PAT for repository access.                |
+| Variable Name                | Example Value                      | Type   | Description                                       |
+| ---------------------------- | ---------------------------------- | ------ | ------------------------------------------------- |
+| AWS_PROFILE                  | <aws_profile>                      | string | AWS profile for deployment.                       |
+| AWS_REGION                   | us-east-1                          | string | The AWS region to deploy to.                      |
+| STAGE                        | dev                                | string | The stage of the application.                     |
+| APP_NAME                     | gfe-db                             | string | The name of the application.                      |
+| ADMIN_EMAIL                  | user@company.com                   | string | Admin's email required for SSL certificate.       |
+| SUBSCRIBE_EMAILS             | user@company.com,user2@company.com | string | Comma-separated list of emails for notifications  |
+| GITHUB_REPOSITORY_OWNER      | <github_owner>                     | string | GitHub repository owner.                          |
+| GITHUB_REPOSITORY_NAME       | <github_repo_name>                 | string | GitHub repository name.                           |
+| GITHUB_PERSONAL_ACCESS_TOKEN | <secret value>                     | string | GitHub PAT for repository access.                 |
+| CREATE_VPC                   | true or false                      | string | Whether to create a new VPC.                      |
+| VPC_ID                       | vpc-1234567890abcdef               | string | The ID of the VPC if `CREATE_VPC=false`           |
+| PUBLIC_SUBNET_ID             | subnet-1234567890abcdef            | string | The ID of the public subnet if `CREATE_VPC=false` |
+| HOST_DOMAIN                  | example.com                        | string | The domain to deploy to.                          |
+| HOSTED_ZONE_ID               | Z1234567890ABCDEF                  | string | The ID of the hosted zone to deploy to.           |
+| SUBDOMAIN                    | gfe-db                             | string | The subdomain to deploy to.                       |
+| NEO4J_AMI_ID                 | ami-0b9a2b6b1c5b8b5b9              | string | Bitnami Neo4j AMI ID.                             |
+| APOC_VERSION                 | 4.4.0.3                            | string | APOC version for Neo4j.                           |
+| GDS_VERSION                  | 2.0.1                              | string | GDS version for Neo4j.                            |
 
 ***Important**:* *Always use a `.env` file or AWS SSM Parameter Store or Secrets Manager for sensitive variables like credentials and API keys. Never hard-code them, including when developing. AWS will quarantine an account if any credentials get accidentally exposed and this will cause problems. Make sure to update `.gitignore` to avoid pushing sensitive data to public repositories.*
 
@@ -264,8 +265,14 @@ STAGE=<stage> make deploy
 # Deploy config files and scripts to S3
 STAGE=<stage> make config.deploy
 
-# Run the StepFunctions State Machine to load Neo4j
-STAGE=<stage> make database.load.run releases=<version> align=<boolean> kir=<boolean> limit=<int>
+# Run the Step Functions State Machine to load Neo4j
+STAGE=<stage> make database.load.run \
+    releases=<version> \
+    align=<boolean> \
+    kir=<boolean> \
+    limit=<int> \
+    use_existing_build=<boolean> \
+    skip_load=<boolean>
 
 # Retrieve Neo4j credentials after deployment
 STAGE=<stage> make database.get.credentials
@@ -280,7 +287,7 @@ STAGE=<stage> make get.logs
 STAGE=<stage> make get.data
 
 # Delete all CloudFormation based services and data, default is data=false
-STAGE=<stage> make delete data=<true/false>
+STAGE=<stage> make delete data=<boolean>
 
 # Delete a specific layer
 STAGE=<stage> make pipeline.delete
@@ -343,23 +350,33 @@ Base input parameters (excluding the `releases` value) are passed to the Step Fu
 ```json
 // pipeline-input.json
 {
-  "align": "False",
-  "kir": "False",
-  "mem_profile": "False",
-  "limit": ""
+  "align": false,
+  "kir": false,
+  "mem_profile": false,
+  "limit": "", // Optional, defaults to false
+  "use_existing_build": false, // Optional, defaults to false
+  "skip_load": false // Optional, defaults to false
 }
 
 ```
-| Variable    | Example Value | Type   | Description                                                        |
-| ----------- | ------------- | ------ | ------------------------------------------------------------------ |
-| LIMIT       | 1000          | string | Number of alleles to build. Leave blank ("") to build all alleles. |
-| ALIGN       | False         | string | Include or exclude alignments in the build                         |
-| KIR         | False         | string | Include or exclude KIR data alignments in the build                |
-| MEM_PROFILE | False         | string | Enable memory profiling (for catching memory leaks during build)   |
+| Variable           | Example Value | Type   | Description                                                                    |
+| ------------------ | ------------- | ------ | ------------------------------------------------------------------------------ |
+| LIMIT              | 1000          | string | Number of alleles to build. Leave blank ("") to build all alleles.             |
+| ALIGN              | false         | string | Include or exclude alignments in the build                                     |
+| KIR                | false         | string | Include or exclude KIR data alignments in the build                            |
+| MEM_PROFILE        | false         | string | Enable memory profiling (for catching memory leaks during build)               |
+| USE_EXISTING_BUILD | false         | string | Use existing build files in S3 (if available) instead of building from scratch |
+| SKIP_LOAD          | false         | string | Skip loading the database after building                                       |
 
 The data pipeline can also be invoked from the command line:
 ```bash
-STAGE=<stage> make database.load.run releases=<version> align=<boolean> kir=<boolean> limit=<int>
+STAGE=<stage> make database.load.run \
+    releases=<version> \
+    align=<boolean> \
+    kir=<boolean> \
+    limit=<int> \
+    use_existing_build=<boolean> \
+    skip_load=<boolean>
 ```
 
 #### IMGT/HLA Release Versions State
@@ -392,14 +409,19 @@ STAGE=<stage> make database.load.run releases="<version>"
 # Example for single version
 STAGE=<stage> make database.load.run releases="3510"
 
-# Example for multiple versions
-STAGE=<stage> make database.load.run releases="3490,3500,3510"
+# Example for multiple versions where 3510 has already been built
+STAGE=<stage> make database.load.run \
+    releases="3490,3500,3510" \
+    use_existing_build=true
 
 # Example with limit
 STAGE=<stage> make database.load.run releases="3510" limit="1000"
 
 # Example with all arguments included
-STAGE=<stage> make database.load.run releases="3510" limit="" align="False" kir="False"
+STAGE=<stage> make database.load.run releases="3510" limit="" align=false kir=false
+
+# Example of how to build all releases and skip loading
+STAGE=dev make database.load.run releases="300,310,320,330,340,350,360,370,380,390,3100,3110,3120,3130,3140,3150,3160,3170,3180,3190,3200,3210,3220,3230,3240,3250,3260,3270,3280,3290,3300,3310,3320,3330,3340,3350,3360,3370,3380,3390,3400,3410,3420,3430,3440,3450,3460,3470,3480,3490,3500,3510,3520,3530" skip_load=true
 ```
 
 These commands build an event payload to send to the `invoke-gfe-db-pipeline` Lambda.
@@ -422,9 +444,9 @@ The Lambda function returns the following object which can be viewed in CloudWat
   "message": "Pipeline triggered",
   "input": [
     {
-      "ALIGN": "False",
-      "KIR": "False",
-      "MEM_PROFILE": "False",
+      "ALIGN": false,
+      "KIR": false,
+      "MEM_PROFILE": false,
       "LIMIT": "",
       "RELEASES": "3510"
     },
@@ -436,7 +458,7 @@ The Lambda function returns the following object which can be viewed in CloudWat
 ### Clean Up
 To tear down resources run the command. You will need to manually delete the data in the S3 bucket first to avoid an error in CloudFormation.
 ```bash
-STAGE=<stage> make delete data=<true/false>
+STAGE=<stage> make delete data=<boolean>
 ```
 Use the following commands to tear down individual services. Make sure to [backup](#backup--restore) your data first.
 ```bash

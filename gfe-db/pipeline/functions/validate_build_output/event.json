@@ -1,33 +1,11 @@
 {
-    "execution_context": {
-        "Execution": {
-            "Id": "arn:aws:states:us-east-1:810526023897:execution:UpdatePipelineStateMachine-m3OzNjleU6K3:3460_3fb27698fe4ebbd5ec4a0e565d97a53fe48c7cdd_230807_201926",
-            "Input": {
-                "input": {
-                    "version": 3460,
-                    "commit_sha": "3fb27698fe4ebbd5ec4a0e565d97a53fe48c7cdd",
-                    "input_parameters": {
-                        "align": false,
-                        "kir": false,
-                        "mem_profile": false,
-                        "limit": 1000
-                    },
-                    "s3_path": "s3://dev-gfe-db-810526023897-us-east-1/data/3460",
-                    "receipt_handle": "AQEBEIHj7vaSCoNylFEiwvfgkBJZC/m0VkVq63e+PGH0hLb3CiirqqXIFI+j/LEbuJKpMaX8/pAfgNQVbomH+TO/1zljispbeLEdBL/ty/1VPsPUnw24rp2noTowwFCKgCFr7huUf7xPcMkQ/xvS7yIIwb6ASMveCTNFpJHNt7TCvJHAkzpSEQ+ZRAecNHwPzK/PfbTTc5yYYt2SgsQyr+LVzE6hH6h4PCH8NY/KlEP2shy+8n0j8mItx6anb36R5BInAdJr514MBILb6CaW+ZuwiNzDxXW0SSubyg82WOJq4QVXGREGxDBWEdpLeMCud+ZPvSH5zl5QBHjaGi3PQZg9Yd5N3BtPehzvWQpM4baQgpTb2uAoSvidHKWeRNMB7M9sS4xUiX/E77iP7rWSBWDxnVK1NjnKfJLNU9oOWN33p0ANRtkRYTTQJ3PtPFqecNuP"
-                }
-            },
-            "StartTime": "2023-08-07T20:19:26.927Z",
-            "Name": "3460_3fb27698fe4ebbd5ec4a0e565d97a53fe48c7cdd_230807_201926",
-            "RoleArn": "arn:aws:iam::810526023897:role/dev-gfe-db-pipeline-UpdatePipelineStateMachineRole-17PZ6RJ4Z9AVF"
-        },
-        "StateMachine": {
-            "Id": "arn:aws:states:us-east-1:810526023897:stateMachine:UpdatePipelineStateMachine-m3OzNjleU6K3",
-            "Name": "UpdatePipelineStateMachine-m3OzNjleU6K3"
-        },
-        "State": {
-            "Name": "Validate Build",
-            "EnteredTime": "2023-08-07T20:22:06.574Z",
-            "RetryCount": 0
-        }
-    }
+    "input": {
+        "ALIGN": "False",
+        "KIR": "False",
+        "LIMIT": "100",
+        "MEM_PROFILE": "False",
+        "RELEASES": "320"
+    },
+    "execution_id": 1,
+    "execution_start_time": "2023-08-30T23:46:01.477Z"
 }

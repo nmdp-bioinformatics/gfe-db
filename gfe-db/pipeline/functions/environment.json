@@ -21,20 +21,6 @@
                 "MemorySize": 256
             }
         },
-        "InvokeUpdatePipeline": {
-            "FunctionConfiguration": {
-                "FunctionName": "invoke-update-pipeline",
-                "Timeout": 60,
-                "MemorySize": 256
-            }
-        },
-        "ValidateBuildOutput": {
-            "FunctionConfiguration": {
-                "FunctionName": "validate-build-output",
-                "Timeout": 300,
-                "MemorySize": 512
-            }
-        },
         "InvokeBackupScript": {
             "FunctionConfiguration": {
                 "FunctionName": "invoke-backup-script",

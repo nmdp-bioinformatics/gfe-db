@@ -44,6 +44,8 @@ Parameters:
   #   Type: Number
   DisableBackupFunctionName:
     Type: String
+  DisableBackupFunctionName:
+    Type: String
   InvokeLoadScriptFunctionName:
     Type: String
   InvokeUpdatePipelineFunctionName:
@@ -237,19 +239,19 @@ Resources:
                   - "secretsmanager:ListSecrets"
                 Resource:
                   - "*"
-        - PolicyName: !Sub "${Stage}-${AppName}-SQSPolicy"
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - "sqs:GetQueueAttributes"
-                  - "sqs:SendMessageBatch"
-                  - "sqs:SendMessage"
-                  - "sqs:ReceiveMessage"
-                  - "sqs:DeleteMessage"
-                Resource:
-                  - !GetAtt FailedAllelesQueue.Arn
+        # - PolicyName: !Sub '${Stage}-${AppName}-SQSPolicy'
+        #   PolicyDocument:
+        #     Version: '2012-10-17' 
+        #     Statement:
+        #       - Effect: Allow
+        #         Action:
+        #           - "sqs:GetQueueAttributes"
+        #           - "sqs:SendMessageBatch"
+        #           - "sqs:SendMessage"
+        #           - "sqs:ReceiveMessage"
+        #           - "sqs:DeleteMessage"
+        #         Resource:
+        #           - !GetAtt FailedAllelesQueue.Arn
 
   BuildJobDefinition:
     Type: AWS::Batch::JobDefinition
@@ -269,9 +271,9 @@ Resources:
           - run.sh
         Environment:
           - Name: GFE_BUCKET
-            Value: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}"
-          - Name: FAILED_ALLELES_QUEUE
-            Value: !Ref FailedAllelesQueue
+            Value: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
+          # - Name: FAILED_ALLELES_QUEUE
+          #   Value: !Ref FailedAllelesQueue
           - Name: AWS_REGION
             Value: !Ref AWS::Region
       RetryStrategy:
@@ -721,7 +723,7 @@ Resources:
       Handler: app.lambda_handler
       Runtime: python3.10
       MemorySize: 2048
-      Timeout: 120
+      Timeout: 900
       Architectures:
         - x86_64
       Environment:
@@ -754,23 +756,25 @@ Resources:
     Properties:
       DefinitionUri: statemachines/update-pipeline.asl.json
       DefinitionSubstitutions:
+        AppName: !Ref AppName
         InvokeBackupScriptFunctionArn: !GetAtt InvokeBackupScriptFunction.Arn
         GetExecutionStateFunctionArn: !GetAtt GetExecutionStateFunction.Arn
         GfeDbExecutionStateTable: !Ref GfeDbExecutionStateTable
         GfeDbExecutionResultTopicArn: !GetAtt GfeDbExecutionResultTopic.TopicArn
         ValidateBuildOutputFunctionArn: !GetAtt ValidateBuildOutputFunction.Arn
+        DataBucketName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
         BuildJobDefinition: !Ref BuildJobDefinition
         # TODO use SSM Parameter
         BuildJobName: !Sub "${Stage}-${AppName}-build-job"
         BuildJobQueue: !Ref BuildJobQueue
         ExecuteValidationQueriesFunctionArn: !GetAtt ExecuteValidationQueriesFunction.Arn
-        InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
         LoadReleaseActivityArn: !Ref LoadReleaseActivity
+        ValidateBuildOutputFunctionArn: !GetAtt ValidateBuildOutputFunction.Arn
+        InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
+        LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref GetExecutionStateFunction
-        - LambdaInvokePolicy:
-            FunctionName: !Ref ValidateBuildOutputFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref InvokeLoadScriptFunction
         - DynamoDBReadPolicy:
@@ -782,11 +786,11 @@ Resources:
         - LambdaInvokePolicy:
             FunctionName: !Ref ExecuteValidationQueriesFunction
         - LambdaInvokePolicy:
-            FunctionName: !Ref InvokeLoadScriptFunction
-        - LambdaInvokePolicy:
             FunctionName: !Ref InvokeBackupScriptFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref ValidateBuildOutputFunction
+        - S3ReadPolicy:
+            BucketName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
         - Version: "2012-10-17"
           Statement:
             - Effect: "Allow"
@@ -1058,15 +1062,15 @@ Resources:
         - Name: ServiceIntegrationResourceArn
           Value: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:batch:submitJob.sync"
 
-  FailedAllelesQueue:
-    Type: AWS::SQS::Queue
-    Properties:
-      VisibilityTimeout: 20
-      RedrivePolicy:
-        deadLetterTargetArn: !GetAtt FailedAllelesDeadLetterQueue.Arn
-        maxReceiveCount: 5
-  FailedAllelesDeadLetterQueue:
-    Type: AWS::SQS::Queue
+  # FailedAllelesQueue:
+  #   Type: AWS::SQS::Queue
+  #   Properties:
+  #     VisibilityTimeout: 20
+  #     RedrivePolicy:
+  #       deadLetterTargetArn: !GetAtt FailedAllelesDeadLetterQueue.Arn
+  #       maxReceiveCount: 5
+  # FailedAllelesDeadLetterQueue:
+  #   Type: AWS::SQS::Queue
 
   Neo4jLoadQueryDocument:
     Type: AWS::SSM::Document

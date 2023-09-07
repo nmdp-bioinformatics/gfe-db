@@ -42,10 +42,16 @@ def lambda_handler(event, context):
             raise Exception("Failed to send command")
         else:
             logger.info(f"Neo4j backup invoked on instance {neo4j_database_instance_id}")
+            
+            # wait for the command to complete successfully
+            waiter = ssm.get_waiter('command_executed')
+            waiter.wait(
+                CommandId=response['Command']['CommandId'],
+                InstanceId=neo4j_database_instance_id
+            )
 
-            # TODO poll SSM until command is complete
-            # try: poll; except Failed Command: raise Exception
-    
+            logger.info(f"Neo4j backup completed on instance {neo4j_database_instance_id}")
+
     except Exception as err:
         logger.error(err)
         raise err

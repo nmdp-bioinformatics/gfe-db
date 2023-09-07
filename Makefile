@@ -37,6 +37,11 @@ export PIPELINE_STATE_PATH := config/IMGTHLA-repository-state.json
 export PIPELINE_PARAMS_PATH := config/pipeline-input.json
 export FUNCTIONS_PATH := ${APP_NAME}/pipeline/functions
 
+# Required environment variables
+REQUIRED_VARS := STAGE APP_NAME AWS_ACCOUNT AWS_REGION AWS_PROFILE SUBSCRIBE_EMAILS \
+                 GITHUB_REPOSITORY_OWNER GITHUB_REPOSITORY_NAME GITHUB_PERSONAL_ACCESS_TOKEN \
+                 HOST_DOMAIN SUBDOMAIN ADMIN_EMAIL NEO4J_AMI_ID APOC_VERSION GDS_VERSION
+
 # print colors
 define blue
 	@tput setaf 4
@@ -144,7 +149,7 @@ env.validate.stage:
 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Stage" \
 		--output json \
 		| jq -r '.Parameters[0].Value') && \
-	echo "Found stage: $${res}" && \
+	[[ $$res = "null" ]] && echo "No deployed stage found" || echo "Found deployed stage: $$res" && \
 	if [ "$${res}" = "null" ]; then \
 		echo "\033[0;32m**** Starting new deployment. ****\033[0m"; \
 	elif [ "$${res}" = "${STAGE}" ]; then \
@@ -170,24 +175,8 @@ else
 endif
 
 env.validate: check.dependencies
-ifndef AWS_ACCOUNT
-	$(error AWS_ACCOUNT is not set. Please add AWS_ACCOUNT to the environment variables.)
-endif
-ifndef AWS_REGION
-	$(error AWS_REGION is not set. Please add AWS_REGION to the environment variables.)
-endif
-ifndef AWS_PROFILE
-	$(error AWS_PROFILE is not set. Please select an AWS profile to use.)
-endif
-ifndef GITHUB_PERSONAL_ACCESS_TOKEN
-	$(error GITHUB_PERSONAL_ACCESS_TOKEN is not set. Please add GITHUB_PERSONAL_ACCESS_TOKEN to the environment variables.)
-endif
-ifndef HOST_DOMAIN
-	$(error HOST_DOMAIN is not set. Please add HOST_DOMAIN to the environment variables.)
-endif
-ifndef ADMIN_EMAIL
-	$(error ADMIN_EMAIL is not set. Please add ADMIN_EMAIL to the environment variables.)
-endif
+	$(foreach var,$(REQUIRED_VARS),\
+		$(if $(value $(var)),,$(error $(var) is not set. Please add $(var) to the environment variables.)))
 ifndef CREATE_VPC
 	$(info 'CREATE_VPC' is not set. Defaulting to 'false')
 	$(eval export CREATE_VPC := false)
@@ -214,8 +203,8 @@ database.service.deploy:
 pipeline.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.deploy
 
-pipeline.functions.deploy:
-	$(MAKE) -C ${APP_NAME}/pipeline/ service.functions.deploy
+pipeline.service.deploy:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.deploy
 
 pipeline.jobs.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.jobs.deploy
@@ -241,9 +230,11 @@ database.load.run: # args: align, kir, limit, releases
 	@echo "Confirm payload:" && \
 	[ "$$align" ] && align="$$align" || align=false && \
 	[ "$$kir" ] && kir="$$kir" || kir=false && \
-	[ "$$limit" ] && limit="$$limit" || limit="-1" && \
-	[ "$$releases" ] && releases=$$releases || releases="" && \
-	payload="{ \"align\": $$align, \"kir\": $$kir, \"limit\": $$limit, \"releases\": \"$$releases\", \"mem_profile\": false }" && \
+	[ "$$limit" ] && limit="$$limit" || limit="" && \
+	[ "$$releases" ] && releases="$$releases" || releases="" && \
+	[ "$$use_existing_build" ] && use_existing_build="$$use_existing_build" || use_existing_build=false && \
+	[ "$$skip_load" ] && skip_load="$$skip_load" || skip_load=false && \
+	payload="{\"align\":$$align,\"kir\":$$kir,\"limit\":\"$$limit\",\"releases\":\"$$releases\",\"mem_profile\":false,\"use_existing_build\":$$use_existing_build,\"skip_load\":$$skip_load}"&&\
 	echo "$$payload" | jq -r && \
 	echo "$$payload" | jq > payload.json
 	@echo "Run pipeline with this payload? [y/N] \c " && read ans && [ $${ans:-N} = y ]
@@ -350,7 +341,7 @@ database.delete:
 pipeline.delete:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.delete
 
-pipeline.functions.delete:
+pipeline.service.delete:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.functions.delete
 
 pipeline.jobs.delete:
