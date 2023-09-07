@@ -771,7 +771,7 @@ Resources:
         LoadReleaseActivityArn: !Ref LoadReleaseActivity
         ValidateBuildOutputFunctionArn: !GetAtt ValidateBuildOutputFunction.Arn
         InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
-        LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
+        # LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref GetExecutionStateFunction

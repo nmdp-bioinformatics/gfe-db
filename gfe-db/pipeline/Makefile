@@ -7,11 +7,11 @@ target:
 # TODO: Don't deploy jobs if pipeline stack fails to create (exit Make)
 service.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
-	$(MAKE) service.deploy
+	$(MAKE) service.functions.deploy
 	$(MAKE) service.jobs.deploy
 	$(MAKE) service.config.deploy
 
-service.deploy:
+service.functions.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} - functions" 2>&1 | tee -a $$CFN_LOG_PATH
 	@sam build \
 		--region "$${AWS_REGION}" \
