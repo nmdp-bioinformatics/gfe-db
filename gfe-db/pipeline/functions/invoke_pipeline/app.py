@@ -29,7 +29,7 @@ session = boto3.session.Session(region_name=AWS_REGION)
 s3 = session.client('s3')
 sfn = session.client('stepfunctions')
 
-release_pattern = r"^\d{3}0$"
+release_pattern = r"^\d{2,3}0$"
 
 def lambda_handler(event, context):
     """Checks for new IMGT/HLA releases and triggers the update
@@ -41,8 +41,15 @@ def lambda_handler(event, context):
         if "releases" in event:
 
             # align, kir, mem_profile are booleans
-            if not all([ isinstance(event[arg], bool) for arg in [ 'align', 'kir', 'mem_profile' ] ]):
-                raise ValueError('align, kir, and mem_profile must be boolean values')
+            execution_input_bool_keys = [ 
+                'align', 
+                'kir', 
+                'mem_profile' ,
+                'use_existing_build',
+                'skip_load'
+            ]
+            if not all([ isinstance(event[arg], bool) for arg in execution_input_bool_keys if arg in event ]):
+                raise ValueError(f'{", ".join(execution_input_bool_keys)} must be boolean values')
 
             # conform booleans to the current argument format
             event = { arg: str(val) for arg, val in event.items() }
@@ -304,7 +311,7 @@ if __name__ == "__main__":
     import os
     from pathlib import Path
 
-    path = Path(__file__).parent / "bad-event.json"
+    path = Path(__file__).parent / "event-use-existing-true.json"
     with open(path, "r") as f:
         event = json.load(f)
 

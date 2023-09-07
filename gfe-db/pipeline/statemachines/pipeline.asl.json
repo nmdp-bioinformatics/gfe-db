@@ -15,18 +15,61 @@
         },
         "Build Stage": {
             "Type": "Map",
-            "Next": "Validate Build",
+            "Next": "Load Stage",
             "MaxConcurrency": 0,
             "ItemsPath": "$.input",
-            "ResultPath": null,
-            "Iterator": {
-                "StartAt": "Generate CSV files",
+            "ItemSelector": {
+                "input.$": "$$.Map.Item.Value"
+            },
+            "ResultPath": "$.validations.build",
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "Next": "Execution Failed"
+                }
+            ],
+            "ItemProcessor": {
+                "StartAt": "Check Existing Build",
                 "States": {
+                    "Check Existing Build": {
+                        "Type": "Task",
+                        "Resource": "arn:aws:states:::aws-sdk:s3:listObjects",
+                        "Parameters": {
+                            "Bucket": "${DataBucketName}",
+                            "Prefix.$": "States.Format('data/{}/csv/', $.input.RELEASES)"
+                        },
+                        "ResultPath": "$.check_existing_build",
+                        "Next": "Files Exist?"
+                    },
+                    "Files Exist?": {
+                        "Type": "Choice",
+                        "Choices": [
+                            {
+                                "Variable": "$.check_existing_build.Contents",
+                                "IsPresent": false,
+                                "Next": "Generate CSV files"
+                            }
+                        ],
+                        "Default": "Use Existing Build?"
+                    },
+                    "Use Existing Build?": {
+                        "Type": "Choice",
+                        "Choices": [
+                            {
+                                "Variable": "$.input.USE_EXISTING_BUILD",
+                                "StringEquals": "False",
+                                "Next": "Generate CSV files"
+                            }
+                        ],
+                        "Default": "Validate Build"
+                    },
                     "Generate CSV files": {
                         "Type": "Task",
                         "Resource": "arn:aws:states:::batch:submitJob.sync",
                         "ResultPath": null,
-                        "End": true,
+                        "Next": "Validate Build",
                         "Catch": [
                             {
                                 "ErrorEquals": [
@@ -43,55 +86,61 @@
                                 "Environment": [
                                     {
                                         "Name": "RELEASES",
-                                        "Value.$": "$.RELEASES"
+                                        "Value.$": "$.input.RELEASES"
                                     },
                                     {
                                         "Name": "ALIGN",
-                                        "Value.$": "$.ALIGN"
+                                        "Value.$": "$.input.ALIGN"
                                     },
                                     {
                                         "Name": "KIR",
-                                        "Value.$": "$.KIR"
+                                        "Value.$": "$.input.KIR"
                                     },
                                     {
                                         "Name": "MEM_PROFILE",
-                                        "Value.$": "$.MEM_PROFILE"
+                                        "Value.$": "$.input.MEM_PROFILE"
                                     },
                                     {
                                         "Name": "LIMIT",
-                                        "Value.$": "$.LIMIT"
+                                        "Value.$": "$.input.LIMIT"
                                     }
                                 ]
                             }
                         }
                     },
+                    "Validate Build": {
+                        "Type": "Task",
+                        "Resource": "${ValidateBuildOutputFunctionArn}",
+                        "Parameters": {
+                            "execution_id.$": "$$.Execution.Id",
+                            "execution_start_time.$": "$$.Execution.StartTime",
+                            "input.$": "$.input"
+                        },
+                        "Next": "Evaluate Payload"
+                    },
+                    "Evaluate Payload": {
+                        "Type": "Choice",
+                        "Choices": [
+                            {
+                                "Variable": "$.is_valid_build",
+                                "BooleanEquals": true,
+                                "Next": "Pass Build"
+                            }
+                        ],
+                        "Default": "Fail Build"
+                    },
                     "Fail Build": {
+                        "Type": "Pass",
+                        "ResultPath": null,
+                        "End": true
+                    },
+                    "Pass Build": {
                         "Type": "Pass",
                         "ResultPath": null,
                         "End": true
                     }
                 }
             }
-        },
-        "Validate Build": {
-            "Type": "Task",
-            "Resource": "${ValidateBuildOutputFunctionArn}",
-            "Parameters": {
-                "execution_context.$": "$$"
-            },
-            "ResultPath": "$.validations.build",
-            "Next": "Evaluate Payload"
-        },
-        "Evaluate Payload": {
-            "Type": "Choice",
-            "Choices": [
-                {
-                    "Variable": "$.validations.build.has_valid_payload",
-                    "BooleanEquals": true,
-                    "Next": "Load Stage"
-                }
-            ],
-            "Default": "Execution Failed"
         },
         "Execution Failed": {
             "Type": "Fail",
@@ -102,11 +151,27 @@
             "Type": "Map",
             "Next": "Post-Execution Validation Query",
             "MaxConcurrency": 1,
-            "ItemsPath": "$.validations.build.validated",
+            "ItemsPath": "$.validations.build",
             "ResultPath": null,
             "Iterator": {
-                "StartAt": "Load Data",
+                "StartAt": "Skip Load?",
                 "States": {
+                    "Skip Load?": {
+                        "Type": "Choice",
+                        "Choices": [
+                            {
+                                "Variable": "$.input.SKIP_LOAD",
+                                "StringEquals": "True",
+                                "Next": "Skipped"
+                            }
+                        ],
+                        "Default": "Load Data"
+                    },
+                    "Skipped": {
+                        "Type": "Pass",
+                        "ResultPath": null,
+                        "End": true
+                    },
                     "Load Data": {
                         "Type": "Parallel",
                         "ResultPath": null,
@@ -118,6 +183,7 @@
                                     "Invoke Load Script": {
                                         "Type": "Task",
                                         "Resource": "${InvokeLoadScriptFunctionArn}",
+                                        "InputPath": "$.input",
                                         "ResultPath": null,
                                         "End": true
                                     }
@@ -130,6 +196,7 @@
                                         "Type": "Task",
                                         "Resource": "${LoadNeo4jActivityArn}",
                                         "HeartbeatSeconds": 60,
+                                        "InputPath": "$.input",
                                         "ResultPath": null,
                                         "End": true,
                                         "Catch": [

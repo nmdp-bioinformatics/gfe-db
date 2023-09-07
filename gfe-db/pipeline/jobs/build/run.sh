@@ -127,7 +127,7 @@ for release in ${RELEASES}; do
 	fi
 	
 	# Builds CSV files
-	python "$SRC_DIR"/app.py \
+	python3 "$SRC_DIR"/app.py \
 		-o "$DATA_DIR/$release/csv" \
 		-r "$release" \
 		$KIRFLAG \
@@ -135,7 +135,19 @@ for release in ${RELEASES}; do
 		$MEM_PROFILE_FLAG \
 		-v \
 		-l $LIMIT
-	[ $? -ne 0 ] && exit 1;
+    build_exit_status=$?
+    echo "Build exit status (1:CRITICAL, 2:WARNING): $build_exit_status"
+    
+    # Notify missing alleles
+    if [ $build_exit_status -eq 2 ]; then
+    echo "WARNING: Some alleles failed to build, please see logs for error messages"
+    fi
+
+    # fail for any exit code other than 0 or 2. 2 is a warning for missing data but not fatal.
+    if [ $build_exit_status -ne 0 ] && [ $build_exit_status -ne 2 ]; then
+    echo "CRITICAL: Build failed, please see logs for error messages"
+    exit 1
+    fi
 
 	# TODO: Use this S3 hierarchy: root/release/csv | logs
 	echo -e "Uploading CSVs to s3://$GFE_BUCKET/data/$release/csv/:\n$(ls $DATA_DIR/$release/csv/)"
