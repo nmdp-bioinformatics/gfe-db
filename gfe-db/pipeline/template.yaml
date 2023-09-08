@@ -44,8 +44,6 @@ Parameters:
   #   Type: Number
   DisableBackupFunctionName:
     Type: String
-  DisableBackupFunctionName:
-    Type: String
   InvokeLoadScriptFunctionName:
     Type: String
   InvokeUpdatePipelineFunctionName:

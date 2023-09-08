@@ -55,11 +55,11 @@ service.jobs.deploy:
 	$(MAKE) -C jobs/ deploy
 
 # TODO handle virtual environment creation and activation
-service.config.build-source-config:
-	@python3 scripts/source_config/build.py ${ROOT_DIR}/${APP_NAME}/${SERVICE}/config/
+service.state.build:
+	@python3 scripts/state/build.py ${ROOT_DIR}/${APP_NAME}/${SERVICE}/config/
 
-service.config.load-source-config:
-	@python3 scripts/source_config/load.py ${ROOT_DIR}/${APP_NAME}/${SERVICE}/config/
+service.state.load:
+	@python3 scripts/state/load.py ${ROOT_DIR}/${APP_NAME}/${SERVICE}/config/
 
 # TODO parameterize S3 config path and export as environment variable to recall in database shell scripts
 # TODO integrate and automate the build/load process for source config and execution state

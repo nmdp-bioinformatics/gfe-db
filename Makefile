@@ -209,11 +209,11 @@ pipeline.service.deploy:
 pipeline.jobs.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.jobs.deploy
 
-pipeline.config.build-source-config: 
-	$(MAKE) -C ${APP_NAME}/pipeline/ service.config.build-source-config
+pipeline.state.build: 
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.state.build
 
-pipeline.config.load-source-config: 
-	$(MAKE) -C ${APP_NAME}/pipeline/ service.config.load-source-config
+pipeline.state.load: 
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.state.load
 
 config.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.config.deploy
