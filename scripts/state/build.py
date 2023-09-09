@@ -40,7 +40,7 @@ from gfedbmodels.ingest import (
 # Environment variables
 GITHUB_REPOSITORY_OWNER = pipeline.params.GitHubSourceRepository["owner"]
 GITHUB_REPOSITORY_NAME = pipeline.params.GitHubSourceRepository["name"]
-DATA_BUCKET_NAME = infra.params.DataBucketName
+# DATA_BUCKET_NAME = infra.params.DataBucketName
 
 
 if __name__ == "__main__":
