@@ -39,7 +39,7 @@ def save_json_to_cache(data, var_name):
             except:
                 # assume it's a list of pydantic models
                 with open(cache_dir / var_name, "w") as f:
-                    json.dump([item.dict() for item in data], f, indent=4)
+                    json.dump([item.model_dump() for item in data], f, indent=4)
     except Exception as e:
         logger.error(f"Failed to serialize {var_name} to JSON: {e}")
         # remove the file if it exists

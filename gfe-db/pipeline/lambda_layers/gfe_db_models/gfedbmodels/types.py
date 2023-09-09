@@ -34,7 +34,7 @@ def str_from_datetime(v, fmt="%Y-%m-%dT%H:%M:%SZ"):
 
 # validate that date field is ISO 8601 format with timezone
 def date_is_iso_8601_with_timezone(v):
-    if not re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$", v):
+    if not re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$", v):
         raise ValueError("Date must be in ISO 8601 format with timezone")
     return v
 

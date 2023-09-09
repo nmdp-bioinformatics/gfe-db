@@ -52,7 +52,7 @@ if __name__ == "__main__":
     # flatten JSON records for execution state table model
     # Uses double-underscore as separator because DynamoDB does not allow dots in attribute names
     execution_state_flat = flatten_json_records(
-        execution_state.dict()["items"],
+        execution_state.model_dump()["items"],
         sep="__",
         select_fields=[
             item.replace(".", "__") for item in execution_state_table_fields

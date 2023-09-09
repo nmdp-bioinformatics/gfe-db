@@ -1,5 +1,4 @@
 # --extra-index-url https://test.pypi.org/simple/
-python-dotenv
 pydantic>=2.0.0
 requests
 urllib3<2

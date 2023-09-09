@@ -10,11 +10,14 @@ export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity \
 	--output text)
 
 export ROOT_DIR := $(shell pwd)
+export SCRIPTS_DIR := ${ROOT_DIR}/scripts
 export DATABASE_DIR := ${ROOT_DIR}/${APP_NAME}/database
 export INFRA_DIR := ${ROOT_DIR}/${APP_NAME}/infrastructure
 export LOGS_DIR := $(shell echo "${ROOT_DIR}/logs")
 export CFN_LOG_PATH := $(shell echo "${LOGS_DIR}/cfn/logs.txt")
 export PURGE_LOGS := false
+export PYTHON_ENV := ${ROOT_DIR}/.venv-tmp
+export PYTHON := ${PYTHON_ENV}/bin/python3
 
 # TODO move these to a database environment config file
 export NEO4J_AMI_ID ?= ami-04aa5da301f99bf58 # Bitnami Neo4j, requires subscription through AWS Marketplace
@@ -70,6 +73,16 @@ endef
 target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
+
+python.env.create:
+	@echo "Creating Python environment..."
+	@python3 -m venv ${PYTHON_ENV} && \
+	source ${PYTHON_ENV}/bin/activate && \
+	pip install --upgrade pip && \
+	pip install -r ${SCRIPTS_DIR}/state/requirements.txt
+
+python.env.clean:
+	rm -rf ${PYTHON_ENV}
 
 splash-screen:
 	@echo "\033[0;34m                                            "
@@ -209,7 +222,7 @@ pipeline.service.deploy:
 pipeline.jobs.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.jobs.deploy
 
-pipeline.state.build: 
+pipeline.state.build:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.state.build
 
 pipeline.state.load: 

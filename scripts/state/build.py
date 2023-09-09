@@ -12,13 +12,13 @@ from pathlib import Path
 import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-from datetime import datetime
+# from datetime import datetime
 import json
 print(json.dumps(sys.path, indent=4))
-from gfedbmodels.constants import (
-    infra,
-    pipeline
-)
+# from gfedbmodels.constants import (
+#     infra,
+#     pipeline
+# )
 from gfedbmodels.utils import (
     get_utc_now,
     paginate_commits,
@@ -38,8 +38,9 @@ from gfedbmodels.ingest import (
 )
 
 # Environment variables
-GITHUB_REPOSITORY_OWNER = pipeline.params.GitHubSourceRepository["owner"]
-GITHUB_REPOSITORY_NAME = pipeline.params.GitHubSourceRepository["name"]
+GITHUB_REPOSITORY_OWNER = os.environ["GITHUB_REPOSITORY_OWNER"]
+GITHUB_REPOSITORY_NAME = os.environ["GITHUB_REPOSITORY_NAME"]
+GITHUB_PERSONAL_ACCESS_TOKEN = os.environ["GITHUB_PERSONAL_ACCESS_TOKEN"]
 # DATA_BUCKET_NAME = infra.params.DataBucketName
 
 
@@ -48,14 +49,17 @@ if __name__ == "__main__":
     utc_now = get_utc_now()
     
     # Paths
-    output_dir = Path(sys.argv[1])
+    try:
+        output_dir = Path(sys.argv[1])
+    except IndexError:
+        raise ValueError("Output directory must be specified as first argument")
 
     with open(output_dir / "source-config.json", "r") as f:
         source_config = SourceConfig(**json.load(f))
 
     # Fetch all commits from repo using GitHub API, will be cached
     logger.info("Fetching all commits from repo using GitHub API")
-    all_commits = paginate_commits(GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY_NAME)
+    all_commits = paginate_commits(GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY_NAME, token=GITHUB_PERSONAL_ACCESS_TOKEN)
 
     # filter by chosen commit keys
     commit_keys = ["sha", "commit", "html_url"]
@@ -97,7 +101,7 @@ if __name__ == "__main__":
             **select_keys(
                 source_config.repositories[
                     GITHUB_REPOSITORY_OWNER + "/" + GITHUB_REPOSITORY_NAME
-                ].dict(),
+                ].model_dump(),
                 ["owner", "name", "url"],
             )
         ),
@@ -122,10 +126,10 @@ if __name__ == "__main__":
 
     # write ExecutionState locally
     with open(output_dir / "execution-state.json", "w") as f:
-        json.dump(filter_nested_nulls(execution_state.dict()), f, indent=4)
+        json.dump(filter_nested_nulls(execution_state.model_dump()), f, indent=4)
 
     logger.info(f"Updating source config in {str(output_dir / 'source-config.json')}")
 
     # write SourceConfig locally
     with open(output_dir / f"source-config.json", "w") as f:
-        json.dump(source_config.dict(), f, indent=4)
+        json.dump(source_config.model_dump(), f, indent=4)

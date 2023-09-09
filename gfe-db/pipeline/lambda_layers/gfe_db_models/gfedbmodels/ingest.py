@@ -2,9 +2,9 @@ import logging
 from typing import List, Dict, Union
 import multiprocessing
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from .constants import (
-    pipeline
-)
+# from .constants import (
+#     pipeline
+# )
 from .types import (
     SourceConfig,
     RepositoryConfig,
@@ -31,7 +31,7 @@ def read_source_config(s3_client, bucket, key):
     return SourceConfig(**data)
 
 # def write_source_config(bucket, key, source_config: SourceConfig):
-#     write_s3_json(bucket, key, source_config.dict())
+#     write_s3_json(bucket, key, source_config.model_dump())
 
 def process_execution_state_item(
     timestamp: str,
@@ -48,7 +48,7 @@ def process_execution_state_item(
             logger.info(
                 f"Getting release version for sha {sha} from {config.asset_path}"
             )
-            release_version = get_release_version_for_commit(commit, **config.dict())
+            release_version = get_release_version_for_commit(commit, **config.model_dump())
             logger.info(f"Found release version {release_version} ({sha})")
 
             result = {
