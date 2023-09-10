@@ -106,6 +106,7 @@ if __name__ == "__main__":
             )
         ),
         target_metadata_config=target_metadata_config,  # Infers release version from file contents
+        token=GITHUB_PERSONAL_ACCESS_TOKEN,
         parallel=True,
     )
 

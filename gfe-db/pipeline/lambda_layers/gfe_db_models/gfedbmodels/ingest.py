@@ -38,6 +38,7 @@ def process_execution_state_item(
     commit: Dict[str, str],
     repository_config: RepositoryConfig,
     target_metadata_config: TargetMetadataConfig,
+    token: str = None,
     limit: int = None,
 ) -> Dict[str, str]:
     errors = 0
@@ -48,7 +49,13 @@ def process_execution_state_item(
             logger.info(
                 f"Getting release version for sha {sha} from {config.asset_path}"
             )
-            release_version = get_release_version_for_commit(commit, **config.model_dump())
+            release_version = get_release_version_for_commit(
+                commit=commit, 
+                owner=repository_config.owner, 
+                repo=repository_config.name, 
+                token=token, 
+                asset_path=config.asset_path, 
+                release_version_regex=config.metadata_regex)
             logger.info(f"Found release version {release_version} ({sha})")
 
             result = {
@@ -86,6 +93,7 @@ def parallel_process_execution_state_items(
     commits: List[Dict[str, str]],
     repository_config: RepositoryConfig,
     target_metadata_config: TargetMetadataConfig,
+    token: str = None,
     limit: int = None,
 ):
     execution_state_items = []
@@ -103,6 +111,7 @@ def parallel_process_execution_state_items(
                 commit,
                 repository_config,
                 target_metadata_config,
+                token,
             )
             for commit in commits[:limit]
         ]
@@ -123,6 +132,7 @@ def process_execution_state_items(
     commits: List[Dict[str, str]],
     repository_config: RepositoryConfig,
     target_metadata_config: TargetMetadataConfig,
+    token: str = None,
     limit: None = None,
     parallel: str = False,
 ) -> List[Dict[str, str]]:
@@ -134,6 +144,7 @@ def process_execution_state_items(
             commits=commits,
             repository_config=repository_config,
             target_metadata_config=target_metadata_config,
+            token=token,
             limit=limit,
         )
     else:
@@ -144,6 +155,7 @@ def process_execution_state_items(
                     commit=commit,
                     repository_config=repository_config,
                     target_metadata_config=target_metadata_config,
+                    token=token,
                     limit=limit,
                 )
             )
@@ -154,19 +166,19 @@ def process_execution_state_items(
         ]
     
 
-def get_release_version_for_commit(commit: Union[Commit, dict], **kwargs) -> int:
+def get_release_version_for_commit(commit: Union[Commit, dict], owner, repo, token, asset_path, release_version_regex):
     try:
         sha = commit["sha"]
     except:
         sha = commit.sha
     allele_list = get_repo_asset(
-        owner=kwargs.get("owner"), # pipeline.params.GitHubSourceRepository["owner"], 
-        repo=kwargs.get("repo"), # pipeline.params.GitHubSourceRepository["name"],
-        token=kwargs.get("token"), # pipeline.secrets.GitHubPersonalAccessToken,
-        path=kwargs.get("asset_path"), 
+        owner=owner,
+        repo=repo,
+        token=token,
+        path=asset_path, 
         commit_sha=sha
     )
-    release_version_regex = kwargs.get("metadata_regex")
+
     release_version = find_text(release_version_regex, allele_list)
     if release_version is None:
         raise Exception(f"Release version not found for commit {sha}")
