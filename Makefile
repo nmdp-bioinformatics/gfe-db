@@ -102,14 +102,24 @@ env.print:
 	@echo "+---------------------------------------------------------------------------------+"
 	@echo "\033[0;33mPlease confirm the above values are correct.\033[0m"
 
-deploy: splash-screen logs.purge env.validate.stage env.validate ##=> Deploy all services
+deploy: splash-screen logs.purge env.validate.stage env.validate ##=> Deploy all services, build and load state
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) env.print
 	@echo "Deploy stack to the \`${STAGE}\` environment? [y/N] \c " && read ans && [ $${ans:-N} = y ]
 	$(MAKE) infrastructure.deploy
 	$(MAKE) database.deploy
 	$(MAKE) pipeline.deploy
+	@sh -c '$(MAKE) pipeline.state.build && $(MAKE) pipeline.state.load || echo "Pipeline state build failed"'
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished deploying ${APP_NAME}" 2>&1 | tee -a ${CFN_LOG_PATH}
+
+update: env.validate.stage env.validate
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Updating ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
+	$(MAKE) env.print
+	@echo "Update stack in the \`${STAGE}\` environment? [y/N] \c " && read ans && [ $${ans:-N} = y ]
+	$(MAKE) infrastructure.deploy
+	$(MAKE) database.deploy
+	$(MAKE) pipeline.deploy
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished updating ${APP_NAME}" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 logs.purge: logs.dirs
 ifeq ($(PURGE_LOGS),true)
