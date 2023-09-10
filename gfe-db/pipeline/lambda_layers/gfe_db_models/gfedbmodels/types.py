@@ -34,9 +34,24 @@ def str_from_datetime(v, fmt="%Y-%m-%dT%H:%M:%SZ"):
 
 # validate that date field is ISO 8601 format with timezone
 def date_is_iso_8601_with_timezone(v):
-    if not re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$", v):
-        raise ValueError("Date must be in ISO 8601 format with timezone")
-    return v
+    # Check if the date is already in the desired ISO 8601 format with 3 milliseconds
+    if re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$", v):
+        return v
+    
+    # Check if the date is in ISO 8601 format with fractional seconds (arbitrary number of digits)
+    match = re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z$", v)
+    if match:
+        fractional_seconds = v.split(".")[1].split("Z")[0]
+        # Truncate or pad fractional seconds to 3 digits
+        truncated_fractional_seconds = fractional_seconds[:3].ljust(3, '0')
+        return v.replace(fractional_seconds, truncated_fractional_seconds)
+    
+    # Check if the date is in ISO 8601 format without fractional seconds
+    if re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$", v):
+        # Add milliseconds and return
+        return v[:-1] + ".000Z"
+    
+    raise ValueError("Date must be in ISO 8601 format with timezone")
 
 
 # validate that url is a valid URL
