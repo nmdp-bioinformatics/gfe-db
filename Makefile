@@ -253,7 +253,7 @@ database.load.run: # args: align, kir, limit, releases
 	@echo "Confirm payload:" && \
 	[ "$$align" ] && align="$$align" || align=false && \
 	[ "$$kir" ] && kir="$$kir" || kir=false && \
-	[ "$$limit" ] && limit="$$limit" || limit="" && \
+	[ "$$limit" ] && limit="$$limit" || limit=-1 && \
 	[ "$$releases" ] && releases="$$releases" || releases="" && \
 	[ "$$use_existing_build" ] && use_existing_build="$$use_existing_build" || use_existing_build=false && \
 	[ "$$skip_load" ] && skip_load="$$skip_load" || skip_load=false && \
