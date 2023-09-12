@@ -57,6 +57,7 @@ if __name__ == "__main__":
     with open(output_dir / "source-config.json", "r") as f:
         source_config = SourceConfig(**json.load(f))
 
+    # TODO FIX not returning all commits from repo, integrate pygethub
     # Fetch all commits from repo using GitHub API, will be cached
     logger.info("Fetching all commits from repo using GitHub API")
     all_commits = paginate_commits(GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY_NAME, token=GITHUB_PERSONAL_ACCESS_TOKEN)
@@ -107,7 +108,7 @@ if __name__ == "__main__":
         ),
         target_metadata_config=target_metadata_config,  # Infers release version from file contents
         token=GITHUB_PERSONAL_ACCESS_TOKEN,
-        parallel=True,
+        parallel=False,
     )
 
     # Package records as ExecutionState object to seed table

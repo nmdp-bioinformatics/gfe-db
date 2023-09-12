@@ -152,6 +152,7 @@ def process_execution_state_items(
         for commit in commits[:limit]:
             execution_state_items.append(
                 process_execution_state_item(
+                    timestamp=timestamp,
                     commit=commit,
                     repository_config=repository_config,
                     target_metadata_config=target_metadata_config,
@@ -182,4 +183,6 @@ def get_release_version_for_commit(commit: Union[Commit, dict], owner, repo, tok
     release_version = find_text(release_version_regex, allele_list)
     if release_version is None:
         raise Exception(f"Release version not found for commit {sha}")
+    
+    # TODO fix so that 3 digit release versions are returned correctly
     return int(release_version.replace(".", "")[:4])

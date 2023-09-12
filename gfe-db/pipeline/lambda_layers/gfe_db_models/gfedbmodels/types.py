@@ -24,7 +24,7 @@ valid_statuses = [
 ]
 
 
-def str_to_datetime(v, fmt="%Y-%m-%dT%H:%M:%SZ"):
+def str_to_datetime(v, fmt="%Y-%m-%dT%H:%M:%S.%fZ"):
     return datetime.strptime(v, fmt)
 
 
