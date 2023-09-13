@@ -9,8 +9,8 @@ export BITNAMI_HOME ?= /home/bitnami
 export LOGS_DIR := /tmp/logs
 export REPORTS_DIR := ${BITNAMI_HOME}/reports
 export NEO4J_HOME := /opt/bitnami/neo4j
-export NEO4J_USERNAME := $(shell cat ${BITNAMI_HOME}/bitnami_credentials | sed 's/ /\n/g' | grep -E "'([a-zA-Z0-9]+)'" | sed "s/'//g" | sed "s/\.//g" | head -n 1)
-export NEO4J_PASSWORD := $(shell cat ${BITNAMI_HOME}/bitnami_credentials | sed 's/ /\n/g' | grep -E "'([a-zA-Z0-9]+)'" | sed "s/'//g" | sed "s/\.//g" | tail -n 1)
+export NEO4J_USERNAME=$(shell awk -F"'" '/The default username and password is/ {print $$2}' bitnami_credentials)
+export NEO4J_PASSWORD=$(shell awk -F"'" '/The default username and password is/ {print $$4}' bitnami_credentials)
 export INSTANCE_ID := $(shell curl -sS http://169.254.169.254/latest/meta-data/instance-id)
 
 target:
@@ -23,7 +23,6 @@ env:
 get.data: #=> Download the build data locally; get.data release=3470
 	# should be [[ -n "$$release" ]]
 	@[ -z "$$release" ] && aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/data/$$release/csv/ ${NEO4J_HOME}/import/ || echo "No release argument"
-# env.fetch:
 
 env.check:
 ifndef DATA_BUCKET_NAME
@@ -33,10 +32,10 @@ ifndef NEO4J_HOME
 $(error NEO4J_HOME is not set.)
 endif
 ifndef NEO4J_USERNAME
-$(error NEO4J_HOME is not set.)
+$(error NEO4J_USERNAME is not set.)
 endif
 ifndef NEO4J_PASSWORD
-$(error NEO4J_HOME is not set.)
+$(error NEO4J_PASSWORD is not set.)
 endif
 ifndef HOST_DOMAIN
 $(error HOST_DOMAIN is not set.)
@@ -61,7 +60,7 @@ bootstrap:
 	$(MAKE) ssl.create-cert
 
 neo4j: bootstrap
-	$(MAKE) neo4j.update-credentials
+	$(MAKE) neo4j.credentials.update
 	$(MAKE) neo4j.config.update
 	# $(MAKE) neo4j.plugins.install-apoc # TODO already installed
 	# $(MAKE) neo4j.plugins.install-gds # TODO enable
@@ -75,10 +74,14 @@ eip.waiter:
 	@bash ${BITNAMI_HOME}/init/eip_assoc_waiter.sh
 
 # neo4j
-neo4j.update-credentials:
+neo4j.credentials.update:
 	@aws --region ${AWS_REGION} secretsmanager update-secret \
 		--secret-id ${NEO4J_CREDENTIALS_SECRET_ARN} \
 		--secret-string "{\"NEO4J_USERNAME\":\"${NEO4J_USERNAME}\",\"NEO4J_PASSWORD\":\"${NEO4J_PASSWORD}\"}"
+
+neo4j.credentials.show:
+	@echo "Username: ${NEO4J_USERNAME}"
+	@echo "Password: ${NEO4J_PASSWORD}"
 
 neo4j.status:
 	@/opt/bitnami/ctlscript.sh status
