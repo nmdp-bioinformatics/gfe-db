@@ -34,7 +34,7 @@ Resources:
   Neo4jCredentialsSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: !Sub "${AppName}-${Stage}-Neo4jCredentials"
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentials"
       Description: Must match the username/password specified in the Neo4j Dockerfile. Empty until the database is created.
       SecretString: '{"NEO4J_USERNAME":"","NEO4J_PASSWORD":""}'
       # TODO remove
