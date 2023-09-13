@@ -21,16 +21,13 @@ secrets = session.client("secretsmanager")
 uri = ssm.get_parameter(
     Name=f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jUri"
 )["Parameter"]["Value"]
+
 # 'https://gfe-db.cloudftl.org:7473/browser/' => neo4j+s://gfe-db.cloudftl.org:7687
 uri = format_uri(uri)
 
-# /gfe-db/dev/us-east-1/Neo4jCredentialsSecretArn
-auth_arn = ssm.get_parameter(
-    Name=f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jCredentialsSecretArn"
-)["Parameter"]["Value"]
-
 # get secret from arn
-auth = json.loads(secrets.get_secret_value(SecretId=auth_arn)["SecretString"])
+auth = json.loads(secrets.get_secret_value(
+    SecretId=f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jCredentials")["SecretString"])
 
 graphdb = GraphDatabase.driver(uri, auth=(auth["NEO4J_USERNAME"], auth["NEO4J_PASSWORD"]))
 
