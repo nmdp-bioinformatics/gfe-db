@@ -19,6 +19,7 @@ print(json.dumps(sys.path, indent=4))
 #     infra,
 #     pipeline
 # )
+from pygethub import list_commits, GitHubPaginator
 from gfedbmodels.utils import (
     get_utc_now,
     paginate_commits,
@@ -60,7 +61,15 @@ if __name__ == "__main__":
     # TODO FIX not returning all commits from repo, integrate pygethub
     # Fetch all commits from repo using GitHub API, will be cached
     logger.info("Fetching all commits from repo using GitHub API")
-    all_commits = paginate_commits(GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY_NAME, token=GITHUB_PERSONAL_ACCESS_TOKEN)
+    # all_commits = paginate_commits(GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY_NAME, token=GITHUB_PERSONAL_ACCESS_TOKEN)
+    owner = "ANHIG"
+    repo = "IMGTHLA"
+
+    # COMMITS
+    # TODO add requests session for user-agent tracking
+    paginator = GitHubPaginator(GITHUB_PERSONAL_ACCESS_TOKEN)
+    pages = paginator.get_paginator(list_commits, owner=owner, repo=repo, user_agent="nmdp-bioinformatics-gfe-db-state-builder/1.0")
+    all_commits = list(pages)
 
     # filter by chosen commit keys
     commit_keys = ["sha", "commit", "html_url"]
