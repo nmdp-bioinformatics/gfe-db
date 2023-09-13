@@ -2,14 +2,18 @@
 # Bootstrapping variables
 ##########################
 
-# Application specific environment variables
-include .env
+# Environment variables
+# include .env # Optional, include STAGE and AWS_PROFILE
+include .env.${STAGE}
 export
 
-# Base settings, these should almost never change.
-export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity --query Account --output text)
+export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity \
+	--query Account \
+	--output text)
 
 export ROOT_DIR := $(shell pwd)
+export DATABASE_DIR := ${ROOT_DIR}/${APP_NAME}/database
+export INFRA_DIR := ${ROOT_DIR}/${APP_NAME}/infrastructure
 export LOGS_DIR := $(shell echo "${ROOT_DIR}/logs")
 export CFN_LOG_PATH := $(shell echo "${LOGS_DIR}/cfn/logs.txt")
 export PURGE_LOGS := false
@@ -34,13 +38,61 @@ export PIPELINE_STATE_PATH := config/IMGTHLA-repository-state.json
 export PIPELINE_PARAMS_PATH := config/pipeline-input.json
 export FUNCTIONS_PATH := ${APP_NAME}/pipeline/functions
 
+# Required environment variables
+REQUIRED_VARS := STAGE APP_NAME AWS_ACCOUNT AWS_REGION AWS_PROFILE SUBSCRIBE_EMAILS \
+                 GITHUB_REPOSITORY_OWNER GITHUB_REPOSITORY_NAME GITHUB_PERSONAL_ACCESS_TOKEN \
+                 HOST_DOMAIN SUBDOMAIN ADMIN_EMAIL NEO4J_AMI_ID APOC_VERSION GDS_VERSION
+
+# print colors
+define blue
+	@tput setaf 4
+	@echo $1
+	@tput sgr0
+endef
+
+define green
+	@tput setaf 2
+	@echo $1
+	@tput sgr0
+endef
+
+define yellow
+	@tput setaf 3
+	@echo $1
+	@tput sgr0
+endef
+
+define red
+	@tput setaf 1
+	@echo $1
+	@tput sgr0
+endef
+
 target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-deploy: logs.purge check.env ##=> Deploy services
-	$(MAKE) env.confirm
+splash-screen:
+	@echo "\033[0;34m                                            "
+	@echo "\033[0;34m           ____                      __ __  "
+	@echo "\033[0;34m   ____ _ / __/___              ____/ // /_ "
+	@echo "\033[0;32m  / __ \`// /_ / _ \   ______   / __  // __ \\"
+	@echo "\033[0;32m / /_/ // __//  __/  /_____/  / /_/ // /_/ /"
+	@echo "\033[0;34m \__, //_/   \___/            \____//_____/ "
+	@echo "\033[0;34m/____/                                      \033[0m"
+	@echo "\033[0;34m                                             \033[0m"
+
+env.print:
+	@echo "\033[0;33mReview the contents of the .env file:\033[0m"
+	@echo "+---------------------------------------------------------------------------------+"
+	@awk '{ if (substr($$0, 1, 1) != "#") { line = substr($$0, 1, 76); if (length($$0) > 76) line = line "..."; printf "| %-79s |\n", line }}' .env.${STAGE}
+	@echo "+---------------------------------------------------------------------------------+"
+	@echo "\033[0;33mPlease confirm the above values are correct.\033[0m"
+
+deploy: splash-screen logs.purge env.validate.stage env.validate ##=> Deploy all services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
+	$(MAKE) env.print
+	@echo "Deploy stack to the \`${STAGE}\` environment? [y/N] \c " && read ans && [ $${ans:-N} = y ]
 	$(MAKE) infrastructure.deploy
 	$(MAKE) database.deploy
 	$(MAKE) pipeline.deploy
@@ -57,24 +109,6 @@ logs.dirs:
 		"${LOGS_DIR}/pipeline/load" \
 		"${LOGS_DIR}/database/bootstrap" || true
 
-check.env: check.dependencies
-ifndef AWS_REGION
-$(error AWS_REGION is not set. Please add AWS_REGION to the environment variables.)
-endif
-ifndef AWS_PROFILE
-$(error AWS_PROFILE is not set. Please select an AWS profile to use.)
-endif
-ifndef GITHUB_PERSONAL_ACCESS_TOKEN
-$(error GITHUB_PERSONAL_ACCESS_TOKEN is not set. Please add GITHUB_PERSONAL_ACCESS_TOKEN to the environment variables.)
-endif
-ifndef HOST_DOMAIN
-$(error HOST_DOMAIN is not set. Please add HOST_DOMAIN to the environment variables.)
-endif
-ifndef ADMIN_EMAIL
-$(error ADMIN_EMAIL is not set. Please add ADMIN_EMAIL to the environment variables.)
-endif
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
-
 check.dependencies:
 	$(MAKE) check.dependencies.docker
 	$(MAKE) check.dependencies.awscli
@@ -82,7 +116,7 @@ check.dependencies:
 	$(MAKE) check.dependencies.jq
 
 check.dependencies.docker:
-	@if ! docker info >/dev/null 2>&1; then \
+	@if docker info 2>&1 | grep -q 'Is the docker daemon running?'; then \
 		echo "**** Docker is not running. Please start Docker before deploying. ****" && \
 		echo "**** Please refer to the documentation for a list of prerequisistes. ****" && \
 		exit 1; \
@@ -109,31 +143,75 @@ check.dependencies.jq:
 		exit 1; \
 	fi
 
-env.confirm:
-	@printf "\n************ Deployment Configuration ************\n"
-	@[ -f ./.env ] && cat ./.env || exit 1
-	@printf "\n**************************************************"
-	@printf "\n\nDo you wish to deploy with this configuration to account $${AWS_ACCOUNT}? [y/N] " && read ans && [ $${ans:-N} = y ]
+# TODO use cloudformation list-stacks as alternative to SSM parameter
+env.validate.stage:
+	@res=$$(aws ssm get-parameters \
+		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Stage" \
+		--output json \
+		| jq -r '.Parameters[0].Value') && \
+	[[ $$res = "null" ]] && echo "No deployed stage found" || echo "Found deployed stage: $$res" && \
+	if [ "$${res}" = "null" ]; then \
+		echo "\033[0;32m**** Starting new deployment. ****\033[0m"; \
+	elif [ "$${res}" = "${STAGE}" ]; then \
+		echo "\033[0;32m**** Found existing deployment for \`${STAGE}\` ****\033[0m"; \
+	else \
+		echo "\033[0;31m**** STAGE mismatch or bad credential configuration. ****\033[0m" && \
+		echo "\033[0;31m**** Please refer to the documentation for a list of prerequisites. ****\033[0m" && \
+		exit 1; \
+	fi
+	
+env.validate.no-vpc:
+ifeq ($(VPC_ID),)
+	$(call red, "VPC_ID must be set as an environment variable when \`CREATE_VPC\` is false")
+	@exit 1
+else
+	$(call green, "Found VPC_ID: ${VPC_ID}")
+endif
+ifeq ($(PUBLIC_SUBNET_ID),)
+	$(call red, "PUBLIC_SUBNET_ID must be set as an environment variable when \`CREATE_VPC\` is false")
+	@exit 1
+else
+	$(call green, "Found PUBLIC_SUBNET_ID: ${PUBLIC_SUBNET_ID}")
+endif
 
-# Deploy specific stacks
-infrastructure.deploy:
+env.validate: check.dependencies
+	$(foreach var,$(REQUIRED_VARS),\
+		$(if $(value $(var)),,$(error $(var) is not set. Please add $(var) to the environment variables.)))
+ifndef CREATE_VPC
+	$(info 'CREATE_VPC' is not set. Defaulting to 'false')
+	$(eval export CREATE_VPC := false)
+	$(call blue, "**** This deployment uses an existing VPC**** ")
+	$(MAKE) env.validate.no-vpc
+endif
+ifeq ($(CREATE_VPC),false)
+	$(call blue, "**** This deployment uses an existing VPC**** ")
+	$(MAKE) env.validate.no-vpc
+else ifeq ($(CREATE_VPC),true)
+	$(call blue, "**** This deployment includes a VPC**** ")
+endif
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
+
+infrastructure.deploy: 
 	$(MAKE) -C ${APP_NAME}/infrastructure/ deploy
 
 database.deploy:
 	$(MAKE) -C ${APP_NAME}/database/ deploy
 
+database.service.deploy:
+	$(MAKE) -C ${APP_NAME}/database/ service.deploy
+
 pipeline.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ deploy
 
-pipeline.functions.deploy:
-	$(MAKE) -C ${APP_NAME}/pipeline/ service.functions.deploy
+pipeline.service.deploy:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.deploy
 
 pipeline.jobs.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.jobs.deploy
 
 config.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.config.deploy
-	$(MAKE) -C ${APP_NAME}/database/ config.deploy
+	$(MAKE) -C ${APP_NAME}/database/ service.config.deploy
 
 monitoring.create-subscriptions:
 	$(MAKE) -C ${APP_NAME}/infrastructure service.monitoring.create-subscriptions
@@ -144,11 +222,13 @@ monitoring.subscribe-email:
 # TODO fix output & error handling
 database.load.run: # args: align, kir, limit, releases
 	@echo "Confirm payload:" && \
-	[ "$$align" ] && align="$$align" || align="False" && \
-	[ "$$kir" ] && kir="$$kir" || kir="False" && \
+	[ "$$align" ] && align="$$align" || align=false && \
+	[ "$$kir" ] && kir="$$kir" || kir=false && \
 	[ "$$limit" ] && limit="$$limit" || limit="" && \
 	[ "$$releases" ] && releases="$$releases" || releases="" && \
-	payload="{ \"align\": \"$$align\", \"kir\": \"$$kir\", \"limit\": \"$$limit\", \"releases\": \"$$releases\", \"mem_profile\": \"False\" }" && \
+	[ "$$use_existing_build" ] && use_existing_build="$$use_existing_build" || use_existing_build=false && \
+	[ "$$skip_load" ] && skip_load="$$skip_load" || skip_load=false && \
+	payload="{\"align\":$$align,\"kir\":$$kir,\"limit\":\"$$limit\",\"releases\":\"$$releases\",\"mem_profile\":false,\"use_existing_build\":$$use_existing_build,\"skip_load\":$$skip_load}"&&\
 	echo "$$payload" | jq -r && \
 	echo "$$payload" | jq > payload.json
 	@echo "Run pipeline with this payload? [y/N] \c " && read ans && [ $${ans:-N} = y ]
@@ -161,8 +241,10 @@ database.load.run: # args: align, kir, limit, releases
 		--function-name "$$function_name" \
 		--payload file://payload.json \
 		response.json \
-		--output json  >/dev/null 2>&1 && \
+		--output json  >> ${CFN_LOG_PATH} && \
+	echo "Response:" && \
 	echo "Response:" >> ${CFN_LOG_PATH} && \
+	cat response.json | jq -r && \
 	cat response.json | jq -r >> ${CFN_LOG_PATH} && \
 	rm payload.json response.json
 	
@@ -193,6 +275,13 @@ database.reboot:
 # TODO make sure database is running before syncing
 database.sync-scripts:
 	$(MAKE) -C ${APP_NAME}/database/ service.config.scripts.sync
+
+# # TODO get expiration date, automate renewal
+# database.ssl.get-expiration:
+# 	$(MAKE) -C ${APP_NAME}/database/ service.ssl.get-expiration
+
+database.ssl.renew-cert:
+	$(MAKE) -C ${APP_NAME}/database/ service.ssl.renew-cert
 
 database.backup:
 	@echo "Backing up $${APP_NAME} server..."
@@ -225,9 +314,14 @@ database.get.credentials:
 database.get.instance-id:
 	@echo "${INSTANCE_ID}"
 
-# TODO add confirmation to proceed
+# TODO add confirmation to proceed BOOKMARK
 delete: # data=true/false ##=> Delete services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${APP_NAME} in ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
+	@[[ $$data != true ]] && echo "Data will not be deleted. To delete pass \`data=true\`" || true
+	@echo "Delete all stacks from the \`${STAGE}\` environment? [y/N] \c " && read ans && [ $${ans:-N} = y ] && \
+	if [ "${data}" = "true" ]; then \
+		aws s3 rm --recursive s3://${DATA_BUCKET_NAME}; \
+	fi
 	$(MAKE) pipeline.delete
 	$(MAKE) database.delete
 	$(MAKE) infrastructure.delete
@@ -243,7 +337,7 @@ database.delete:
 pipeline.delete:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.delete
 
-pipeline.functions.delete:
+pipeline.service.delete:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.functions.delete
 
 pipeline.jobs.delete:

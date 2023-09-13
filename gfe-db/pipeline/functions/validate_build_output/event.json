@@ -1,0 +1,11 @@
+{
+    "input": {
+        "ALIGN": "False",
+        "KIR": "False",
+        "LIMIT": "100",
+        "MEM_PROFILE": "False",
+        "RELEASES": "320"
+    },
+    "execution_id": 1,
+    "execution_start_time": "2023-08-30T23:46:01.477Z"
+}

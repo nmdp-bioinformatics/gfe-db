@@ -7,11 +7,11 @@ target:
 # TODO: Don't deploy jobs if pipeline stack fails to create (exit Make)
 deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
-	$(MAKE) service.functions.deploy
+	$(MAKE) service.deploy
 	$(MAKE) service.jobs.deploy
 	$(MAKE) service.config.deploy
 
-service.functions.deploy:
+service.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} - functions" 2>&1 | tee -a $$CFN_LOG_PATH
 	@sam build \
 		--template-file template.yaml  2>&1 | tee -a $$CFN_LOG_PATH || true && \
@@ -23,6 +23,7 @@ service.functions.deploy:
 		--region "$${AWS_REGION}" \
 		--template-file packaged.yaml \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" \
+		--tags stage="$${STAGE}" app="$${APP_NAME}" service="${SERVICE}" branch="$$(git branch --show-current)" commit=$$(git rev-parse HEAD) \
 		--capabilities CAPABILITY_IAM \
 		--tags stage="$${STAGE}" app="$${APP_NAME}" service="${SERVICE}" release_branch="$$(git branch --show-current)" \
 		--parameter-overrides \
@@ -36,6 +37,7 @@ service.functions.deploy:
 			GitHubRepositoryName="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Environment.Variables.GITHUB_REPOSITORY_NAME')" \
 			PipelineStatePath="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Environment.Variables.PIPELINE_STATE_PATH')" \
 			PipelineParamsPath="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Environment.Variables.PIPELINE_PARAMS_PATH')"  \
+			DisableBackupFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.DisableBackup.FunctionConfiguration.FunctionName')" \
 			InvokeLoadScriptFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokeLoadScript.FunctionConfiguration.FunctionName')" \
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \

@@ -33,6 +33,7 @@ service.config.neo4j.deploy: service.config.update-dns
 	@aws s3 cp neo4j/neo4j.conf s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws s3 cp --recursive neo4j/cypher/ s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
 
+# This target will configure the database to use the correct DNS name using env vars
 service.config.update-dns:
 	@[ "${HOST_DOMAIN}" != "" ] && \
 	cat neo4j/neo4j.template | \
@@ -52,6 +53,13 @@ service.config.scripts.sync: service.config.scripts.deploy
 		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
 		--comment "${STAGE}=${APP_NAME} backup service" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
+service.ssl.renew-cert:
+	@aws ssm send-command \
+		--document-name "AWS-RunShellScript" \
+		--parameters "commands=[cd /home/bitnami && sudo make ssl.renew-cert]" \
+		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
+		--comment "${STAGE}-${APP_NAME} SSL certificate renewal utility" 2>&1 | tee -a $$CFN_LOG_PATH || true
+
 service.config.cloudwatch-agent.deploy:
 	@mkdir -p amazon-cloudwatch-agent/tmp/ 
 	@cat amazon-cloudwatch-agent/amazon-cloudwatch-agent.json | sed "s/STAGE/$${STAGE}/g" | sed "s/APP_NAME/$${APP_NAME}/g" > amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json
@@ -67,6 +75,7 @@ service.deploy:
 		--region $${AWS_REGION} \
 		--template-file template.yaml \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" \
+		--tags stage="$${STAGE}" app="$${APP_NAME}" service="${SERVICE}" branch="$$(git branch --show-current)" commit=$$(git rev-parse HEAD) \
 		--capabilities CAPABILITY_IAM \
 		--tags stage="$${STAGE}" app="$${APP_NAME}" service="${SERVICE}" release_branch="$$(git branch --show-current)" \
 		--parameter-overrides \
@@ -114,10 +123,10 @@ service.check-consistency:
 
 service.restore.pre-validate:
 	@echo "Validating restore pre-conditions"
-	@echo "Checking if backup exists"
-	@backup_object=$$(aws s3 ls --recursive s3://${DATA_BUCKET_NAME}/backups/neo4j/$$from_date/ | cut -d' ' -f7 | cut -d'/' -f3-6) && \
+	@echo "Checking if backup exists for \`s3://${DATA_BUCKET_NAME}/backups/neo4j/$$from_date/\`"
+	@backup_object=$$(aws s3 ls --recursive s3://${DATA_BUCKET_NAME}/backups/neo4j/$$from_date/ | cut -d ' ' -f 6-) && \
 	[ "$$backup_object" != "" ] || (echo "ERROR: Backup does not exist" && exit 1) && \
-	echo "Found backup for $$backup_object"
+	echo "Found backup target for $$backup_object"
 
 delete: ##=> Delete resources
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH

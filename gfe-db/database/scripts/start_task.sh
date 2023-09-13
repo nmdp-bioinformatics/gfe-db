@@ -22,7 +22,7 @@ send_result () {
     fi
 }
 
-trap 'cause="Error on line $LINENO" && error=$? && send_result && kill 0' ERR
+trap 'cause="Script failed due to error on line $LINENO. Please see logs in System Manager Run Command history for more details" && error=$? && send_result && kill 0' ERR
 
 export AWS_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')
 
@@ -88,7 +88,7 @@ echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Task exit status: $TASK_EXIT_STATUS"
 if [[ $TASK_EXIT_STATUS != "0" ]]; then
     status="FAILED"
     error="$TASK_EXIT_STATUS"
-    cause="Error on line $LINENO"
+    cause="Task failed due to error on line $LINENO. Please see logs in System Manager Run Command history for more details."
     send_result
     kill 0
 else

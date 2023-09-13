@@ -3,20 +3,21 @@ import os
 from pathlib import Path
 import sys
 import logging
+import traceback
 import argparse
 import ast
 import time
+from datetime import datetime
 import json
 import hashlib
 from csv import DictWriter
 import boto3
-# import pandas as pd
 from Bio import AlignIO
 from Bio.SeqFeature import SeqFeature
 from Bio.SeqRecord import SeqRecord
 from seqann.models.annotation import Annotation
 from Bio import SeqIO
-from pyard import ARD
+import pyard
 from seqann.gfe import GFE
 from constants import *
 
@@ -35,8 +36,8 @@ logging.basicConfig(
         ])
 
 region = os.environ["AWS_REGION"]
-failed_alleles_queue = os.environ["FAILED_ALLELES_QUEUE"]
-failed_alleles_queue_name = failed_alleles_queue.split("/")[-1]
+# failed_alleles_queue = os.environ["FAILED_ALLELES_QUEUE"]
+# failed_alleles_queue_name = failed_alleles_queue.split("/")[-1]
 
 sqs = boto3.client('sqs', region_name=region)
 
@@ -200,9 +201,9 @@ def append_dict_as_row(dict_row, file_path):
         del dict_row
 
         return
-    except Exception as err:
-        logging.error(f'Could not add row: {err}')
-        # raise err
+    except Exception as e:
+        logging.error(f'Could not add row: {e}')
+        raise e
 
 
 def get_groups(allele):
@@ -240,9 +241,9 @@ def build_GFE(allele):
 
         return row
                
-    except Exception as err:
-        logging.error(f'Failed to create GFE record for allele ID {allele.id}: {err}')
-        # raise err 
+    except Exception as e:
+        logging.error(f'Failed to create GFE record for allele ID {allele.id}: {e}')
+        raise e 
 
 
 def build_feature(allele, feature):
@@ -260,9 +261,9 @@ def build_feature(allele, feature):
 
         return feature
 
-    except Exception as err:
-        logging.error(f'Failed to create feature record for allele {allele.id}: {err}')
-        logging.error(err)
+    except Exception as e:
+        logging.error(f'Failed to create feature record for allele {allele.id}: {e}')
+        raise e
 
 
 def build_alignment(allele, alignments, align_type="genomic"):
@@ -311,9 +312,9 @@ def build_alignment(allele, alignments, align_type="genomic"):
                 
             return row
     
-        except Exception as err:
-            logging.error(f'Failed to create {align_type} alignment record for allele {allele.id}: {err}')
-            # raise err
+        except Exception as e:
+            logging.error(f'Failed to create {align_type} alignment record for allele {allele.id}: {e}')
+            raise e
     
     else:
         logging.info(f'No {align_type} alignments found for {allele.id}')
@@ -336,9 +337,9 @@ def build_group(group, allele):
         
         return row
 
-    except Exception as err:
-        logging.error(f'Failed to create groups for allele {allele.id}: {err}')
-        # # raise err
+    except Exception as e:
+        logging.error(f'Failed to create groups for allele {allele.id}: {e}')
+        raise e
 
 
 def build_cds(allele):
@@ -347,6 +348,7 @@ def build_cds(allele):
         # Build CDS dict for CSV export, foreign key: allele_id, hla_name
         bp_seq, aa_seq = get_cds(allele)
 
+        # TODO fix `AttributeError: 'NoneType' object has no attribute 'encode'`
         row = {
             "gfe_name": gfe_name,
             # "gfe_sequence": str(allele.seq),
@@ -361,9 +363,9 @@ def build_cds(allele):
 
         return row
 
-    except Exception as err:
-        logging.error(f'Failed to create CDS data for allele {allele.id}: {err}')
-        # raise err
+    except Exception as e:
+        logging.error(f'Failed to create CDS data for allele {allele.id}: {e}')
+        raise e
 
 
 def gfe_from_allele(allele, gfe_maker):
@@ -392,7 +394,7 @@ def process_allele(allele, alignments_dict, csv_path=None):
 
     # gfe_sequences.RELEASE.csv
     file_name = f'{csv_path}/gfe_sequences.{dbversion}.csv'
-    #gfe_row = build_GFE(allele)
+
     append_dict_as_row(
         build_GFE(allele), 
         file_name)
@@ -420,7 +422,6 @@ def process_allele(allele, alignments_dict, csv_path=None):
     file_name = f'{csv_path}/all_features.{dbversion}.csv'
 
     for feature in features:
-        #feature_row = build_feature(allele=allele, feature=feature)
         append_dict_as_row(
             build_feature(allele=allele, feature=feature), 
             file_name)
@@ -444,7 +445,6 @@ def process_allele(allele, alignments_dict, csv_path=None):
     file_name = f'{csv_path}/all_groups.{dbversion}.csv'
 
     for group in groups:
-        #group_row = build_group(group, allele)
         append_dict_as_row(
             build_group(group, allele), 
             file_name)
@@ -470,6 +470,7 @@ if __name__ == '__main__':
     into interactive python, and still able to execute the
     function for testing"""
 
+    exit_code = 0
     start = time.time()
 
     parser = argparse.ArgumentParser()
@@ -505,7 +506,7 @@ if __name__ == '__main__':
                         help="Option for running in verbose",
                         action="store_true")
 
-    # TO DO: add option to specify last n releases UPDATE: instead of having this script handle multiple releases,
+    # TODO: add option to specify last n releases UPDATE: instead of having this script handle multiple releases,
     # have it handle one release and just call it multiple times for an array or queue of releases
     # parser.add_argument("-n", "--number",
     #                     required=False,
@@ -525,7 +526,6 @@ if __name__ == '__main__':
                         help="Limit number of records in output",
                         default=None,
                         nargs='?',
-                        type=int,
                         action="store")
 
     args = parser.parse_args()
@@ -534,6 +534,10 @@ if __name__ == '__main__':
 
     dbversion = args.release #if args.release else pd.read_html(imgt_hla)[0]['Release'][0].replace(".", "")
     out_dir = args.out_dir
+
+    # set errors directory
+    errors_dir = Path(args.out_dir).parent / "errors"
+    errors_dir.mkdir(parents=True, exist_ok=True)
 
     # Pipeline parameters
     # 3 digits: 300 - 390
@@ -549,7 +553,7 @@ if __name__ == '__main__':
     _mem_profile = True if '-p' in sys.argv else False
     verbose = True if '-v' in sys.argv else False
     verbosity = 1 #args.verbosity if args.verbosity else None
-    limit = args.limit if args.limit else None #min(args.count, args.limit)
+    limit = int(args.limit) if args.limit else None #min(args.count, args.limit)
 
     #data_dir = f'{data_dir}/{dbversion}'
     # data_dir = os.path.dirname(__file__) + f"/../data/{dbversion}"
@@ -570,7 +574,7 @@ if __name__ == '__main__':
     
     alleles = parse_dat(data_dir, dbversion)
 
-    ard = ARD(dbversion)
+    ard = pyard.init(dbversion, data_dir="/tmp/gfe-pyard/", load_mac=False)
 
     gfe_maker = GFE(
         verbose=verbose, 
@@ -579,6 +583,9 @@ if __name__ == '__main__':
         store_features=True,
         loci=load_loci)
 
+    errors = []
+    allele_error_fields = ["annotations", "molecule_type", "data_file_division", "accessions", "keywords", "organism", "taxonomy", "comment", "dbxrefs", "description", "id", "name"]
+    max_errors = 10
     for idx, allele in enumerate(alleles):
         if idx == limit:
             break
@@ -610,32 +617,64 @@ if __name__ == '__main__':
                     csv_path=out_dir)
                 
             else:
-                logger.warn(f'Skipping allele {hla_name} for locus {locus}')
-        except:
-            try:
-                logger.info(f'Sending message to {failed_alleles_queue_name}')
-                response = sqs.send_message(
-                    QueueUrl=failed_alleles_queue,
-                    MessageBody=json.dumps({
-                        "allele_id": allele.id,
-                        "release": dbversion,
-                        "params": {
-                            "align": align,
-                            "kir": kir
-                        }
-                    }))
-                    
-                if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-                    logger.error(json.dumps(response))
-                    raise Exception("Failed to process message")
-                else:
-                    logger.info(json.dumps(
-                        response['ResponseMetadata']))
+                logger.warning(f'Skipping allele {hla_name} for locus {locus}')
 
-            except Exception as err:
-                logger.error("Failed to send message")
-                raise err
+        except Exception as e:
+            errors.append({
+                "timestamp": datetime.utcnow().isoformat()[:-3],
+                "allele_id": allele.id,
+                "data": { k: v for k, v in allele.__dict__.items() if k in allele_error_fields },
+                "index": idx,
+                "release": dbversion,
+                "error": str(e),
+                "stack_trace": traceback.format_exc(),
+            })
+            
+            # try:
+            #     logger.info(f'Sending message to {failed_alleles_queue_name}')
+            #     response = sqs.send_message(
+            #         QueueUrl=failed_alleles_queue,
+            #         MessageBody=json.dumps({
+            #             "allele_id": allele.id,
+            #             "release": dbversion,
+            #             "params": {
+            #                 "align": align,
+            #                 "kir": kir
+            #             }
+            #         }))
+                    
+            #     if response['ResponseMetadata']['HTTPStatusCode'] != 200:
+            #         logger.error(json.dumps(response))
+            #         raise Exception("Failed to process message")
+            #     else:
+            #         logger.info(json.dumps(
+            #             response['ResponseMetadata']))
+
+            # except Exception as err:
+            #     logger.error("Failed to send message")
+            #     raise err
+            
+            if len(errors) > max_errors:
+                logger.error(f'Max errors ({max_errors}) reached. Exiting...')
+                break
 
     logging.info(f'Finished build for version {imgt_release}')
+
+    if len(errors) > 0:
+        logging.error(f'{len(errors)} errors: {[ error["allele_id"] for error in errors ]}')
+        # write errors to file as ndjson
+        with open(f'{errors_dir}/errors.{dbversion}.ndjson', 'w') as f:
+            for error in errors:
+                try:
+                    f.write(json.dumps(error) + '\n')
+                except Exception as e:
+                    logger.error(f'Retrying error write: {e}')
+                    error["data"]["annotations"]["references"] = [ str(ref) for ref in error["data"]["annotations"]["references"] ]
+                    f.write(json.dumps(error) + '\n')
+                    logger.info('Success')
+
+        exit_code = 2
     end = time.time()
-    logging.info(f'****** Build finished in {round(end - start, 2)} seconds ******')
+    errors_msg_fragment = f'with {len(errors)} error(s)' if len(errors) > 0 else ''
+    logging.info(f'****** Build finished {errors_msg_fragment} in {round(end - start, 2)} seconds ******')
+    sys.exit(exit_code)

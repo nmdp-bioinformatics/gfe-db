@@ -11,23 +11,25 @@ import boto3
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# TODO: Add database state to JSON that contains all loaded releases
-# TODO: make sure that state is being properly updated after each run
-
+AWS_REGION = os.environ["AWS_REGION"]
 GITHUB_PERSONAL_ACCESS_TOKEN = os.environ["GITHUB_PERSONAL_ACCESS_TOKEN"]
 GITHUB_REPOSITORY_OWNER = os.environ["GITHUB_REPOSITORY_OWNER"]
 GITHUB_REPOSITORY_NAME = os.environ["GITHUB_REPOSITORY_NAME"]
-GFE_BUCKET = os.environ["GFE_BUCKET"]
+DATA_BUCKET_NAME = os.environ["DATA_BUCKET_NAME"]
+
 # TODO: add to Makefile
 PIPELINE_STATE_PATH = os.environ["PIPELINE_STATE_PATH"]
 PIPELINE_PARAMS_PATH = os.environ["PIPELINE_PARAMS_PATH"]
 UPDATE_PIPELINE_STATE_MACHINE_ARN = os.environ["UPDATE_PIPELINE_STATE_MACHINE_ARN"]
 
-branches_state_path = f"s3://{GFE_BUCKET}/{PIPELINE_STATE_PATH}"
-pipeline_params_path = f"s3://{GFE_BUCKET}/{PIPELINE_PARAMS_PATH}"
+branches_state_path = f"s3://{DATA_BUCKET_NAME}/{PIPELINE_STATE_PATH}"
+pipeline_params_path = f"s3://{DATA_BUCKET_NAME}/{PIPELINE_PARAMS_PATH}"
 
-s3 = boto3.client('s3')
-sfn = boto3.client('stepfunctions')
+session = boto3.session.Session(region_name=AWS_REGION)
+s3 = session.client('s3')
+sfn = session.client('stepfunctions')
+
+release_pattern = r"^\d{2,3}0$"
 
 def lambda_handler(event, context):
     """Checks for new IMGT/HLA releases and triggers the update
@@ -35,46 +37,86 @@ def lambda_handler(event, context):
 
     logger.info(json.dumps(event))
 
-    if "releases" in event:
-        logging.info(f'Reading parameters from event')
-        new_releases, params = parse_event(event)
-    else:
-        # Load the previous repository state
-        logging.info(f'Reading parameters from file')
-        new_releases, params = parse_state(branches_state_path, pipeline_params_path)
-    
-    if new_releases:
-        state_machine_input = []
+    try:
+        if "releases" in event:
 
-        for release in new_releases:
-            params_input = copy.deepcopy(params)
-            params_input["releases"] = release
-            params_input = {k.upper():v for k,v in params_input.items()}
-            logger.info(f'Running pipeline with these parameters:\n{json.dumps(params_input)}')            
-            state_machine_input.append(params_input)
+            # align, kir, mem_profile are booleans
+            execution_input_bool_keys = [ 
+                'align', 
+                'kir', 
+                'mem_profile' ,
+                'use_existing_build',
+                'skip_load'
+            ]
+            if not all([ isinstance(event[arg], bool) for arg in execution_input_bool_keys if arg in event ]):
+                raise ValueError(f'{", ".join(execution_input_bool_keys)} must be boolean values')
 
-        # TODO: include release number in execution identifier
-        response = sfn.start_execution(
-            stateMachineArn=UPDATE_PIPELINE_STATE_MACHINE_ARN,
-            input=json.dumps(state_machine_input))
+            # conform booleans to the current argument format
+            event = { arg: str(val) for arg, val in event.items() }
 
-        # Update the config file
-        write_config(branches_state_path)
+            # limit is an integer
+            try:
+                # empty limit implies no limit
+                if event['limit']:
+                    if not isinstance(int(event['limit']), int):
+                        raise ValueError('limit must be an integer')
+            except ValueError:
+                raise ValueError('limit must be an integer')
 
-        return {
-            # TODO: add timestamp
-            "status": response['ResponseMetadata']['HTTPStatusCode'],
-            "message": "Pipeline triggered",
-            "input": state_machine_input
-        }
-
-    else:
-        # Update the config file
-        write_config(branches_state_path)
+            # release is a string that matches regex
+            if not all([ is_valid_release(release, release_pattern) for release in event['releases'].split(',') ]):
+                raise ValueError(f'releases must contains strings that match {release_pattern}')
         
+            logging.info(f'Reading parameters from event')
+            new_releases, params = parse_event(event)
+
+        else:
+            # Load the previous repository state
+            logging.info(f'Reading parameters from file')
+            new_releases, params = parse_state(branches_state_path, pipeline_params_path)
+        
+        if new_releases:
+            execution_input = []
+
+            for release in new_releases:
+                params_input = copy.deepcopy(params)
+                params_input["releases"] = release
+                params_input = {k.upper():v for k,v in params_input.items()}
+                logger.info(f'Running pipeline with these parameters:\n{json.dumps(params_input)}')            
+                execution_input.append(params_input)
+
+            payload = {
+                "input": execution_input
+            }
+
+            # TODO: include release number in execution identifier
+            response = sfn.start_execution(
+                stateMachineArn=UPDATE_PIPELINE_STATE_MACHINE_ARN,
+                input=json.dumps(payload))
+
+            # Update the config file
+            write_config(branches_state_path)
+
+            return {
+                # TODO: add timestamp
+                "status": response['ResponseMetadata']['HTTPStatusCode'],
+                "message": "Pipeline triggered",
+                "payload": payload
+            }
+
+        else:
+            # Update the config file
+            write_config(branches_state_path)
+            
+            return {
+                "status": 200,
+                "message": "No new releases found"
+            }
+    except Exception as e:
+        logger.error(e)
         return {
-            "status": 200,
-            "message": "No new releases found"
+            "status": 500,
+            "message": str(e)
         }
 
 
@@ -117,12 +159,11 @@ def get_branches(owner, repo):
     return [branch["name"] for branch in branches]
 
 
-def is_valid_release(branch):
+def is_valid_release(branch, release_pattern=r"^\d{2,3}0$"):
     """Returns True if the branch is a valid release, False if not"""
 
     # IMGT/HLA release format string
     # Checks for a pattern corresponding to 3 digits followed by one zero, ie., 3460
-    release_pattern = r'^\d{3}0$'
     p = re.compile(release_pattern)
     match = p.match(branch)
 
@@ -150,7 +191,7 @@ def write_config(path):
     try:
         response = s3.put_object(
              Body=json.dumps(branches_config),
-             Bucket=GFE_BUCKET,
+             Bucket=DATA_BUCKET_NAME,
              Key="/".join(path.split("/")[3:]))
         
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
@@ -170,7 +211,7 @@ def read_config(path):
     
     try:
         response = s3.get_object(
-            Bucket=GFE_BUCKET, 
+            Bucket=DATA_BUCKET_NAME, 
             Key="/".join(path.split("/")[3:]))
         
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
@@ -270,14 +311,8 @@ if __name__ == "__main__":
     import os
     from pathlib import Path
 
-    def read_json(path):
-        with open(path, 'r') as file:
-            event = json.load(file)
-        return event
+    path = Path(__file__).parent / "event-use-existing-true.json"
+    with open(path, "r") as f:
+        event = json.load(f)
 
-    path = Path(__file__)
-    path = str(path.parent.parent / "events" / "event.json")
-    
-    event = read_json(path)
-
-    lambda_handler("","")
+    lambda_handler(event,"")
