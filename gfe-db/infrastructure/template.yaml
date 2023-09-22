@@ -210,26 +210,26 @@ Resources:
         - Key: AppName 
           Value: !Ref AppName
 
-  Neo4jDatabaseElasticIp:
-    Type: AWS::EC2::EIP
-    Properties:
-      Domain: vpc
+  # Neo4jDatabaseElasticIp:
+  #   Type: AWS::EC2::EIP
+  #   Properties:
+  #     Domain: vpc
 
-  Neo4jDatabaseEndpointParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint'
-      Description: !Sub 'Endpoint for ${AppName} Neo4j server'
-      Value: !Ref Neo4jDatabaseElasticIp
+  # Neo4jDatabaseEndpointParameter:
+  #   Type: AWS::SSM::Parameter
+  #   Properties:
+  #     Type: String
+  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint'
+  #     Description: !Sub 'Endpoint for ${AppName} Neo4j server'
+  #     Value: !Ref Neo4jDatabaseElasticIp
 
-  Neo4jDatabaseEndpointAllocationIdParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId'
-      Description: !Sub 'AllocationId for ${AppName} Neo4j server static IP'
-      Value: !GetAtt Neo4jDatabaseElasticIp.AllocationId
+  # Neo4jDatabaseEndpointAllocationIdParameter:
+  #   Type: AWS::SSM::Parameter
+  #   Properties:
+  #     Type: String
+  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId'
+  #     Description: !Sub 'AllocationId for ${AppName} Neo4j server static IP'
+  #     Value: !GetAtt Neo4jDatabaseElasticIp.AllocationId
 
   DataPipelineErrorsTopicPolicy:
     Type: AWS::SNS::TopicPolicy
@@ -309,9 +309,9 @@ Resources:
       Description: !Sub 'ARN for ${AppName} Data Pipeline Errors SNS topic'
       Value: !Ref DataPipelineExecutionTopic
 
-Outputs:
-  Neo4jDatabaseElasticIp:
-    Description: "Elastic IP for gfe-db Neo4j database instance"
-    Value: !Ref Neo4jDatabaseElasticIp
-    Export:
-      Name: !Sub "${AppName}-${Stage}-Neo4jDatabaseElasticIp"
+# Outputs:
+#   Neo4jDatabaseElasticIp:
+#     Description: "Elastic IP for gfe-db Neo4j database instance"
+#     Value: !Ref Neo4jDatabaseElasticIp
+#     Export:
+#       Name: !Sub "${AppName}-${Stage}-Neo4jDatabaseElasticIp"

@@ -17,6 +17,7 @@ session = boto3.session.Session(region_name=AWS_REGION)
 ssm = session.client("ssm")
 secrets = session.client("secretsmanager")
 
+# TODO fix Neo4j access for private instance
 # /APP_NAME/STAGE/AWS_REGION/Neo4jDatabaseEndpoint
 uri = ssm.get_parameter(
     Name=f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jUri"

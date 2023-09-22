@@ -73,10 +73,20 @@ echo "****** End Cypher ******"
 
 # Run Cypher load query
 echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Loading data for release $RELEASE into Neo4j..."
+# # HTTPS
+# cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp | \
+#     /$NEO4J_HOME/bin/cypher-shell \
+#         --address neo4j://$SUBDOMAIN.$HOST_DOMAIN:7687 \
+#         --encryption true \
+#         --username $NEO4J_USERNAME \
+#         --password $NEO4J_PASSWORD \
+#         --format verbose
+
+# HTTP
 cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp | \
     /$NEO4J_HOME/bin/cypher-shell \
-        --address neo4j://$SUBDOMAIN.$HOST_DOMAIN:7687 \
-        --encryption true \
+        --address bolt://127.0.0.1:7687 \
+        --encryption false \
         --username $NEO4J_USERNAME \
         --password $NEO4J_PASSWORD \
         --format verbose

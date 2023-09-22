@@ -29,7 +29,7 @@ service.check-key-pair: ##=> Checks if the key pair already exists and creates i
 
 service.config.deploy: service.config.neo4j.deploy service.config.scripts.deploy service.config.cloudwatch-agent.deploy
 
-service.config.neo4j.deploy: service.config.update-dns
+service.config.neo4j.deploy: # service.config.update-dns
 	@aws s3 cp neo4j/neo4j.conf s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws s3 cp --recursive neo4j/cypher/ s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
 
