@@ -3,7 +3,6 @@ import logging
 import json
 import boto3
 from neo4j import GraphDatabase
-from utils import format_uri
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -22,45 +21,49 @@ secrets = session.client("secretsmanager")
 uri = ssm.get_parameter(
     Name=f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jUri"
 )["Parameter"]["Value"]
-# 'https://gfe-db.cloudftl.org:7473/browser/' => neo4j+s://gfe-db.cloudftl.org:7687
-uri = format_uri(uri)
+logger.info(f"uri: {uri}")
+# # 'https://gfe-db.cloudftl.org:7473/browser/' => neo4j+s://gfe-db.cloudftl.org:7687
 
-# /gfe-db/dev/us-east-1/Neo4jCredentialsSecretArn
-auth_arn = ssm.get_parameter(
-    Name=f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jCredentialsSecretArn"
-)["Parameter"]["Value"]
+# uri = "/".join(uri.replace("https://", "neo4j+s://").replace(":7473", ":7687").split("/")[:-2])
 
-# get secret from arn
-auth = json.loads(secrets.get_secret_value(SecretId=auth_arn)["SecretString"])
+# # /gfe-db/dev/us-east-1/Neo4jCredentialsSecretArn
+# auth_arn = ssm.get_parameter(
+#     Name=f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jCredentialsSecretArn"
+# )["Parameter"]["Value"]
 
-graphdb = GraphDatabase.driver(uri, auth=(auth["NEO4J_USERNAME"], auth["NEO4J_PASSWORD"]))
+# # get secret from arn
+# auth = json.loads(secrets.get_secret_value(SecretId=auth_arn)["SecretString"])
+
+# graphdb = GraphDatabase.driver(uri, auth=(auth["NEO4J_USERNAME"], auth["NEO4J_PASSWORD"]))
 
 def lambda_handler(event, context):
 
     logger.info(json.dumps(event))
 
-    with graphdb as driver:
+    # with graphdb as driver:
 
-        # node counts
-        node_counts = []
-        for node in nodes:
-            records, _, _ = driver.execute_query(f'MATCH (n:{node}) RETURN count(n) as count;', database_="neo4j")
-            node_counts.append({
-                "node": node,
-                "count": records[0].data()['count']
-            })
+    #     # node counts
+    #     node_counts = []
+    #     for node in nodes:
+    #         records, _, _ = driver.execute_query(f'MATCH (n:{node}) RETURN count(n) as count;', database_="neo4j")
+    #         node_counts.append({
+    #             "node": node,
+    #             "count": records[0].data()['count']
+    #         })
 
-        # HAS_IPD_ALLELE relationship releases property release counts
-        has_ipd_allele_release_counts = execute_query(driver, has_ipd_allele_release_counts_cql)
+    #     # HAS_IPD_ALLELE relationship releases property release counts
+    #     has_ipd_allele_release_counts = execute_query(driver, has_ipd_allele_release_counts_cql)
 
-        # IPD_Accession node release counts
-        ipd_accession_release_counts = execute_query(driver, ipd_accession_release_counts_cql)
+    #     # IPD_Accession node release counts
+    #     ipd_accession_release_counts = execute_query(driver, ipd_accession_release_counts_cql)
 
-    return {
-        "node_counts": node_counts,
-        "has_ipd_allele_release_counts": has_ipd_allele_release_counts,
-        "ipd_accession_release_counts": ipd_accession_release_counts
-    }
+    # return {
+    #     "node_counts": node_counts,
+    #     "has_ipd_allele_release_counts": has_ipd_allele_release_counts,
+    #     "ipd_accession_release_counts": ipd_accession_release_counts
+    # }
+
+    return 0
 
 nodes = [
     "GFE",
@@ -94,9 +97,10 @@ ipd_accession_release_counts_cql = """MATCH ()-[r:HAS_IPD_ACCESSION]->() RETURN 
 #     count(f),
 #     count(sub);"""
 
-def execute_query(driver, query):
-    records, _, _ = driver.execute_query(query, database_="neo4j")
-    return [record.data() for record in records]
+
+# def execute_query(driver, query):
+#     records, _, _ = driver.execute_query(query, database_="neo4j")
+#     return [record.data() for record in records]
 
 if __name__ == "__main__":
     from pathlib import Path

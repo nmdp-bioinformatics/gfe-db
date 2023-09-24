@@ -9,6 +9,9 @@ Parameters:
   AppName:
     Type: String
     Description: Application name
+  VpcId:
+    Type: String
+    Description: VPC ID
   InvokePipelineFunctionName:
     Type: String
   InvokePipelineFunctionMemorySize:
@@ -378,10 +381,62 @@ Resources:
         - Name: FunctionName
           Value: !Ref InvokePipelineFunctionName
 
+  # ExecuteValidationQueriesFunctionSecurityGroup:
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties:
+  #     GroupDescription: Security Group for Lambda function
+  #     VpcId: !Ref MyVPC
+  #     SecurityGroupIngress:
+  #       - IpProtocol: tcp
+  #         FromPort: '7687'
+  #         ToPort: '7687'
+  #         SourceSecurityGroupId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
+
+  # # Build a basic python lambda function for VPC access
+  # TestLambdaFunction:
+  #   Type: AWS::Serverless::Function
+  #   Properties:
+  #     Description: !Sub "Test Lambda function for VPC access"
+  #     InlineCode: |
+  #       import json
+  #       def lambda_handler(event, context):
+  #         print(json.dumps(event, indent=4))
+  #         return {
+  #           'statusCode': 200,
+  #           'body': json.dumps('Hello from Lambda!')
+  #         }
+  #     Handler: index.lambda_handler
+  #     Runtime: python3.10
+  #     MemorySize: 128
+  #     Timeout: 60
+  #     Architectures:
+  #       - x86_64
+  #     VpcConfig:
+  #       SubnetIds:
+  #         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID}}'
+  #       SecurityGroupIds:
+  #         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
+  #     Policies:
+  #       - AWSLambdaVPCAccessExecutionRole
+
+  # Required for VPC Lambda to connect to Systems Manager API
+  SystemsManagerVpcEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VpcId
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssm"
+      VpcEndpointType: Interface
+      SecurityGroupIds:
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
+      SubnetIds:
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID}}'
+      PrivateDnsEnabled: true
+
+  # TODO convert to VPC Lambda using same private subnet and security group as database
   ExecuteValidationQueriesFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Description: !Sub "Invoke backup for Neo4j for ${AppName}"
+      Description: !Sub "Execute validation a queries on Neo4j for ${AppName}"
       CodeUri: functions/execute_validation_queries/
       Handler: app.lambda_handler
       Runtime: python3.10
@@ -393,8 +448,13 @@ Resources:
         Variables:
           STAGE: !Ref Stage
           APP_NAME: !Ref AppName
+      VpcConfig:
+        SubnetIds:
+          - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID}}'
+        SecurityGroupIds:
+          - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
       Policies:
-        - AWSLambdaBasicExecutionRole
+        - AWSLambdaVPCAccessExecutionRole
         - Version: "2012-10-17"
           Statement:
             - Effect: "Allow"
@@ -550,12 +610,15 @@ Resources:
         BuildJobDefinition: !Ref BuildJobDefinition
         BuildJobName: !Sub '${Stage}-${AppName}-build-job'
         BuildJobQueue: !Ref BuildJobQueue
+        # TestLambdaFunctionArn: !GetAtt TestLambdaFunction.Arn
         ExecuteValidationQueriesFunctionArn: !GetAtt ExecuteValidationQueriesFunction.Arn
         ValidateBuildOutputFunctionArn: !GetAtt ValidateBuildOutputFunction.Arn
         InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
         InvokeBackupScriptFunctionArn: !GetAtt InvokeBackupScriptFunction.Arn
         LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
       Policies:
+        # - LambdaInvokePolicy:
+        #     FunctionName: !Ref TestLambdaFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref ExecuteValidationQueriesFunction
         - LambdaInvokePolicy:

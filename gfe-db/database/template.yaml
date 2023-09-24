@@ -98,17 +98,25 @@ Resources:
         - Key: Name
           Value: !Sub '${Stage}-${AppName}-neo4j-sg'
 
-  Neo4jDatabaseSecurityGroupNameParameter:
+  # Neo4jDatabaseSecurityGroupNameParameter:
+  #   Type: AWS::SSM::Parameter
+  #   Properties:
+  #     Type: String
+  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupName'
+  #     Description: "Name of the Neo4jDatabaseSecurityGroup"
+  #     Value: !Ref Neo4jDatabaseSecurityGroup
+  #     # TODO remove
+  #     Tags:
+  #       Stage: !Ref Stage
+  #       AppName: !Ref AppName
+
+  Neo4jDatabaseSecurityGroupIdParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupName'
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId'
       Description: "Name of the Neo4jDatabaseSecurityGroup"
       Value: !Ref Neo4jDatabaseSecurityGroup
-      # TODO remove
-      Tags:
-        Stage: !Ref Stage
-        AppName: !Ref AppName
   
   Neo4jDatabaseInstance:
     Type: AWS::EC2::Instance
@@ -304,7 +312,7 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jUri'
       Description: "Connection URI for Neo4j"
       # "https://${SUBDOMAIN}.${HOST_DOMAIN}:7473/browser/"
-      Value: !Sub "https://${}:7473/browser/"
+      Value: !Sub "https://${Neo4jDatabaseInstance.PrivateDnsName}:7474"
 
   Neo4jBackupDocument: 
     Type: AWS::SSM::Document
