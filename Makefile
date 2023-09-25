@@ -181,14 +181,18 @@ env.validate: check.dependencies
 ifndef CREATE_VPC
 	$(info 'CREATE_VPC' is not set. Defaulting to 'false')
 	$(eval export CREATE_VPC := false)
-	$(call blue, "**** This deployment uses an existing VPC**** ")
+	$(call blue, "**** This deployment uses an existing VPC****")
 	$(MAKE) env.validate.no-vpc
 endif
 ifeq ($(CREATE_VPC),false)
-	$(call blue, "**** This deployment uses an existing VPC**** ")
+	$(call blue, "**** This deployment uses an existing VPC****")
 	$(MAKE) env.validate.no-vpc
 else ifeq ($(CREATE_VPC),true)
-	$(call blue, "**** This deployment includes a VPC**** ")
+	$(call blue, "**** This deployment includes a VPC****")
+endif
+ifeq ($(USE_PRIVATE_SUBNET),true)
+	$(call blue, "**** This deployment uses a private subnet for Neo4j****")
+	$(call green, "Found PRIVATE_SUBNET_ID: ${PRIVATE_SUBNET_ID}")
 endif
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
 

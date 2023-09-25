@@ -25,6 +25,10 @@ Parameters:
     Type: String
     Description: Required if createVpc is false
     Default: ''
+  PrivateSubnetId:
+    Type: String
+    Description: Required if createVpc is false
+    Default: ''
   GitHubPersonalAccessToken:
     Type: String
     NoEcho: true
@@ -167,6 +171,15 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID'
       Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
       Value: !Ref PublicSubnetId
+  
+  UseExternalVpcConditionPrivateSubnetIdParameter:
+    Type: AWS::SSM::Parameter
+    Condition: UseExternalVpc
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetID'
+      Description: !Sub "Private Subnet for the ${AppName} Neo4j server"
+      Value: !Ref PrivateSubnetId
   
   DataBucket:
     Type: AWS::S3::Bucket

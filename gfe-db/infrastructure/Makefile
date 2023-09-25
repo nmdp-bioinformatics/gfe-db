@@ -44,6 +44,7 @@ service.deploy:
 			HostedZoneId="$${HOSTED_ZONE_ID}" \
 			VpcId="$${VPC_ID}" \
 			PublicSubnetId="$${PUBLIC_SUBNET_ID}" \
+			PrivateSubnetId="$${PRIVATE_SUBNET_ID}" \
 			2>&1 | tee -a $${CFN_LOG_PATH} || true
 	# $(MAKE) service.deploy.update-dns
 
