@@ -129,7 +129,7 @@ neo4j.plugins.install-gds:
 
 neo4j.init:
 	$(MAKE) neo4j.init.download-scripts
-	$(MAKE) neo4j.init.queries.http
+	$(MAKE) neo4j.init.queries.no-ssl
 	# $(MAKE) neo4j.init.queries.https
 
 neo4j.init.download-scripts:
@@ -137,12 +137,12 @@ neo4j.init.download-scripts:
 	@echo "Fetching Cypher scripts from S3..."
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
 
-neo4j.init.queries.http:
+neo4j.init.queries.no-ssl:
 	@echo "Executing initialization queries..."
-	@cat ${NEO4J_HOME}/cypher/init.cyp | /opt/bitnami/neo4j/bin/cypher-shell -u neo4j -p ZuJEH40zQ1mp -a bolt://127.0.0.1:7687 --encryption false
+	@cat ${NEO4J_HOME}/cypher/init.cyp | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
 
 
-neo4j.init.queries.https: # neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
+neo4j.init.queries.ssl: # neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 	@echo "Executing initialization queries..."
 	@cat ${NEO4J_HOME}/cypher/init.cyp | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 

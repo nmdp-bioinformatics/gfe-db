@@ -133,7 +133,7 @@ Resources:
           GroupSet: 
             - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
           SubnetId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID}}'
-      # TODO apt-get install python3-venv for running tests with python
+      # TODO Create .venv for running Python tests
       UserData:
         Fn::Base64: 
           !Sub |
