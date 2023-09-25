@@ -175,6 +175,14 @@ else
 	$(call green, "Found PUBLIC_SUBNET_ID: ${PUBLIC_SUBNET_ID}")
 endif
 
+# env.validate.private-subnet:
+# ifeq ($(PUBLIC_SUBNET_ID),)
+# 	$(call red, "PUBLIC_SUBNET_ID must be set as an environment variable when \`CREATE_VPC\` is false")
+# 	@exit 1
+# else
+# 	$(call green, "Found PUBLIC_SUBNET_ID: ${PUBLIC_SUBNET_ID}")
+# endif
+
 env.validate: check.dependencies
 	$(foreach var,$(REQUIRED_VARS),\
 		$(if $(value $(var)),,$(error $(var) is not set. Please add $(var) to the environment variables.)))
@@ -302,7 +310,7 @@ database.backup.list:
 # TODO call database.get.backups to list the available backups and prompt the user to select one
 database.restore: #from_date=<YYYY/MM/DD/HH>
 	@echo "Restoring $${APP_NAME} data to server..."
-	$(MAKE) -C ${APP_NAME}/database/ service.restore from_date=$$from_date
+	$(MAKE) -C ${APP_NAME}/database/ service.restore from_path=$$from_path
 
 database.status:
 	@aws ec2 describe-instances | \
@@ -316,6 +324,13 @@ database.get.credentials:
 	@secret_string=$$(aws secretsmanager get-secret-value --secret-id ${APP_NAME}-${STAGE}-Neo4jCredentials | jq -r '.SecretString') && \
 	echo "Username: $$(echo $$secret_string | jq -r '.NEO4J_USERNAME')" && \
 	echo "Password: $$(echo $$secret_string | jq -r '.NEO4J_PASSWORD')"
+
+database.get.private-ip:
+	@private_ip=$$(aws ssm get-parameters \
+		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jPrivateIp" \
+		--output json \
+		| jq -r '.Parameters[0].Value') && \
+	echo "$${private_ip}"
 
 database.get.instance-id:
 	@echo "${INSTANCE_ID}"
