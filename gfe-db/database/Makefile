@@ -10,6 +10,7 @@ deploy:
 	$(MAKE) service.check-key-pair
 	$(MAKE) service.config.deploy
 	$(MAKE) service.deploy
+	$(MAKE) service.config.neo4j.deploy
 
 service.check-key-pair: ##=> Checks if the key pair already exists and creates it if it does not
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Checking for key pair ${EC2_KEY_PAIR_NAME}" 2>&1 | tee -a $$CFN_LOG_PATH
@@ -27,17 +28,27 @@ service.check-key-pair: ##=> Checks if the key pair already exists and creates i
 		--value "${EC2_KEY_PAIR_NAME}" \
 		--overwrite 2>&1 | tee -a $$CFN_LOG_PATH || true
 
-service.config.deploy: service.config.neo4j.deploy service.config.scripts.deploy service.config.cloudwatch-agent.deploy
+service.config.deploy: service.config.scripts.deploy service.config.cloudwatch-agent.deploy
 
-service.config.neo4j.deploy: # service.config.update-dns
+# TODO add condition for update-dns
+service.config.neo4j.deploy:  service.config.update-dns.private # service.config.update-dns.public
 	@aws s3 cp neo4j/neo4j.conf s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws s3 cp --recursive neo4j/cypher/ s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
 
 # This target will configure the database to use the correct DNS name using env vars
-service.config.update-dns:
+service.config.update-dns.public:
 	@[ "${HOST_DOMAIN}" != "" ] && \
 	cat neo4j/neo4j.template | \
 	sed s"/# dbms.default_advertised_address=.*/dbms.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > neo4j/neo4j.conf
+
+# TODO Neo4jPrivateIp isn't available when this is run, so it needs to be refactored
+# This target will configure the database to use the correct DNS name using env vars
+service.config.update-dns.private:
+	@private_ip="$$(aws ssm get-parameter \
+		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jPrivateIp" | jq -r '.Parameter.Value')" && \
+	echo "Private IP: $$private_ip" && \
+	cat neo4j/neo4j.private.template | \
+	sed "s|# dbms.default_advertised_address=.*|dbms.default_advertised_address="$$private_ip"|" > neo4j/neo4j.conf
 
 service.config.scripts.deploy:
 	@script_s3_path=s3://$$DATA_BUCKET_NAME/config/scripts/ && \
@@ -90,6 +101,14 @@ service.deploy:
 			AdminEmail="$${ADMIN_EMAIL}" \
 			APOCVersion="$${APOC_VERSION}" \
 			GDSVersion="$${GDS_VERSION}" 2>&1 | tee -a $$CFN_LOG_PATH || true
+
+# TODO repurpose for updating neo4j.conf
+service.config.neo4j.update: service.config.update-dns.private service.config.neo4j.deploy
+	@aws ssm send-command \
+		--document-name "AWS-RunShellScript" \
+		--parameters "commands=[cd /home/bitnami && sudo make neo4j.config.update]" \
+		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
+		--comment "${STAGE}=${APP_NAME} backup service" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 service.backup:
 	@aws ssm send-command \

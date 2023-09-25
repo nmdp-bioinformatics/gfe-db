@@ -97,7 +97,9 @@ neo4j.restart:
 neo4j.config.update: neo4j.config.backup
 	@echo "Downloading Neo4j configuration from ${DATA_BUCKET_NAME}"
 	@aws s3 cp s3://${DATA_BUCKET_NAME}/config/neo4j/neo4j.conf ${NEO4J_HOME}/conf/neo4j.conf
+	$(MAKE) neo4j.restart
 
+# TODO fix this for private subnet
 neo4j.config.reset-auth:
 	@echo "Resetting Neo4j authentication"
 	$(MAKE) neo4j.stop

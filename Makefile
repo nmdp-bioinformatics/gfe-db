@@ -281,6 +281,10 @@ database.sync-scripts:
 # database.ssl.get-expiration:
 # 	$(MAKE) -C ${APP_NAME}/database/ service.ssl.get-expiration
 
+database.config.update:
+	@echo "Updating \`neo4j.conf\` up $${APP_NAME} server..."
+	$(MAKE) -C ${APP_NAME}/database/ service.config.neo4j.update
+
 database.ssl.renew-cert:
 	$(MAKE) -C ${APP_NAME}/database/ service.ssl.renew-cert
 
