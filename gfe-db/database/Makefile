@@ -124,21 +124,21 @@ service.backup.list:
 # TODO database restore: validate date parameter is given ✅ and in the correct format ✅
 # TODO move validation to the database/Makefile ✅
 # TODO database restore: validate that the backup exists
-service.restore: #from_date=<YYYY/MM/DD/HH>
-	@[ "$$from_date" != "" ] || (echo "from_date is required" && exit 1) && \
-	[ "$$(echo "$$from_date" | grep -E '^[0-9]{4}/[0-9]{2}/[0-9]{2}/[0-9]{2}$$')" ] || (echo "from_date must be in the format YYYY/MM/DD/HH" && exit 1) && \
-	echo "Restore $${APP_NAME} from date $$from_date? [y/N] \c " && read ans && [ $${ans:-N} = y ]
-	$(MAKE) service.restore.pre-validate from_date=$$from_date
+service.restore: #from_path=<YYYY/MM/DD/HH>
+	@[ "$$from_path" != "" ] || (echo "from_path is required" && exit 1) && \
+	echo "$$from_path" | grep -E '^s3:\/\/[a-zA-Z0-9\.-]+\/([a-zA-Z0-9\.-]+\/)*[a-zA-Z0-9\.-]+\.zip$$' > /dev/null || (echo "\`from_path\` must be an S3 URI: 's3://<bucket>/path'" && exit 1) && \
+	echo "Restore $${APP_NAME} from S3 path \`$$from_path\`? [y/N] \c " && read ans && [ $${ans:-N} = y ]
+	$(MAKE) service.restore.pre-validate from_path=$$from_path
 	@aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
-		--parameters "commands=[cd /home/bitnami && sudo make neo4j.restore from_date=$$from_date]" \
+		--parameters "commands=[cd /home/bitnami && sudo make neo4j.restore from_path=$$from_path]" \
 		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
 		--comment "${STAGE}=${APP_NAME} restore service" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 service.restore.pre-validate:
 	@echo "Validating restore pre-conditions"
-	@echo "Checking if backup exists for \`s3://${DATA_BUCKET_NAME}/backups/neo4j/$$from_date/\`"
-	@backup_object=$$(aws s3 ls --recursive s3://${DATA_BUCKET_NAME}/backups/neo4j/$$from_date/ | cut -d ' ' -f 6-) && \
+	@echo "Checking if backup exists for $$from_path"
+	@backup_object=$$(aws s3 ls $$from_path | cut -d ' ' -f 6-) && \
 	[ "$$backup_object" != "" ] || (echo "ERROR: Backup does not exist" && exit 1) && \
 	echo "Found backup target for $$backup_object"
 
