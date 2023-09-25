@@ -197,6 +197,81 @@ Resources:
       Description: "S3 Bucket Regional Domain name for application bucket"
       Value: !GetAtt DataBucket.RegionalDomainName
   
+  Neo4jDatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${Stage}-${AppName}-neo4j-sg'
+      GroupDescription: Security group for the GFE database
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+          Description: HTTP access for SSL certificate creation (required)
+        - CidrIp: 0.0.0.0/0
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+          Description: HTTPs access (required)
+        - CidrIp: 0.0.0.0/0
+          FromPort: 7474
+          IpProtocol: tcp
+          ToPort: 7474
+          Description: Neo4j HTTP access (required)
+        - CidrIp: 0.0.0.0/0
+          FromPort: 7473
+          IpProtocol: tcp
+          ToPort: 7473
+          Description: Neo4j HTTPS access (required)
+        - CidrIp: 0.0.0.0/0
+          FromPort: 7687
+          IpProtocol: tcp
+          ToPort: 7687
+          Description: Neo4j Bolt driver access (required)
+        # - CidrIp: 0.0.0.0/0
+        #   FromPort: 22
+        #   IpProtocol: tcp
+        #   ToPort: 22
+        #   Description: Update IP to use MyIP
+      # TODO remove
+      Tags:
+        - Key: Name
+          Value: !Sub '${Stage}-${AppName}-neo4j-sg'
+
+  Neo4jDatabaseSecurityGroupIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId'
+      Description: "Name of the Neo4jDatabaseSecurityGroup"
+      Value: !Ref Neo4jDatabaseSecurityGroup
+
+  # Required for VPC Lambda to connect to Systems Manager API
+  SystemsManagerVpcEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VpcId
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssm"
+      VpcEndpointType: Interface
+      SecurityGroupIds:
+        - !Ref Neo4jDatabaseSecurityGroup
+      SubnetIds:
+        - !Ref PublicSubnetId
+      PrivateDnsEnabled: true
+
+  SecretsManagerVpcEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VpcId
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.secretsmanager"
+      VpcEndpointType: Interface
+      SecurityGroupIds:
+        - !Ref Neo4jDatabaseSecurityGroup
+      SubnetIds:
+        - !Ref PublicSubnetId
+      PrivateDnsEnabled: true
+
   GitHubPersonalAccessTokenSecret:
     Type: AWS::SecretsManager::Secret
     Properties:

@@ -56,47 +56,47 @@ Resources:
         Stage: !Ref Stage
         AppName: !Ref AppName
 
-  Neo4jDatabaseSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupName: !Sub '${Stage}-${AppName}-neo4j-sg'
-      GroupDescription: Security group for the GFE database
-      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcID}}'
-      SecurityGroupIngress:
-        - CidrIp: 0.0.0.0/0
-          FromPort: 80
-          IpProtocol: tcp
-          ToPort: 80
-          Description: HTTP access for SSL certificate creation (required)
-        - CidrIp: 0.0.0.0/0
-          FromPort: 443
-          IpProtocol: tcp
-          ToPort: 443
-          Description: HTTPs access (required)
-        - CidrIp: 0.0.0.0/0
-          FromPort: 7474
-          IpProtocol: tcp
-          ToPort: 7474
-          Description: Neo4j HTTP access (required)
-        - CidrIp: 0.0.0.0/0
-          FromPort: 7473
-          IpProtocol: tcp
-          ToPort: 7473
-          Description: Neo4j HTTPS access (required)
-        - CidrIp: 0.0.0.0/0
-          FromPort: 7687
-          IpProtocol: tcp
-          ToPort: 7687
-          Description: Neo4j Bolt driver access (required)
-        # - CidrIp: 0.0.0.0/0
-        #   FromPort: 22
-        #   IpProtocol: tcp
-        #   ToPort: 22
-        #   Description: Update IP to use MyIP
-      # TODO remove
-      Tags:
-        - Key: Name
-          Value: !Sub '${Stage}-${AppName}-neo4j-sg'
+  # Neo4jDatabaseSecurityGroup:
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties:
+  #     GroupName: !Sub '${Stage}-${AppName}-neo4j-sg'
+  #     GroupDescription: Security group for the GFE database
+  #     VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcID}}'
+  #     SecurityGroupIngress:
+  #       - CidrIp: 0.0.0.0/0
+  #         FromPort: 80
+  #         IpProtocol: tcp
+  #         ToPort: 80
+  #         Description: HTTP access for SSL certificate creation (required)
+  #       - CidrIp: 0.0.0.0/0
+  #         FromPort: 443
+  #         IpProtocol: tcp
+  #         ToPort: 443
+  #         Description: HTTPs access (required)
+  #       - CidrIp: 0.0.0.0/0
+  #         FromPort: 7474
+  #         IpProtocol: tcp
+  #         ToPort: 7474
+  #         Description: Neo4j HTTP access (required)
+  #       - CidrIp: 0.0.0.0/0
+  #         FromPort: 7473
+  #         IpProtocol: tcp
+  #         ToPort: 7473
+  #         Description: Neo4j HTTPS access (required)
+  #       - CidrIp: 0.0.0.0/0
+  #         FromPort: 7687
+  #         IpProtocol: tcp
+  #         ToPort: 7687
+  #         Description: Neo4j Bolt driver access (required)
+  #       # - CidrIp: 0.0.0.0/0
+  #       #   FromPort: 22
+  #       #   IpProtocol: tcp
+  #       #   ToPort: 22
+  #       #   Description: Update IP to use MyIP
+  #     # TODO remove
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub '${Stage}-${AppName}-neo4j-sg'
 
   # Neo4jDatabaseSecurityGroupNameParameter:
   #   Type: AWS::SSM::Parameter
@@ -109,14 +109,6 @@ Resources:
   #     Tags:
   #       Stage: !Ref Stage
   #       AppName: !Ref AppName
-
-  Neo4jDatabaseSecurityGroupIdParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId'
-      Description: "Name of the Neo4jDatabaseSecurityGroup"
-      Value: !Ref Neo4jDatabaseSecurityGroup
   
   Neo4jDatabaseInstance:
     Type: AWS::EC2::Instance
@@ -139,8 +131,9 @@ Resources:
         - AssociatePublicIpAddress: true
           DeviceIndex: "0"
           GroupSet: 
-            - !Ref Neo4jDatabaseSecurityGroup
+            - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
           SubnetId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID}}'
+      # TODO apt-get install python3-venv for running tests with python
       UserData:
         Fn::Base64: 
           !Sub |
@@ -161,7 +154,8 @@ Resources:
           python3-setuptools \
           certbot \
           git \
-          python3-pip
+          python3-pip \
+          python3-venv
           export BITNAMI_HOME=/home/bitnami
           # CloudWatch Logs Agent
           mkdir -p /tmp/amazon-cloudwatch-agent
@@ -193,6 +187,8 @@ Resources:
           echo "BITNAMI_HOME=/home/bitnami" >> $BITNAMI_HOME/env.sh
           echo "NEO4J_HOME=/opt/bitnami/neo4j" >> $BITNAMI_HOME/env.sh
           echo "BITNAMI_NEO4J=/bitnami/neo4j" >> $BITNAMI_HOME/env.sh
+          # get the instance's private IP from instance metadata
+          echo "PRIVATE_IP=$(curl http://169.254.169.254/latest/meta-data/local-ipv4)" >> $BITNAMI_HOME/env.sh
           echo "NEO4J_CREDENTIALS_SECRET_ARN=${Neo4jCredentialsSecret}" >> $BITNAMI_HOME/env.sh
           echo "# Make application variables available" >> $BITNAMI_HOME/.bashrc
           echo "set -a && source /home/bitnami/env.sh && set +a" >> $BITNAMI_HOME/.bashrc
@@ -312,7 +308,17 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jUri'
       Description: "Connection URI for Neo4j"
       # "https://${SUBDOMAIN}.${HOST_DOMAIN}:7473/browser/"
-      Value: !Sub "https://${Neo4jDatabaseInstance.PrivateDnsName}:7474"
+      Value: !Sub "https://${Neo4jDatabaseInstance.PrivateIp}"
+
+  # TODO test from EC2 instance
+  Neo4jPrivateIpParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jPrivateIp'
+      Description: "Connection URI for Neo4j"
+      # "https://${SUBDOMAIN}.${HOST_DOMAIN}:7473/browser/"
+      Value: !Sub "${Neo4jDatabaseInstance.PrivateIp}"
 
   Neo4jBackupDocument: 
     Type: AWS::SSM::Document

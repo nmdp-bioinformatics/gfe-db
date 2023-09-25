@@ -419,19 +419,6 @@ Resources:
   #     Policies:
   #       - AWSLambdaVPCAccessExecutionRole
 
-  # Required for VPC Lambda to connect to Systems Manager API
-  SystemsManagerVpcEndpoint:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      VpcId: !Ref VpcId
-      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssm"
-      VpcEndpointType: Interface
-      SecurityGroupIds:
-        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
-      SubnetIds:
-        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID}}'
-      PrivateDnsEnabled: true
-
   # TODO convert to VPC Lambda using same private subnet and security group as database
   ExecuteValidationQueriesFunction:
     Type: AWS::Serverless::Function
