@@ -88,24 +88,34 @@ neo4j.stop:
 
 neo4j.start:
 	@/opt/bitnami/ctlscript.sh start
-	$(MAKE) neo4j.waiter
+	$(MAKE) neo4j.waiter.no-ssl
 
 neo4j.restart:
 	@/opt/bitnami/ctlscript.sh restart
-	$(MAKE) neo4j.waiter
+	$(MAKE) neo4j.waiter.no-ssl
 
 neo4j.config.update: neo4j.config.backup
 	@echo "Downloading Neo4j configuration from ${DATA_BUCKET_NAME}"
 	@aws s3 cp s3://${DATA_BUCKET_NAME}/config/neo4j/neo4j.conf ${NEO4J_HOME}/conf/neo4j.conf
 	$(MAKE) neo4j.restart
 
-# TODO fix this for private subnet
 neo4j.config.reset-auth:
 	@echo "Resetting Neo4j authentication"
 	$(MAKE) neo4j.stop
 	@sed -i 's/#dbms.security.auth_enabled=false/dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
 	$(MAKE) neo4j.start
 	@-echo "ALTER USER neo4j SET PASSWORD '${NEO4J_PASSWORD}'" | /opt/bitnami/neo4j/bin/cypher-shell -u neo4j -p neo4j -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687 -d system
+	$(MAKE) neo4j.stop
+	@sed -i 's/dbms.security.auth_enabled=false/#dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
+	$(MAKE) neo4j.start
+
+# TODO fix this for private subnet
+neo4j.config.reset-auth.no-ssl:
+	@echo "Resetting Neo4j authentication"
+	$(MAKE) neo4j.stop
+	@sed -i 's/#dbms.security.auth_enabled=false/dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
+	$(MAKE) neo4j.start
+	@-echo "ALTER USER neo4j SET PASSWORD '${NEO4J_PASSWORD}'" | /opt/bitnami/neo4j/bin/cypher-shell -u neo4j -p neo4j -a bolt://127.0.0.1:7687 --encryption false -d system
 	$(MAKE) neo4j.stop
 	@sed -i 's/dbms.security.auth_enabled=false/#dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
 	$(MAKE) neo4j.start
@@ -159,6 +169,20 @@ neo4j.waiter:
 	printf "%s\n" " " && \
 	[ $$counter -eq $$timeout ] && echo "Operation timed out!" || echo "Neo4j is ready"
 
+neo4j.waiter.no-ssl:
+	@timeout=120 && \
+	counter=0 && \
+	host=127.0.0.1 && \
+	echo "Waiting for response from Neo4j at http://$$host:7474..." && \
+	until $$(curl --output /dev/null --silent --head --fail http://$$host:7474) ; do \
+		printf '.' ; \
+		sleep 1 ; \
+		counter=$$((counter + 1)) ; \
+		[ $$counter -eq $$timeout ] && break || true ; \
+	done && \
+	printf "%s\n" " " && \
+	[ $$counter -eq $$timeout ] && echo "Operation timed out!" || echo "Neo4j is ready"
+
 neo4j.backup:
 	$(MAKE) neo4j.stop
 	@cd ${BITNAMI_NEO4J}/ && zip -r ${BITNAMI_HOME}/gfedb.zip data
@@ -167,19 +191,20 @@ neo4j.backup:
 	@rm ${BITNAMI_HOME}/gfedb.zip
 	$(MAKE) neo4j.start
 
-neo4j.restore: #from_date=<YYYY/MM/DD/HH>
-	@echo "Received data restore request for date $$from_date"
-	@[ "$$from_date" != "" ] || (echo "from_date is required" && exit 1) && \
-	[ "$$(echo "$$from_date" | grep -E '^[0-9]{4}/[0-9]{2}/[0-9]{2}/[0-9]{2}$$')" ] || (echo "from_date must be in the format YYYY/MM/DD/HH" && exit 1) && \
-	echo "Running restore for $$from_date"
+# TODO testing s3://prod-gfe-db-531868584498-us-east-1/backups/neo4j/2023/09/14/05
+neo4j.restore: #from_path=s3://<backup path>
+	@echo "Received data restore request for backup $$from_path"
+	@[ "$$from_path" != "" ] || (echo "from_path is required" && exit 1)
+	@echo "$$from_path" | grep -E '^s3:\/\/[a-zA-Z0-9\.-]+\/([a-zA-Z0-9\.-]+\/)*[a-zA-Z0-9\.-]+\.zip$$' > /dev/null || (echo "\`from_path\` must be an S3 URI: 's3://<bucket>/path'" && exit 1)
+	@echo "Running restore for $$from_path"
 	$(MAKE) neo4j.stop
-	@aws s3 cp s3://${DATA_BUCKET_NAME}/backups/neo4j/$$from_date/gfedb.zip ${BITNAMI_HOME}/gfedb.zip
+	@aws s3 cp $$from_path ${BITNAMI_HOME}/gfedb.zip
 	@unzip -o ${BITNAMI_HOME}/gfedb.zip
 	@cp -r data/* ${BITNAMI_NEO4J}/data/
 	@chown -R neo4j:neo4j ${BITNAMI_NEO4J}/data/
 	@rm ${BITNAMI_HOME}/gfedb.zip
 	@rm -r ${BITNAMI_HOME}/data/
-	$(MAKE) neo4j.config.reset-auth
+	$(MAKE) neo4j.config.reset-auth.no-ssl
 
 neo4j.create-constraints:
 	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
