@@ -80,8 +80,10 @@ splash-screen:
 	@echo "\033[0;32m  / __ \`// /_ / _ \   ______   / __  // __ \\"
 	@echo "\033[0;32m / /_/ // __//  __/  /_____/  / /_/ // /_/ /"
 	@echo "\033[0;34m \__, //_/   \___/            \____//_____/ "
-	@echo "\033[0;34m/____/                                      \033[0m"
-	@echo "\033[0;34m                                             \033[0m"
+	@echo "\033[0;34m/____/                                      "
+	@echo "\033[0;34m                                            "
+	@echo "\033[0;34mCopyright © 2002-2023 National Marrow Donor Program. All rights reserved."
+	@echo "\033[0;34m                                            \033[0m"
 
 env.print:
 	@echo "\033[0;33mReview the contents of the .env file:\033[0m"
@@ -115,32 +117,40 @@ check.dependencies:
 	$(MAKE) check.dependencies.awscli
 	$(MAKE) check.dependencies.samcli
 	$(MAKE) check.dependencies.jq
+	$(MAKE) check.dependencies.coreutils
 
 check.dependencies.docker:
 	@if docker info 2>&1 | grep -q 'Is the docker daemon running?'; then \
 		echo "**** Docker is not running. Please start Docker before deploying. ****" && \
-		echo "**** Please refer to the documentation for a list of prerequisistes. ****" && \
+		echo "**** Please refer to the documentation for a list of prerequisites. ****" && \
 		exit 1; \
 	fi
 
 check.dependencies.awscli:
 	@if ! aws --version >/dev/null 2>&1; then \
 		echo "**** AWS CLI not found. Please install AWS CLI before deploying. ****" && \
-		echo "**** Please refer to the documentation for a list of prerequisistes. ****" && \
+		echo "**** Please refer to the documentation for a list of prerequisites. ****" && \
 		exit 1; \
 	fi
 
 check.dependencies.samcli:
 	@if ! sam --version >/dev/null 2>&1; then \
 		echo "**** SAM CLI not found. Please install SAM CLI before deploying. ****" && \
-		echo "**** Please refer to the documentation for a list of prerequisistes. ****" && \
+		echo "**** Please refer to the documentation for a list of prerequisites. ****" && \
 		exit 1; \
 	fi
 
 check.dependencies.jq:
 	@if ! jq --version >/dev/null 2>&1; then \
 		echo "**** jq not found. Please install jq before deploying. ****" && \
-		echo "**** Please refer to the documentation for a list of prerequisistes. ****" && \
+		echo "**** Please refer to the documentation for a list of prerequisites. ****" && \
+		exit 1; \
+	fi
+
+check.dependencies.coreutils:
+	@if ! gdate --version >/dev/null 2>&1; then \
+		echo "**** GNU coreutils not found. Please install GNU coreutils before deploying. ****" && \
+		echo "**** Please refer to the documentation for a list of prerequisites. ****" && \
 		exit 1; \
 	fi
 
