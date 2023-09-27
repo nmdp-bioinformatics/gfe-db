@@ -44,7 +44,11 @@ REQUIRED_VARS := STAGE APP_NAME AWS_ACCOUNT AWS_REGION AWS_PROFILE SUBSCRIBE_EMA
                 GITHUB_REPOSITORY_OWNER GITHUB_REPOSITORY_NAME GITHUB_PERSONAL_ACCESS_TOKEN \
                 ADMIN_EMAIL NEO4J_AMI_ID APOC_VERSION GDS_VERSION
 
-# print colors
+# stdout colors
+# green: runtime message, no action required
+# blue: parameter message, no action required
+# yellow: message to user, action required
+# red: error message, action required
 define blue
 	@tput setaf 4
 	@echo $1
@@ -121,36 +125,36 @@ check.dependencies:
 
 check.dependencies.docker:
 	@if docker info 2>&1 | grep -q 'Is the docker daemon running?'; then \
-		echo "**** Docker is not running. Please start Docker before deploying. ****" && \
-		echo "**** Please refer to the documentation for a list of prerequisites. ****" && \
+		echo "\033[0;31m**** Docker is not running. Please start Docker before deploying. ****\033[0m"; \
+		echo "\033[0;31m**** Please refer to the documentation for a list of prerequisites. ****\033[0m"; \
 		exit 1; \
 	fi
 
 check.dependencies.awscli:
 	@if ! aws --version >/dev/null 2>&1; then \
-		echo "**** AWS CLI not found. Please install AWS CLI before deploying. ****" && \
-		echo "**** Please refer to the documentation for a list of prerequisites. ****" && \
+		echo "\033[0;31m**** AWS CLI not found. Please install AWS CLI before deploying. ****\033[0m"; \
+		echo "\033[0;31m**** Please refer to the documentation for a list of prerequisites. ****\033[0m"; \
 		exit 1; \
 	fi
 
 check.dependencies.samcli:
 	@if ! sam --version >/dev/null 2>&1; then \
-		echo "**** SAM CLI not found. Please install SAM CLI before deploying. ****" && \
-		echo "**** Please refer to the documentation for a list of prerequisites. ****" && \
+		echo "\033[0;31m**** SAM CLI not found. Please install SAM CLI before deploying. ****\033[0m"; \
+		echo "\033[0;31m**** Please refer to the documentation for a list of prerequisites. ****\033[0m"; \
 		exit 1; \
 	fi
 
 check.dependencies.jq:
 	@if ! jq --version >/dev/null 2>&1; then \
-		echo "**** jq not found. Please install jq before deploying. ****" && \
-		echo "**** Please refer to the documentation for a list of prerequisites. ****" && \
+		echo "\033[0;31m**** jq not found. Please install jq before deploying. ****\033[0m"; \
+		echo "\033[0;31m**** Please refer to the documentation for a list of prerequisites. ****\033[0m"; \
 		exit 1; \
 	fi
 
 check.dependencies.coreutils:
 	@if ! gdate --version >/dev/null 2>&1; then \
-		echo "**** GNU coreutils not found. Please install GNU coreutils before deploying. ****" && \
-		echo "**** Please refer to the documentation for a list of prerequisites. ****" && \
+		echo "\033[0;31m**** GNU coreutils not found. Please install GNU coreutils before deploying. ****\033[0m"; \
+		echo "\033[0;31m**** Please refer to the documentation for a list of prerequisites. ****\033[0m"; \
 		exit 1; \
 	fi
 
@@ -184,14 +188,60 @@ ifeq ($(PUBLIC_SUBNET_ID),)
 else
 	$(call green, "Found PUBLIC_SUBNET_ID: ${PUBLIC_SUBNET_ID}")
 endif
+ifeq ($(USE_PRIVATE_SUBNET),true)
+	$(call blue, "**** This deployment uses a private subnet for Neo4j ****")
+	$(MAKE) env.validate.private-subnet
+endif
 
-# env.validate.private-subnet:
-# ifeq ($(PUBLIC_SUBNET_ID),)
-# 	$(call red, "PUBLIC_SUBNET_ID must be set as an environment variable when \`CREATE_VPC\` is false")
-# 	@exit 1
-# else
-# 	$(call green, "Found PUBLIC_SUBNET_ID: ${PUBLIC_SUBNET_ID}")
-# endif
+env.validate.private-subnet:
+ifeq ($(PRIVATE_SUBNET_ID),)
+	$(call red, "PRIVATE_SUBNET_ID must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is true")
+	@exit 1
+else
+	$(call green, "Found PRIVATE_SUBNET_ID: ${PRIVATE_SUBNET_ID}")
+endif
+ifndef CREATE_SSM_ENDPOINT
+	$(info 'CREATE_SSM_ENDPOINT' is not set. Defaulting to 'false')
+	$(eval export CREATE_SSM_ENDPOINT := false)
+	$(call blue, "**** This deployment uses an Systems Manager VPC endpoint ****")
+	$(MAKE) env.validate.create-ssm-endpoint
+endif
+ifeq ($(CREATE_SSM_ENDPOINT),false)
+	$(call blue, "**** This deployment uses an existing Systems Manager VPC endpoint ****")
+	$(MAKE) env.validate.create-ssm-endpoint
+else ifeq ($(CREATE_SSM_ENDPOINT),true)
+	$(call blue, "**** This deployment includes an Systems Manager VPC endpoint. ****")
+	$(call blue, "**** Please be aware that only one service endpoint per VPC is allowed and this may conflict with other stacks. ****")
+endif
+ifndef CREATE_SECRETSMANAGER_ENDPOINT
+	$(info 'CREATE_SECRETSMANAGER_ENDPOINT' is not set. Defaulting to 'false')
+	$(eval export CREATE_SECRETSMANAGER_ENDPOINT := false)
+	$(call blue, "**** This deployment uses an existing Secrets Manager VPC endpoint ****")
+	$(MAKE) env.validate.create-secretsmanager-endpoint
+endif
+ifeq ($(CREATE_SECRETSMANAGER_ENDPOINT),false)
+	$(call blue, "**** This deployment uses an existing Secrets Manager VPC endpoint ****")
+	$(MAKE) env.validate.create-secretsmanager-endpoint
+else ifeq ($(CREATE_SECRETSMANAGER_ENDPOINT),true)
+	$(call blue, "**** This deployment includes an Secrets Manager VPC endpoint. ****")
+	$(call blue, "**** Please be aware that only one service endpoint per VPC is allowed and this may conflict with other stacks. ****")
+endif
+
+env.validate.create-ssm-endpoint:
+ifeq ($(SSM_ENDPOINT_ID),)
+	$(call red, "SSM_ENDPOINT_ID must be set as an environment variable when \`CREATE_SSM_ENDPOINT\` is true")
+	@exit 1
+else
+	$(call green, "Found SSM_ENDPOINT_ID: ${SSM_ENDPOINT_ID}")
+endif
+
+env.validate.create-secretsmanager-endpoint:
+ifeq ($(SECRETSMANAGER_ENDPOINT_ID),)
+	$(call red, "SECRETSMANAGER_ENDPOINT_ID must be set as an environment variable when \`CREATE_SECRETSMANAGER_ENDPOINT\` is true")
+	@exit 1
+else
+	$(call green, "Found SECRETSMANAGER_ENDPOINT_ID: ${SECRETSMANAGER_ENDPOINT_ID}")
+endif
 
 env.validate: check.dependencies
 	$(foreach var,$(REQUIRED_VARS),\
@@ -199,19 +249,21 @@ env.validate: check.dependencies
 ifndef CREATE_VPC
 	$(info 'CREATE_VPC' is not set. Defaulting to 'false')
 	$(eval export CREATE_VPC := false)
-	$(call blue, "**** This deployment uses an existing VPC****")
+	$(call blue, "**** This deployment uses an existing VPC ****")
 	$(MAKE) env.validate.no-vpc
 endif
 ifeq ($(CREATE_VPC),false)
-	$(call blue, "**** This deployment uses an existing VPC****")
+	$(call blue, "**** This deployment uses an existing VPC ****")
 	$(MAKE) env.validate.no-vpc
 else ifeq ($(CREATE_VPC),true)
-	$(call blue, "**** This deployment includes a VPC****")
+	$(call blue, "**** This deployment includes a VPC ****")
 endif
-ifeq ($(USE_PRIVATE_SUBNET),true)
-	$(call blue, "**** This deployment uses a private subnet for Neo4j****")
-	$(call green, "Found PRIVATE_SUBNET_ID: ${PRIVATE_SUBNET_ID}")
-endif
+
+
+
+
+
+
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 infrastructure.deploy: 
