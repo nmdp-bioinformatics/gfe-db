@@ -25,6 +25,7 @@ service.deploy.update-dns:
 	echo "Response:" && \
 	echo $$res | jq -r
 
+# TODO add cloudformation waiter for stack create complete and exit if failed
 # TODO test AWSCLI output and validate the stack was created successfully
 # Add stateful check from SSM Param of vpc=true/false to correctly set CREATE_VPC
 service.deploy:
