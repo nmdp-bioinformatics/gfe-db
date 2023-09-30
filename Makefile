@@ -177,13 +177,13 @@ env.validate.stage:
 	
 env.validate.no-vpc:
 ifeq ($(VPC_ID),)
-	$(call red, "VPC_ID must be set as an environment variable when \`CREATE_VPC\` is false")
+	$(call red, "\`VPC_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`false\`")
 	@exit 1
 else
 	$(call green, "Found VPC_ID: ${VPC_ID}")
 endif
 ifeq ($(PUBLIC_SUBNET_ID),)
-	$(call red, "PUBLIC_SUBNET_ID must be set as an environment variable when \`CREATE_VPC\` is false")
+	$(call red, "\`PUBLIC_SUBNET_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`false\`")
 	@exit 1
 else
 	$(call green, "Found PUBLIC_SUBNET_ID: ${PUBLIC_SUBNET_ID}")
@@ -195,13 +195,13 @@ endif
 
 env.validate.private-subnet:
 ifeq ($(PRIVATE_SUBNET_ID),)
-	$(call red, "PRIVATE_SUBNET_ID must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is true")
+	$(call red, "\`PRIVATE_SUBNET_ID\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`true\`")
 	@exit 1
 else
 	$(call green, "Found PRIVATE_SUBNET_ID: ${PRIVATE_SUBNET_ID}")
 endif
 ifndef CREATE_SSM_ENDPOINT
-	$(info 'CREATE_SSM_ENDPOINT' is not set. Defaulting to 'false')
+	$(info "\`CREATE_SSM_ENDPOINT\` is not set. Defaulting to \`false\`")
 	$(eval export CREATE_SSM_ENDPOINT := false)
 	$(call blue, "**** This deployment uses an Systems Manager VPC endpoint ****")
 	$(MAKE) env.validate.create-ssm-endpoint
@@ -214,7 +214,7 @@ else ifeq ($(CREATE_SSM_ENDPOINT),true)
 	$(call blue, "**** Please be aware that only one service endpoint per VPC is allowed and this may conflict with other stacks. ****")
 endif
 ifndef CREATE_SECRETSMANAGER_ENDPOINT
-	$(info 'CREATE_SECRETSMANAGER_ENDPOINT' is not set. Defaulting to 'false')
+	$(info "\`CREATE_SECRETSMANAGER_ENDPOINT\` is not set. Defaulting to \`false\`")
 	$(eval export CREATE_SECRETSMANAGER_ENDPOINT := false)
 	$(call blue, "**** This deployment uses an existing Secrets Manager VPC endpoint ****")
 	$(MAKE) env.validate.create-secretsmanager-endpoint
@@ -229,7 +229,7 @@ endif
 
 env.validate.create-ssm-endpoint:
 ifeq ($(SSM_ENDPOINT_ID),)
-	$(call red, "SSM_ENDPOINT_ID must be set as an environment variable when \`CREATE_SSM_ENDPOINT\` is true")
+	$(call red, "\`SSM_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_SSM_ENDPOINT\` is \`true\`")
 	@exit 1
 else
 	$(call green, "Found SSM_ENDPOINT_ID: ${SSM_ENDPOINT_ID}")
@@ -237,12 +237,13 @@ endif
 
 env.validate.create-secretsmanager-endpoint:
 ifeq ($(SECRETSMANAGER_ENDPOINT_ID),)
-	$(call red, "SECRETSMANAGER_ENDPOINT_ID must be set as an environment variable when \`CREATE_SECRETSMANAGER_ENDPOINT\` is true")
+	$(call red, "\`SECRETSMANAGER_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_SECRETSMANAGER_ENDPOINT\` is \`true\`")
 	@exit 1
 else
 	$(call green, "Found SECRETSMANAGER_ENDPOINT_ID: ${SECRETSMANAGER_ENDPOINT_ID}")
 endif
 
+# TODO validate the boolean vars are true or false
 env.validate: check.dependencies
 	$(foreach var,$(REQUIRED_VARS),\
 		$(if $(value $(var)),,$(error $(var) is not set. Please add $(var) to the environment variables.)))
@@ -258,12 +259,6 @@ ifeq ($(CREATE_VPC),false)
 else ifeq ($(CREATE_VPC),true)
 	$(call blue, "**** This deployment includes a VPC ****")
 endif
-
-
-
-
-
-
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 infrastructure.deploy: 

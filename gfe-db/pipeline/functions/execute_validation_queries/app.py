@@ -21,21 +21,22 @@ secrets = session.client("secretsmanager")
 uri = ssm.get_parameter(
     Name=f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jPrivateIp"
 )["Parameter"]["Value"]
+logger.info(f"Found uri: {uri}")
 
 uri_scheme = "bolt" + "://"
 uri_port = ":" + "7687"
 uri = uri_scheme + uri + uri_port
-logger.info(f"Neo4j URI: {uri}")
 
 # /gfe-db/dev/us-east-1/Neo4jCredentialsSecretArn
 auth_arn = ssm.get_parameter(
     Name=f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jCredentialsSecretArn"
 )["Parameter"]["Value"]
-logger.info(f"Neo4j URI: {uri}")
 
 # get secret from arn
 auth = json.loads(secrets.get_secret_value(SecretId=auth_arn)["SecretString"])
+logger.info(f'Found auth: {auth["NEO4J_USERNAME"]}')
 
+logger.info(f"Connecting to Neo4j at {uri}")
 graphdb = GraphDatabase.driver(uri, auth=(auth["NEO4J_USERNAME"], auth["NEO4J_PASSWORD"]))
 
 def lambda_handler(event, context):

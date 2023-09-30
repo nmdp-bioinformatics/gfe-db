@@ -1,3 +1,4 @@
+.PHONY: service.update-vpc-endpoints
 SERVICE := infrastructure
 
 target:
@@ -39,16 +40,44 @@ service.deploy:
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
 			createVpc="$${CREATE_VPC}" \
-			createVpcEndpoints="$${CREATE_VPC_ENDPOINTS}" \
+			createSsmVpcEndpoint="$${CREATE_SSM_ENDPOINT}" \
+			createSecretsManagerVpcEndpoint="$${CREATE_SECRETSMANAGER_ENDPOINT}" \
 			AdminEmail="$${ADMIN_EMAIL}" \
 			DataBucketName="$$DATA_BUCKET_NAME" \
 			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN" \
 			HostedZoneId="$${HOSTED_ZONE_ID}" \
 			VpcId="$${VPC_ID}" \
 			PublicSubnetId="$${PUBLIC_SUBNET_ID}" \
-			PrivateSubnetId="$${PRIVATE_SUBNET_ID}" \
-			2>&1 | tee -a $${CFN_LOG_PATH} || true
-	# $(MAKE) service.deploy.update-dns
+			PrivateSubnetId="$${PRIVATE_SUBNET_ID}"
+	$(MAKE) service.update-vpc-endpoints
+
+# Not used for private subnet deployment
+# $(MAKE) service.deploy.update-dns
+
+service.update-vpc-endpoints:
+ifeq ($(CREATE_SSM_ENDPOINT),false)
+	$(MAKE) service.update-vpc-endpoint service=ssm
+endif
+ifeq ($(CREATE_SECRETSMANAGER_ENDPOINT),false)
+	$(MAKE) service.update-vpc-endpoint service=secretsmanager
+endif
+
+service.update-vpc-endpoint: #service=<string[ssm,secretsmanager]>
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Updating $${service} VPC endpoint security group" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@endpoint_id=$$(aws ec2 describe-vpc-endpoints \
+		--filters "Name=service-name,Values=com.amazonaws.$${AWS_REGION}.$$service" \
+		--query "VpcEndpoints[0].VpcEndpointId" \
+		--output text) && \
+	echo "Endpoint ID: $$endpoint_id" && \
+	security_group_id=$$(aws ssm get-parameters \
+		--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseSecurityGroupId" \
+		--with-decryption \
+		--query "Parameters[0].Value" \
+		--output text) && \
+	echo "Security Group ID: $$security_group_id" && \
+	aws ec2 modify-vpc-endpoint \
+		--vpc-endpoint-id "$$endpoint_id" \
+		--add-security-group-ids "$$security_group_id" | jq -r
 
 service.monitoring.create-subscriptions:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Creating SNS topic subscriptions" 2>&1 | tee -a $${CFN_LOG_PATH}

@@ -32,15 +32,12 @@ Parameters:
   VpcId:
     Type: String
     Description: Required if createVpc is false
-    Default: ''
   PublicSubnetId:
     Type: String
     Description: Required if createVpc is false
-    Default: ''
   PrivateSubnetId:
     Type: String
     Description: Required if createVpc is false
-    Default: ''
   GitHubPersonalAccessToken:
     Type: String
     NoEcho: true
@@ -49,9 +46,7 @@ Conditions:
   CreateVpc: !Equals [!Ref createVpc, 'true']
   UseExternalVpc: !Equals [!Ref createVpc, 'false']
   CreateSsmVpcEndpoint: !Equals [!Ref createSsmVpcEndpoint, 'true']
-  UseExternalSsmVpcEndpoint: !Equals [!Ref createSsmVpcEndpoint, 'false']
   CreateSecretsManagerVpcEndpoint: !Equals [!Ref createSecretsManagerVpcEndpoint, 'true']
-  UseExternalSecretsManagerVpcEndpoint: !Equals [!Ref createSecretsManagerVpcEndpoint, 'false']
 
 Mappings:
   # AvailabilityZoneMap defines availability zones where an m5d.xlarge instance is available (used for Neo4j server).
@@ -287,7 +282,7 @@ Resources:
       SecurityGroupIds:
         - !Ref Neo4jDatabaseSecurityGroup
       SubnetIds:
-        - !Ref PublicSubnetId
+        - !Ref PrivateSubnetId
       PrivateDnsEnabled: true
 
   SecretsManagerVpcEndpoint:
@@ -300,7 +295,7 @@ Resources:
       SecurityGroupIds:
         - !Ref Neo4jDatabaseSecurityGroup
       SubnetIds:
-        - !Ref PublicSubnetId
+        - !Ref PrivateSubnetId
       PrivateDnsEnabled: true
 
   GitHubPersonalAccessTokenSecret:
