@@ -65,15 +65,15 @@ endif
 # TODO get endpoint id from env vars, --filter "Name=subnet-id,Values=$${PRIVATE_SUBNET_ID}" does not work
 # the vpc endpoint must match PRIVATE_SUBNET_ID env var
 service.update-vpc-endpoint: #service=<string[ssm,secretsmanager]>
-	@echo "\033[0;32m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Adding security group to $${service} VPC endpoint\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Adding security group to $${service} VPC endpoint\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
 	@endpoint_json=$$(aws ec2 describe-vpc-endpoints | jq 'del(.VpcEndpoints[].PolicyDocument)') && \
 	endpoint_id=$$(echo $$endpoint_json | jq -r --arg subnet "$${PRIVATE_SUBNET_ID}" '.VpcEndpoints[] | select(.SubnetIds[] == $$subnet) .VpcEndpointId') && \
 	if [ -z "$$endpoint_id" ]; then \
-		echo "$${service} VPC endpoint is not associated with \`PRIVATE_SUBNET_ID\` ($${PRIVATE_SUBNET_ID})" && exit 1; \
+		echo "\033[0;31m$${service} VPC endpoint is not associated with \`PRIVATE_SUBNET_ID\` ($${PRIVATE_SUBNET_ID})\033[0m" && exit 1; \
 	fi; \
 	[ "$${service}" = "ssm" ] && endpoint_id=$$SSM_ENDPOINT_ID; \
 	[ "$${service}" = "secretsmanager" ] && endpoint_id=$$SECRETSMANAGER_ENDPOINT_ID; \
-	echo "\033[0;34mFound VPC endpoint ID: $$endpoint_id" && \
+	echo "\033[0;32mFound VPC endpoint ID: $$endpoint_id" && \
 	security_group_id=$$(aws ssm get-parameters \
 		--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseSecurityGroupId" \
 		--with-decryption \
@@ -83,7 +83,7 @@ service.update-vpc-endpoint: #service=<string[ssm,secretsmanager]>
 	response=$$(aws ec2 modify-vpc-endpoint \
 		--vpc-endpoint-id "$$endpoint_id" \
 		--add-security-group-ids "$$security_group_id" | jq -r '.Return') && \
-	[ "$$response" = "true" ] && echo "\033[0;32mSuccessfully added security group to $${service} VPC endpoint\033[0m" || \
+	[ "$$response" = "true" ] && echo "\033[0;34mSuccessfully added security group to $${service} VPC endpoint\033[0m" || \
 	(echo "\033[0;31mFailed to add security group to $${service} VPC endpoint\033[0m" && exit 1)
 
 service.remove-security-groups:
@@ -97,20 +97,20 @@ endif
 # Removes the Neo4j security group from the VPC endpoints
 # aws ec2 modify-vpc-endpoint --remove-security-group-ids 
 service.remove-security-group: #service=<string[ssm,secretsmanager]>
-	@echo "\033[0;32m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Removing security group from $${service} VPC endpoint\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Removing security group from $${service} VPC endpoint\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
 	@[ "$${service}" = "ssm" ] && endpoint_id=$$SSM_ENDPOINT_ID; \
 	[ "$${service}" = "secretsmanager" ] && endpoint_id=$$SECRETSMANAGER_ENDPOINT_ID; \
-	echo "\033[0;34mFound VPC endpoint ID: $$endpoint_id" && \
+	echo "\033[0;32mFound VPC endpoint ID: $$endpoint_id\033[0m" && \
 	security_group_id=$$(aws ssm get-parameters \
 		--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseSecurityGroupId" \
 		--with-decryption \
 		--query "Parameters[0].Value" \
 		--output text) && \
-	echo "Found security group ID: $$security_group_id" && \
+	echo "\033[0;32mFound security group ID: $$security_group_id\033[0m" && \
 	response=$$(aws ec2 modify-vpc-endpoint \
 		--vpc-endpoint-id "$$endpoint_id" \
 		--remove-security-group-ids "$$security_group_id" | jq -r '.Return') && \
-	[ "$$response" = "true" ] && echo "\033[0;32mSuccessfully removed security group from $${service} VPC endpoint\033[0m" || \
+	[ "$$response" = "true" ] && echo "\033[0;34mSuccessfully removed security group from $${service} VPC endpoint\033[0m" || \
 	(echo "\033[0;31mFailed to remove security group from $${service} VPC endpoint\033[0m" && exit 1) | jq -r
 
 service.monitoring.create-subscriptions:

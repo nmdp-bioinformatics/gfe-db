@@ -45,8 +45,8 @@ REQUIRED_VARS := STAGE APP_NAME AWS_ACCOUNT AWS_REGION AWS_PROFILE SUBSCRIBE_EMA
                 ADMIN_EMAIL NEO4J_AMI_ID APOC_VERSION GDS_VERSION
 
 # stdout colors
-# green: runtime message, no action required
-# blue: parameter value message, no action required
+# blue: runtime message, no action required
+# green: parameter value message, no action required
 # yellow: message to user, action required
 # red: error message, action required
 define blue
