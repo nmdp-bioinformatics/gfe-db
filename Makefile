@@ -46,7 +46,7 @@ REQUIRED_VARS := STAGE APP_NAME AWS_ACCOUNT AWS_REGION AWS_PROFILE SUBSCRIBE_EMA
 
 # stdout colors
 # green: runtime message, no action required
-# blue: parameter message, no action required
+# blue: parameter value message, no action required
 # yellow: message to user, action required
 # red: error message, action required
 define blue
@@ -72,6 +72,9 @@ define red
 	@echo $1
 	@tput sgr0
 endef
+
+test:
+	$(MAKE) -C ${APP_NAME}/infrastructure/ service.remove-security-groups service=ssm
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -101,8 +104,8 @@ deploy: splash-screen logs.purge env.validate.stage env.validate ##=> Deploy all
 	$(MAKE) env.print
 	@echo "Deploy stack to the \`${STAGE}\` environment? [y/N] \c " && read ans && [ $${ans:-N} = y ]
 	$(MAKE) infrastructure.deploy
-	$(MAKE) database.deploy
-	$(MAKE) pipeline.deploy
+	# $(MAKE) database.deploy
+	# $(MAKE) pipeline.deploy
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished deploying ${APP_NAME}" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 logs.purge: logs.dirs
