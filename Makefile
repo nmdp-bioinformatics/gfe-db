@@ -44,6 +44,8 @@ REQUIRED_VARS := STAGE APP_NAME AWS_ACCOUNT AWS_REGION AWS_PROFILE SUBSCRIBE_EMA
                 GITHUB_REPOSITORY_OWNER GITHUB_REPOSITORY_NAME GITHUB_PERSONAL_ACCESS_TOKEN \
                 ADMIN_EMAIL NEO4J_AMI_ID APOC_VERSION GDS_VERSION
 
+BOOLEAN_VARS := CREATE_VPC USE_PRIVATE_SUBNET CREATE_SSM_ENDPOINT CREATE_SECRETSMANAGER_ENDPOINT
+
 # stdout colors
 # blue: runtime message, no action required
 # green: parameter value message, no action required
@@ -104,8 +106,8 @@ deploy: splash-screen logs.purge env.validate.stage env.validate ##=> Deploy all
 	$(MAKE) env.print
 	@echo "Deploy stack to the \`${STAGE}\` environment? [y/N] \c " && read ans && [ $${ans:-N} = y ]
 	$(MAKE) infrastructure.deploy
-	# $(MAKE) database.deploy
-	# $(MAKE) pipeline.deploy
+	$(MAKE) database.deploy
+	$(MAKE) pipeline.deploy
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished deploying ${APP_NAME}" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 logs.purge: logs.dirs
@@ -246,8 +248,14 @@ else
 	$(call green, "Found SECRETSMANAGER_ENDPOINT_ID: ${SECRETSMANAGER_ENDPOINT_ID}")
 endif
 
-# TODO validate the boolean vars are true or false
-env.validate: check.dependencies
+env.validate.boolean-vars:
+	@$(foreach var,$(BOOLEAN_VARS),\
+		if [ "$(value $(var))" != "true" ] && [ "$(value $(var))" != "false" ]; then \
+			echo "\033[0;31m\`$(var)\` must be either \`true\` or \`false\`\033[0m" && exit 1; \
+		fi; \
+	)
+
+env.validate: check.dependencies env.validate.boolean-vars
 	$(foreach var,$(REQUIRED_VARS),\
 		$(if $(value $(var)),,$(error $(var) is not set. Please add $(var) to the environment variables.)))
 ifndef CREATE_VPC
