@@ -90,6 +90,14 @@ else
 	ALIGNFLAG=""
 fi
 
+# Check for FEATURE_SERVICE_URL
+if [[ -z "${FEATURE_SERVICE_URL}" ]]; then
+	echo "No FEATURE_SERVICE_URL set, building GFEs with default feature service."
+else
+	echo "Using Feature Service: ${FEATURE_SERVICE_URL}"
+fi
+
+
 # Build csv files
 RELEASES=$(echo "${RELEASES}" | sed s'/"//'g | sed s'/,/ /g')
 # exit 1 # TODO test state machine error handling
@@ -134,7 +142,8 @@ for release in ${RELEASES}; do
 		$ALIGNFLAG \
 		$MEM_PROFILE_FLAG \
 		-v \
-		-l $LIMIT
+		-l $LIMIT \
+		-u $FEATURE_SERVICE_URL
     build_exit_status=$?
     echo "Build exit status (1:CRITICAL, 2:WARNING): $build_exit_status"
     

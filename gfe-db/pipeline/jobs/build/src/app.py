@@ -528,6 +528,13 @@ if __name__ == '__main__':
                         nargs='?',
                         action="store")
 
+    parser.add_argument("-u", "--feature-service-url",
+                        required=False,
+                        help="URL of Feature Service to retrieve/populate",
+                        default="https://feature-service.nmdp.org/",
+                        nargs='?',
+                        action="store")
+
     args = parser.parse_args()
 
     logging.debug(f'Input args: {vars(args)}')
@@ -574,9 +581,10 @@ if __name__ == '__main__':
     
     alleles = parse_dat(data_dir, dbversion)
 
-    ard = pyard.init(dbversion, data_dir="/tmp/gfe-pyard/", load_mac=False)
+    ard = pyard.init(dbversion, data_dir="/tmp/gfe-pyard", load_mac=False)
 
     gfe_maker = GFE(
+        url=args.feature_service_url,
         verbose=verbose, 
         verbosity=verbosity,
         load_features=False, 
