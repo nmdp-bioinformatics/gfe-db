@@ -44,7 +44,7 @@ REQUIRED_VARS := STAGE APP_NAME AWS_ACCOUNT AWS_REGION AWS_PROFILE SUBSCRIBE_EMA
                 GITHUB_REPOSITORY_OWNER GITHUB_REPOSITORY_NAME GITHUB_PERSONAL_ACCESS_TOKEN \
                 ADMIN_EMAIL NEO4J_AMI_ID APOC_VERSION GDS_VERSION
 
-BOOLEAN_VARS := CREATE_VPC USE_PRIVATE_SUBNET CREATE_SSM_ENDPOINT CREATE_SECRETSMANAGER_ENDPOINT
+BOOLEAN_VARS := CREATE_VPC USE_PRIVATE_SUBNET
 
 # stdout colors
 # blue: runtime message, no action required
@@ -101,7 +101,7 @@ env.print:
 	@echo "+---------------------------------------------------------------------------------+"
 	@echo "\033[0;33mPlease confirm the above values are correct.\033[0m"
 
-deploy: splash-screen logs.purge env.validate.stage env.validate ##=> Deploy all services
+deploy: splash-screen logs.purge env.validate ##=> Deploy all services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) env.print
 	@echo "Deploy stack to the \`${STAGE}\` environment? [y/N] \c " && read ans && [ $${ans:-N} = y ]
@@ -205,48 +205,49 @@ ifeq ($(PRIVATE_SUBNET_ID),)
 else
 	$(call green, "Found PRIVATE_SUBNET_ID: ${PRIVATE_SUBNET_ID}")
 endif
-ifndef CREATE_SSM_ENDPOINT
-	$(info "\`CREATE_SSM_ENDPOINT\` is not set. Defaulting to \`false\`")
-	$(eval export CREATE_SSM_ENDPOINT := false)
-	$(call blue, "**** This deployment uses an Systems Manager VPC endpoint ****")
-	$(MAKE) env.validate.create-ssm-endpoint
-endif
-ifeq ($(CREATE_SSM_ENDPOINT),false)
-	$(call blue, "**** This deployment uses an existing Systems Manager VPC endpoint ****")
-	$(MAKE) env.validate.create-ssm-endpoint
-else ifeq ($(CREATE_SSM_ENDPOINT),true)
-	$(call blue, "**** This deployment includes an Systems Manager VPC endpoint. ****")
-	$(call blue, "**** Please be aware that only one service endpoint per VPC is allowed and this may conflict with other stacks. ****")
-endif
-ifndef CREATE_SECRETSMANAGER_ENDPOINT
-	$(info "\`CREATE_SECRETSMANAGER_ENDPOINT\` is not set. Defaulting to \`false\`")
-	$(eval export CREATE_SECRETSMANAGER_ENDPOINT := false)
-	$(call blue, "**** This deployment uses an existing Secrets Manager VPC endpoint ****")
-	$(MAKE) env.validate.create-secretsmanager-endpoint
-endif
-ifeq ($(CREATE_SECRETSMANAGER_ENDPOINT),false)
-	$(call blue, "**** This deployment uses an existing Secrets Manager VPC endpoint ****")
-	$(MAKE) env.validate.create-secretsmanager-endpoint
-else ifeq ($(CREATE_SECRETSMANAGER_ENDPOINT),true)
-	$(call blue, "**** This deployment includes an Secrets Manager VPC endpoint. ****")
-	$(call blue, "**** Please be aware that only one service endpoint per VPC is allowed and this may conflict with other stacks. ****")
-endif
 
-env.validate.create-ssm-endpoint:
-ifeq ($(SSM_ENDPOINT_ID),)
-	$(call red, "\`SSM_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_SSM_ENDPOINT\` is \`true\`")
-	@exit 1
-else
-	$(call green, "Found SSM_ENDPOINT_ID: ${SSM_ENDPOINT_ID}")
-endif
+# ifndef CREATE_SSM_ENDPOINT
+# 	$(info "\`CREATE_SSM_ENDPOINT\` is not set. Defaulting to \`false\`")
+# 	$(eval export CREATE_SSM_ENDPOINT := false)
+# 	$(call blue, "**** This deployment uses an Systems Manager VPC endpoint ****")
+# 	$(MAKE) env.validate.create-ssm-endpoint
+# endif
+# ifeq ($(CREATE_SSM_ENDPOINT),false)
+# 	$(call blue, "**** This deployment uses an existing Systems Manager VPC endpoint ****")
+# 	$(MAKE) env.validate.create-ssm-endpoint
+# else ifeq ($(CREATE_SSM_ENDPOINT),true)
+# 	$(call blue, "**** This deployment includes an Systems Manager VPC endpoint. ****")
+# 	$(call blue, "**** Please be aware that only one service endpoint per VPC is allowed and this may conflict with other stacks. ****")
+# endif
+# ifndef CREATE_SECRETSMANAGER_ENDPOINT
+# 	$(info "\`CREATE_SECRETSMANAGER_ENDPOINT\` is not set. Defaulting to \`false\`")
+# 	$(eval export CREATE_SECRETSMANAGER_ENDPOINT := false)
+# 	$(call blue, "**** This deployment uses an existing Secrets Manager VPC endpoint ****")
+# 	$(MAKE) env.validate.create-secretsmanager-endpoint
+# endif
+# ifeq ($(CREATE_SECRETSMANAGER_ENDPOINT),false)
+# 	$(call blue, "**** This deployment uses an existing Secrets Manager VPC endpoint ****")
+# 	$(MAKE) env.validate.create-secretsmanager-endpoint
+# else ifeq ($(CREATE_SECRETSMANAGER_ENDPOINT),true)
+# 	$(call blue, "**** This deployment includes an Secrets Manager VPC endpoint. ****")
+# 	$(call blue, "**** Please be aware that only one service endpoint per VPC is allowed and this may conflict with other stacks. ****")
+# endif
 
-env.validate.create-secretsmanager-endpoint:
-ifeq ($(SECRETSMANAGER_ENDPOINT_ID),)
-	$(call red, "\`SECRETSMANAGER_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_SECRETSMANAGER_ENDPOINT\` is \`true\`")
-	@exit 1
-else
-	$(call green, "Found SECRETSMANAGER_ENDPOINT_ID: ${SECRETSMANAGER_ENDPOINT_ID}")
-endif
+# env.validate.create-ssm-endpoint:
+# ifeq ($(SSM_ENDPOINT_ID),)
+# 	$(call red, "\`SSM_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_SSM_ENDPOINT\` is \`true\`")
+# 	@exit 1
+# else
+# 	$(call green, "Found SSM_ENDPOINT_ID: ${SSM_ENDPOINT_ID}")
+# endif
+
+# env.validate.create-secretsmanager-endpoint:
+# ifeq ($(SECRETSMANAGER_ENDPOINT_ID),)
+# 	$(call red, "\`SECRETSMANAGER_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_SECRETSMANAGER_ENDPOINT\` is \`true\`")
+# 	@exit 1
+# else
+# 	$(call green, "Found SECRETSMANAGER_ENDPOINT_ID: ${SECRETSMANAGER_ENDPOINT_ID}")
+# endif
 
 env.validate.boolean-vars:
 	@$(foreach var,$(BOOLEAN_VARS),\
@@ -255,9 +256,11 @@ env.validate.boolean-vars:
 		fi; \
 	)
 
-env.validate: check.dependencies env.validate.boolean-vars
+env.validate.vars:
 	$(foreach var,$(REQUIRED_VARS),\
 		$(if $(value $(var)),,$(error $(var) is not set. Please add $(var) to the environment variables.)))
+
+env.validate.create-vpc:
 ifndef CREATE_VPC
 	$(info 'CREATE_VPC' is not set. Defaulting to 'false')
 	$(eval export CREATE_VPC := false)
@@ -271,6 +274,8 @@ else ifeq ($(CREATE_VPC),true)
 	$(call blue, "**** This deployment includes a VPC ****")
 endif
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
+
+env.validate: check.dependencies env.validate.vars env.validate.boolean-vars env.validate.stage env.validate.create-vpc
 
 infrastructure.deploy: 
 	$(MAKE) -C ${APP_NAME}/infrastructure/ deploy

@@ -13,18 +13,18 @@ Parameters:
     AllowedValues:
       - 'true'
       - 'false'
-  createSsmVpcEndpoint:
-    Type: String
-    Default: 'false'
-    AllowedValues:
-      - 'true'
-      - 'false'
-  createSecretsManagerVpcEndpoint:
-    Type: String
-    Default: 'false'
-    AllowedValues:
-      - 'true'
-      - 'false'
+  # createSsmVpcEndpoint:
+  #   Type: String
+  #   Default: 'false'
+  #   AllowedValues:
+  #     - 'true'
+  #     - 'false'
+  # createSecretsManagerVpcEndpoint:
+  #   Type: String
+  #   Default: 'false'
+  #   AllowedValues:
+  #     - 'true'
+  #     - 'false'
   AdminEmail:
     Type: String
   DataBucketName:
@@ -45,8 +45,8 @@ Parameters:
 Conditions:
   CreateVpc: !Equals [!Ref createVpc, 'true']
   UseExternalVpc: !Equals [!Ref createVpc, 'false']
-  CreateSsmVpcEndpoint: !Equals [!Ref createSsmVpcEndpoint, 'true']
-  CreateSecretsManagerVpcEndpoint: !Equals [!Ref createSecretsManagerVpcEndpoint, 'true']
+  # CreateSsmVpcEndpoint: !Equals [!Ref createSsmVpcEndpoint, 'true']
+  # CreateSecretsManagerVpcEndpoint: !Equals [!Ref createSecretsManagerVpcEndpoint, 'true']
 
 Mappings:
   # AvailabilityZoneMap defines availability zones where an m5d.xlarge instance is available (used for Neo4j server).
@@ -271,35 +271,35 @@ Resources:
       Description: "Name of the Neo4jDatabaseSecurityGroup"
       Value: !Ref Neo4jDatabaseSecurityGroup
 
-  # Endpoints are required for VPC Lambda to connect to AWS services using SDKs
-  # Private DNS must be enabled which means there can only be one VPC endpoint per service
-  SystemsManagerVpcEndpoint:
-    Type: AWS::EC2::VPCEndpoint
-    Condition: CreateSsmVpcEndpoint
-    Properties:
-      VpcId: !Ref VpcId
-      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssm"
-      VpcEndpointType: Interface
-      SecurityGroupIds:
-        - !Ref Neo4jDatabaseSecurityGroup
-      SubnetIds:
-        - !Ref PrivateSubnetId
-      PrivateDnsEnabled: true
+  # # Endpoints are required for VPC Lambda to connect to AWS services using SDKs
+  # # Private DNS must be enabled which means there can only be one VPC endpoint per service
+  # SystemsManagerVpcEndpoint:
+  #   Type: AWS::EC2::VPCEndpoint
+  #   Condition: CreateSsmVpcEndpoint
+  #   Properties:
+  #     VpcId: !Ref VpcId
+  #     ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssm"
+  #     VpcEndpointType: Interface
+  #     SecurityGroupIds:
+  #       - !Ref Neo4jDatabaseSecurityGroup
+  #     SubnetIds:
+  #       - !Ref PrivateSubnetId
+  #     PrivateDnsEnabled: true
 
-  # Endpoints are required for VPC Lambda to connect to AWS services using SDKs
-  # Private DNS must be enabled which means there can only be one VPC endpoint per service
-  SecretsManagerVpcEndpoint:
-    Type: AWS::EC2::VPCEndpoint
-    Condition: CreateSecretsManagerVpcEndpoint
-    Properties:
-      VpcId: !Ref VpcId
-      ServiceName: !Sub "com.amazonaws.${AWS::Region}.secretsmanager"
-      VpcEndpointType: Interface
-      SecurityGroupIds:
-        - !Ref Neo4jDatabaseSecurityGroup
-      SubnetIds:
-        - !Ref PrivateSubnetId
-      PrivateDnsEnabled: true
+  # # Endpoints are required for VPC Lambda to connect to AWS services using SDKs
+  # # Private DNS must be enabled which means there can only be one VPC endpoint per service
+  # SecretsManagerVpcEndpoint:
+  #   Type: AWS::EC2::VPCEndpoint
+  #   Condition: CreateSecretsManagerVpcEndpoint
+  #   Properties:
+  #     VpcId: !Ref VpcId
+  #     ServiceName: !Sub "com.amazonaws.${AWS::Region}.secretsmanager"
+  #     VpcEndpointType: Interface
+  #     SecurityGroupIds:
+  #       - !Ref Neo4jDatabaseSecurityGroup
+  #     SubnetIds:
+  #       - !Ref PrivateSubnetId
+  #     PrivateDnsEnabled: true
 
   GitHubPersonalAccessTokenSecret:
     Type: AWS::SecretsManager::Secret
