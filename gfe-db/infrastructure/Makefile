@@ -5,6 +5,8 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
+# service.env.validate:
+
 deploy: 
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $${CFN_LOG_PATH}
 	$(MAKE) service.deploy
