@@ -52,6 +52,7 @@ Conditions:
   UseExternalVpc: !Equals [!Ref createVpc, 'false']
   UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
   UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
+  UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
   # CreateSsmVpcEndpoint: !Equals [!Ref createSsmVpcEndpoint, 'true']
   # CreateSecretsManagerVpcEndpoint: !Equals [!Ref createSecretsManagerVpcEndpoint, 'true']
 
@@ -339,27 +340,29 @@ Resources:
         - Key: AppName 
           Value: !Ref AppName
 
-  # TODO add condition to create when using a public subnet
-  # Neo4jDatabaseElasticIp:
-  #   Type: AWS::EC2::EIP
-  #   Properties:
-  #     Domain: vpc
+  UsePublicSubnetConditionNeo4jDatabaseElasticIp:
+    Type: AWS::EC2::EIP
+    Condition: UsePublicSubnet
+    Properties:
+      Domain: vpc
 
-  # Neo4jDatabaseEndpointParameter:
-  #   Type: AWS::SSM::Parameter
-  #   Properties:
-  #     Type: String
-  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint'
-  #     Description: !Sub 'Endpoint for ${AppName} Neo4j server'
-  #     Value: !Ref Neo4jDatabaseElasticIp
+  UsePublicSubnetConditionNeo4jDatabaseEndpointParameter:
+    Type: AWS::SSM::Parameter
+    Condition: UsePublicSubnet
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint'
+      Description: !Sub 'Endpoint for ${AppName} Neo4j server'
+      Value: !Ref UsePublicSubnetConditionNeo4jDatabaseElasticIp
 
-  # Neo4jDatabaseEndpointAllocationIdParameter:
-  #   Type: AWS::SSM::Parameter
-  #   Properties:
-  #     Type: String
-  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId'
-  #     Description: !Sub 'AllocationId for ${AppName} Neo4j server static IP'
-  #     Value: !GetAtt Neo4jDatabaseElasticIp.AllocationId
+  UsePublicSubnetConditionNeo4jDatabaseEndpointAllocationIdParameter:
+    Type: AWS::SSM::Parameter
+    Condition: UsePublicSubnet
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId'
+      Description: !Sub 'AllocationId for ${AppName} Neo4j server static IP'
+      Value: !GetAtt UsePublicSubnetConditionNeo4jDatabaseElasticIp.AllocationId
 
   DataPipelineErrorsTopicPolicy:
     Type: AWS::SNS::TopicPolicy
@@ -440,8 +443,8 @@ Resources:
       Value: !Ref DataPipelineExecutionTopic
 
 # Outputs:
-#   Neo4jDatabaseElasticIp:
+#   UsePublicSubnetConditionNeo4jDatabaseElasticIp:
 #     Description: "Elastic IP for gfe-db Neo4j database instance"
-#     Value: !Ref Neo4jDatabaseElasticIp
+#     Value: !Ref UsePublicSubnetConditionNeo4jDatabaseElasticIp
 #     Export:
-#       Name: !Sub "${AppName}-${Stage}-Neo4jDatabaseElasticIp"
+#       Name: !Sub "${AppName}-${Stage}-UsePublicSubnetConditionNeo4jDatabaseElasticIp"

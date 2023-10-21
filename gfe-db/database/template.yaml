@@ -43,10 +43,9 @@ Conditions:
   # Important: All stacks (infra, database, pipeline) should use the same conditions
   CreateVpc: !Equals [!Ref createVpc, 'true']
   UseExternalVpc: !Equals [!Ref createVpc, 'false']
-  # UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
+  UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
   UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
-  # CreateSsmVpcEndpoint: !Equals [!Ref createSsmVpcEndpoint, 'true']
-  # CreateSecretsManagerVpcEndpoint: !Equals [!Ref createSecretsManagerVpcEndpoint, 'true']
+  UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
 
 Resources:
 
@@ -297,11 +296,12 @@ Resources:
       Roles:
         - !Ref Neo4jDatabaseInstanceRole
   
-  # Neo4jDatabaseElasticIpAssociation:
-  #   Type: AWS::EC2::EIPAssociation
-  #   Properties:
-  #     InstanceId: !Ref Neo4jDatabaseInstance
-  #     AllocationId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId}}'
+  Neo4jDatabaseElasticIpAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Condition: UsePublicSubnet
+    Properties:
+      InstanceId: !Ref Neo4jDatabaseInstance
+      AllocationId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId}}'
 
   Neo4jDatabaseInstanceIdParameter:
     Type: AWS::SSM::Parameter
