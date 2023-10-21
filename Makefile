@@ -18,6 +18,15 @@ export LOGS_DIR := $(shell echo "${ROOT_DIR}/logs")
 export CFN_LOG_PATH := $(shell echo "${LOGS_DIR}/cfn/logs.txt")
 export PURGE_LOGS := false
 
+# deployment environment defaults
+CREATE_VPC ?= false
+USE_PRIVATE_SUBNET ?= false
+VPC_ID ?=
+PUBLIC_SUBNET_ID ?=
+HOST_DOMAIN ?=
+SUBDOMAIN ?=
+PRIVATE_SUBNET_ID ?=
+
 # TODO move these to a config file
 export NEO4J_AMI_ID ?= ami-04aa5da301f99bf58 # Bitnami Neo4j, requires subscription through AWS Marketplace
 export DATABASE_VOLUME_SIZE ?= 50
@@ -105,7 +114,7 @@ deploy: splash-screen logs.purge env.validate ##=> Deploy all services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) env.print
 	@echo "Deploy stack to the \`${STAGE}\` environment? [y/N] \c " && read ans && [ $${ans:-N} = y ]
-	$(MAKE) infrastructure.deploy
+	$(MAKE) infrastructure.deploy 
 	$(MAKE) database.deploy
 	$(MAKE) pipeline.deploy
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished deploying ${APP_NAME}" 2>&1 | tee -a ${CFN_LOG_PATH}
@@ -180,7 +189,7 @@ env.validate.stage:
 		exit 1; \
 	fi
 	
-env.validate.no-vpc:
+env.validate.use-existing-vpc:
 ifeq ($(VPC_ID),)
 	$(call red, "\`VPC_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`false\`")
 	@exit 1
@@ -194,17 +203,40 @@ else
 	$(call green, "Found PUBLIC_SUBNET_ID: ${PUBLIC_SUBNET_ID}")
 endif
 ifeq ($(USE_PRIVATE_SUBNET),true)
-	$(call blue, "**** This deployment uses a private subnet for Neo4j ****")
-	$(MAKE) env.validate.private-subnet
-endif
-
-env.validate.private-subnet:
 ifeq ($(PRIVATE_SUBNET_ID),)
 	$(call red, "\`PRIVATE_SUBNET_ID\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`true\`")
 	@exit 1
 else
 	$(call green, "Found PRIVATE_SUBNET_ID: ${PRIVATE_SUBNET_ID}")
 endif
+else ifeq ($(USE_PRIVATE_SUBNET),false)
+	$(call blue, "**** This deployment uses a public subnet for Neo4j ****")
+ifeq ($(HOST_DOMAIN),)
+	$(call red, "\`HOST_DOMAIN\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`false\`")
+	@exit 1
+else
+	$(call green, "Found HOST_DOMAIN: ${HOST_DOMAIN}")
+endif
+ifeq ($(SUBDOMAIN),)
+	$(call red, "\`SUBDOMAIN\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`false\`")
+	@exit 1
+else
+	$(call green, "Found SUBDOMAIN: ${SUBDOMAIN}")
+endif
+endif
+
+# ifeq ($(USE_PRIVATE_SUBNET),true)
+# 	$(call blue, "**** This deployment uses a private subnet for Neo4j ****")
+# 	$(MAKE) env.validate.private-subnet
+# endif
+
+# env.validate.private-subnet:
+# ifeq ($(PRIVATE_SUBNET_ID),)
+# 	$(call red, "\`PRIVATE_SUBNET_ID\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`true\`")
+# 	@exit 1
+# else
+# 	$(call green, "Found PRIVATE_SUBNET_ID: ${PRIVATE_SUBNET_ID}")
+# endif
 
 # ifndef CREATE_SSM_ENDPOINT
 # 	$(info "\`CREATE_SSM_ENDPOINT\` is not set. Defaulting to \`false\`")
@@ -265,11 +297,11 @@ ifndef CREATE_VPC
 	$(info 'CREATE_VPC' is not set. Defaulting to 'false')
 	$(eval export CREATE_VPC := false)
 	$(call blue, "**** This deployment uses an existing VPC ****")
-	$(MAKE) env.validate.no-vpc
+	$(MAKE) env.validate.use-existing-vpc
 endif
 ifeq ($(CREATE_VPC),false)
 	$(call blue, "**** This deployment uses an existing VPC ****")
-	$(MAKE) env.validate.no-vpc
+	$(MAKE) env.validate.use-existing-vpc
 else ifeq ($(CREATE_VPC),true)
 	$(call blue, "**** This deployment includes a VPC ****")
 endif

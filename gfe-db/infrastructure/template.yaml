@@ -9,10 +9,14 @@ Parameters:
     Type: String
   createVpc:
     Type: String
-    Default: 'false'
     AllowedValues:
-      - 'true'
-      - 'false'
+      - "true"
+      - "false"
+  usePrivateSubnet:
+    Type: String
+    AllowedValues:
+      - "true"
+      - "false"
   # createSsmVpcEndpoint:
   #   Type: String
   #   Default: 'false'
@@ -43,8 +47,11 @@ Parameters:
     NoEcho: true
   
 Conditions:
+  # Important: All stacks (infra, database, pipeline) should use the same conditions
   CreateVpc: !Equals [!Ref createVpc, 'true']
   UseExternalVpc: !Equals [!Ref createVpc, 'false']
+  UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
+  UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
   # CreateSsmVpcEndpoint: !Equals [!Ref createSsmVpcEndpoint, 'true']
   # CreateSecretsManagerVpcEndpoint: !Equals [!Ref createSecretsManagerVpcEndpoint, 'true']
 
@@ -147,50 +154,68 @@ Resources:
       RouteTableId: !Ref RouteTable
       SubnetId: !Ref PublicSubnet
   
-  CreateVpcConditionVpcIDParameter:
+  CreateVpcConditionVpcIdParameter:
     Type: AWS::SSM::Parameter
     Condition: CreateVpc
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/VpcID'
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/VpcId'
       Description: !Sub "Name of VPC network for ${AppName}"
       Value: !Ref Vpc
   
-  CreateVpcConditionPublicSubnetIDParameter:
+  CreateVpcConditionPublicSubnetIdParameter:
     Type: AWS::SSM::Parameter
     Condition: CreateVpc
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID'
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PublicSubnetId'
       Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
       Value: !Ref PublicSubnet
   
-  UseExternalVpcConditionVpcIDParameter:
+  UseExternalVpcConditionVpcIdParameter:
     Type: AWS::SSM::Parameter
     Condition: UseExternalVpc
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/VpcID'
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/VpcId'
       Description: !Sub "Name of VPC network for ${AppName}"
       Value: !Ref VpcId
   
-  UseExternalVpcConditionPublicSubnetIDParameter:
+  UseExternalVpcConditionPublicSubnetIdParameter:
     Type: AWS::SSM::Parameter
     Condition: UseExternalVpc
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID'
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PublicSubnetId'
       Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
       Value: !Ref PublicSubnetId
   
-  UseExternalVpcConditionPrivateSubnetIdParameter:
+  UseExternalVpcPrivateConditionPrivateSubnetIdParameter:
     Type: AWS::SSM::Parameter
-    Condition: UseExternalVpc
+    Condition: UseExternalVpcPrivate
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetID'
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId'
       Description: !Sub "Private Subnet for the ${AppName} Neo4j server"
       Value: !Ref PrivateSubnetId
+  
+  UseExternalVpcPrivateConditionNeo4jSubnetIdParameter:
+    Type: AWS::SSM::Parameter
+    Condition: UseExternalVpcPrivate
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jSubnetId'
+      Description: !Sub "Private Subnet for the ${AppName} Neo4j server"
+      Value: !Ref PrivateSubnetId
+  
+  UseExternalVpcPublicConditionNeo4jSubnetIdParameter:
+    Type: AWS::SSM::Parameter
+    Condition: UseExternalVpcPublic
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jSubnetId'
+      Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
+      Value: !Ref PublicSubnetId
   
   DataBucket:
     Type: AWS::S3::Bucket

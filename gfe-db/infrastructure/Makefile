@@ -42,9 +42,9 @@ service.deploy:
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
 			createVpc="$${CREATE_VPC}" \
+			usePrivateSubnet="$${USE_PRIVATE_SUBNET}" \
 			AdminEmail="$${ADMIN_EMAIL}" \
 			DataBucketName="$$DATA_BUCKET_NAME" \
-			HostedZoneId="$${HOSTED_ZONE_ID}" \
 			VpcId="$${VPC_ID}" \
 			PublicSubnetId="$${PUBLIC_SUBNET_ID}" \
 			PrivateSubnetId="$${PRIVATE_SUBNET_ID}" \

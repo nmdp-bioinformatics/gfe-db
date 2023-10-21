@@ -9,6 +9,16 @@ Parameters:
   AppName:
     Type: String
     Description: Application name
+  createVpc:
+    Type: String
+    AllowedValues:
+      - "true"
+      - "false"
+  usePrivateSubnet:
+    Type: String
+    AllowedValues:
+      - "true"
+      - "false"
   DataBucketName:
     Type: String
   Neo4jAmiId:
@@ -28,6 +38,15 @@ Parameters:
     Type: String
   GDSVersion:
     Type: String
+
+Conditions:
+  # Important: All stacks (infra, database, pipeline) should use the same conditions
+  CreateVpc: !Equals [!Ref createVpc, 'true']
+  UseExternalVpc: !Equals [!Ref createVpc, 'false']
+  # UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
+  UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
+  # CreateSsmVpcEndpoint: !Equals [!Ref createSsmVpcEndpoint, 'true']
+  # CreateSecretsManagerVpcEndpoint: !Equals [!Ref createSecretsManagerVpcEndpoint, 'true']
 
 Resources:
 
@@ -61,7 +80,7 @@ Resources:
   #   Properties:
   #     GroupName: !Sub '${Stage}-${AppName}-neo4j-sg'
   #     GroupDescription: Security group for the GFE database
-  #     VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcID}}'
+  #     VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}'
   #     SecurityGroupIngress:
   #       - CidrIp: 0.0.0.0/0
   #         FromPort: 80
@@ -132,7 +151,7 @@ Resources:
           DeviceIndex: "0"
           GroupSet: 
             - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
-          SubnetId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetID}}'
+          SubnetId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jSubnetId}}'
       # TODO Create .venv for running Python tests
       UserData:
         Fn::Base64: 
@@ -177,6 +196,7 @@ Resources:
           # Permanently set application environment variables (these should never change for the duration of the deployment) # TODO: Move to Makefile target
           echo "STAGE=${Stage}" >> $BITNAMI_HOME/env.sh
           echo "APP_NAME=${AppName}" >> $BITNAMI_HOME/env.sh
+          echo "USE_PRIVATE_SUBNET=${usePrivateSubnet}" >> $BITNAMI_HOME/env.sh
           echo "AWS_REGION=${AWS::Region}" >> $BITNAMI_HOME/env.sh
           echo "DATA_BUCKET_NAME=${DataBucketName}" >> $BITNAMI_HOME/env.sh
           echo "HOST_DOMAIN=${HostDomain}" >> $BITNAMI_HOME/env.sh
@@ -204,7 +224,8 @@ Resources:
             --resource Neo4jDatabaseInstance \
             --region ${AWS::Region}
           # Bootstrap Neo4j 
-          cd $BITNAMI_HOME && make neo4j
+          # TODO testing:
+          # cd $BITNAMI_HOME && make neo4j
           # Copy logs to home dir for easy access
           mkdir logs
           sudo journalctl -b > logs/boot.log

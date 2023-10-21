@@ -8,7 +8,8 @@ target:
 deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
 	$(MAKE) service.check-key-pair
-	$(MAKE) service.config.deploy
+	$(MAKE) service.config.scripts.deploy
+	$(MAKE) service.config.cloudwatch-agent.deploy
 	$(MAKE) service.deploy
 	$(MAKE) service.config.neo4j.deploy
 
@@ -28,27 +29,28 @@ service.check-key-pair: ##=> Checks if the key pair already exists and creates i
 		--value "${EC2_KEY_PAIR_NAME}" \
 		--overwrite 2>&1 | tee -a $$CFN_LOG_PATH || true
 
-service.config.deploy: service.config.scripts.deploy service.config.cloudwatch-agent.deploy
-
-# TODO add condition for update-dns
-service.config.neo4j.deploy:  service.config.update-dns.private # service.config.update-dns.public
-	@aws s3 cp neo4j/neo4j.conf s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
+service.config.neo4j.deploy:
+ifeq ($(USE_PRIVATE_SUBNET),true)
+	@aws s3 cp neo4j/neo4j.private.template s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
+else ifeq ($(USE_PRIVATE_SUBNET),false)
+	@aws s3 cp neo4j/neo4j.template s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
+endif
 	@aws s3 cp --recursive neo4j/cypher/ s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
 
-# This target will configure the database to use the correct DNS name using env vars
-service.config.update-dns.public:
-	@[ "${HOST_DOMAIN}" != "" ] && \
-	cat neo4j/neo4j.template | \
-	sed s"/# dbms.default_advertised_address=.*/dbms.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > neo4j/neo4j.conf
+# # This target will configure the database to use the correct DNS name using env vars
+# service.config.update-dns.public:
+# 	@[ "${HOST_DOMAIN}" != "" ] && \
+# 	cat neo4j/neo4j.template | \
+# 	sed s"/# dbms.default_advertised_address=.*/dbms.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > neo4j/neo4j.conf
 
-# TODO Neo4jPrivateIp isn't available when this is run, so it needs to be refactored
-# This target will configure the database to use the correct DNS name using env vars
-service.config.update-dns.private:
-	@private_ip="$$(aws ssm get-parameter \
-		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jPrivateIp" | jq -r '.Parameter.Value')" && \
-	echo "Private IP: $$private_ip" && \
-	cat neo4j/neo4j.private.template | \
-	sed "s|# dbms.default_advertised_address=.*|dbms.default_advertised_address="$$private_ip"|" > neo4j/neo4j.conf
+# # TODO Neo4jPrivateIp isn't available when this is run, so it needs to be refactored
+# # This target will configure the database to use the correct DNS name using env vars
+# service.config.update-dns.private:
+# 	@private_ip="$$(aws ssm get-parameter \
+# 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jPrivateIp" | jq -r '.Parameter.Value')" && \
+# 	echo "Private IP: $$private_ip" && \
+# 	cat neo4j/neo4j.private.template | \
+# 	sed "s|# dbms.default_advertised_address=.*|dbms.default_advertised_address="$$private_ip"|" > neo4j/neo4j.conf
 
 service.config.scripts.deploy:
 	@script_s3_path=s3://$$DATA_BUCKET_NAME/config/scripts/ && \
@@ -91,13 +93,14 @@ service.deploy:
 		--parameter-overrides \
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
+			createVpc="$${CREATE_VPC}" \
+			usePrivateSubnet="$${USE_PRIVATE_SUBNET}" \
 			DataBucketName="$${DATA_BUCKET_NAME}" \
 			Neo4jAmiId="$${NEO4J_AMI_ID}" \
 			Neo4jPassword="$${NEO4J_PASSWORD}" \
 			DatabaseVolumeSize="$${DATABASE_VOLUME_SIZE}" \
 			HostDomain="$${HOST_DOMAIN}" \
 			Subdomain="$${SUBDOMAIN}" \
-			HostedZoneId="$${HOSTED_ZONE_ID}" \
 			AdminEmail="$${ADMIN_EMAIL}" \
 			APOCVersion="$${APOC_VERSION}" \
 			GDSVersion="$${GDS_VERSION}" 2>&1 | tee -a $$CFN_LOG_PATH || true

@@ -28,6 +28,8 @@ service.deploy:
 		--parameter-overrides \
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
+			createVpc="$${CREATE_VPC}" \
+			usePrivateSubnet="$${USE_PRIVATE_SUBNET}" \
 			VpcId="$${VPC_ID}" \
 			InvokePipelineFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.FunctionName')" \
 			InvokePipelineFunctionMemorySize="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.MemorySize')" \
