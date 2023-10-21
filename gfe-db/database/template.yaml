@@ -224,8 +224,7 @@ Resources:
             --resource Neo4jDatabaseInstance \
             --region ${AWS::Region}
           # Bootstrap Neo4j 
-          # TODO testing:
-          # cd $BITNAMI_HOME && make neo4j
+          cd $BITNAMI_HOME && make neo4j
           # Copy logs to home dir for easy access
           mkdir logs
           sudo journalctl -b > logs/boot.log
@@ -337,9 +336,16 @@ Resources:
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jPrivateIp'
-      Description: "Connection URI for Neo4j"
-      # "https://${SUBDOMAIN}.${HOST_DOMAIN}:7473/browser/"
+      Description: "Private IP for Neo4j"
       Value: !Sub "${Neo4jDatabaseInstance.PrivateIp}"
+
+  Neo4jPublicIpParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jPublicIp'
+      Description: "Public IP for Neo4j"
+      Value: !Sub "${Neo4jDatabaseInstance.PublicIp}"
 
   Neo4jBackupDocument: 
     Type: AWS::SSM::Document

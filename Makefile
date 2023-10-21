@@ -223,6 +223,12 @@ ifeq ($(SUBDOMAIN),)
 else
 	$(call green, "Found SUBDOMAIN: ${SUBDOMAIN}")
 endif
+ifeq ($(HOSTED_ZONE_ID),)
+	$(call red, "\`HOSTED_ZONE_ID\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`false\`")
+	@exit 1
+else
+	$(call green, "Found HOSTED_ZONE_ID: ${HOSTED_ZONE_ID}")
+endif
 endif
 
 # ifeq ($(USE_PRIVATE_SUBNET),true)
@@ -436,6 +442,13 @@ database.get.private-ip:
 		--output json \
 		| jq -r '.Parameters[0].Value') && \
 	echo "$${private_ip}"
+
+database.get.public-ip:
+	@public_ip=$$(aws ssm get-parameters \
+		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jPublicIp" \
+		--output json \
+		| jq -r '.Parameters[0].Value') && \
+	echo "$${public_ip}"
 
 database.get.instance-id:
 	@echo "${INSTANCE_ID}"

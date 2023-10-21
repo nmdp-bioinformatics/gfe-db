@@ -10,6 +10,9 @@ target:
 deploy: 
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $${CFN_LOG_PATH}
 	$(MAKE) service.deploy
+ifeq ($(USE_PRIVATE_SUBNET),false)
+	$(MAKE) service.deploy.update-dns
+endif
 	$(MAKE) service.monitoring.create-subscriptions
 
 service.deploy.update-dns:

@@ -87,17 +87,49 @@ neo4j.stop:
 	@/opt/bitnami/ctlscript.sh stop
 
 neo4j.start:
+	$(MAKE) neo4j.update-permissions
 	@/opt/bitnami/ctlscript.sh start
-	$(MAKE) neo4j.waiter.no-ssl
+	$(MAKE) neo4j.waiter
 
 neo4j.restart:
+	$(MAKE) neo4j.update-permissions
 	@/opt/bitnami/ctlscript.sh restart
-	$(MAKE) neo4j.waiter.no-ssl
+	$(MAKE) neo4j.waiter
 
-neo4j.config.update: neo4j.config.backup
+neo4j.config.update:
+	$(MAKE) neo4j.config.download
+	$(MAKE) neo4j.config.update-dns
+
+# TODO test init scripts for public and private deployment
+neo4j.config.download: neo4j.config.backup
 	@echo "Downloading Neo4j configuration from ${DATA_BUCKET_NAME}"
-	@aws s3 cp s3://${DATA_BUCKET_NAME}/config/neo4j/neo4j.conf ${NEO4J_HOME}/conf/neo4j.conf
-	$(MAKE) neo4j.restart
+	@aws s3 cp s3://${DATA_BUCKET_NAME}/config/neo4j/neo4j.conf ${NEO4J_HOME}/conf/neo4j.template
+
+# TODO test init scripts for public and private deployment
+neo4j.config.update-dns:
+ifeq ($(USE_PRIVATE_SUBNET),true)
+	$(info Updating Neo4j config to use private DNS)
+	$(MAKE) neo4j.config.update-dns.private
+else ifeq ($(USE_PRIVATE_SUBNET),false)
+	$(info Updating Neo4j config to use public DNS)
+	$(MAKE) neo4j.config.update-dns.public
+endif
+
+# TODO test init scripts for public and private deployment
+# This target will configure the database to use the correct DNS name using env vars
+neo4j.config.update-dns.private:
+	@private_ip="$$(aws ssm get-parameter \
+		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jPrivateIp" | jq -r '.Parameter.Value')" && \
+	echo "Private IP: $$private_ip" && \
+	cat ${NEO4J_HOME}/conf/neo4j.template | \
+	sed "s|# dbms.default_advertised_address=.*|dbms.default_advertised_address="$$private_ip"|" > ${NEO4J_HOME}/conf/neo4j.conf
+
+# TODO test init scripts for public and private deployment
+# This target will configure the database to use the correct DNS name using env vars
+neo4j.config.update-dns.public:
+	@[ "${HOST_DOMAIN}" != "" ] && \
+	cat ${NEO4J_HOME}/conf/neo4j.template | \
+	sed s"/# dbms.default_advertised_address=.*/dbms.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > ${NEO4J_HOME}/conf/neo4j.conf
 
 neo4j.config.reset-auth:
 	@echo "Resetting Neo4j authentication"
@@ -139,24 +171,32 @@ neo4j.plugins.install-gds:
 
 neo4j.init:
 	$(MAKE) neo4j.init.download-scripts
-	$(MAKE) neo4j.init.queries.no-ssl
-	# $(MAKE) neo4j.init.queries.https
+	$(MAKE) neo4j.init.queries
+
+neo4j.update-permissions:
+	@sudo chown -R neo4j:neo4j ${NEO4J_HOME}/*
 
 neo4j.init.download-scripts:
 	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
 	@echo "Fetching Cypher scripts from S3..."
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
 
+neo4j.init.queries: # public: neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687; private: bolt://<private_ip>:7687
+ifeq ($(USE_PRIVATE_SUBNET),true)
+	$(MAKE) neo4j.init.queries.no-ssl
+else ifeq ($(USE_PRIVATE_SUBNET),false)
+	@echo "Executing initialization queries..."
+	@cat ${NEO4J_HOME}/cypher/init.cyp | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
+endif
+
 neo4j.init.queries.no-ssl:
 	@echo "Executing initialization queries..."
 	@cat ${NEO4J_HOME}/cypher/init.cyp | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
 
-
-neo4j.init.queries.ssl: # neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
-	@echo "Executing initialization queries..."
-	@cat ${NEO4J_HOME}/cypher/init.cyp | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
-
 neo4j.waiter:
+ifeq ($(USE_PRIVATE_SUBNET),true)
+	$(MAKE) neo4j.waiter.no-ssl
+else ifeq ($(USE_PRIVATE_SUBNET),false)
 	@timeout=120 && \
 	counter=0 && \
 	echo "Waiting for response from Neo4j at https://${SUBDOMAIN}.${HOST_DOMAIN}:7473..." && \
@@ -168,6 +208,7 @@ neo4j.waiter:
 	done && \
 	printf "%s\n" " " && \
 	[ $$counter -eq $$timeout ] && echo "Operation timed out!" || echo "Neo4j is ready"
+endif
 
 neo4j.waiter.no-ssl:
 	@timeout=120 && \
