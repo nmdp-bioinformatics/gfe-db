@@ -15,6 +15,7 @@ ifeq ($(USE_PRIVATE_SUBNET),false)
 endif
 	$(MAKE) service.monitoring.create-subscriptions
 
+# TODO add waiter: aws route53 wait resource-record-sets-changed --id <value>
 service.deploy.update-dns:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Updating DNS records" 2>&1 | tee -a $${CFN_LOG_PATH}
 	@config_path=${INFRA_DIR}/change-batch.json && \
@@ -28,8 +29,11 @@ service.deploy.update-dns:
 	cat $$config_path.tmp | jq -r && \
 	res=$$(aws route53 change-resource-record-sets --hosted-zone-id $${HOSTED_ZONE_ID} --change-batch file://$$config_path.tmp) && \
 	echo && \
-	echo "Response:" && \
-	echo $$res | jq -r
+	echo "Waiting for update to complete:" && \
+	echo $$res | jq -r && \
+	aws route53 wait resource-record-sets-changed --id $$(echo $$res | jq -r '.ChangeInfo.Id') && \
+	echo && \
+	echo "Successfully updated DNS records"
 
 # TODO add cloudformation waiter for stack create complete and exit if failed
 # TODO test AWSCLI output and validate the stack was created successfully

@@ -188,7 +188,12 @@ env.validate.stage:
 		echo "\033[0;31m**** Please refer to the documentation for a list of prerequisites. ****\033[0m" && \
 		exit 1; \
 	fi
-	
+
+# # TODO validate that SUBDOMAIN exists in Route53
+# env.validate.subdomain:
+# 	@aws route53 list-resource-record-sets --hosted-zone-id ${HOSTED_ZONE_ID}
+
+# TODO validate that SUBDOMAIN exists in Route53: env.validate.subdomain
 env.validate.use-existing-vpc:
 ifeq ($(VPC_ID),)
 	$(call red, "\`VPC_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`false\`")

@@ -57,8 +57,10 @@ bootstrap:
 	# $(MAKE) ssm.install
 	# $(MAKE) cloudwatch.install
 	# $(MAKE) cfn-signal exitcode=0
-	# $(MAKE) eip.waiter
+ifeq ($(USE_PRIVATE_SUBNET),false)
+	$(MAKE) eip.waiter
 	$(MAKE) ssl.create-cert
+endif
 
 neo4j: bootstrap
 	$(MAKE) neo4j.update-credentials
@@ -119,6 +121,7 @@ endif
 # This target will configure the database to use the correct DNS name using env vars
 neo4j.config.update-dns.private:
 	@private_ip="$$(aws ssm get-parameter \
+		--region ${AWS_REGION} \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jPrivateIp" | jq -r '.Parameter.Value')" && \
 	echo "Private IP: $$private_ip" && \
 	cat ${NEO4J_HOME}/conf/neo4j.template | \
