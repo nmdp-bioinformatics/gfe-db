@@ -52,9 +52,8 @@ Conditions:
   UseExternalVpc: !Equals [!Ref createVpc, 'false']
   UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
   UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
+  UsePrivateSubnet: !Equals [!Ref usePrivateSubnet, 'true']
   UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
-  # CreateSsmVpcEndpoint: !Equals [!Ref createSsmVpcEndpoint, 'true']
-  # CreateSecretsManagerVpcEndpoint: !Equals [!Ref createSecretsManagerVpcEndpoint, 'true']
 
 Mappings:
   # AvailabilityZoneMap defines availability zones where an m5d.xlarge instance is available (used for Neo4j server).

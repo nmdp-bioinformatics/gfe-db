@@ -53,10 +53,10 @@ Conditions:
   # Important: All stacks (infra, database, pipeline) should use the same conditions
   CreateVpc: !Equals [!Ref createVpc, 'true']
   UseExternalVpc: !Equals [!Ref createVpc, 'false']
-  # UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
+  UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
   UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
-  # CreateSsmVpcEndpoint: !Equals [!Ref createSsmVpcEndpoint, 'true']
-  # CreateSecretsManagerVpcEndpoint: !Equals [!Ref createSecretsManagerVpcEndpoint, 'true']
+  UsePrivateSubnet: !Equals [!Ref usePrivateSubnet, 'true']
+  UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
 
 Resources:
   BuildServerSG:
@@ -337,8 +337,9 @@ Resources:
       Description: "Name of gfe-db build service repository"
       Value: !Ref BuildServiceRepositoryName
 
-  InvokePipelineFunction:
+  UsePublicSubnetConditionInvokePipelineFunction:
     Type: AWS::Serverless::Function
+    Condition: UsePublicSubnet
     Properties:
       FunctionName: !Ref InvokePipelineFunctionName
       Description: !Sub '${AppName} update pipeline trigger: checks for new IMGT/HLA releases and starts the loading process'
@@ -355,7 +356,7 @@ Resources:
           GITHUB_REPOSITORY_OWNER: !Ref GitHubRepositoryOwner
           GITHUB_REPOSITORY_NAME: !Ref GitHubRepositoryName
           DATA_BUCKET_NAME: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
-          UPDATE_PIPELINE_STATE_MACHINE_ARN: !GetAtt UpdatePipelineStateMachine.Arn
+          UPDATE_PIPELINE_STATE_MACHINE_ARN: !GetAtt UsePublicSubnetConditionUpdatePipelineStateMachine.Arn
           PIPELINE_STATE_PATH: !Ref PipelineStatePath
           PIPELINE_PARAMS_PATH: !Ref PipelineParamsPath
       Events:
@@ -380,12 +381,76 @@ Resources:
               Effect: "Allow"
               Action:
                 - "states:StartExecution"
-              Resource: !GetAtt UpdatePipelineStateMachine.Arn
+              Resource: !GetAtt UsePublicSubnetConditionUpdatePipelineStateMachine.Arn
 
-  InvokePipelineFunctionAlarm:
+  UsePrivateSubnetConditionInvokePipelineFunction:
+    Type: AWS::Serverless::Function
+    Condition: UsePrivateSubnet
+    Properties:
+      FunctionName: !Ref InvokePipelineFunctionName
+      Description: !Sub '${AppName} update pipeline trigger: checks for new IMGT/HLA releases and starts the loading process'
+      CodeUri: functions/invoke_pipeline/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      MemorySize: !Ref InvokePipelineFunctionMemorySize
+      Timeout: !Ref InvokePipelineFunctionTimeout
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          GITHUB_PERSONAL_ACCESS_TOKEN: !Sub '{{resolve:secretsmanager:${AppName}-${Stage}-GitHubPersonalAccessToken:SecretString:personal_access_token:AWSCURRENT}}'
+          GITHUB_REPOSITORY_OWNER: !Ref GitHubRepositoryOwner
+          GITHUB_REPOSITORY_NAME: !Ref GitHubRepositoryName
+          DATA_BUCKET_NAME: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
+          UPDATE_PIPELINE_STATE_MACHINE_ARN: !GetAtt UsePrivateSubnetConditionUpdatePipelineStateMachine.Arn
+          PIPELINE_STATE_PATH: !Ref PipelineStatePath
+          PIPELINE_PARAMS_PATH: !Ref PipelineParamsPath
+      Events:
+        Trigger:
+          Type: Schedule
+          Properties:
+            Schedule: !Ref InvokePipelineFunctionSchedule
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: "AllowS3Access"
+              Effect: "Allow"
+              Action:
+                - "s3:GetObject"
+                - "s3:PutObject"
+                - "s3:ListBucket"
+              Resource:
+                - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
+                - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
+            - Sid: "AllowSFNStartExecution"
+              Effect: "Allow"
+              Action:
+                - "states:StartExecution"
+              Resource: !GetAtt UsePrivateSubnetConditionUpdatePipelineStateMachine.Arn
+
+  UsePublicSubnetConditionInvokePipelineFunctionAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: !Sub 'Alarm for ${InvokePipelineFunction} function errors'
+      AlarmDescription: !Sub 'Alarm for ${InvokePipelineFunctionName} function errors'
+      ActionsEnabled: true
+      AlarmActions:
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref InvokePipelineFunctionName
+
+  UsePrivateSubnetConditionInvokePipelineFunctionAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub 'Alarm for ${InvokePipelineFunctionName} function errors'
       ActionsEnabled: true
       AlarmActions:
         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
@@ -438,8 +503,9 @@ Resources:
   #     Policies:
   #       - AWSLambdaVPCAccessExecutionRole
 
-  ExecuteValidationQueriesFunction:
+  UsePublicSubnetConditionExecuteValidationQueriesFunction:
     Type: AWS::Serverless::Function
+    Condition: UsePublicSubnet
     Properties:
       Description: !Sub "Execute validation a queries on Neo4j for ${AppName}"
       CodeUri: functions/execute_validation_queries/
@@ -641,10 +707,11 @@ Resources:
                 - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
                 - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
 
-  UpdatePipelineStateMachine:
+  UsePublicSubnetConditionUpdatePipelineStateMachine:
     Type: AWS::Serverless::StateMachine
+    Condition: UsePublicSubnet
     Properties:
-      DefinitionUri: statemachines/pipeline.no-backup.asl.json
+      DefinitionUri: statemachines/pipeline.no-backup-public.asl.json
       DefinitionSubstitutions:
         AppName: !Ref AppName
         DataBucketName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
@@ -652,7 +719,7 @@ Resources:
         BuildJobName: !Sub '${Stage}-${AppName}-build-job'
         BuildJobQueue: !Ref BuildJobQueue
         # TestLambdaFunctionArn: !GetAtt TestLambdaFunction.Arn
-        ExecuteValidationQueriesFunctionArn: !GetAtt ExecuteValidationQueriesFunction.Arn
+        UsePublicSubnetConditionExecuteValidationQueriesFunctionArn: !GetAtt UsePublicSubnetConditionExecuteValidationQueriesFunction.Arn
         ValidateBuildOutputFunctionArn: !GetAtt ValidateBuildOutputFunction.Arn
         InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
         InvokeBackupScriptFunctionArn: !GetAtt InvokeBackupScriptFunction.Arn
@@ -661,7 +728,73 @@ Resources:
         # - LambdaInvokePolicy:
         #     FunctionName: !Ref TestLambdaFunction
         - LambdaInvokePolicy:
-            FunctionName: !Ref ExecuteValidationQueriesFunction
+            FunctionName: !Ref UsePublicSubnetConditionExecuteValidationQueriesFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref InvokeLoadScriptFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref InvokeBackupScriptFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ValidateBuildOutputFunction
+        - S3ReadPolicy:
+            BucketName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action:
+                - "logs:CreateLogDelivery"
+                - "logs:GetLogDelivery"
+                - "logs:UpdateLogDelivery"
+                - "logs:DeleteLogDelivery"
+                - "logs:ListLogDeliveries"
+                - "logs:PutResourcePolicy"
+                - "logs:DescribeResourcePolicies"
+                - "logs:DescribeLogGroups"
+              Resource: 
+                - "*"
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action: 
+                - "batch:SubmitJob"
+                - "batch:DescribeJobs"
+                - "batch:TerminateJob"
+              Resource: "*"
+            - Effect: "Allow"
+              Action: 
+                - "events:PutTargets"
+                - "events:PutRule"
+                - "events:DescribeRule"
+              Resource: 
+                - !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule'
+      Logging:
+        Destinations: 
+          - CloudWatchLogsLogGroup: 
+              LogGroupArn: !GetAtt UpdatePipelineLogGroup.Arn
+        IncludeExecutionData: true
+        Level: ALL
+
+  UsePrivateSubnetConditionUpdatePipelineStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Condition: UsePrivateSubnet
+    Properties:
+      DefinitionUri: statemachines/pipeline.no-backup-private.asl.json
+      DefinitionSubstitutions:
+        AppName: !Ref AppName
+        DataBucketName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
+        BuildJobDefinition: !Ref BuildJobDefinition
+        BuildJobName: !Sub '${Stage}-${AppName}-build-job'
+        BuildJobQueue: !Ref BuildJobQueue
+        # TestLambdaFunctionArn: !GetAtt TestLambdaFunction.Arn
+        UsePrivateSubnetConditionExecuteValidationQueriesFunctionArn: !GetAtt UsePrivateSubnetConditionExecuteValidationQueriesFunction.Arn
+        ValidateBuildOutputFunctionArn: !GetAtt ValidateBuildOutputFunction.Arn
+        InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
+        InvokeBackupScriptFunctionArn: !GetAtt InvokeBackupScriptFunction.Arn
+        LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
+      Policies:
+        # - LambdaInvokePolicy:
+        #     FunctionName: !Ref TestLambdaFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref UsePrivateSubnetConditionExecuteValidationQueriesFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref InvokeLoadScriptFunction
         - LambdaInvokePolicy:
@@ -716,19 +849,30 @@ Resources:
     Properties:
       LogGroupName: !Sub "${Stage}-${AppName}-pipeline-execution-logs"
 
-  UpdatePipelineArnParameter:
+  UsePublicSubnetConditionUpdatePipelineArnParameter:
     Type: AWS::SSM::Parameter
+    Condition: UsePublicSubnet
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineArn'
       Description: "ARN of gfe-db update pipeline state machine"
-      Value: !GetAtt UpdatePipelineStateMachine.Arn
+      Value: !GetAtt UsePublicSubnetConditionUpdatePipelineStateMachine.Arn
+
+  UsePrivateSubnetConditionUpdatePipelineArnParameter:
+    Type: AWS::SSM::Parameter
+    Condition: UsePrivateSubnet
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineArn'
+      Description: "ARN of gfe-db update pipeline state machine"
+      Value: !GetAtt UsePrivateSubnetConditionUpdatePipelineStateMachine.Arn
 
   # CloudWatch Alarm for state machine execution in progress
-  UpdatePipelineStateMachineExecutionAlarm:
+  UsePublicSubnetConditionUpdatePipelineStateMachineExecutionAlarm:
     Type: AWS::CloudWatch::Alarm
+    Condition: UsePublicSubnet
     Properties:
-      AlarmDescription: !Sub '${UpdatePipelineStateMachine} state machine execution in progress'
+      AlarmDescription: !Sub '${UsePublicSubnetConditionUpdatePipelineStateMachine} state machine execution in progress'
       ActionsEnabled: true
       AlarmActions:
         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicArn}}'
@@ -742,7 +886,7 @@ Resources:
               Namespace: AWS/States
               Dimensions:
                 - Name: StateMachineArn
-                  Value: !GetAtt UpdatePipelineStateMachine.Arn
+                  Value: !GetAtt UsePublicSubnetConditionUpdatePipelineStateMachine.Arn
             Period: 86400
             Stat: Sum
             Unit: Count
@@ -754,7 +898,7 @@ Resources:
               Namespace: AWS/States
               Dimensions:
                 - Name: StateMachineArn
-                  Value: !GetAtt UpdatePipelineStateMachine.Arn
+                  Value: !GetAtt UsePublicSubnetConditionUpdatePipelineStateMachine.Arn
             Period: 86400
             Stat: Sum
             Unit: Count
@@ -766,7 +910,7 @@ Resources:
               Namespace: AWS/States
               Dimensions:
                 - Name: StateMachineArn
-                  Value: !GetAtt UpdatePipelineStateMachine.Arn
+                  Value: !GetAtt UsePublicSubnetConditionUpdatePipelineStateMachine.Arn
             Period: 86400
             Stat: Sum
             Unit: Count
@@ -778,7 +922,75 @@ Resources:
               Namespace: AWS/States
               Dimensions:
                 - Name: StateMachineArn
-                  Value: !GetAtt UpdatePipelineStateMachine.Arn
+                  Value: !GetAtt UsePublicSubnetConditionUpdatePipelineStateMachine.Arn
+            Period: 86400
+            Stat: Sum
+            Unit: Count
+          ReturnData: false
+        - Id: e1
+          Expression: "m1 - m2 - m3 - m4"
+          Label: ExecutionsInProgress
+          ReturnData: true
+      ComparisonOperator: GreaterThanThreshold
+      Threshold: 0
+      EvaluationPeriods: 1
+
+  # CloudWatch Alarm for state machine execution in progress
+  UsePrivateSubnetConditionUpdatePipelineStateMachineExecutionAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: UsePrivateSubnet
+    Properties:
+      AlarmDescription: !Sub '${UsePrivateSubnetConditionUpdatePipelineStateMachine} state machine execution in progress'
+      ActionsEnabled: true
+      AlarmActions:
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicArn}}'
+      OKActions:
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicArn}}'
+      Metrics: 
+        - Id: m1
+          MetricStat: 
+            Metric: 
+              MetricName: ExecutionsStarted
+              Namespace: AWS/States
+              Dimensions:
+                - Name: StateMachineArn
+                  Value: !GetAtt UsePrivateSubnetConditionUpdatePipelineStateMachine.Arn
+            Period: 86400
+            Stat: Sum
+            Unit: Count
+          ReturnData: false
+        - Id: m2
+          MetricStat: 
+            Metric: 
+              MetricName: ExecutionsSucceeded
+              Namespace: AWS/States
+              Dimensions:
+                - Name: StateMachineArn
+                  Value: !GetAtt UsePrivateSubnetConditionUpdatePipelineStateMachine.Arn
+            Period: 86400
+            Stat: Sum
+            Unit: Count
+          ReturnData: false
+        - Id: m3
+          MetricStat: 
+            Metric: 
+              MetricName: ExecutionsFailed
+              Namespace: AWS/States
+              Dimensions:
+                - Name: StateMachineArn
+                  Value: !GetAtt UsePrivateSubnetConditionUpdatePipelineStateMachine.Arn
+            Period: 86400
+            Stat: Sum
+            Unit: Count
+          ReturnData: false
+        - Id: m4
+          MetricStat: 
+            Metric: 
+              MetricName: ExecutionsAborted
+              Namespace: AWS/States
+              Dimensions:
+                - Name: StateMachineArn
+                  Value: !GetAtt UsePrivateSubnetConditionUpdatePipelineStateMachine.Arn
             Period: 86400
             Stat: Sum
             Unit: Count
@@ -830,10 +1042,11 @@ Resources:
             Topic: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicArn}}'
 
   # CloudWatch Alarm for failed pipeline executions
-  UpdatePipelineStateMachineExecutionErrorsAlarm:
+  UsePublicSubnetConditionUpdatePipelineStateMachineExecutionErrorsAlarm:
     Type: AWS::CloudWatch::Alarm
+    Condition: UsePublicSubnet
     Properties:
-      AlarmDescription: !Sub '${UpdatePipelineStateMachine} state machine errors'
+      AlarmDescription: !Sub '${UsePublicSubnetConditionUpdatePipelineStateMachine} state machine errors'
       ActionsEnabled: true
       AlarmActions:
         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
@@ -846,13 +1059,54 @@ Resources:
       ComparisonOperator: GreaterThanOrEqualToThreshold
       Dimensions:
         - Name: StateMachineArn
-          Value: !GetAtt UpdatePipelineStateMachine.Arn
+          Value: !GetAtt UsePublicSubnetConditionUpdatePipelineStateMachine.Arn
+
+  # CloudWatch Alarm for failed pipeline executions
+  UsePrivateSubnetConditionUpdatePipelineStateMachineExecutionErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: UsePrivateSubnet
+    Properties:
+      AlarmDescription: !Sub '${UsePrivateSubnetConditionUpdatePipelineStateMachine} state machine errors'
+      ActionsEnabled: true
+      AlarmActions:
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
+      MetricName: ExecutionsFailed
+      Namespace: AWS/States
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: StateMachineArn
+          Value: !GetAtt UsePrivateSubnetConditionUpdatePipelineStateMachine.Arn
 
   # CloudWatch Alarm for failed pipeline integrations (Batch jobs)
-  UpdatePipelineStateMachineIntegrationAlarm:
+  UsePublicSubnetConditionUpdatePipelineStateMachineIntegrationAlarm:
     Type: AWS::CloudWatch::Alarm
+    Condition: UsePublicSubnet
     Properties:
-      AlarmDescription: !Sub '${UpdatePipelineStateMachine} state machine errors'
+      AlarmDescription: !Sub '${UsePublicSubnetConditionUpdatePipelineStateMachine} state machine errors'
+      ActionsEnabled: true
+      AlarmActions:
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
+      MetricName: ServiceIntegrationsFailed
+      Namespace: AWS/States
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: ServiceIntegrationResourceArn
+          Value: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:batch:submitJob.sync'
+
+  # CloudWatch Alarm for failed pipeline integrations (Batch jobs)
+  UsePrivateSubnetConditionUpdatePipelineStateMachineIntegrationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: UsePrivateSubnet
+    Properties:
+      AlarmDescription: !Sub '${UsePrivateSubnetConditionUpdatePipelineStateMachine} state machine errors'
       ActionsEnabled: true
       AlarmActions:
         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
