@@ -39,11 +39,10 @@ deploy:
 	$(MAKE) service.deploy
 ifeq ($(USE_PRIVATE_SUBNET),false)
 	$(MAKE) service.deploy.update-dns
-endif
-	$(MAKE) service.monitoring.create-subscriptions
+else ifeq ($(USE_PRIVATE_SUBNET),true)
 ifeq ($(HAS_STAGE),null)
 ifeq ($(CREATE_SSM_VPC_ENDPOINT),true)
-	$(call blue, Creating Systems Manager VPC endpoint..)
+	$(call blue, Creating Systems Manager VPC endpoint...)
 	$(MAKE) service.deploy.create-endpoint service=ssm
 endif
 ifeq ($(CREATE_SECRETSMANAGER_VPC_ENDPOINT),true)
@@ -51,6 +50,8 @@ ifeq ($(CREATE_SECRETSMANAGER_VPC_ENDPOINT),true)
 	$(MAKE) service.deploy.create-endpoint service=secretsmanager
 endif
 endif
+endif
+	$(MAKE) service.monitoring.create-subscriptions
 
 service.deploy.update-dns:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Updating DNS records" 2>&1 | tee -a $${CFN_LOG_PATH}
@@ -108,7 +109,7 @@ service.deploy:
 		--tags stage="$${STAGE}" app="$${APP_NAME}" service="${SERVICE}" branch="$$(git branch --show-current)" commit=$$(git rev-parse HEAD) \
 		--parameter-overrides \
 			Stage="$${STAGE}" \
-			AppName="$${APP_NAMEXXX}" \
+			AppName="$${APP_NAME}" \
 			createVpc="$${CREATE_VPC}" \
 			usePrivateSubnet="$${USE_PRIVATE_SUBNET}" \
 			AdminEmail="$${ADMIN_EMAIL}" \

@@ -117,8 +117,8 @@ deploy: splash-screen logs.purge env.validate ##=> Deploy all services
 	$(MAKE) env.print
 	@echo "Deploy stack to the \`${STAGE}\` environment? [y/N] \c " && read ans && [ $${ans:-N} = y ]
 	$(MAKE) infrastructure.deploy 
-	# $(MAKE) database.deploy
-	# $(MAKE) pipeline.deploy
+	$(MAKE) database.deploy
+	$(MAKE) pipeline.deploy
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished deploying ${APP_NAME}" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 logs.purge: logs.dirs
