@@ -52,7 +52,6 @@ ifeq ($(CREATE_SECRETSMANAGER_VPC_ENDPOINT),true)
 endif
 endif
 
-# TODO add waiter: aws route53 wait resource-record-sets-changed --id <value>
 service.deploy.update-dns:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Updating DNS records" 2>&1 | tee -a $${CFN_LOG_PATH}
 	@config_path=${INFRA_DIR}/change-batch.json && \
@@ -99,9 +98,7 @@ service.deploy.create-endpoint: #=> service=<string>
 		--overwrite
 	$(call blue, Successfully created VPC endpoint for $$service)
 
-# TODO add cloudformation waiter for stack create complete and exit if failed
-# TODO test AWSCLI output and validate the stack was created successfully
-# Add stateful check from SSM Param of vpc=true/false to correctly set CREATE_VPC
+# test the return code of aws cloudformation deploy and exit if it is 1
 service.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying CloudFormation" 2>&1 | tee -a $${CFN_LOG_PATH}
 	@aws cloudformation deploy \
@@ -111,7 +108,7 @@ service.deploy:
 		--tags stage="$${STAGE}" app="$${APP_NAME}" service="${SERVICE}" branch="$$(git branch --show-current)" commit=$$(git rev-parse HEAD) \
 		--parameter-overrides \
 			Stage="$${STAGE}" \
-			AppName="$${APP_NAME}" \
+			AppName="$${APP_NAMEXXX}" \
 			createVpc="$${CREATE_VPC}" \
 			usePrivateSubnet="$${USE_PRIVATE_SUBNET}" \
 			AdminEmail="$${ADMIN_EMAIL}" \
@@ -120,70 +117,6 @@ service.deploy:
 			PublicSubnetId="$${PUBLIC_SUBNET_ID}" \
 			PrivateSubnetId="$${PRIVATE_SUBNET_ID}" \
 			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN"
-
-# $(MAKE) service.update-vpc-endpoints
-
-# Not used for private subnet deployment
-# $(MAKE) service.deploy.update-dns
-
-# service.update-vpc-endpoints:
-# ifeq ($(CREATE_SSM_ENDPOINT),false)
-# 	$(MAKE) service.update-vpc-endpoint service=ssm
-# endif
-# ifeq ($(CREATE_SECRETSMANAGER_ENDPOINT),false)
-# 	$(MAKE) service.update-vpc-endpoint service=secretsmanager
-# endif
-
-# # TODO get endpoint id from env vars, --filter "Name=subnet-id,Values=$${PRIVATE_SUBNET_ID}" does not work
-# # the vpc endpoint must match PRIVATE_SUBNET_ID env var
-# service.update-vpc-endpoint: #service=<string[ssm,secretsmanager]>
-# 	@echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Adding security group to $${service} VPC endpoint\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
-# 	@endpoint_json=$$(aws ec2 describe-vpc-endpoints | jq 'del(.VpcEndpoints[].PolicyDocument)') && \
-# 	endpoint_id=$$(echo $$endpoint_json | jq -r --arg subnet "$${PRIVATE_SUBNET_ID}" '.VpcEndpoints[] | select(.SubnetIds[] == $$subnet) .VpcEndpointId') && \
-# 	if [ -z "$$endpoint_id" ]; then \
-# 		echo "\033[0;31m$${service} VPC endpoint is not associated with \`PRIVATE_SUBNET_ID\` ($${PRIVATE_SUBNET_ID})\033[0m" && exit 1; \
-# 	fi; \
-# 	[ "$${service}" = "ssm" ] && endpoint_id=$$SSM_ENDPOINT_ID; \
-# 	[ "$${service}" = "secretsmanager" ] && endpoint_id=$$SECRETSMANAGER_ENDPOINT_ID; \
-# 	echo "\033[0;32mFound VPC endpoint ID: $$endpoint_id" && \
-# 	security_group_id=$$(aws ssm get-parameters \
-# 		--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseSecurityGroupId" \
-# 		--with-decryption \
-# 		--query "Parameters[0].Value" \
-# 		--output text) && \
-# 	echo "Found security group ID: $$security_group_id" && \
-# 	response=$$(aws ec2 modify-vpc-endpoint \
-# 		--vpc-endpoint-id "$$endpoint_id" \
-# 		--add-security-group-ids "$$security_group_id" | jq -r '.Return') && \
-# 	[ "$$response" = "true" ] && echo "\033[0;34mSuccessfully added security group to $${service} VPC endpoint\033[0m" || \
-# 	(echo "\033[0;31mFailed to add security group to $${service} VPC endpoint\033[0m" && exit 1)
-
-# service.remove-security-groups:
-# ifeq ($(CREATE_SSM_ENDPOINT),false)
-# 	$(MAKE) service.remove-security-group service=ssm
-# endif
-# ifeq ($(CREATE_SECRETSMANAGER_ENDPOINT),false)
-# 	$(MAKE) service.remove-security-group service=secretsmanager
-# endif
-
-# # Removes the Neo4j security group from the VPC endpoints
-# # aws ec2 modify-vpc-endpoint --remove-security-group-ids 
-# service.remove-security-group: #service=<string[ssm,secretsmanager]>
-# 	@echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Removing security group from $${service} VPC endpoint\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
-# 	@[ "$${service}" = "ssm" ] && endpoint_id=$$SSM_ENDPOINT_ID; \
-# 	[ "$${service}" = "secretsmanager" ] && endpoint_id=$$SECRETSMANAGER_ENDPOINT_ID; \
-# 	echo "\033[0;32mFound VPC endpoint ID: $$endpoint_id\033[0m" && \
-# 	security_group_id=$$(aws ssm get-parameters \
-# 		--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseSecurityGroupId" \
-# 		--with-decryption \
-# 		--query "Parameters[0].Value" \
-# 		--output text) && \
-# 	echo "\033[0;32mFound security group ID: $$security_group_id\033[0m" && \
-# 	response=$$(aws ec2 modify-vpc-endpoint \
-# 		--vpc-endpoint-id "$$endpoint_id" \
-# 		--remove-security-group-ids "$$security_group_id" | jq -r '.Return') && \
-# 	[ "$$response" = "true" ] && echo "\033[0;34mSuccessfully removed security group from $${service} VPC endpoint\033[0m" || \
-# 	(echo "\033[0;31mFailed to remove security group from $${service} VPC endpoint\033[0m" && exit 1) | jq -r
 
 service.monitoring.create-subscriptions:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Creating SNS topic subscriptions" 2>&1 | tee -a $${CFN_LOG_PATH}
@@ -211,14 +144,12 @@ service.monitoring.subscribe-email: #email=<string>
 		--protocol email \
 		--notification-endpoint "$$email" 2>&1 | tee -a $${CFN_LOG_PATH} || true;
 
-# TODO remove the sg association from the vpc endpoints before deleting
 delete: ##=> Delete resources
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $${CFN_LOG_PATH}
 ifeq ($(data),true)
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting data in $${DATA_BUCKET_NAME}" 2>&1 | tee -a $${CFN_LOG_PATH}
 	@aws s3 rm --recursive s3://$${DATA_BUCKET_NAME}/
 endif
-	# $(MAKE) service.remove-security-groups
 ifeq ($(CREATE_SSM_VPC_ENDPOINT),true)
 	$(MAKE) service.delete.delete-endpoint service=ssm
 endif
@@ -227,7 +158,6 @@ ifeq ($(CREATE_SECRETSMANAGER_VPC_ENDPOINT),true)
 endif	
 	$(MAKE) service.delete
 
-# TODO get parameter "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/$${service}EndpointId" from SSM
 service.delete.delete-endpoint: #=> service=<string>
 	@	if [ -z $$service ]; then \
 		echo "No service specified" && exit 1; \

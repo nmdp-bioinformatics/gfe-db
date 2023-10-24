@@ -25,22 +25,15 @@ export PURGE_LOGS := false
 # deployment environment defaults
 CREATE_VPC ?= false
 USE_PRIVATE_SUBNET ?= false
+CREATE_SSM_VPC_ENDPOINT ?= false
+CREATE_SECRETSMANAGER_VPC_ENDPOINT ?= false
 VPC_ID ?=
 PUBLIC_SUBNET_ID ?=
 HOST_DOMAIN ?=
 SUBDOMAIN ?=
 PRIVATE_SUBNET_ID ?=
 
-# #  set NEO4J_DATABASE_SECURITY_GROUP_ID as blank if it get-parameters returns null
-# ifneq ($(HAS_STAGE),null)
-# export NEO4J_DATABASE_SECURITY_GROUP_ID := $(shell aws ssm get-parameters \
-# 	--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseSecurityGroupId" \
-# 	--output json \
-# 	| jq -r '.Parameters[0].Value')
-# endif
-
 # TODO move these to a config file
-export NEO4J_AMI_ID ?= ami-04aa5da301f99bf58 # Bitnami Neo4j, requires subscription through AWS Marketplace
 export DATABASE_VOLUME_SIZE ?= 50
 # TODO: Add TRIGGER_SCHEDULE variable
 # TODO: Add BACKUP_SCHEDULE variable
@@ -95,9 +88,6 @@ define red
 	@echo $1
 	@tput sgr0
 endef
-
-test:
-	$(MAKE) -C ${APP_NAME}/infrastructure/ service.deploy.create-endpoint service=ssm
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -184,7 +174,6 @@ check.dependencies.coreutils:
 		exit 1; \
 	fi
 
-# TODO use cloudformation list-stacks as alternative to SSM parameter
 env.validate.stage:
 	@res=$$(aws ssm get-parameters \
 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Stage" \
@@ -201,11 +190,11 @@ env.validate.stage:
 		exit 1; \
 	fi
 
-# # TODO validate that SUBDOMAIN exists in Route53
-# env.validate.subdomain:
-# 	@aws route53 list-resource-record-sets --hosted-zone-id ${HOSTED_ZONE_ID}
+env.validate.subdomain:
+	@res=$$(aws route53 list-resource-record-sets --hosted-zone-id ${HOSTED_ZONE_ID} | \
+		jq -r --arg fqdn "$$fqdn" '.ResourceRecordSets[] | select(.Name == $$fqdn) | .Name') && \
+	[[ $$res = "" ]] && echo "\033[0;31mERROR: No Route53 domain found for $$fqdn\033[0m" && exit 1 || true
 
-# TODO validate that SUBDOMAIN exists in Route53: env.validate.subdomain
 env.validate.use-existing-vpc:
 ifeq ($(VPC_ID),)
 	$(call red, "\`VPC_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`false\`")
@@ -246,68 +235,15 @@ ifeq ($(HOSTED_ZONE_ID),)
 else
 	$(call green, "Found HOSTED_ZONE_ID: ${HOSTED_ZONE_ID}")
 endif
+	$(call blue, Validating Route53 configuration...)
+	$(MAKE) env.validate.subdomain fqdn="${SUBDOMAIN}.${HOST_DOMAIN}."
+	$(call green, Found configuration for ${SUBDOMAIN}.${HOST_DOMAIN})
 endif
-
-# ifeq ($(USE_PRIVATE_SUBNET),true)
-# 	$(call blue, "**** This deployment uses a private subnet for Neo4j ****")
-# 	$(MAKE) env.validate.private-subnet
-# endif
-
-# env.validate.private-subnet:
-# ifeq ($(PRIVATE_SUBNET_ID),)
-# 	$(call red, "\`PRIVATE_SUBNET_ID\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`true\`")
-# 	@exit 1
-# else
-# 	$(call green, "Found PRIVATE_SUBNET_ID: ${PRIVATE_SUBNET_ID}")
-# endif
-
-# ifndef CREATE_SSM_ENDPOINT
-# 	$(info "\`CREATE_SSM_ENDPOINT\` is not set. Defaulting to \`false\`")
-# 	$(eval export CREATE_SSM_ENDPOINT := false)
-# 	$(call blue, "**** This deployment uses an Systems Manager VPC endpoint ****")
-# 	$(MAKE) env.validate.create-ssm-endpoint
-# endif
-# ifeq ($(CREATE_SSM_ENDPOINT),false)
-# 	$(call blue, "**** This deployment uses an existing Systems Manager VPC endpoint ****")
-# 	$(MAKE) env.validate.create-ssm-endpoint
-# else ifeq ($(CREATE_SSM_ENDPOINT),true)
-# 	$(call blue, "**** This deployment includes an Systems Manager VPC endpoint. ****")
-# 	$(call blue, "**** Please be aware that only one service endpoint per VPC is allowed and this may conflict with other stacks. ****")
-# endif
-# ifndef CREATE_SECRETSMANAGER_ENDPOINT
-# 	$(info "\`CREATE_SECRETSMANAGER_ENDPOINT\` is not set. Defaulting to \`false\`")
-# 	$(eval export CREATE_SECRETSMANAGER_ENDPOINT := false)
-# 	$(call blue, "**** This deployment uses an existing Secrets Manager VPC endpoint ****")
-# 	$(MAKE) env.validate.create-secretsmanager-endpoint
-# endif
-# ifeq ($(CREATE_SECRETSMANAGER_ENDPOINT),false)
-# 	$(call blue, "**** This deployment uses an existing Secrets Manager VPC endpoint ****")
-# 	$(MAKE) env.validate.create-secretsmanager-endpoint
-# else ifeq ($(CREATE_SECRETSMANAGER_ENDPOINT),true)
-# 	$(call blue, "**** This deployment includes an Secrets Manager VPC endpoint. ****")
-# 	$(call blue, "**** Please be aware that only one service endpoint per VPC is allowed and this may conflict with other stacks. ****")
-# endif
-
-# env.validate.create-ssm-endpoint:
-# ifeq ($(SSM_ENDPOINT_ID),)
-# 	$(call red, "\`SSM_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_SSM_ENDPOINT\` is \`true\`")
-# 	@exit 1
-# else
-# 	$(call green, "Found SSM_ENDPOINT_ID: ${SSM_ENDPOINT_ID}")
-# endif
-
-# env.validate.create-secretsmanager-endpoint:
-# ifeq ($(SECRETSMANAGER_ENDPOINT_ID),)
-# 	$(call red, "\`SECRETSMANAGER_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_SECRETSMANAGER_ENDPOINT\` is \`true\`")
-# 	@exit 1
-# else
-# 	$(call green, "Found SECRETSMANAGER_ENDPOINT_ID: ${SECRETSMANAGER_ENDPOINT_ID}")
-# endif
 
 env.validate.boolean-vars:
 	@$(foreach var,$(BOOLEAN_VARS),\
 		if [ "$(value $(var))" != "true" ] && [ "$(value $(var))" != "false" ]; then \
-			echo "\033[0;31m\`$(var)\` must be either \`true\` or \`false\`\033[0m" && exit 1; \
+			echo "\033[0;31mERROR: \`$(var)\` must be either \`true\` or \`false\`\033[0m" && exit 1; \
 		fi; \
 	)
 
@@ -470,7 +406,6 @@ database.get.public-ip:
 database.get.instance-id:
 	@echo "${INSTANCE_ID}"
 
-# TODO add confirmation to proceed BOOKMARK
 delete: # data=true/false ##=> Delete services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${APP_NAME} in ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	@[[ $$data != true ]] && echo "Data will not be deleted. To delete pass \`data=true\`" || true
@@ -506,9 +441,6 @@ get.data: #=> Download the build data locally
 
 get.logs: #=> Download all logs locally
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/logs/ ${LOGS_DIR}/
-
-# # TODO get pipeline execution status
-# pipeline.status:
 
 docs.build:
 	@cd docs/ && make html
