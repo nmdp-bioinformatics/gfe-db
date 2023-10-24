@@ -10,6 +10,10 @@ export
 export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity \
 	--query Account \
 	--output text)
+export HAS_STAGE := $(shell aws ssm get-parameters \
+		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Stage" \
+		--output json \
+		| jq -r '.Parameters[0].Value')
 
 export ROOT_DIR := $(shell pwd)
 export DATABASE_DIR := ${ROOT_DIR}/${APP_NAME}/database
@@ -27,6 +31,14 @@ HOST_DOMAIN ?=
 SUBDOMAIN ?=
 PRIVATE_SUBNET_ID ?=
 
+# #  set NEO4J_DATABASE_SECURITY_GROUP_ID as blank if it get-parameters returns null
+# ifneq ($(HAS_STAGE),null)
+# export NEO4J_DATABASE_SECURITY_GROUP_ID := $(shell aws ssm get-parameters \
+# 	--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseSecurityGroupId" \
+# 	--output json \
+# 	| jq -r '.Parameters[0].Value')
+# endif
+
 # TODO move these to a config file
 export NEO4J_AMI_ID ?= ami-04aa5da301f99bf58 # Bitnami Neo4j, requires subscription through AWS Marketplace
 export DATABASE_VOLUME_SIZE ?= 50
@@ -38,9 +50,9 @@ export DATA_BUCKET_NAME ?= ${STAGE}-${APP_NAME}-${AWS_ACCOUNT}-${AWS_REGION}
 export ECR_BASE_URI := ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com
 export BUILD_REPOSITORY ?= ${STAGE}-${APP_NAME}-build-service
 export INSTANCE_ID := $(shell aws ssm get-parameters \
-		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseInstanceId" \
-		--output json \
-		| jq -r '.Parameters[0].Value')
+	--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseInstanceId" \
+	--output json \
+	| jq -r '.Parameters[0].Value')
 
 # S3 paths
 export PIPELINE_STATE_PATH := config/IMGTHLA-repository-state.json
@@ -50,10 +62,10 @@ export FUNCTIONS_PATH := ${APP_NAME}/pipeline/functions
 # Required environment variables
 # Optional environment variables: HOST_DOMAIN SUBDOMAIN
 REQUIRED_VARS := STAGE APP_NAME AWS_ACCOUNT AWS_REGION AWS_PROFILE SUBSCRIBE_EMAILS \
-                GITHUB_REPOSITORY_OWNER GITHUB_REPOSITORY_NAME GITHUB_PERSONAL_ACCESS_TOKEN \
-                ADMIN_EMAIL NEO4J_AMI_ID APOC_VERSION GDS_VERSION
+	GITHUB_REPOSITORY_OWNER GITHUB_REPOSITORY_NAME GITHUB_PERSONAL_ACCESS_TOKEN \
+	ADMIN_EMAIL NEO4J_AMI_ID APOC_VERSION GDS_VERSION
 
-BOOLEAN_VARS := CREATE_VPC USE_PRIVATE_SUBNET
+BOOLEAN_VARS := CREATE_VPC USE_PRIVATE_SUBNET CREATE_SSM_VPC_ENDPOINT CREATE_SECRETSMANAGER_VPC_ENDPOINT
 
 # stdout colors
 # blue: runtime message, no action required
@@ -85,7 +97,7 @@ define red
 endef
 
 test:
-	$(MAKE) -C ${APP_NAME}/infrastructure/ service.remove-security-groups service=ssm
+	$(MAKE) -C ${APP_NAME}/infrastructure/ service.deploy.create-endpoint service=ssm
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -115,8 +127,8 @@ deploy: splash-screen logs.purge env.validate ##=> Deploy all services
 	$(MAKE) env.print
 	@echo "Deploy stack to the \`${STAGE}\` environment? [y/N] \c " && read ans && [ $${ans:-N} = y ]
 	$(MAKE) infrastructure.deploy 
-	$(MAKE) database.deploy
-	$(MAKE) pipeline.deploy
+	# $(MAKE) database.deploy
+	# $(MAKE) pipeline.deploy
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished deploying ${APP_NAME}" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 logs.purge: logs.dirs
