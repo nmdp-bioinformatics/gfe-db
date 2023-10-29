@@ -61,7 +61,7 @@ def lambda_handler(event, context):
     # Validate that the S3 prefix exists and has data
     try:
         csv_file_objs = list_s3_objects(data_bucket_name, csv_dir)
-    except KeyError:
+    except KeyError as e:
         error_msg = f"CSV directory does not exist: {csv_dir}"
         logger.error(error_msg)
         release_report["errors"].append(error_msg)
@@ -69,6 +69,7 @@ def lambda_handler(event, context):
         # reports.append(release_report)
         errors.append(error_msg)
         # continue
+        raise e
 
     # Validate that all expected files are present
     if set(csv_file_objs.keys()) != set(release_report["expected_artifacts"]):
@@ -229,7 +230,7 @@ class DatetimeEncoder(json.JSONEncoder):
 if __name__ == "__main__":
     from pathlib import Path
 
-    event_path = Path(__file__).parent / "event.json"
+    event_path = Path(__file__).parent / "error-event.json"
 
     with open(event_path, "r") as file:
         event = json.load(file)

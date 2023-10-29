@@ -1,0 +1,13 @@
+{
+    "execution_id": "arn:aws:states:us-east-1:810526023897:execution:UsePublicSubnetConditionUpdatePipelineStateMachine-vKSrXyQEhEW3:d4f6c52e-542b-410b-be8f-ac75f3c7b783",
+    "input": {
+        "ALIGN": "False",
+        "KIR": "False",
+        "LIMIT": "1000",
+        "MEM_PROFILE": "False",
+        "USE_EXISTING_BUILD": "False",
+        "SKIP_LOAD": "False",
+        "RELEASES": "3450"
+    },
+    "execution_start_time": "2023-10-29T18:53:54.523Z"
+}
