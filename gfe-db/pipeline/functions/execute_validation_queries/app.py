@@ -1,3 +1,8 @@
+"""
+This function executes validation queries against the Neo4j database and returns the results.
+If USE_PRIVATE_SUBNET is true, this function will run inside a VPC and private subnet. 
+If USE_PRIVATE_SUBNET is false, this function will run outside a VPC and in a public subnet.
+"""
 import os
 import logging
 import json
@@ -7,27 +12,21 @@ from neo4j import GraphDatabase
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+AWS_REGION = os.environ["AWS_REGION"]
 STAGE = os.environ["STAGE"]
 APP_NAME = os.environ["APP_NAME"]
-AWS_REGION = os.environ["AWS_REGION"]
 
 # get neo4j uri and password from SSM Parameter Store
 session = boto3.session.Session(region_name=AWS_REGION)
 ssm = session.client("ssm")
 secrets = session.client("secretsmanager")
 
-# TODO fix Neo4j access for private instance
-# /APP_NAME/STAGE/AWS_REGION/Neo4jDatabaseEndpoint
 uri = ssm.get_parameter(
-    Name=f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jPrivateIp"
+    Name=f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jUri"
 )["Parameter"]["Value"]
 logger.info(f"Found uri: {uri}")
 
-uri_scheme = "bolt" + "://"
-uri_port = ":" + "7687"
-uri = uri_scheme + uri + uri_port
-
-# /gfe-db/dev/us-east-1/Neo4jCredentialsSecretArn
+# Get Neo4j Credentials from SSM Parameter Store
 auth_arn = ssm.get_parameter(
     Name=f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jCredentialsSecretArn"
 )["Parameter"]["Value"]
@@ -60,11 +59,12 @@ def lambda_handler(event, context):
         # IPD_Accession node release counts
         ipd_accession_release_counts = execute_query(driver, ipd_accession_release_counts_cql)
 
-    return {
+    payload = {
         "node_counts": node_counts,
         "has_ipd_allele_release_counts": has_ipd_allele_release_counts,
         "ipd_accession_release_counts": ipd_accession_release_counts
     }
+    return payload
 
 nodes = [
     "GFE",
@@ -97,7 +97,6 @@ ipd_accession_release_counts_cql = """MATCH ()-[r:HAS_IPD_ACCESSION]->() RETURN 
 #     count(seq),
 #     count(f),
 #     count(sub);"""
-
 
 def execute_query(driver, query):
     records, _, _ = driver.execute_query(query, database_="neo4j")

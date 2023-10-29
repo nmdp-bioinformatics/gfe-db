@@ -45,6 +45,7 @@ Conditions:
   UseExternalVpc: !Equals [!Ref createVpc, 'false']
   UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
   UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
+  UsePrivateSubnet: !Equals [!Ref usePrivateSubnet, 'true']
   UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
 
 Resources:
@@ -311,24 +312,32 @@ Resources:
       Description: "Instance ID for gfe-db Neo4j database instance"
       Value: !Ref Neo4jDatabaseInstance
 
-  # Neo4jUriParameter:
-  #   Type: AWS::SSM::Parameter
-  #   Properties:
-  #     Type: String
-  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jUri'
-  #     Description: "Connection URI for Neo4j"
-  #     # "https://${SUBDOMAIN}.${HOST_DOMAIN}:7473/browser/"
-  #     Value: !Sub "https://${Subdomain}.${HostDomain}:7473/browser/"
-
-  # TODO test from EC2 instance
-  Neo4jUriParameter:
+  UsePublicSubnetConditionNeo4jUriParameter:
     Type: AWS::SSM::Parameter
+    Condition: UsePublicSubnet
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jUri'
       Description: "Connection URI for Neo4j"
-      # "https://${SUBDOMAIN}.${HOST_DOMAIN}:7473/browser/"
-      Value: !Sub "https://${Neo4jDatabaseInstance.PrivateIp}"
+      Value: !Sub "neo4j+s://${Subdomain}.${HostDomain}:7687"
+
+  UsePrivateSubnetConditionNeo4jUriParameter:
+    Type: AWS::SSM::Parameter
+    Condition: UsePrivateSubnet
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jUri'
+      Description: "Connection URI for Neo4j"
+      Value: !Sub "bolt://${Neo4jDatabaseInstance.PrivateIp}:7687"
+
+  UsePublicSubnetConditionNeo4jBrowserUrlParameter:
+    Type: AWS::SSM::Parameter
+    Condition: UsePublicSubnet
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jBrowserUrl'
+      Description: "Connection URI for Neo4j"
+      Value: !Sub "https://${Subdomain}.${HostDomain}:7473/browser/"
 
   # TODO test from EC2 instance
   Neo4jPrivateIpParameter:

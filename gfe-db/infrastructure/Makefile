@@ -159,6 +159,7 @@ ifeq ($(CREATE_SECRETSMANAGER_VPC_ENDPOINT),true)
 endif	
 	$(MAKE) service.delete
 
+# TODO delete "/${APP_NAME}/${STAGE}/${AWS_REGION}/$${service}EndpointId"
 service.delete.delete-endpoint: #=> service=<string>
 	@	if [ -z $$service ]; then \
 		echo "No service specified" && exit 1; \
