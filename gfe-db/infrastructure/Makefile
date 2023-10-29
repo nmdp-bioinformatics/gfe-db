@@ -88,8 +88,8 @@ service.deploy.create-endpoint: #=> service=<string>
 		--vpc-id $${VPC_ID} \
 		--service-name com.amazonaws.$${AWS_REGION}.$$service \
 		--security-group-ids $$neo4j_sg_id \
-		--vpc-endpoint-type Interface) \
-		--tag-specification "ResourceType=vpc-endpoint,Tags=[{Key=Name,Value=$${STAGE}-$${APP_NAME}-$${service}-vpce}]" && \
+		--vpc-endpoint-type Interface \
+		--tag-specifications "ResourceType=vpc-endpoint,Tags=[{Key=Name,Value=$${STAGE}-$${APP_NAME}-$${service}-vpce}]") && \
 	vpc_endpoint_id=$$(echo $$res | jq -r '.VpcEndpoint.VpcEndpointId') && \
 	echo "Saving endpoint id to SSM Parameter Store" && \
 	aws ssm put-parameter \
