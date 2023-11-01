@@ -6,13 +6,14 @@ import boto3
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-neo4j_load_query_document_name = os.environ["NEO4J_LOAD_QUERY_DOCUMENT_NAME"]
+neo4j_load_query_document_name_param = os.environ["NEO4J_LOAD_QUERY_DOCUMENT_NAME_SSM_PARAM"]
 neo4j_database_instance_id_param = os.environ["NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM"]
 load_neo4j_activity = os.environ["LOAD_NEO4J_ACTIVITY"]
 app_name = os.environ["APP_NAME"]
 
 # Get SSM Document Neo4jLoadQuery
 ssm = boto3.client('ssm', region_name=os.environ["AWS_REGION"])
+neo4j_load_query_document_name = ssm.get_parameter(Name=neo4j_load_query_document_name_param)["Parameter"]["Value"]
 response = ssm.get_document(Name=neo4j_load_query_document_name)
 neo4j_load_query_document_content = json.loads(response["Content"])
 
@@ -103,12 +104,12 @@ class DatetimeEncoder(json.JSONEncoder):
             return str(obj)
 
 
-
 if __name__ == "__main__":
+    from pathlib import Path
 
-    path = '/Users/ammon/Documents/00-Projects/nmdp-bioinformatics/02-Repositories/gfe-db/gfe-db/pipeline/functions/invoke_load_script/event.json'
+    event_path = Path(__file__).parent / "error-event.json"
 
-    with open(path, "r") as file:
+    with open(event_path, "r") as file:
         event = json.load(file)
 
     lambda_handler(event,"")
