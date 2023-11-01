@@ -41,10 +41,9 @@ service.deploy:
 			PipelineParamsPath="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Environment.Variables.PIPELINE_PARAMS_PATH')"  \
 			DisableBackupFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.DisableBackup.FunctionConfiguration.FunctionName')" \
 			InvokeLoadScriptFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokeLoadScript.FunctionConfiguration.FunctionName')" \
-			Stage="$${STAGE}" \
-			AppName="$${APP_NAME}" \
 			ECRBaseUri="${ECR_BASE_URI}" \
 			BuildServiceRepositoryName="${BUILD_REPOSITORY}" \
+			FeatureServiceUrl="${FEATURE_SERVICE_URL}" \
 			2>&1 | tee -a $$CFN_LOG_PATH || true
 
 service.jobs.deploy:
