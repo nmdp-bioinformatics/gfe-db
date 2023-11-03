@@ -635,7 +635,7 @@ Resources:
         - x86_64
       Environment:
         Variables:
-          NEO4J_LOAD_QUERY_DOCUMENT_NAME_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName
+          NEO4J_LOAD_QUERY_DOCUMENT_NAME_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName'
           NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId'
           LOAD_NEO4J_ACTIVITY: !Ref LoadNeo4jActivity
           APP_NAME: !Ref AppName
