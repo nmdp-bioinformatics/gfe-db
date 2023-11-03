@@ -271,6 +271,12 @@ env.validate: check.dependencies env.validate.vars env.validate.boolean-vars env
 infrastructure.deploy: 
 	$(MAKE) -C ${APP_NAME}/infrastructure/ deploy
 
+infrastructure.service.deploy:
+	$(MAKE) -C ${APP_NAME}/infrastructure/ service.deploy
+
+infrastructure.create-endpoint:
+	$(MAKE) -C ${APP_NAME}/infrastructure/ service.deploy.create-endpoint service=$$service
+
 database.deploy:
 	$(MAKE) -C ${APP_NAME}/database/ deploy
 

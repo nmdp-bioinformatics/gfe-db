@@ -84,6 +84,12 @@ service.deploy.create-endpoint: #=> service=<string>
 	elif [ $$service != "ssm" ] && [ $$service != "secretsmanager" ]; then \
 		echo "Invalid service specified. Valid services are 'ssm', 'secretsmanager'" && exit 1; \
 	fi && \
+	if [ $$service = "ssm" ] && [ ${CREATE_SSM_VPC_ENDPOINT} != "true" ]; then \
+		echo "\033[0;31mERROR: \`CREATE_SSM_VPC_ENDPOINT\` must be set to \`true\` to create a Systems Manager VPC endpoint\033[0m" && exit 1; \
+	fi && \
+	if [ $$service = "secretsmanager" ] && [ ${CREATE_SECRETSMANAGER_VPC_ENDPOINT} != "true" ]; then \
+		echo "\033[0;31mERROR: \`CREATE_SECRETSMANAGER_VPC_ENDPOINT\` must be set to \`true\` to create a SecretsManager VPC endpoint\033[0m" && exit 1; \
+	fi && \
 	res=$$(aws ec2 create-vpc-endpoint \
 		--vpc-id $${VPC_ID} \
 		--service-name com.amazonaws.$${AWS_REGION}.$$service \
@@ -127,10 +133,11 @@ service.monitoring.create-subscriptions:
 		--query "Parameters[0].Value" \
 		--output text) && \
 	for EMAIL in $$(echo $${SUBSCRIBE_EMAILS} | sed 's/,/ /g'); do \
-		aws sns subscribe \
+		res=$$(aws sns subscribe \
 			--topic-arn "$$topic_arn" \
 			--protocol email \
-			--notification-endpoint "$$EMAIL" 2>&1 | tee -a $${CFN_LOG_PATH} || true; \
+			--notification-endpoint "$$EMAIL") && \
+		echo $$res | jq -r 2>&1 | tee -a $${CFN_LOG_PATH} || true; \
 	done
 
 service.monitoring.subscribe-email: #email=<string>
