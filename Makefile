@@ -378,7 +378,7 @@ database.backup.list:
 	$(MAKE) -C ${APP_NAME}/database/ service.backup.list
 
 # TODO call database.get.backups to list the available backups and prompt the user to select one
-database.restore: #from_date=<YYYY/MM/DD/HH>
+database.restore: #from_path=s3://<backup path>
 	@echo "Restoring $${APP_NAME} data to server..."
 	$(MAKE) -C ${APP_NAME}/database/ service.restore from_path=$$from_path
 

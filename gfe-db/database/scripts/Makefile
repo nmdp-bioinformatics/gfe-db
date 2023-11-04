@@ -134,7 +134,7 @@ neo4j.config.update-dns.public:
 	cat ${NEO4J_HOME}/conf/neo4j.template | \
 	sed s"/# dbms.default_advertised_address=.*/dbms.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > ${NEO4J_HOME}/conf/neo4j.conf
 
-neo4j.config.reset-auth:
+neo4j.config.reset-auth.ssl:
 	@echo "Resetting Neo4j authentication"
 	$(MAKE) neo4j.stop
 	@sed -i 's/#dbms.security.auth_enabled=false/dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
@@ -248,7 +248,11 @@ neo4j.restore: #from_path=s3://<backup path>
 	@chown -R neo4j:neo4j ${BITNAMI_NEO4J}/data/
 	@rm ${BITNAMI_HOME}/gfedb.zip
 	@rm -r ${BITNAMI_HOME}/data/
+ifeq ($(USE_PRIVATE_SUBNET),true)
 	$(MAKE) neo4j.config.reset-auth.no-ssl
+else ifeq ($(USE_PRIVATE_SUBNET),false)
+	$(MAKE) neo4j.config.reset-auth.ssl
+endif
 
 neo4j.create-constraints:
 	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher

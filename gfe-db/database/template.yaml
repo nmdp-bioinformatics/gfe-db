@@ -261,7 +261,10 @@ Resources:
                 Action:
                   - "s3:GetObject"
                   - "s3:GetObjectAcl"
+                  - "s3:HeadObject"
+                  - "s3:ListBuckets"
                   - "s3:ListBucket"
+                  - "s3:CopyObject"
                   - "s3:PutObject"
                   - "s3:PutObjectAcl"
                   - "s3:GetEncryptionConfiguration"
