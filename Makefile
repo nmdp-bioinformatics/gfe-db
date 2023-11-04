@@ -428,6 +428,9 @@ delete: # data=true/false ##=> Delete services
 infrastructure.delete:
 	$(MAKE) -C ${APP_NAME}/infrastructure/ delete
 
+infrastructure.delete-endpoint: #=> service=<string>
+	$(MAKE) -C ${APP_NAME}/infrastructure/ service.delete.delete-endpoint service=$$service
+
 database.delete:
 	$(MAKE) -C ${APP_NAME}/database/ delete
 

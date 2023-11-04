@@ -278,11 +278,11 @@ Resources:
           IpProtocol: tcp
           ToPort: 7687
           Description: Neo4j Bolt driver access (required)
-        # - CidrIp: 0.0.0.0/0
-        #   FromPort: 22
-        #   IpProtocol: tcp
-        #   ToPort: 22
-        #   Description: Update IP to use MyIP
+        - CidrIp: 0.0.0.0/0
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
+          Description: Update IP to use MyIP
       # TODO remove
       Tags:
         - Key: Name

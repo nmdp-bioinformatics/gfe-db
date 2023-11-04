@@ -93,16 +93,18 @@ service.deploy.create-endpoint: #=> service=<string>
 	res=$$(aws ec2 create-vpc-endpoint \
 		--vpc-id $${VPC_ID} \
 		--service-name com.amazonaws.$${AWS_REGION}.$$service \
+		--subnet-ids $${PRIVATE_SUBNET_ID} \
 		--security-group-ids $$neo4j_sg_id \
 		--vpc-endpoint-type Interface \
 		--tag-specifications "ResourceType=vpc-endpoint,Tags=[{Key=Name,Value=$${STAGE}-$${APP_NAME}-$${service}-vpce}]") && \
 	vpc_endpoint_id=$$(echo $$res | jq -r '.VpcEndpoint.VpcEndpointId') && \
 	echo "Saving endpoint id to SSM Parameter Store" && \
-	aws ssm put-parameter \
+	res=$$(aws ssm put-parameter \
 		--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/$${service}EndpointId" \
 		--value "$$vpc_endpoint_id" \
 		--type String \
-		--overwrite
+		--overwrite) && \
+	echo $$res | jq -r
 	$(call blue, Successfully created VPC endpoint for $$service)
 
 # test the return code of aws cloudformation deploy and exit if it is 1
@@ -168,7 +170,7 @@ endif
 
 # TODO delete "/${APP_NAME}/${STAGE}/${AWS_REGION}/$${service}EndpointId"
 service.delete.delete-endpoint: #=> service=<string>
-	@	if [ -z $$service ]; then \
+	@if [ -z $$service ]; then \
 		echo "No service specified" && exit 1; \
 	elif [ $$service != "ssm" ] && [ $$service != "secretsmanager" ]; then \
 		echo "Invalid service specified. Valid services are 'ssm', 'secretsmanager'" && exit 1; \
