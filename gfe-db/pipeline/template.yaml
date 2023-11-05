@@ -19,9 +19,6 @@ Parameters:
     AllowedValues:
       - "true"
       - "false"
-  VpcId:
-    Type: String
-    Description: VPC ID
   GitHubRepositoryOwner: 
     Type: String
   GitHubRepositoryName:

@@ -17,18 +17,6 @@ Parameters:
     AllowedValues:
       - "true"
       - "false"
-  # createSsmVpcEndpoint:
-  #   Type: String
-  #   Default: 'false'
-  #   AllowedValues:
-  #     - 'true'
-  #     - 'false'
-  # createSecretsManagerVpcEndpoint:
-  #   Type: String
-  #   Default: 'false'
-  #   AllowedValues:
-  #     - 'true'
-  #     - 'false'
   AdminEmail:
     Type: String
   DataBucketName:

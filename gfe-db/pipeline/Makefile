@@ -30,7 +30,6 @@ service.deploy:
 			AppName="$${APP_NAME}" \
 			createVpc="$${CREATE_VPC}" \
 			usePrivateSubnet="$${USE_PRIVATE_SUBNET}" \
-			VpcId="$${VPC_ID}" \
 			GitHubRepositoryOwner="${GITHUB_REPOSITORY_OWNER}" \
 			GitHubRepositoryName="${GITHUB_REPOSITORY_NAME}" \
 			InvokePipelineFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.FunctionName')" \

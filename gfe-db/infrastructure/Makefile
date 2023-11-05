@@ -80,6 +80,9 @@ service.deploy.create-endpoint: #=> service=<string>
 	@neo4j_sg_id=$$(aws ssm get-parameters \
 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseSecurityGroupId" \
         --output json | jq -r '.Parameters[0].Value') && \
+	vpc_id=$$(aws ssm get-parameters \
+		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/VpcId" \
+		--output json | jq -r '.Parameters[0].Value') && \
 	if [ "$$neo4j_sg_id" = "" ]; then \
 		echo "\033[0;31mERROR: Neo4j security group id not found\033[0m" && exit 1; \
 	fi && \
@@ -98,7 +101,7 @@ service.deploy.create-endpoint: #=> service=<string>
 		echo "\033[0;31mERROR: \`CREATE_S3_VPC_ENDPOINT\` must be set to \`true\` to create an S3 VPC endpoint\033[0m" && exit 1; \
 	fi && \
 	res=$$(aws ec2 create-vpc-endpoint \
-		--vpc-id $${VPC_ID} \
+		--vpc-id $$vpc_id \
 		--service-name com.amazonaws.$${AWS_REGION}.$$service \
 		--subnet-ids $${PRIVATE_SUBNET_ID} \
 		--security-group-ids $$neo4j_sg_id \
@@ -172,15 +175,18 @@ ifeq ($(CREATE_SSM_VPC_ENDPOINT),true)
 endif
 ifeq ($(CREATE_SECRETSMANAGER_VPC_ENDPOINT),true)
 	$(MAKE) service.delete.delete-endpoint service=secretsmanager
-endif	
+endif
+ifeq ($(CREATE_S3_VPC_ENDPOINT),true)
+	$(MAKE) service.delete.delete-endpoint service=s3
+endif
 	$(MAKE) service.delete
 
 # TODO delete "/${APP_NAME}/${STAGE}/${AWS_REGION}/$${service}EndpointId"
 service.delete.delete-endpoint: #=> service=<string>
 	@if [ -z $$service ]; then \
 		echo "No service specified" && exit 1; \
-	elif [ $$service != "ssm" ] && [ $$service != "secretsmanager" ]; then \
-		echo "Invalid service specified. Valid services are 'ssm', 'secretsmanager'" && exit 1; \
+	elif [ $$service != "ssm" ] && [ $$service != "secretsmanager" ] && [ $$service != "s3" ]; then \
+		echo "\033[0;31mERROR: Invalid service specified. Valid services are 'ssm', 'secretsmanager' or 's3'\033[0m" && exit 1; \
 	fi
 	@endpoint_id=$$(aws ssm get-parameters \
 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/$${service}EndpointId" \
