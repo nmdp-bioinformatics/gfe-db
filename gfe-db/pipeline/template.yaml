@@ -718,15 +718,12 @@ Resources:
         BuildJobDefinition: !Ref BuildJobDefinition
         BuildJobName: !Sub '${Stage}-${AppName}-build-job'
         BuildJobQueue: !Ref BuildJobQueue
-        # TestLambdaFunctionArn: !GetAtt TestLambdaFunction.Arn
         UsePublicSubnetConditionExecuteValidationQueriesFunctionArn: !GetAtt UsePublicSubnetConditionExecuteValidationQueriesFunction.Arn
         ValidateBuildOutputFunctionArn: !GetAtt ValidateBuildOutputFunction.Arn
         InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
         InvokeBackupScriptFunctionArn: !GetAtt InvokeBackupScriptFunction.Arn
         LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
       Policies:
-        # - LambdaInvokePolicy:
-        #     FunctionName: !Ref TestLambdaFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref UsePublicSubnetConditionExecuteValidationQueriesFunction
         - LambdaInvokePolicy:
@@ -784,15 +781,12 @@ Resources:
         BuildJobDefinition: !Ref BuildJobDefinition
         BuildJobName: !Sub '${Stage}-${AppName}-build-job'
         BuildJobQueue: !Ref BuildJobQueue
-        # TestLambdaFunctionArn: !GetAtt TestLambdaFunction.Arn
         UsePrivateSubnetConditionExecuteValidationQueriesFunctionArn: !GetAtt UsePrivateSubnetConditionExecuteValidationQueriesFunction.Arn
         ValidateBuildOutputFunctionArn: !GetAtt ValidateBuildOutputFunction.Arn
         InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
         InvokeBackupScriptFunctionArn: !GetAtt InvokeBackupScriptFunction.Arn
         LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
       Policies:
-        # - LambdaInvokePolicy:
-        #     FunctionName: !Ref TestLambdaFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref UsePrivateSubnetConditionExecuteValidationQueriesFunction
         - LambdaInvokePolicy:

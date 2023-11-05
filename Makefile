@@ -331,23 +331,19 @@ database.load.run: # args: align, kir, limit, releases
 	cat response.json | jq -r >> ${CFN_LOG_PATH} && \
 	rm payload.json response.json
 
-# # TODO invoke validation queries Lambda
-# pipeline.invoke.validation-queries:
-# 	@function_name="${STAGE}"-"${APP_NAME}"-"$$(cat ${FUNCTIONS_PATH}/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.FunctionName')" && \
-# 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Invoking $$function_name..." 2>&1 | tee -a ${CFN_LOG_PATH} && \
-# 	echo "Payload:" >> ${CFN_LOG_PATH} && \
-# 	cat payload.json >> ${CFN_LOG_PATH} && \
-# 	aws lambda invoke \
-# 		--cli-binary-format raw-in-base64-out \
-# 		--function-name "$$function_name" \
-# 		--payload file://payload.json \
-# 		response.json \
-# 		--output json  >> ${CFN_LOG_PATH} && \
-# 	echo "Response:" && \
-# 	echo "Response:" >> ${CFN_LOG_PATH} && \
-# 	cat response.json | jq -r && \
-# 	cat response.json | jq -r >> ${CFN_LOG_PATH} && \
-# 	rm payload.json response.json
+pipeline.invoke.validation-queries:
+	@function_name="${STAGE}"-"${APP_NAME}"-"$$(cat ${FUNCTIONS_PATH}/environment.json | jq -r '.Functions.ExecuteValidationQueries.FunctionConfiguration.FunctionName')" && \
+	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Invoking $$function_name..." 2>&1 | tee -a ${CFN_LOG_PATH} && \
+	aws lambda invoke \
+		--cli-binary-format raw-in-base64-out \
+		--function-name "$$function_name" \
+		--log-type Tail \
+		response.json \
+		--output json  >> ${CFN_LOG_PATH} && \
+	echo "Response:" >> ${CFN_LOG_PATH} && \
+	cat response.json | jq -r && \
+	cat response.json | jq -r >> ${CFN_LOG_PATH} && \
+	rm response.json
 	
 
 # TODO database.load.status
