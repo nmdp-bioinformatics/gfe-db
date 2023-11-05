@@ -22,28 +22,59 @@ Parameters:
   VpcId:
     Type: String
     Description: VPC ID
-  InvokePipelineFunctionName:
-    Type: String
-  InvokePipelineFunctionMemorySize:
-    Type: Number
-    MinValue: 128
-    MaxValue: 512
-  InvokePipelineFunctionTimeout:
-    Type: Number
-  InvokePipelineFunctionSchedule:
-    Type: String
   GitHubRepositoryOwner: 
     Type: String
   GitHubRepositoryName:
     Type: String
+  InvokePipelineFunctionName:
+    Type: String
+    AllowedPattern: ^[a-z-]+$
+  InvokePipelineFunctionSchedule:
+    Type: String
+    AllowedPattern: ^cron\(.*\)$
+  InvokePipelineFunctionMemorySize:
+    Type: Number
+    Default: 256
+    AllowedValues:
+      - 128
+      - 256
+      - 512
+  InvokePipelineFunctionTimeout:
+    Type: Number
+    Default: 60
   PipelineStatePath:
     Type: String
   PipelineParamsPath:
     Type: String
-  DisableBackupFunctionName:
+  ExecuteValidationQueriesFunctionName:
     Type: String
+    AllowedPattern: ^[a-z-]+$
+    MaxLength: 140
+  ExecuteValidationQueriesFunctionMemorySize:
+    Type: Number
+    Default: 256
+    AllowedValues:
+      - 128
+      - 256
+      - 512
+  ExecuteValidationQueriesFunctionTimeout:
+    Type: Number
+  InvokeBackupScriptFunctionName:
+    Type: String
+    AllowedPattern: ^[a-z-]+$
+    MaxLength: 140
+  ValidateBuildOutputFunctionName:
+    Type: String
+    AllowedPattern: ^[a-z-]+$
+    MaxLength: 140
   InvokeLoadScriptFunctionName:
     Type: String
+    AllowedPattern: ^[a-z-]+$
+    MaxLength: 140
+  DisableBackupFunctionName:
+    Type: String
+    AllowedPattern: ^[a-z-]+$
+    MaxLength: 140
   ECRBaseUri:
     Type: String
   BuildServiceRepositoryName:
@@ -349,7 +380,7 @@ Resources:
       Description: !Sub '${AppName} update pipeline trigger: checks for new IMGT/HLA releases and starts the loading process'
       CodeUri: functions/invoke_pipeline/
       Handler: app.lambda_handler
-      Runtime: python3.9
+      Runtime: python3.10
       MemorySize: !Ref InvokePipelineFunctionMemorySize
       Timeout: !Ref InvokePipelineFunctionTimeout
       Architectures:
@@ -395,7 +426,7 @@ Resources:
       Description: !Sub '${AppName} update pipeline trigger: checks for new IMGT/HLA releases and starts the loading process'
       CodeUri: functions/invoke_pipeline/
       Handler: app.lambda_handler
-      Runtime: python3.9
+      Runtime: python3.10
       MemorySize: !Ref InvokePipelineFunctionMemorySize
       Timeout: !Ref InvokePipelineFunctionTimeout
       Architectures:
@@ -469,54 +500,17 @@ Resources:
         - Name: FunctionName
           Value: !Ref InvokePipelineFunctionName
 
-  # ExecuteValidationQueriesFunctionSecurityGroup:
-  #   Type: AWS::EC2::SecurityGroup
-  #   Properties:
-  #     GroupDescription: Security Group for Lambda function
-  #     VpcId: !Ref MyVPC
-  #     SecurityGroupIngress:
-  #       - IpProtocol: tcp
-  #         FromPort: '7687'
-  #         ToPort: '7687'
-  #         SourceSecurityGroupId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
-
-  # # Build a basic python lambda function for VPC access
-  # TestLambdaFunction:
-  #   Type: AWS::Serverless::Function
-  #   Properties:
-  #     Description: !Sub "Test Lambda function for VPC access"
-  #     InlineCode: |
-  #       import json
-  #       def lambda_handler(event, context):
-  #         print(json.dumps(event, indent=4))
-  #         return {
-  #           'statusCode': 200,
-  #           'body': json.dumps('Hello from Lambda!')
-  #         }
-  #     Handler: index.lambda_handler
-  #     Runtime: python3.10
-  #     MemorySize: 128
-  #     Timeout: 60
-  #     Architectures:
-  #       - x86_64
-  #     VpcConfig:
-  #       SubnetIds:
-  #         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetId}}'
-  #       SecurityGroupIds:
-  #         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
-  #     Policies:
-  #       - AWSLambdaVPCAccessExecutionRole
-
   UsePublicSubnetConditionExecuteValidationQueriesFunction:
     Type: AWS::Serverless::Function
     Condition: UsePublicSubnet
     Properties:
+      FunctionName: !Ref ExecuteValidationQueriesFunctionName
       Description: !Sub "Execute validation a queries on Neo4j for ${AppName}"
       CodeUri: functions/execute_validation_queries/
       Handler: app.lambda_handler
       Runtime: python3.10
-      MemorySize: 256
-      Timeout: 60
+      MemorySize: !Ref InvokePipelineFunctionMemorySize
+      Timeout: !Ref InvokePipelineFunctionTimeout
       Architectures:
         - x86_64
       Environment:
@@ -542,17 +536,17 @@ Resources:
               Resource:
                 - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn}}'
 
-  # TODO convert to VPC Lambda using same private subnet and security group as database
   UsePrivateSubnetConditionExecuteValidationQueriesFunction:
     Type: AWS::Serverless::Function
     Condition: UseExternalVpcPrivate
     Properties:
+      FunctionName: !Ref ExecuteValidationQueriesFunctionName
       Description: !Sub "Execute validation a queries on Neo4j for ${AppName}"
       CodeUri: functions/execute_validation_queries/
       Handler: app.lambda_handler
       Runtime: python3.10
-      MemorySize: 256
-      Timeout: 60
+      MemorySize: !Ref ExecuteValidationQueriesFunctionMemorySize
+      Timeout: !Ref ExecuteValidationQueriesFunctionTimeout
       Architectures:
         - x86_64
       Environment:
@@ -586,6 +580,7 @@ Resources:
   InvokeBackupScriptFunction:
     Type: AWS::Serverless::Function
     Properties:
+      FunctionName: !Ref InvokeBackupScriptFunctionName
       Description: !Sub "Invoke backup for Neo4j for ${AppName}"
       CodeUri: functions/invoke_backup_script/
       Handler: app.lambda_handler
@@ -628,7 +623,7 @@ Resources:
       Description: !Sub "Invoke server-side loading on Neo4j for ${AppName}"
       CodeUri: functions/invoke_load_script/
       Handler: app.lambda_handler
-      Runtime: python3.9
+      Runtime: python3.10
       MemorySize: 256
       Timeout: 60
       Architectures:
@@ -678,6 +673,7 @@ Resources:
   ValidateBuildOutputFunction:
     Type: AWS::Serverless::Function
     Properties:
+      FunctionName: !Ref ValidateBuildOutputFunctionName
       Description: !Sub "Validate build output for ${AppName}"
       CodeUri: functions/validate_build_output/
       Handler: app.lambda_handler

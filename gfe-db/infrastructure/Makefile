@@ -81,12 +81,12 @@ service.deploy.create-endpoint: #=> service=<string>
 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseSecurityGroupId" \
         --output json | jq -r '.Parameters[0].Value') && \
 	if [ "$$neo4j_sg_id" = "" ]; then \
-		echo "Neo4j security group id not found" && exit 1; \
+		echo "\033[0;31mERROR: Neo4j security group id not found\033[0m" && exit 1; \
 	fi && \
 	if [ -z $$service ]; then \
-		echo "No service specified" && exit 1; \
+		echo "\033[0;31mERROR: No service specified\033[0m" && exit 1; \
 	elif [ $$service != "ssm" ] && [ $$service != "secretsmanager" ] && [ $$service != "s3" ]; then \
-		echo "Invalid service specified. Valid services are 'ssm', 'secretsmanager' or 's3'" && exit 1; \
+		echo "\033[0;31mERROR: Invalid service specified. Valid services are 'ssm', 'secretsmanager' or 's3'\033[0m" && exit 1; \
 	fi && \
 	if [ $$service = "ssm" ] && [ ${CREATE_SSM_VPC_ENDPOINT} != "true" ]; then \
 		echo "\033[0;31mERROR: \`CREATE_SSM_VPC_ENDPOINT\` must be set to \`true\` to create a Systems Manager VPC endpoint\033[0m" && exit 1; \
