@@ -49,6 +49,10 @@ ifeq ($(CREATE_SECRETSMANAGER_VPC_ENDPOINT),true)
 	$(call blue, Creating SecretsManager VPC endpoint...)
 	$(MAKE) service.deploy.create-endpoint service=secretsmanager
 endif
+ifeq ($(CREATE_S3_VPC_ENDPOINT),true)
+	$(call blue, Creating S3 VPC endpoint...)
+	$(MAKE) service.deploy.create-endpoint service=s3
+endif
 endif
 endif
 	$(MAKE) service.monitoring.create-subscriptions
@@ -81,14 +85,17 @@ service.deploy.create-endpoint: #=> service=<string>
 	fi && \
 	if [ -z $$service ]; then \
 		echo "No service specified" && exit 1; \
-	elif [ $$service != "ssm" ] && [ $$service != "secretsmanager" ]; then \
-		echo "Invalid service specified. Valid services are 'ssm', 'secretsmanager'" && exit 1; \
+	elif [ $$service != "ssm" ] && [ $$service != "secretsmanager" ] && [ $$service != "s3" ]; then \
+		echo "Invalid service specified. Valid services are 'ssm', 'secretsmanager' or 's3'" && exit 1; \
 	fi && \
 	if [ $$service = "ssm" ] && [ ${CREATE_SSM_VPC_ENDPOINT} != "true" ]; then \
 		echo "\033[0;31mERROR: \`CREATE_SSM_VPC_ENDPOINT\` must be set to \`true\` to create a Systems Manager VPC endpoint\033[0m" && exit 1; \
 	fi && \
 	if [ $$service = "secretsmanager" ] && [ ${CREATE_SECRETSMANAGER_VPC_ENDPOINT} != "true" ]; then \
 		echo "\033[0;31mERROR: \`CREATE_SECRETSMANAGER_VPC_ENDPOINT\` must be set to \`true\` to create a SecretsManager VPC endpoint\033[0m" && exit 1; \
+	fi && \
+	if [ $$service = "s3" ] && [ ${CREATE_S3_VPC_ENDPOINT} != "true" ]; then \
+		echo "\033[0;31mERROR: \`CREATE_S3_VPC_ENDPOINT\` must be set to \`true\` to create an S3 VPC endpoint\033[0m" && exit 1; \
 	fi && \
 	res=$$(aws ec2 create-vpc-endpoint \
 		--vpc-id $${VPC_ID} \
