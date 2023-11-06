@@ -180,6 +180,7 @@ ifeq ($(CREATE_S3_VPC_ENDPOINT),true)
 	$(MAKE) service.delete.delete-endpoint service=s3
 endif
 	$(MAKE) service.delete
+	$(MAKE) service.parameters.delete
 
 # TODO delete "/${APP_NAME}/${STAGE}/${AWS_REGION}/$${service}EndpointId"
 service.delete.delete-endpoint: #=> service=<string>
@@ -188,7 +189,7 @@ service.delete.delete-endpoint: #=> service=<string>
 	elif [ $$service != "ssm" ] && [ $$service != "secretsmanager" ] && [ $$service != "s3" ]; then \
 		echo "\033[0;31mERROR: Invalid service specified. Valid services are 'ssm', 'secretsmanager' or 's3'\033[0m" && exit 1; \
 	fi
-	@endpoint_id=$$(aws ssm get-parameters \
+	@-endpoint_id=$$(aws ssm get-parameters \
 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/$${service}EndpointId" \
 		--with-decryption \
 		--query "Parameters[0].Value" \
@@ -204,6 +205,18 @@ service.delete:
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $${CFN_LOG_PATH} || true && \
 	aws cloudformation wait stack-delete-complete \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $${CFN_LOG_PATH} || true
+
+service.parameters.delete:
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting SSM parameters" 2>&1 | tee -a ${CFN_LOG_PATH}
+	@params=$$(aws ssm get-parameters-by-path \
+		--path "/${APP_NAME}/${STAGE}/${AWS_REGION}" \
+		--query "Parameters[*].Name" \
+		--output json) && \
+	if [ -n "$$params" ] && [ "$$params" != "[]" ]; then \
+		aws ssm delete-parameters --names $$params | jq -r; \
+	else \
+		echo "No parameters to delete."; \
+	fi
 
 #############
 #  Helpers  #

@@ -37,6 +37,8 @@ Parameters:
 Conditions:
   # Important: All stacks (infra, database, pipeline) should use the same conditions
   CreateVpc: !Equals [!Ref createVpc, 'true']
+  CreateVpcPublic: !And [!Equals [!Ref createVpc, 'true'], !Equals [!Ref usePrivateSubnet, 'false']]
+  CreateVpcPrivate: !And [!Equals [!Ref createVpc, 'true'], !Equals [!Ref usePrivateSubnet, 'true']]
   UseExternalVpc: !Equals [!Ref createVpc, 'false']
   UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
   UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
@@ -137,7 +139,7 @@ Resources:
   
   SubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: CreateVpc
+    Condition: CreateVpcPublic
     Properties:
       RouteTableId: !Ref RouteTable
       SubnetId: !Ref PublicSubnet
@@ -159,6 +161,24 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PublicSubnetId'
       Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
       Value: !Ref PublicSubnet
+  
+  CreateVpcPublicConditionNeo4jSubnetIdParameter:
+    Type: AWS::SSM::Parameter
+    Condition: CreateVpcPublic
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jSubnetId'
+      Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
+      Value: !Ref PublicSubnet
+  
+  # CreateVpcPrivateConditionNeo4jSubnetIdParameter:
+  #   Type: AWS::SSM::Parameter
+  #   Condition: CreateVpcPrivate
+  #   Properties:
+  #     Type: String
+  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jSubnetId'
+  #     Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
+  #     Value: !Ref PrivateSubnet
   
   UseExternalVpcConditionVpcIdParameter:
     Type: AWS::SSM::Parameter
@@ -234,8 +254,9 @@ Resources:
       Description: "S3 Bucket Regional Domain name for application bucket"
       Value: !GetAtt DataBucket.RegionalDomainName
   
-  Neo4jDatabaseSecurityGroup:
+  UseExternalVpcConditionNeo4jDatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
+    Condition: UseExternalVpc
     Properties:
       GroupName: !Sub '${Stage}-${AppName}-neo4j-sg'
       GroupDescription: Security group for the GFE database
@@ -271,48 +292,69 @@ Resources:
           IpProtocol: tcp
           ToPort: 22
           Description: Update IP to use MyIP
-      # TODO remove
+      Tags:
+        - Key: Name
+          Value: !Sub '${Stage}-${AppName}-neo4j-sg'
+  
+  CreateVpcConditionNeo4jDatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: CreateVpc
+    Properties:
+      GroupName: !Sub '${Stage}-${AppName}-neo4j-sg'
+      GroupDescription: Security group for the GFE database
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+          Description: HTTP access for SSL certificate creation (required)
+        - CidrIp: 0.0.0.0/0
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+          Description: HTTPs access (required)
+        - CidrIp: 0.0.0.0/0
+          FromPort: 7474
+          IpProtocol: tcp
+          ToPort: 7474
+          Description: Neo4j HTTP access (required)
+        - CidrIp: 0.0.0.0/0
+          FromPort: 7473
+          IpProtocol: tcp
+          ToPort: 7473
+          Description: Neo4j HTTPS access (required)
+        - CidrIp: 0.0.0.0/0
+          FromPort: 7687
+          IpProtocol: tcp
+          ToPort: 7687
+          Description: Neo4j Bolt driver access (required)
+        - CidrIp: 0.0.0.0/0
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
+          Description: Update IP to use MyIP
       Tags:
         - Key: Name
           Value: !Sub '${Stage}-${AppName}-neo4j-sg'
 
-  Neo4jDatabaseSecurityGroupIdParameter:
+  UseExternalVpcConditionNeo4jDatabaseSecurityGroupIdParameter:
     Type: AWS::SSM::Parameter
+    Condition: UseExternalVpc
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId'
       Description: "Name of the Neo4jDatabaseSecurityGroup"
-      Value: !Ref Neo4jDatabaseSecurityGroup
+      Value: !Ref UseExternalVpcConditionNeo4jDatabaseSecurityGroup
 
-  # # Endpoints are required for VPC Lambda to connect to AWS services using SDKs
-  # # Private DNS must be enabled which means there can only be one VPC endpoint per service
-  # SystemsManagerVpcEndpoint:
-  #   Type: AWS::EC2::VPCEndpoint
-  #   Condition: CreateSsmVpcEndpoint
-  #   Properties:
-  #     VpcId: !Ref VpcId
-  #     ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssm"
-  #     VpcEndpointType: Interface
-  #     SecurityGroupIds:
-  #       - !Ref Neo4jDatabaseSecurityGroup
-  #     SubnetIds:
-  #       - !Ref PrivateSubnetId
-  #     PrivateDnsEnabled: true
-
-  # # Endpoints are required for VPC Lambda to connect to AWS services using SDKs
-  # # Private DNS must be enabled which means there can only be one VPC endpoint per service
-  # SecretsManagerVpcEndpoint:
-  #   Type: AWS::EC2::VPCEndpoint
-  #   Condition: CreateSecretsManagerVpcEndpoint
-  #   Properties:
-  #     VpcId: !Ref VpcId
-  #     ServiceName: !Sub "com.amazonaws.${AWS::Region}.secretsmanager"
-  #     VpcEndpointType: Interface
-  #     SecurityGroupIds:
-  #       - !Ref Neo4jDatabaseSecurityGroup
-  #     SubnetIds:
-  #       - !Ref PrivateSubnetId
-  #     PrivateDnsEnabled: true
+  CreateVpcConditionNeo4jDatabaseSecurityGroupIdParameter:
+    Type: AWS::SSM::Parameter
+    Condition: CreateVpc
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId'
+      Description: "Name of the Neo4jDatabaseSecurityGroup"
+      Value: !Ref CreateVpcConditionNeo4jDatabaseSecurityGroup
 
   GitHubPersonalAccessTokenSecret:
     Type: AWS::SecretsManager::Secret
@@ -320,12 +362,6 @@ Resources:
       Name: !Sub "${AppName}-${Stage}-GitHubPersonalAccessToken"
       Description: GitHub Personal Access Token for repository access
       SecretString: !Sub '{"personal_access_token":"${GitHubPersonalAccessToken}"}'
-      # TODO remove
-      Tags:
-        - Key: Stage
-          Value: !Ref Stage
-        - Key: AppName 
-          Value: !Ref AppName
 
   UsePublicSubnetConditionNeo4jDatabaseElasticIp:
     Type: AWS::EC2::EIP
@@ -375,12 +411,6 @@ Resources:
       Subscription:
         - Endpoint: !Ref AdminEmail
           Protocol: email
-      # TODO remove
-      Tags:
-        - Key: Stage
-          Value: !Ref Stage
-        - Key: AppName 
-          Value: !Ref AppName
 
   DataPipelineErrorsTopicArnParameter:
     Type: AWS::SSM::Parameter
@@ -414,12 +444,6 @@ Resources:
       Subscription:
         - Endpoint: !Ref AdminEmail
           Protocol: email
-      # TODO remove
-      Tags:
-        - Key: Stage
-          Value: !Ref Stage
-        - Key: AppName 
-          Value: !Ref AppName
 
   DataPipelineExecutionTopicArnParameter:
     Type: AWS::SSM::Parameter

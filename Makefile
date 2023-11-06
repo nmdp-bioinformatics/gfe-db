@@ -436,14 +436,8 @@ delete: # data=true/false ##=> Delete services
 	$(MAKE) pipeline.delete
 	$(MAKE) database.delete
 	$(MAKE) infrastructure.delete
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting SSM parameters" 2>&1 | tee -a ${CFN_LOG_PATH}
-	@res=(aws ssm delete-parameters \
-		--names $$(aws ssm get-parameters-by-path \
-			--path "/${APP_NAME}/${STAGE}/${AWS_REGION}" \
-			--query "Parameters[*].Name" \
-			--output text)) && \
-	echo "$${res}" | jq -r && \
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished deleting ${APP_NAME} in ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
+
 
 # Delete specific stacks
 infrastructure.delete:
