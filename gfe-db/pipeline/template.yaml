@@ -535,7 +535,7 @@ Resources:
 
   UsePrivateSubnetConditionExecuteValidationQueriesFunction:
     Type: AWS::Serverless::Function
-    Condition: UseExternalVpcPrivate
+    Condition: UsePrivateSubnet
     Properties:
       FunctionName: !Ref ExecuteValidationQueriesFunctionName
       Description: !Sub "Execute validation a queries on Neo4j for ${AppName}"

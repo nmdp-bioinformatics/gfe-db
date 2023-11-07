@@ -89,7 +89,7 @@ Resources:
       Description: !Sub "True if stack creates a VPC, false if stack uses an existing VPC"
       Value: !Ref createVpc
 
-  Vpc:
+  CreateVpcConditionVpc:
     Type: AWS::EC2::VPC
     Condition: CreateVpc
     Properties:
@@ -100,49 +100,79 @@ Resources:
         - Key: Name
           Value: !Sub '${Stage}-${AppName}-${AWS::Region}-vpc'
   
-  PublicSubnet:
+  CreateVpcConditionPublicSubnet:
     Type: AWS::EC2::Subnet
     Condition: CreateVpc
     Properties:
       CidrBlock: 10.0.0.0/24
-      VpcId: !Ref Vpc
+      VpcId: !Ref CreateVpcConditionVpc
       AvailabilityZone: !FindInMap [AvailabilityZoneMap, !Ref AWS::Region, AvailabilityZone]
       MapPublicIpOnLaunch: true
   
-  InternetGateway:
+  CreateVpcPrivateConditionPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Condition: CreateVpcPrivate
+    Properties:
+      CidrBlock: 10.0.1.0/24
+      VpcId: !Ref CreateVpcConditionVpc
+      AvailabilityZone: !GetAtt CreateVpcConditionPublicSubnet.AvailabilityZone
+  
+  CreateVpcConditionInternetGateway:
     Type: AWS::EC2::InternetGateway
     Condition: CreateVpc
   
-  RouteTable:
+  CreateVpcConditionPublicRouteTable:
     Type: AWS::EC2::RouteTable
     Condition: CreateVpc
     Properties:
-      VpcId: !Ref Vpc
+      VpcId: !Ref CreateVpcConditionVpc
   
-  VpcGatewayAttachment:
+  CreateVpcPrivateConditionPrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Condition: CreateVpcPrivate
+    Properties:
+      VpcId: !Ref CreateVpcConditionVpc
+  
+  CreateVpcConditionVpcGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     Condition: CreateVpc
     Properties:
-      VpcId: !Ref Vpc
-      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref CreateVpcConditionVpc
+      InternetGatewayId: !Ref CreateVpcConditionInternetGateway
   
-  Route:
+  CreateVpcConditionPublicRoute:
     Type: AWS::EC2::Route
     Condition: CreateVpc
     DependsOn:
-      - InternetGateway
-      - VpcGatewayAttachment
+      - CreateVpcConditionInternetGateway
+      - CreateVpcConditionVpcGatewayAttachment
     Properties:
-      RouteTableId: !Ref RouteTable
+      RouteTableId: !Ref CreateVpcConditionPublicRouteTable
       DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref InternetGateway
+      GatewayId: !Ref CreateVpcConditionInternetGateway
   
-  SubnetRouteTableAssociation:
+  # # No default route is required because the private subnet is not connected to the internet
+  # # AWS automatically updates the route table for VPC endpoints for S3, SSM and SecretsManager
+  # CreateVpcPrivateConditionPrivateRoute:
+  #   Type: AWS::EC2::Route
+  #   Condition: CreateVpcPrivate
+  #   Properties:
+  #     RouteTableId: !Ref CreateVpcPrivateConditionPrivateRouteTable
+  #     # DestinationCidrBlock: 0.0.0.0/0 # Not required for private subnet
+  
+  CreateVpcConditionPublicSubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: CreateVpcPublic
+    Condition: CreateVpc
     Properties:
-      RouteTableId: !Ref RouteTable
-      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref CreateVpcConditionPublicRouteTable
+      SubnetId: !Ref CreateVpcConditionPublicSubnet
+  
+  CreateVpcPrivateConditionPrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateVpcPrivate
+    Properties:
+      RouteTableId: !Ref CreateVpcPrivateConditionPrivateRouteTable
+      SubnetId: !Ref CreateVpcPrivateConditionPrivateSubnet
   
   CreateVpcConditionVpcIdParameter:
     Type: AWS::SSM::Parameter
@@ -151,7 +181,7 @@ Resources:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/VpcId'
       Description: !Sub "Name of VPC network for ${AppName}"
-      Value: !Ref Vpc
+      Value: !Ref CreateVpcConditionVpc
   
   CreateVpcConditionPublicSubnetIdParameter:
     Type: AWS::SSM::Parameter
@@ -160,7 +190,16 @@ Resources:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PublicSubnetId'
       Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
-      Value: !Ref PublicSubnet
+      Value: !Ref CreateVpcConditionPublicSubnet
+  
+  CreateVpcPrivateConditionPrivateSubnetIdParameter:
+    Type: AWS::SSM::Parameter
+    Condition: CreateVpcPrivate
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId'
+      Description: !Sub "Private Subnet for the ${AppName} Neo4j server"
+      Value: !Ref CreateVpcPrivateConditionPrivateSubnet
   
   CreateVpcPublicConditionNeo4jSubnetIdParameter:
     Type: AWS::SSM::Parameter
@@ -169,16 +208,16 @@ Resources:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jSubnetId'
       Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
-      Value: !Ref PublicSubnet
+      Value: !Ref CreateVpcConditionPublicSubnet
   
-  # CreateVpcPrivateConditionNeo4jSubnetIdParameter:
-  #   Type: AWS::SSM::Parameter
-  #   Condition: CreateVpcPrivate
-  #   Properties:
-  #     Type: String
-  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jSubnetId'
-  #     Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
-  #     Value: !Ref PrivateSubnet
+  CreateVpcPrivateConditionNeo4jSubnetIdParameter:
+    Type: AWS::SSM::Parameter
+    Condition: CreateVpcPrivate
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jSubnetId'
+      Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
+      Value: !Ref CreateVpcPrivateConditionPrivateSubnet
   
   UseExternalVpcConditionVpcIdParameter:
     Type: AWS::SSM::Parameter
@@ -302,7 +341,7 @@ Resources:
     Properties:
       GroupName: !Sub '${Stage}-${AppName}-neo4j-sg'
       GroupDescription: Security group for the GFE database
-      VpcId: !Ref Vpc
+      VpcId: !Ref CreateVpcConditionVpc
       SecurityGroupIngress:
         - CidrIp: 0.0.0.0/0
           FromPort: 80
