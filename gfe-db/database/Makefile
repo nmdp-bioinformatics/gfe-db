@@ -1,5 +1,5 @@
 SERVICE := database
-EC2_KEY_PAIR_NAME := $${STAGE}-$${APP_NAME}-$${AWS_REGION}-neo4j-key
+export EC2_KEY_PAIR_NAME := $${STAGE}-$${APP_NAME}-$${AWS_REGION}-neo4j-key
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -104,6 +104,12 @@ service.deploy:
 			AdminEmail="$${ADMIN_EMAIL}" \
 			APOCVersion="$${APOC_VERSION}" \
 			GDSVersion="$${GDS_VERSION}" 2>&1 | tee -a $$CFN_LOG_PATH || true
+
+service.bastion-server.deploy:
+	$(MAKE) -C bastion deploy
+
+service.bastion-server.connect:
+	$(MAKE) -C bastion service.connect
 
 # TODO repurpose for updating neo4j.conf
 service.config.neo4j.update: service.config.update-dns.private service.config.neo4j.deploy

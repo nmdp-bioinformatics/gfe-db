@@ -283,6 +283,12 @@ database.deploy:
 database.service.deploy:
 	$(MAKE) -C ${APP_NAME}/database/ service.deploy
 
+database.bastion-server.deploy:
+	$(MAKE) -C ${APP_NAME}/database/ service.bastion-server.deploy
+
+database.bastion-server.connect:
+	$(MAKE) -C ${APP_NAME}/database/ service.bastion-server.connect
+
 pipeline.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ deploy
 
