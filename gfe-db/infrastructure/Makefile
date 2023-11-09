@@ -217,9 +217,32 @@ service.nat-gateway.resource.create:
 		echo "\033[0;34mFound existing NAT Gateway: $$nat_gateway_id\033[0m"; \
 	fi
 
+# Get '/${AppName}/${Stage}/${AWS::Region}/PrivateRouteTableId' and update with the NAT Gateway ID
+service.nat-gateway.update-route:
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Updating route table" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@route_table_id=$$(aws ssm get-parameters \
+		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/PrivateRouteTableId" \
+		--output json | jq -r '.Parameters[0].Value') && \
+	if [ "$$route_table_id" = "null" ]; then \
+		echo "\033[0;31mERROR: Route table id not found\033[0m" && exit 1; \
+	fi && \
+	nat_gateway_id=$$(aws ssm get-parameters \
+		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/NatGatewayId" \
+		--output json | jq -r '.Parameters[0].Value') && \
+	if [ "$$nat_gateway_id" = "null" ]; then \
+		echo "\033[0;31mERROR: NAT Gateway id not found\033[0m" && exit 1; \
+	fi && \
+	res=$$(aws ec2 create-route \
+		--route-table "$$route_table_id" \
+		--destination-cidr-block 0.0.0.0/0 \
+		--nat-gateway-id "$$nat_gateway_id") && \
+	echo $$res | jq -r
+
+
 service.nat-gateway.deploy:
-	$(MAKE) service.nat-gateway.eip.create
-	$(MAKE) service.nat-gateway.resource.create
+	# $(MAKE) service.nat-gateway.eip.create
+	# $(MAKE) service.nat-gateway.resource.create
+	$(MAKE) service.nat-gateway.update-route
 
 
 service.monitoring.create-subscriptions:

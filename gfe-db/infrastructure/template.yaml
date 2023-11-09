@@ -132,6 +132,15 @@ Resources:
     Condition: CreateVpcPrivate
     Properties:
       VpcId: !Ref CreateVpcConditionVpc
+
+  CreateVpcPrivateConditionPrivateRouteTableParameter:
+    Type: AWS::SSM::Parameter
+    Condition: CreateVpcPrivate
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PrivateRouteTableId'
+      Description: !Sub "ID of the private route table for ${AppName}"
+      Value: !Ref CreateVpcPrivateConditionPrivateRouteTable
   
   CreateVpcConditionVpcGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
