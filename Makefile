@@ -277,6 +277,9 @@ infrastructure.service.deploy:
 infrastructure.create-endpoint:
 	$(MAKE) -C ${APP_NAME}/infrastructure/ service.deploy.create-endpoint service=$$service
 
+infrastructure.nat-gateway.deploy:
+	$(MAKE) -C ${APP_NAME}/infrastructure/ service.nat-gateway.deploy
+
 database.deploy:
 	$(MAKE) -C ${APP_NAME}/database/ deploy
 
@@ -451,6 +454,9 @@ infrastructure.delete:
 
 infrastructure.delete-endpoint: #=> service=<string>
 	$(MAKE) -C ${APP_NAME}/infrastructure/ service.delete.delete-endpoint service=$$service
+
+infrastructure.nat-gateway.delete:
+	$(MAKE) -C ${APP_NAME}/infrastructure/ service.nat-gateway.delete
 
 database.delete:
 	$(MAKE) -C ${APP_NAME}/database/ delete
