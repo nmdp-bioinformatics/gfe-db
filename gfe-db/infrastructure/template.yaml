@@ -416,6 +416,9 @@ Resources:
     Condition: UsePublicSubnet
     Properties:
       Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${Stage}-${AppName}-neo4j'
 
   UsePublicSubnetConditionNeo4jDatabaseEndpointParameter:
     Type: AWS::SSM::Parameter
@@ -500,10 +503,3 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicArn'
       Description: !Sub 'ARN for ${AppName} Data Pipeline Errors SNS topic'
       Value: !Ref DataPipelineExecutionTopic
-
-# Outputs:
-#   UsePublicSubnetConditionNeo4jDatabaseElasticIp:
-#     Description: "Elastic IP for gfe-db Neo4j database instance"
-#     Value: !Ref UsePublicSubnetConditionNeo4jDatabaseElasticIp
-#     Export:
-#       Name: !Sub "${AppName}-${Stage}-UsePublicSubnetConditionNeo4jDatabaseElasticIp"

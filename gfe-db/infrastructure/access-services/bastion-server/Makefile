@@ -24,15 +24,6 @@ service.deploy:
 			MyIp="0.0.0.0/0" 2>&1
 	$(MAKE) service.authorize-security-group-ingress
 
-# connect to the bastion host using ssh
-# 1) get the bastion host's public ip address from SSM Parameter Store using the path /${AppName}/${Stage}/${AWS::Region}/BastionHostPublicIp
-# 2) connect to the bastion host using ssh
-# service.connect:
-# 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Connecting to Neo4j database using bastion host" 2>&1 | tee -a $$CFN_LOG_PATH
-# 	@bastion_host_public_ip="$$(aws ssm get-parameter \
-# 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/BastionHostPublicIp" | jq -r '.Parameter.Value')" && \
-# 	ssh -i ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem ec2-user@"$$bastion_host_public_ip"
-
 service.connect:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Setting up SSH tunnel to database instance using bastion host" 2>&1 | tee -a $$CFN_LOG_PATH
 	@bastion_host_public_ip="$$(aws ssm get-parameter \
@@ -44,11 +35,6 @@ service.connect:
 	ssh-add ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem && \
 	ssh -tt -i ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem -A ec2-user@"$$bastion_host_public_ip" ssh bitnami@"$$database_private_ip"
 
-
-# TODO add the bastion host's security group to the neo4j security group
-# 1) get the bastion host's security group id from SSM Parameter Store using the path /${AppName}/${Stage}/${AWS::Region}/BastionHostSecurityGroupId
-# 2) get the neo4j security group id from SSM Parameter Store using the path /${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId
-# 3) add the bastion host's security group id to the neo4j security group
 service.authorize-security-group-ingress:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Updating Neo4j database security group for bastion host" 2>&1 | tee -a $$CFN_LOG_PATH
 	@bastion_host_security_group_id="$$(aws ssm get-parameter \

@@ -11,22 +11,6 @@ deploy:
 	$(MAKE) service.deploy
 	$(MAKE) service.config.neo4j.deploy
 
-# service.check-key-pair: ##=> Checks if the key pair already exists and creates it if it does not
-# 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Checking for key pair ${EC2_KEY_PAIR_NAME}" 2>&1 | tee -a $$CFN_LOG_PATH
-# 	@key_pair="$$(aws ec2 describe-key-pairs --key-name ${EC2_KEY_PAIR_NAME} | jq '.KeyPairs[0].KeyName' || true)" && \
-# 	[ "$$key_pair" ] && echo "Key pair found: $$key_pair" && exit 0 || echo "No key pair found..." && \
-# 	echo "Creating EC2 key pair \"${EC2_KEY_PAIR_NAME}\"" && \
-# 	aws ec2 create-key-pair --key-name ${EC2_KEY_PAIR_NAME} | jq -r '.KeyMaterial' > ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem && \
-# 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Storing key pair ${EC2_KEY_PAIR_NAME} in Secrets Manager" 2>&1 | tee -a $$CFN_LOG_PATH && \
-# 	aws secretsmanager create-secret --name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/EC2KeyPair" \
-# 		--description "EC2 key pair for $${STAGE}-$${APP_NAME} database" \
-# 		--secret-string "$$(cat ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem)" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
-# 	aws ssm put-parameter \
-# 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/EC2KeyPairName" \
-# 		--type "String" \
-# 		--value "${EC2_KEY_PAIR_NAME}" \
-# 		--overwrite 2>&1 | tee -a $$CFN_LOG_PATH || true
-
 service.config.neo4j.deploy:
 ifeq ($(USE_PRIVATE_SUBNET),true)
 	@aws s3 cp neo4j/neo4j.private.template s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
@@ -121,10 +105,6 @@ service.backup:
 service.backup.list:
 	@aws s3 ls --recursive s3://${DATA_BUCKET_NAME}/backups/neo4j/ | cut -d' ' -f7 | cut -d'/' -f3-6
 
-# TODO add confirmation with prequisites (warnings to avoid losing data, make sure scripts are synced etc.) ✅
-# TODO database restore: validate date parameter is given ✅ and in the correct format ✅
-# TODO move validation to the database/Makefile ✅
-# TODO database restore: validate that the backup exists
 service.restore: #from_path=s3://<backup path>
 	@[ "$$from_path" != "" ] || (echo "from_path is required" && exit 1) && \
 	echo "$$from_path" | grep -E '^s3:\/\/[a-zA-Z0-9\.-]+\/([a-zA-Z0-9\.-]+\/)*[a-zA-Z0-9\.-]+\.zip$$' > /dev/null || (echo "\`from_path\` must be an S3 URI: 's3://<bucket>/path'" && exit 1) && \

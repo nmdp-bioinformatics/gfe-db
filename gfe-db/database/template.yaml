@@ -74,60 +74,6 @@ Resources:
       Tags:
         Stage: !Ref Stage
         AppName: !Ref AppName
-
-  # Neo4jDatabaseSecurityGroup:
-  #   Type: AWS::EC2::SecurityGroup
-  #   Properties:
-  #     GroupName: !Sub '${Stage}-${AppName}-neo4j-sg'
-  #     GroupDescription: Security group for the GFE database
-  #     VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}'
-  #     SecurityGroupIngress:
-  #       - CidrIp: 0.0.0.0/0
-  #         FromPort: 80
-  #         IpProtocol: tcp
-  #         ToPort: 80
-  #         Description: HTTP access for SSL certificate creation (required)
-  #       - CidrIp: 0.0.0.0/0
-  #         FromPort: 443
-  #         IpProtocol: tcp
-  #         ToPort: 443
-  #         Description: HTTPs access (required)
-  #       - CidrIp: 0.0.0.0/0
-  #         FromPort: 7474
-  #         IpProtocol: tcp
-  #         ToPort: 7474
-  #         Description: Neo4j HTTP access (required)
-  #       - CidrIp: 0.0.0.0/0
-  #         FromPort: 7473
-  #         IpProtocol: tcp
-  #         ToPort: 7473
-  #         Description: Neo4j HTTPS access (required)
-  #       - CidrIp: 0.0.0.0/0
-  #         FromPort: 7687
-  #         IpProtocol: tcp
-  #         ToPort: 7687
-  #         Description: Neo4j Bolt driver access (required)
-  #       # - CidrIp: 0.0.0.0/0
-  #       #   FromPort: 22
-  #       #   IpProtocol: tcp
-  #       #   ToPort: 22
-  #       #   Description: Update IP to use MyIP
-  #     # TODO remove
-  #     Tags:
-  #       - Key: Name
-  #         Value: !Sub '${Stage}-${AppName}-neo4j-sg'
-
-  # Neo4jDatabaseSecurityGroupNameParameter:
-  #   Type: AWS::SSM::Parameter
-  #   Properties:
-  #     Type: String
-  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupName'
-  #     Description: "Name of the Neo4jDatabaseSecurityGroup"
-  #     Value: !Ref Neo4jDatabaseSecurityGroup
-  #     # TODO remove
-  #     Tags:
-  #       Stage: !Ref Stage
-  #       AppName: !Ref AppName
   
   Neo4jDatabaseInstance:
     Type: AWS::EC2::Instance

@@ -70,11 +70,3 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/BastionHostSecurityGroupId'
       Description: "Security Group ID for the Bastion Host"
       Value: !Ref BastionHostSecurityGroup
-
-  # BastionHostPublicIpParameter:
-  #   Type: AWS::SSM::Parameter
-  #   Properties:
-  #     Type: String
-  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/BastionHostPublicIp'
-  #     Description: "Public IP address of the Bastion Host"
-  #     Value: !GetAtt BastionHost.PublicIp
