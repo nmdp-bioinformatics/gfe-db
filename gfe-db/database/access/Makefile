@@ -1,4 +1,4 @@
-SERVICE := bastion-server
+SERVICE := access
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -33,7 +33,7 @@ service.deploy:
 # 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/BastionHostPublicIp" | jq -r '.Parameter.Value')" && \
 # 	ssh -i ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem ec2-user@"$$bastion_host_public_ip"
 
-service.connect:
+service.bastion-server.connect:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Setting up SSH tunnel to database instance using bastion host" 2>&1 | tee -a $$CFN_LOG_PATH
 	@bastion_host_public_ip="$$(aws ssm get-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/BastionHostPublicIp" | jq -r '.Parameter.Value')" && \

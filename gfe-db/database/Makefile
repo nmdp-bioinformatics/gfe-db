@@ -105,11 +105,11 @@ service.deploy:
 			APOCVersion="$${APOC_VERSION}" \
 			GDSVersion="$${GDS_VERSION}" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
-service.bastion-server.deploy:
+service.access.deploy:
 	$(MAKE) -C bastion deploy
 
-service.bastion-server.connect:
-	$(MAKE) -C bastion service.connect
+service.access.bastion-server.connect:
+	$(MAKE) -C access service.bastion-server.connect
 
 # TODO repurpose for updating neo4j.conf
 service.config.neo4j.update: service.config.update-dns.private service.config.neo4j.deploy
@@ -155,7 +155,7 @@ delete: ##=> Delete resources
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
 	$(MAKE) service.delete
 
-service.delete: service.bastion-server.delete
+service.delete: service.access.delete
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting Neo4j EC2 instance" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws cloudformation delete-stack \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
@@ -170,8 +170,8 @@ service.delete: service.bastion-server.delete
 		--force-delete-without-recovery 2>&1 | tee -a $$CFN_LOG_PATH || true
 	
 
-service.bastion-server.delete:
-	$(MAKE) -C bastion delete
+service.access.delete:
+	$(MAKE) -C access delete
 
 #############
 #  Helpers  #
