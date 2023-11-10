@@ -4,11 +4,12 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
+# TODO parameterize IP address for security group
 deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
 	$(MAKE) service.deploy
 
-service.deploy:
+service.deploy: 
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Neo4j to EC2 with ${NEO4J_AMI_ID}" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws cloudformation deploy \
 		--region $${AWS_REGION} \

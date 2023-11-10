@@ -40,6 +40,28 @@ Resources:
         - Key: Name
           Value: !Sub '${Stage}-${AppName}-bastion-server'
 
+  ElasticIp:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${Stage}-${AppName}-bastion-server'
+
+  ElasticIpAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref BastionHost
+      AllocationId: !GetAtt ElasticIp.AllocationId
+
+  ElasticIpParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/BastionHostElasticIp'
+      Description: "Elastic IP address of the Bastion Host"
+      Value: !Ref ElasticIp
+
   BastionHostSecurityGroupIdParameter:
     Type: AWS::SSM::Parameter
     Properties:
