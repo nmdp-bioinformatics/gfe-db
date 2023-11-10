@@ -1,4 +1,4 @@
-SERVICE := access
+SERVICE := bastion-server
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -10,7 +10,7 @@ deploy:
 	$(MAKE) service.deploy
 
 service.deploy: 
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Neo4j to EC2 with ${NEO4J_AMI_ID}" 2>&1 | tee -a $$CFN_LOG_PATH
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying bastion server" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws cloudformation deploy \
 		--region $${AWS_REGION} \
 		--template-file template.yaml \
@@ -33,12 +33,14 @@ service.deploy:
 # 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/BastionHostPublicIp" | jq -r '.Parameter.Value')" && \
 # 	ssh -i ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem ec2-user@"$$bastion_host_public_ip"
 
-service.bastion-server.connect:
+service.connect:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Setting up SSH tunnel to database instance using bastion host" 2>&1 | tee -a $$CFN_LOG_PATH
 	@bastion_host_public_ip="$$(aws ssm get-parameter \
-		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/BastionHostPublicIp" | jq -r '.Parameter.Value')" && \
+		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/BastionHostElasticIp" | jq -r '.Parameter.Value')" && \
+	echo "Bastion host public IP: $$bastion_host_public_ip" && \
 	database_private_ip="$$(aws ssm get-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jPrivateIp" | jq -r '.Parameter.Value')" && \
+	echo "Database private IP: $$database_private_ip" && \
 	ssh-add ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem && \
 	ssh -tt -i ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem -A ec2-user@"$$bastion_host_public_ip" ssh bitnami@"$$database_private_ip"
 

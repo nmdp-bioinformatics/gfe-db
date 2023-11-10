@@ -42,6 +42,7 @@ export DATABASE_VOLUME_SIZE ?= 50
 export DATA_BUCKET_NAME ?= ${STAGE}-${APP_NAME}-${AWS_ACCOUNT}-${AWS_REGION}
 export ECR_BASE_URI := ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com
 export BUILD_REPOSITORY ?= ${STAGE}-${APP_NAME}-build-service
+export EC2_KEY_PAIR_NAME := $${STAGE}-$${APP_NAME}-$${AWS_REGION}-neo4j-key
 export INSTANCE_ID := $(shell aws ssm get-parameters \
 	--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseInstanceId" \
 	--output json \
@@ -277,20 +278,24 @@ infrastructure.service.deploy:
 infrastructure.create-endpoint:
 	$(MAKE) -C ${APP_NAME}/infrastructure/ service.deploy.create-endpoint service=$$service
 
-infrastructure.nat-gateway.deploy:
-	$(MAKE) -C ${APP_NAME}/infrastructure/ service.nat-gateway.deploy
+infrastructure.access-services.deploy:
+	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/nat-gateway/ deploy
+	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/bastion-server/ deploy
+
+infrastructure.access-services.nat-gateway.deploy:
+	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/nat-gateway/ deploy
+
+infrastructure.access-services.bastion-server.deploy:
+	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/bastion-server/ deploy
+
+infrastructure.access-services.bastion-server.connect:
+	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/bastion-server/ service.connect
 
 database.deploy:
 	$(MAKE) -C ${APP_NAME}/database/ deploy
 
 database.service.deploy:
 	$(MAKE) -C ${APP_NAME}/database/ service.deploy
-
-database.bastion-server.deploy:
-	$(MAKE) -C ${APP_NAME}/database/ service.bastion-server.deploy
-
-database.bastion-server.connect:
-	$(MAKE) -C ${APP_NAME}/database/ service.bastion-server.connect
 
 pipeline.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ deploy
@@ -452,11 +457,12 @@ delete: # data=true/false ##=> Delete services
 infrastructure.delete:
 	$(MAKE) -C ${APP_NAME}/infrastructure/ delete
 
+infrastructure.access-services.delete:
+	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/bastion-server/ delete
+	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/nat-gateway/ delete
+
 infrastructure.delete-endpoint: #=> service=<string>
 	$(MAKE) -C ${APP_NAME}/infrastructure/ service.delete.delete-endpoint service=$$service
-
-infrastructure.nat-gateway.delete:
-	$(MAKE) -C ${APP_NAME}/infrastructure/ service.nat-gateway.delete
 
 database.delete:
 	$(MAKE) -C ${APP_NAME}/database/ delete

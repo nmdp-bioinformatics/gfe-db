@@ -36,6 +36,7 @@ target:
 
 deploy: 
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $${CFN_LOG_PATH}
+	$(MAKE) service.key-pair.create
 	$(MAKE) service.deploy
 ifeq ($(USE_PRIVATE_SUBNET),false)
 	$(MAKE) service.deploy.update-dns
@@ -128,6 +129,22 @@ service.deploy.create-endpoint: #=> service=<string>
 	echo $$res | jq -r
 	$(call blue, Successfully created VPC endpoint for $$service)
 
+service.key-pair.create: ##=> Checks if the key pair already exists and creates it if it does not
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Checking for key pair ${EC2_KEY_PAIR_NAME}" 2>&1 | tee -a $$CFN_LOG_PATH
+	@key_pair="$$(aws ec2 describe-key-pairs --key-name ${EC2_KEY_PAIR_NAME} | jq '.KeyPairs[0].KeyName' || true)" && \
+	[ "$$key_pair" ] && echo "Key pair found: $$key_pair" && exit 0 || echo "No key pair found..." && \
+	echo "Creating EC2 key pair \"${EC2_KEY_PAIR_NAME}\"" && \
+	aws ec2 create-key-pair --key-name ${EC2_KEY_PAIR_NAME} | jq -r '.KeyMaterial' > ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem && \
+	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Storing key pair ${EC2_KEY_PAIR_NAME} in Secrets Manager" 2>&1 | tee -a $$CFN_LOG_PATH && \
+	aws secretsmanager create-secret --name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/EC2KeyPair" \
+		--description "EC2 key pair for $${STAGE}-$${APP_NAME} database" \
+		--secret-string "$$(cat ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem)" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
+	aws ssm put-parameter \
+		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/EC2KeyPairName" \
+		--type "String" \
+		--value "${EC2_KEY_PAIR_NAME}" \
+		--overwrite 2>&1 | tee -a $$CFN_LOG_PATH || true
+
 # TODO test the return code of aws cloudformation deploy and exit if it is 1
 service.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying CloudFormation" 2>&1 | tee -a $${CFN_LOG_PATH}
@@ -147,102 +164,117 @@ service.deploy:
 			PublicSubnetId="$${PUBLIC_SUBNET_ID}" \
 			PrivateSubnetId="$${PRIVATE_SUBNET_ID}" \
 			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN"
+	$(MAKE) service.access-services.deploy
 
-service.nat-gateway.eip.create:
-	@eip=$$(aws ssm get-parameters \
-		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/NatGatewayElasticIp" \
-		--output json | jq -r '.Parameters[0].Value') && \
-	if [ "$$eip" = "null" ]; then \
-		res=$$(aws ec2 allocate-address \
-			--domain vpc \
-			--tag-specifications "ResourceType=elastic-ip,Tags=[{Key=Name,Value=$${STAGE}-$${APP_NAME}-nat-gateway-eip}]" \
-			) && \
-		echo $$res | jq -r 2>&1 | tee -a $${CFN_LOG_PATH} && \
-		eip=$$(echo $$res | jq -r '.PublicIp') && \
-		echo "\033[0;34mSaving Elastic IP to SSM Parameter Store\033[0m" && \
-		res=$$(aws ssm put-parameter \
-			--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/NatGatewayElasticIp" \
-			--value "$$eip" \
-			--type String \
-			--overwrite) && \
-		echo $$res | jq -r; \
-	else \
-		echo "\033[0;34mFound existing Elastic IP: $$eip\033[0m"; \
-	fi
+service.access-services.deploy:
+	$(MAKE) -C access-services/nat-gateway deploy
+	$(MAKE) -C access-services/bastion-server deploy
 
-# wait for NAT Gateway to be created
-service.nat-gateway.resource.create:
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Creating NAT Gateway" 2>&1 | tee -a $${CFN_LOG_PATH}
-	@nat_gateway_id=$$(aws ssm get-parameters \
-		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/NatGatewayId" \
-		--output json | jq -r '.Parameters[0].Value') && \
-	if [ "$$nat_gateway_id" = "null" ]; then \
-		eip=$$(aws ssm get-parameters \
-			--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/NatGatewayElasticIp" \
-			--output json | jq -r '.Parameters[0].Value') && \
-		if [ "$$eip" = "" ]; then \
-			echo "\033[0;31mERROR: Elastic IP not found\033[0m" && exit 1; \
-		else \
-			allocation_id=$$(aws ec2 describe-addresses \
-				--public-ips "$$eip" \
-				--query "Addresses[0].AllocationId" \
-				--output text) && \
-			if [ "$$allocation_id" = "" ]; then \
-				echo "\033[0;31mERROR: Allocation ID not found\033[0m" && exit 1; \
-			fi; \
-		fi && \
-		public_subnet_id=$$(aws ssm get-parameters \
-			--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/PublicSubnetId" \
-			--output json | jq -r '.Parameters[0].Value') && \
-		if [ "$$public_subnet_id" = "null" ]; then \
-			echo "\033[0;31mERROR: Public subnet id not found\033[0m" && exit 1; \
-		fi && \
-		echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying NAT Gateway" 2>&1 | tee -a $${CFN_LOG_PATH} && \
-		res=$$(aws ec2 create-nat-gateway \
-			--allocation-id "$$allocation_id" \
-			--subnet-id "$$public_subnet_id" \
-			--tag-specifications "ResourceType=natgateway,Tags=[{Key=Name,Value=$${STAGE}-$${APP_NAME}-nat-gateway}]") && \
-		echo $$res | jq -r 2>&1 | tee -a $${CFN_LOG_PATH} && \
-		nat_gateway_id=$$(echo $$res | jq -r '.NatGateway.NatGatewayId') && \
-		res=$$(aws ec2 wait nat-gateway-available \
-			--nat-gateway-ids "$$nat_gateway_id") && \
-		echo "\033[0;34mSaving NAT Gateway ID to SSM Parameter Store\033[0m" && \
-		res=$$(aws ssm put-parameter \
-			--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/NatGatewayId" \
-			--value "$$nat_gateway_id" \
-			--type String \
-			--overwrite) && \
-		echo $$res | jq -r; \
-	else \
-		echo "\033[0;34mFound existing NAT Gateway: $$nat_gateway_id\033[0m"; \
-	fi
+service.access-services.nat-gateway.deploy:
+	$(MAKE) -C access-services/nat-gateway deploy
 
-# Get '/${AppName}/${Stage}/${AWS::Region}/PrivateRouteTableId' and update with the NAT Gateway ID
-service.nat-gateway.update-route:
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Updating route table" 2>&1 | tee -a $${CFN_LOG_PATH}
-	@route_table_id=$$(aws ssm get-parameters \
-		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/PrivateRouteTableId" \
-		--output json | jq -r '.Parameters[0].Value') && \
-	if [ "$$route_table_id" = "null" ]; then \
-		echo "\033[0;31mERROR: Route table id not found\033[0m" && exit 1; \
-	fi && \
-	nat_gateway_id=$$(aws ssm get-parameters \
-		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/NatGatewayId" \
-		--output json | jq -r '.Parameters[0].Value') && \
-	if [ "$$nat_gateway_id" = "null" ]; then \
-		echo "\033[0;31mERROR: NAT Gateway id not found\033[0m" && exit 1; \
-	fi && \
-	res=$$(aws ec2 create-route \
-		--route-table "$$route_table_id" \
-		--destination-cidr-block 0.0.0.0/0 \
-		--nat-gateway-id "$$nat_gateway_id") && \
-	echo $$res | jq -r
+service.access-services.bastion-server.deploy:
+	$(MAKE) -C access-services/bastion-server deploy
+
+service.access-services.bastion-server.connect:
+	$(MAKE) -C access-services/bastion-server service.bastion-server.connect
 
 
-service.nat-gateway.deploy:
-	# $(MAKE) service.nat-gateway.eip.create
-	# $(MAKE) service.nat-gateway.resource.create
-	$(MAKE) service.nat-gateway.update-route
+# service.nat-gateway.eip.create:
+# 	@eip=$$(aws ssm get-parameters \
+# 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/NatGatewayElasticIp" \
+# 		--output json | jq -r '.Parameters[0].Value') && \
+# 	if [ "$$eip" = "null" ]; then \
+# 		res=$$(aws ec2 allocate-address \
+# 			--domain vpc \
+# 			--tag-specifications "ResourceType=elastic-ip,Tags=[{Key=Name,Value=$${STAGE}-$${APP_NAME}-nat-gateway-eip}]" \
+# 			) && \
+# 		echo $$res | jq -r 2>&1 | tee -a $${CFN_LOG_PATH} && \
+# 		eip=$$(echo $$res | jq -r '.PublicIp') && \
+# 		echo "\033[0;34mSaving Elastic IP to SSM Parameter Store\033[0m" && \
+# 		res=$$(aws ssm put-parameter \
+# 			--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/NatGatewayElasticIp" \
+# 			--value "$$eip" \
+# 			--type String \
+# 			--overwrite) && \
+# 		echo $$res | jq -r; \
+# 	else \
+# 		echo "\033[0;34mFound existing Elastic IP: $$eip\033[0m"; \
+# 	fi
+
+# # wait for NAT Gateway to be created
+# service.nat-gateway.resource.create:
+# 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Creating NAT Gateway" 2>&1 | tee -a $${CFN_LOG_PATH}
+# 	@nat_gateway_id=$$(aws ssm get-parameters \
+# 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/NatGatewayId" \
+# 		--output json | jq -r '.Parameters[0].Value') && \
+# 	if [ "$$nat_gateway_id" = "null" ]; then \
+# 		eip=$$(aws ssm get-parameters \
+# 			--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/NatGatewayElasticIp" \
+# 			--output json | jq -r '.Parameters[0].Value') && \
+# 		if [ "$$eip" = "" ]; then \
+# 			echo "\033[0;31mERROR: Elastic IP not found\033[0m" && exit 1; \
+# 		else \
+# 			allocation_id=$$(aws ec2 describe-addresses \
+# 				--public-ips "$$eip" \
+# 				--query "Addresses[0].AllocationId" \
+# 				--output text) && \
+# 			if [ "$$allocation_id" = "" ]; then \
+# 				echo "\033[0;31mERROR: Allocation ID not found\033[0m" && exit 1; \
+# 			fi; \
+# 		fi && \
+# 		public_subnet_id=$$(aws ssm get-parameters \
+# 			--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/PublicSubnetId" \
+# 			--output json | jq -r '.Parameters[0].Value') && \
+# 		if [ "$$public_subnet_id" = "null" ]; then \
+# 			echo "\033[0;31mERROR: Public subnet id not found\033[0m" && exit 1; \
+# 		fi && \
+# 		echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying NAT Gateway" 2>&1 | tee -a $${CFN_LOG_PATH} && \
+# 		res=$$(aws ec2 create-nat-gateway \
+# 			--allocation-id "$$allocation_id" \
+# 			--subnet-id "$$public_subnet_id" \
+# 			--tag-specifications "ResourceType=natgateway,Tags=[{Key=Name,Value=$${STAGE}-$${APP_NAME}-nat-gateway}]") && \
+# 		echo $$res | jq -r 2>&1 | tee -a $${CFN_LOG_PATH} && \
+# 		nat_gateway_id=$$(echo $$res | jq -r '.NatGateway.NatGatewayId') && \
+# 		res=$$(aws ec2 wait nat-gateway-available \
+# 			--nat-gateway-ids "$$nat_gateway_id") && \
+# 		echo "\033[0;34mSaving NAT Gateway ID to SSM Parameter Store\033[0m" && \
+# 		res=$$(aws ssm put-parameter \
+# 			--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/NatGatewayId" \
+# 			--value "$$nat_gateway_id" \
+# 			--type String \
+# 			--overwrite) && \
+# 		echo $$res | jq -r; \
+# 	else \
+# 		echo "\033[0;34mFound existing NAT Gateway: $$nat_gateway_id\033[0m"; \
+# 	fi
+
+# # Get '/${AppName}/${Stage}/${AWS::Region}/PrivateRouteTableId' and update with the NAT Gateway ID
+# service.nat-gateway.update-route:
+# 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Updating route table" 2>&1 | tee -a $${CFN_LOG_PATH}
+# 	@route_table_id=$$(aws ssm get-parameters \
+# 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/PrivateRouteTableId" \
+# 		--output json | jq -r '.Parameters[0].Value') && \
+# 	if [ "$$route_table_id" = "null" ]; then \
+# 		echo "\033[0;31mERROR: Route table id not found\033[0m" && exit 1; \
+# 	fi && \
+# 	nat_gateway_id=$$(aws ssm get-parameters \
+# 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/NatGatewayId" \
+# 		--output json | jq -r '.Parameters[0].Value') && \
+# 	if [ "$$nat_gateway_id" = "null" ]; then \
+# 		echo "\033[0;31mERROR: NAT Gateway id not found\033[0m" && exit 1; \
+# 	fi && \
+# 	res=$$(aws ec2 create-route \
+# 		--route-table "$$route_table_id" \
+# 		--destination-cidr-block 0.0.0.0/0 \
+# 		--nat-gateway-id "$$nat_gateway_id") && \
+# 	echo $$res | jq -r
+
+
+# service.nat-gateway.deploy:
+# 	# $(MAKE) service.nat-gateway.eip.create
+# 	# $(MAKE) service.nat-gateway.resource.create
+# 	$(MAKE) service.nat-gateway.update-route
 
 
 service.monitoring.create-subscriptions:
@@ -272,12 +304,14 @@ service.monitoring.subscribe-email: #email=<string>
 		--protocol email \
 		--notification-endpoint "$$email" 2>&1 | tee -a $${CFN_LOG_PATH} || true;
 
+# TODO only delete access-services if the stacks are deployed
 delete: ##=> Delete resources
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $${CFN_LOG_PATH}
 ifeq ($(data),true)
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting data in $${DATA_BUCKET_NAME}" 2>&1 | tee -a $${CFN_LOG_PATH}
 	@aws s3 rm --recursive s3://$${DATA_BUCKET_NAME}/
 endif
+	$(MAKE) service.access-services.delete
 ifeq ($(CREATE_SSM_VPC_ENDPOINT),true)
 	$(MAKE) service.delete.delete-endpoint service=ssm
 endif
@@ -288,7 +322,13 @@ ifeq ($(CREATE_S3_VPC_ENDPOINT),true)
 	$(MAKE) service.delete.delete-endpoint service=s3
 endif
 	$(MAKE) service.delete
+	$(MAKE) service.key-pair.delete
 	$(MAKE) service.parameters.delete
+
+# TODO only delete access-services if the stacks are deployed
+service.access-services.delete:
+	$(MAKE) -C access-services/bastion-server delete
+	$(MAKE) -C access-services/nat-gateway delete
 
 # TODO delete "/${APP_NAME}/${STAGE}/${AWS_REGION}/$${service}EndpointId"
 service.delete.delete-endpoint: #=> service=<string>
@@ -314,60 +354,69 @@ service.delete:
 	aws cloudformation wait stack-delete-complete \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $${CFN_LOG_PATH} || true
 
-service.nat-gateway.eip.delete:
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting NAT Gateway Elastic IP" 2>&1 | tee -a $${CFN_LOG_PATH}
-	@eip=$$(aws ssm get-parameters \
-		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/NatGatewayElasticIp" \
-		--output json | jq -r '.Parameters[0].Value') && \
-	if [ "$$eip" != "null" ]; then \
-		echo "\033[0;34mFound existing Elastic IP: $$eip\033[0m" && \
-		allocation_id=$$(aws ec2 describe-addresses \
-			--public-ips "$$eip" \
-			--query "Addresses[0].AllocationId" \
-			--output text) && \
-		if [ "$$allocation_id" != "null" ]; then \
-			res=$$(aws ec2 release-address \
-				--allocation-id "$$allocation_id") && \
-			echo $$res | jq -r 2>&1 | tee -a $${CFN_LOG_PATH} || true; \
-		fi; \
-		res=$$(aws ssm delete-parameter \
-			--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/NatGatewayElasticIp") && \
-		echo $$res | jq -r && \
-		echo "\033[0;34mSuccessfully deleted Elastic IP\033[0m"; \
-	else \
-		echo "\033[0;33mNo Elastic IP found\033[0m" && \
-		exit 0; \
-	fi
+service.key-pair.delete:
+	@aws ec2 delete-key-pair --key-name "${EC2_KEY_PAIR_NAME}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
+	aws ssm delete-parameter --name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/EC2KeyPairName" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
+	mv ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem ${ROOT_DIR}/deprecated-key-$${INSTANCE_ID}-$$(gdate -u +'%Y-%m-%d-%H-%M').pem || true && \
+	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting key pair ${EC2_KEY_PAIR_NAME} in Secrets Manager" 2>&1 | tee -a $$CFN_LOG_PATH && \
+	aws secretsmanager delete-secret \
+		--secret-id "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/EC2KeyPair" \
+		--force-delete-without-recovery 2>&1 | tee -a $$CFN_LOG_PATH || true
 
-# wait for the NAT Gateway to be deleted before deleting the Elastic IP
-service.nat-gateway.resource.delete:
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting NAT Gateway" 2>&1 | tee -a $${CFN_LOG_PATH}
-	@nat_gateway_id=$$(aws ssm get-parameters \
-		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/NatGatewayId" \
-		--output json | jq -r '.Parameters[0].Value') && \
-		echo "$$nat_gateway_id" && \
-	if [ "$$nat_gateway_id" != "null" ]; then \
-		echo "\033[0;34mFound existing NAT Gateway: $$nat_gateway_id\033[0m" && \
-		res=$$(aws ec2 delete-nat-gateway \
-			--nat-gateway-id "$$nat_gateway_id") && \
-		echo $$res | jq -r 2>&1 | tee -a $${CFN_LOG_PATH} || true; \
-	else \
-		echo "\033[0;33mNo NAT Gateway found\033[0m" && \
-		exit 0; \
-	fi && \
-	echo "\033[0;34mWaiting for NAT Gateway to be deleted...\033[0m" && \
-	res=$$(aws ec2 wait nat-gateway-deleted \
-		--nat-gateway-ids "$$nat_gateway_id") && \
-	echo $$res | jq -r 2>&1 | tee -a $${CFN_LOG_PATH} && \
-	echo "\033[0;34mDeleting NAT Gateway ID from SSM Parameter Store\033[0m" && \
-	res=$$(aws ssm delete-parameter \
-		--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/NatGatewayId") && \
-	echo $$res | jq -r && \
-	echo "\033[0;34mSuccessfully deleted NAT Gateway\033[0m"
+# service.nat-gateway.eip.delete:
+# 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting NAT Gateway Elastic IP" 2>&1 | tee -a $${CFN_LOG_PATH}
+# 	@eip=$$(aws ssm get-parameters \
+# 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/NatGatewayElasticIp" \
+# 		--output json | jq -r '.Parameters[0].Value') && \
+# 	if [ "$$eip" != "null" ]; then \
+# 		echo "\033[0;34mFound existing Elastic IP: $$eip\033[0m" && \
+# 		allocation_id=$$(aws ec2 describe-addresses \
+# 			--public-ips "$$eip" \
+# 			--query "Addresses[0].AllocationId" \
+# 			--output text) && \
+# 		if [ "$$allocation_id" != "null" ]; then \
+# 			res=$$(aws ec2 release-address \
+# 				--allocation-id "$$allocation_id") && \
+# 			echo $$res | jq -r 2>&1 | tee -a $${CFN_LOG_PATH} || true; \
+# 		fi; \
+# 		res=$$(aws ssm delete-parameter \
+# 			--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/NatGatewayElasticIp") && \
+# 		echo $$res | jq -r && \
+# 		echo "\033[0;34mSuccessfully deleted Elastic IP\033[0m"; \
+# 	else \
+# 		echo "\033[0;33mNo Elastic IP found\033[0m" && \
+# 		exit 0; \
+# 	fi
 
-service.nat-gateway.delete:
-	$(MAKE) service.nat-gateway.resource.delete
-	$(MAKE) service.nat-gateway.eip.delete
+# # wait for the NAT Gateway to be deleted before deleting the Elastic IP
+# service.nat-gateway.resource.delete:
+# 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting NAT Gateway" 2>&1 | tee -a $${CFN_LOG_PATH}
+# 	@nat_gateway_id=$$(aws ssm get-parameters \
+# 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/NatGatewayId" \
+# 		--output json | jq -r '.Parameters[0].Value') && \
+# 		echo "$$nat_gateway_id" && \
+# 	if [ "$$nat_gateway_id" != "null" ]; then \
+# 		echo "\033[0;34mFound existing NAT Gateway: $$nat_gateway_id\033[0m" && \
+# 		res=$$(aws ec2 delete-nat-gateway \
+# 			--nat-gateway-id "$$nat_gateway_id") && \
+# 		echo $$res | jq -r 2>&1 | tee -a $${CFN_LOG_PATH} || true; \
+# 	else \
+# 		echo "\033[0;33mNo NAT Gateway found\033[0m" && \
+# 		exit 0; \
+# 	fi && \
+# 	echo "\033[0;34mWaiting for NAT Gateway to be deleted...\033[0m" && \
+# 	res=$$(aws ec2 wait nat-gateway-deleted \
+# 		--nat-gateway-ids "$$nat_gateway_id") && \
+# 	echo $$res | jq -r 2>&1 | tee -a $${CFN_LOG_PATH} && \
+# 	echo "\033[0;34mDeleting NAT Gateway ID from SSM Parameter Store\033[0m" && \
+# 	res=$$(aws ssm delete-parameter \
+# 		--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/NatGatewayId") && \
+# 	echo $$res | jq -r && \
+# 	echo "\033[0;34mSuccessfully deleted NAT Gateway\033[0m"
+
+# service.nat-gateway.delete:
+# 	$(MAKE) service.nat-gateway.resource.delete
+# 	$(MAKE) service.nat-gateway.eip.delete
 
 service.parameters.delete:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting SSM parameters" 2>&1 | tee -a ${CFN_LOG_PATH}

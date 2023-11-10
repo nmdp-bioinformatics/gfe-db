@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to deploy a bastion host with access to a private instance.
+
+Parameters:
+  Stage:
+    Type: String
+    Description: Stage of production
+  AppName:
+    Type: String
+    Description: Application name
+  
+Resources:
+
+  NatGatewayElasticIp:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NatGatewayElasticIpParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/NatGatewayElasticIp'
+      Description: "Elastic IP address of the NAT Gateway"
+      Value: !Ref NatGatewayElasticIp
+
+  NatGatewayElasticIpAllocationIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/NatGatewayElasticIpAllocationId'
+      Description: "Elastic IP address of the NAT Gateway"
+      Value: !GetAtt NatGatewayElasticIp.AllocationId
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGatewayElasticIp.AllocationId
+      SubnetId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetId}}'
+      Tags:
+        - Key: Name
+          Value: !Sub '${Stage}-${AppName}-nat-gateway'
+
+  NatGatewayIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/NatGatewayId'
+      Description: "NAT Gateway ID"
+      Value: !Ref NatGateway
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateRouteTableId}}'
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
