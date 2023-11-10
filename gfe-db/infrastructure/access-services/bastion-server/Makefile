@@ -28,24 +28,34 @@ service.connect:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Setting up SSH tunnel to database instance using bastion host" 2>&1 | tee -a $$CFN_LOG_PATH
 	@bastion_host_public_ip="$$(aws ssm get-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/BastionHostElasticIp" | jq -r '.Parameter.Value')" && \
-	echo "Bastion host public IP: $$bastion_host_public_ip" && \
+	echo "\033[0;32mBastion host public IP: $$bastion_host_public_ip\033[0m" && \
 	database_private_ip="$$(aws ssm get-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jPrivateIp" | jq -r '.Parameter.Value')" && \
-	echo "Database private IP: $$database_private_ip" && \
+	echo "\033[0;32mDatabase private IP: $$database_private_ip\033[0m" && \
 	ssh-add ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem && \
 	ssh -tt -i ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem -A ec2-user@"$$bastion_host_public_ip" ssh bitnami@"$$database_private_ip"
 
 service.authorize-security-group-ingress:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Updating Neo4j database security group for bastion host" 2>&1 | tee -a $$CFN_LOG_PATH
 	@bastion_host_security_group_id="$$(aws ssm get-parameter \
-		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/BastionHostSecurityGroupId" | jq -r '.Parameter.Value')" && \
+			--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/BastionHostSecurityGroupId" | jq -r '.Parameter.Value')" && \
 	neo4j_database_security_group_id="$$(aws ssm get-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseSecurityGroupId" | jq -r '.Parameter.Value')" && \
-	aws ec2 authorize-security-group-ingress \
-		--group-id "$$neo4j_database_security_group_id" \
-		--protocol tcp \
-		--port 22 \
-		--source-group "$$bastion_host_security_group_id" 2>&1 | tee -a $$CFN_LOG_PATH || true
+	res=$$(aws ec2 describe-security-groups \
+		--group-ids "$$neo4j_database_security_group_id" \
+		| jq -r '.SecurityGroups[].IpPermissions[] | select(.FromPort == 22 and .ToPort == 22 and .IpProtocol == "tcp") | .UserIdGroupPairs[].GroupId' \
+		| grep "$$bastion_host_security_group_id") && \
+	if [ "$$res" != "$$bastion_host_security_group_id" ]; then \
+		res=$$(aws ec2 authorize-security-group-ingress \
+			--group-id "$$neo4j_database_security_group_id" \
+			--protocol tcp \
+			--port 22 \
+			--source-group "$$bastion_host_security_group_id") && \
+		echo "\033[0;34mBastion host security group is now associated with Neo4j database security group\033[0m" || \
+		echo "\033[0;31mFailed to associate bastion host security group with Neo4j database security group\033[0m"; \
+	else \
+		echo "\033[0;34mBastion host security group is already associated with Neo4j database security group\033[0m"; \
+	fi
 
 delete: ##=> Delete resources
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
@@ -88,5 +98,8 @@ define HELP_MESSAGE
 
 	...::: Delete all CloudFormation based services :::...
 	$ make delete
+
+	...::: Connect to database instance using bastion host :::...
+	$ make service.connect
 
 endef

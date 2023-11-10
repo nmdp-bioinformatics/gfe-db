@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: CloudFormation template to deploy a bastion host with access to a private instance.
+Description: Deploys a NAT Gateway with an Elastic IP address.
 
 Parameters:
   Stage:

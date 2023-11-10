@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: CloudFormation template to deploy a bastion host with access to a private instance.
+Description: Deploys a bastion host with access to a private EC2 instance.
 
 Parameters:
   Stage:
