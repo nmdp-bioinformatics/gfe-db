@@ -155,7 +155,7 @@ delete: ##=> Delete resources
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
 	$(MAKE) service.delete
 
-service.delete:
+service.delete: service.bastion-server.delete
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting Neo4j EC2 instance" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws cloudformation delete-stack \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
@@ -168,7 +168,10 @@ service.delete:
 	aws secretsmanager delete-secret \
 		--secret-id "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/EC2KeyPair" \
 		--force-delete-without-recovery 2>&1 | tee -a $$CFN_LOG_PATH || true
+	
 
+service.bastion-server.delete:
+	$(MAKE) -C bastion delete
 
 #############
 #  Helpers  #

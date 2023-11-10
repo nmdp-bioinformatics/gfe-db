@@ -22,7 +22,7 @@ service.deploy:
 			AppName="$${APP_NAME}" \
 			Ec2KeyPairName="${EC2_KEY_PAIR_NAME}" \
 			MyIp="0.0.0.0/0" 2>&1
-	$(MAKE) service.update-db-security-group
+	$(MAKE) service.authorize-security-group-ingress
 
 # connect to the bastion host using ssh
 # 1) get the bastion host's public ip address from SSM Parameter Store using the path /${AppName}/${Stage}/${AWS::Region}/BastionHostPublicIp
@@ -47,7 +47,7 @@ service.connect:
 # 1) get the bastion host's security group id from SSM Parameter Store using the path /${AppName}/${Stage}/${AWS::Region}/BastionHostSecurityGroupId
 # 2) get the neo4j security group id from SSM Parameter Store using the path /${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId
 # 3) add the bastion host's security group id to the neo4j security group
-service.update-db-security-group:
+service.authorize-security-group-ingress:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Updating Neo4j database security group for bastion host" 2>&1 | tee -a $$CFN_LOG_PATH
 	@bastion_host_security_group_id="$$(aws ssm get-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/BastionHostSecurityGroupId" | jq -r '.Parameter.Value')" && \
@@ -63,8 +63,20 @@ delete: ##=> Delete resources
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
 	$(MAKE) service.delete
 
-service.delete:
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting Neo4j EC2 instance" 2>&1 | tee -a $$CFN_LOG_PATH
+service.revoke-security-group-ingress:
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Removing bastion host security group from Neo4j database security group" 2>&1 | tee -a $$CFN_LOG_PATH
+	@bastion_host_security_group_id="$$(aws ssm get-parameter \
+		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/BastionHostSecurityGroupId" | jq -r '.Parameter.Value')" && \
+	neo4j_database_security_group_id="$$(aws ssm get-parameter \
+		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseSecurityGroupId" | jq -r '.Parameter.Value')" && \
+	aws ec2 revoke-security-group-ingress \
+		--group-id "$$neo4j_database_security_group_id" \
+		--protocol tcp \
+		--port 22 \
+		--source-group "$$bastion_host_security_group_id" 2>&1 | tee -a $$CFN_LOG_PATH || true
+
+service.delete: service.revoke-security-group-ingress
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting Bastion EC2 instance" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws cloudformation delete-stack \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
 	aws cloudformation wait stack-delete-complete \
