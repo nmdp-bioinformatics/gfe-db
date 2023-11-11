@@ -125,6 +125,7 @@ deploy: splash-screen logs.purge env.validate ##=> Deploy all services
 	$(MAKE) infrastructure.deploy 
 	$(MAKE) database.deploy
 	$(MAKE) pipeline.deploy
+	$(MAKE) options-screen
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished deploying ${APP_NAME}" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 logs.purge: logs.dirs
@@ -308,6 +309,9 @@ endif
 env.validate: check.dependencies env.validate.vars env.validate.boolean-vars env.validate.stage env.validate.create-vpc.vars env.validate.use-private-subnet.vars
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
 
+options-screen:
+
+
 infrastructure.deploy: 
 	$(MAKE) -C ${APP_NAME}/infrastructure/ deploy
 
@@ -335,6 +339,9 @@ database.deploy:
 
 database.service.deploy:
 	$(MAKE) -C ${APP_NAME}/database/ service.deploy
+
+database.connect:
+	$(MAKE) infrastructure.access-services.bastion-server.connect
 
 pipeline.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ deploy
@@ -553,11 +560,35 @@ define HELP_MESSAGE
 	...::: Deploy all CloudFormation based services :::...
 	$ make deploy
 
+	...::: Deploy the infrastructure :::...
+	$ make infrastructure.deploy
+
+	...::: Deploy the database :::...
+	$ make database.deploy
+
+	...::: Deploy the pipeline :::...
+	$ make pipeline.deploy
+
+	...::: Deploy the pipeline functions :::...
+	$ make pipeline.service.deploy
+
+	...::: Deploy the pipeline jobs :::...
+	$ make pipeline.jobs.deploy
+
 	...::: Deploy config files and scripts to S3 :::...
 	$ make config.deploy
 
 	...::: Run the StepFunctions State Machine to load Neo4j :::...
 	$ make database.load releases=<version> align=<boolean> kir=<boolean> limit=<int>
+
+	...::: Get Neo4j Credentials :::...
+	$ make database.get.credentials
+
+	...::: Get Neo4j Endpoint :::...
+	$ make database.get.endpoint
+
+	...::: Connect to the database server :::...
+	$ make database.connect
 
 	...::: Download CSV data from S3 :::...
 	$ make get.data
