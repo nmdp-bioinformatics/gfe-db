@@ -7,6 +7,8 @@
 include .env.${STAGE}
 export
 
+SPLASH_FONT := slant
+
 export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity \
 	--query Account \
 	--output text)
@@ -100,6 +102,7 @@ target:
 	@exit 0
 
 splash-screen:
+ifeq ($(SPLASH_FONT),slant)
 	@echo "\033[0;34m                                            "
 	@echo "\033[0;34m           ____                      __ __  "
 	@echo "\033[0;34m   ____ _ / __/___              ____/ // /_ "
@@ -110,6 +113,7 @@ splash-screen:
 	@echo "\033[0;34m                                            "
 	@echo "\033[0;34mCopyright © 2002-2023 National Marrow Donor Program. All rights reserved."
 	@echo "\033[0;34m                                            \033[0m"
+endif
 
 env.print:
 	@echo "\033[0;33mReview the contents of the .env file:\033[0m"
@@ -125,8 +129,8 @@ deploy: splash-screen logs.purge env.validate ##=> Deploy all services
 	$(MAKE) infrastructure.deploy 
 	$(MAKE) database.deploy
 	$(MAKE) pipeline.deploy
-	$(MAKE) options-screen
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished deploying ${APP_NAME}" 2>&1 | tee -a ${CFN_LOG_PATH}
+	$(MAKE) options-screen
 
 logs.purge: logs.dirs
 ifeq ($(PURGE_LOGS),true)
@@ -310,7 +314,15 @@ env.validate: check.dependencies env.validate.vars env.validate.boolean-vars env
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 options-screen:
-
+	@echo "+-----------------------------------------------------------------------------------------+"
+	@echo "|                                         \033[34mSuccess!\033[0m                                        |"
+	@echo "+-----------------------------------------------------------------------------------------+"
+	@echo "| \033[33mAvailable Actions:\033[0m                                                                      |"
+	@echo "| * Run the pipeline: \`\033[96mSTAGE=<stage> make database.load.run releases=<releases>\033[0m\`          |"
+	@echo "| * Load the database from backup: \`\033[96mSTAGE=<stage> make database.restore from_date=<date>\033[0m\` |"
+	@echo "| * Log into the database: \`\033[96mSTAGE=<stage> make database.connect\033[0m\`                          |"
+	@echo "| * Remove access services: \`\033[96mSTAGE=<stage> make infrastructure.access-services.delete\033[0m\`    |"
+	@echo "+-----------------------------------------------------------------------------------------+"
 
 infrastructure.deploy: 
 	$(MAKE) -C ${APP_NAME}/infrastructure/ deploy
@@ -600,3 +612,4 @@ define HELP_MESSAGE
 	$ make delete
 
 endef
+endif
