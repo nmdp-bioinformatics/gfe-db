@@ -22,19 +22,22 @@ export LOGS_DIR := $(shell echo "${ROOT_DIR}/logs")
 export CFN_LOG_PATH := $(shell echo "${LOGS_DIR}/cfn/logs.txt")
 export PURGE_LOGS := false
 
-# deployment environment defaults
+# conditionally required variable defaults
 CREATE_VPC ?= false
 USE_PRIVATE_SUBNET ?= false
-CREATE_SSM_VPC_ENDPOINT ?= false
-CREATE_SECRETSMANAGER_VPC_ENDPOINT ?= false
+CREATE_SSM_VPC_ENDPOINT ?=
+CREATE_SECRETSMANAGER_VPC_ENDPOINT ?=
+DEPLOY_ACCESS_SERVICE_NAT_GATEWAY ?=
+DEPLOY_ACCESS_SERVICE_BASTION_SERVER ?=
 VPC_ID ?=
 PUBLIC_SUBNET_ID ?=
 HOST_DOMAIN ?=
 SUBDOMAIN ?=
 PRIVATE_SUBNET_ID ?=
+ADMIN_IP ?=
+export DATABASE_VOLUME_SIZE ?= 64
 
 # TODO move these to a config file
-export DATABASE_VOLUME_SIZE ?= 50
 # TODO: Add TRIGGER_SCHEDULE variable
 # TODO: Add BACKUP_SCHEDULE variable
 
@@ -53,13 +56,14 @@ export PIPELINE_STATE_PATH := config/IMGTHLA-repository-state.json
 export PIPELINE_PARAMS_PATH := config/pipeline-input.json
 export FUNCTIONS_PATH := ${APP_NAME}/pipeline/functions
 
+# TODO validate data types
 # Required environment variables
-# Optional environment variables: HOST_DOMAIN SUBDOMAIN
 REQUIRED_VARS := STAGE APP_NAME AWS_ACCOUNT AWS_REGION AWS_PROFILE SUBSCRIBE_EMAILS \
 	GITHUB_REPOSITORY_OWNER GITHUB_REPOSITORY_NAME GITHUB_PERSONAL_ACCESS_TOKEN \
 	ADMIN_EMAIL NEO4J_AMI_ID APOC_VERSION GDS_VERSION
 
-BOOLEAN_VARS := CREATE_VPC USE_PRIVATE_SUBNET CREATE_SSM_VPC_ENDPOINT CREATE_SECRETSMANAGER_VPC_ENDPOINT
+BOOLEAN_VARS := CREATE_VPC USE_PRIVATE_SUBNET CREATE_SSM_VPC_ENDPOINT CREATE_SECRETSMANAGER_VPC_ENDPOINT \
+	DEPLOY_ACCESS_SERVICE_NAT_GATEWAY DEPLOY_ACCESS_SERVICE_BASTION_SERVER DELETE_ACCESS_SERVICES_AFTER_DEPLOYMENT
 
 # stdout colors
 # blue: runtime message, no action required
@@ -196,25 +200,46 @@ env.validate.subdomain:
 		jq -r --arg fqdn "$$fqdn" '.ResourceRecordSets[] | select(.Name == $$fqdn) | .Name') && \
 	[[ $$res = "" ]] && echo "\033[0;31mERROR: No Route53 domain found for $$fqdn\033[0m" && exit 1 || true
 
-env.validate.use-existing-vpc:
-ifeq ($(VPC_ID),)
-	$(call red, "\`VPC_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`false\`")
-	@exit 1
-else
-	$(call green, "Found VPC_ID: ${VPC_ID}")
-endif
-ifeq ($(PUBLIC_SUBNET_ID),)
-	$(call red, "\`PUBLIC_SUBNET_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`false\`")
-	@exit 1
-else
-	$(call green, "Found PUBLIC_SUBNET_ID: ${PUBLIC_SUBNET_ID}")
-endif
+# env.validate.use-existing-vpc.vars:
+# ifeq ($(VPC_ID),)
+# 	$(call red, "\`VPC_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`false\`")
+# 	@exit 1
+# else
+# 	$(call green, "Found VPC_ID: ${VPC_ID}")
+# endif
+# ifeq ($(PUBLIC_SUBNET_ID),)
+# 	$(call red, "\`PUBLIC_SUBNET_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`false\`")
+# 	@exit 1
+# else
+# 	$(call green, "Found PUBLIC_SUBNET_ID: ${PUBLIC_SUBNET_ID}")
+# endif
+# 	$(MAKE) env.validate.use-private-subnet.vars
+
+env.validate.use-private-subnet.vars:
 ifeq ($(USE_PRIVATE_SUBNET),true)
+ifeq ($(CREATE_VPC),false)
 ifeq ($(PRIVATE_SUBNET_ID),)
 	$(call red, "\`PRIVATE_SUBNET_ID\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`true\`")
 	@exit 1
 else
 	$(call green, "Found PRIVATE_SUBNET_ID: ${PRIVATE_SUBNET_ID}")
+endif
+endif
+ifeq ($(ADMIN_IP),)
+	$(call red, "\`ADMIN_IP\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`true\`")
+	@exit 1
+endif
+ifeq ($(DEPLOY_ACCESS_SERVICE_NAT_GATEWAY),)
+	$(call red, "\`DEPLOY_ACCESS_SERVICE_NAT_GATEWAY\` must be set when \`USE_PRIVATE_SUBNET\` is \`true\`")
+	@exit 1
+endif
+ifeq ($(DEPLOY_ACCESS_SERVICE_BASTION_SERVER),)
+	$(call red, "\`DEPLOY_ACCESS_SERVICE_BASTION_SERVER\` must be set when \`USE_PRIVATE_SUBNET\` is \`true\`")
+	@exit 1
+endif
+ifeq ($(DELETE_ACCESS_SERVICES_AFTER_DEPLOYMENT),)
+	$(call red, "\`DELETE_ACCESS_SERVICES_AFTER_DEPLOYMENT\` must be set when \`USE_PRIVATE_SUBNET\` is \`true\`")
+	@exit 1
 endif
 else ifeq ($(USE_PRIVATE_SUBNET),false)
 	$(call blue, "**** This deployment uses a public subnet for Neo4j ****")
@@ -243,8 +268,8 @@ endif
 
 env.validate.boolean-vars:
 	@$(foreach var,$(BOOLEAN_VARS),\
-		if [ "$(value $(var))" != "true" ] && [ "$(value $(var))" != "false" ]; then \
-			echo "\033[0;31mERROR: \`$(var)\` must be either \`true\` or \`false\`\033[0m" && exit 1; \
+		if [ "$(value $(var))" != "" ] && [ "$(value $(var))" != "true" ] && [ "$(value $(var))" != "false" ]; then \
+			echo "\033[0;31mERROR: \`$(var)\` must be unset, \`true\` or \`false\`\033[0m" && exit 1; \
 		fi; \
 	)
 
@@ -252,22 +277,32 @@ env.validate.vars:
 	$(foreach var,$(REQUIRED_VARS),\
 		$(if $(value $(var)),,$(error $(var) is not set. Please add $(var) to the environment variables.)))
 
-env.validate.create-vpc:
+env.validate.create-vpc.vars:
 ifndef CREATE_VPC
 	$(info 'CREATE_VPC' is not set. Defaulting to 'false')
 	$(eval export CREATE_VPC := false)
 	$(call blue, "**** This deployment uses an existing VPC ****")
-	$(MAKE) env.validate.use-existing-vpc
 endif
 ifeq ($(CREATE_VPC),false)
 	$(call blue, "**** This deployment uses an existing VPC ****")
-	$(MAKE) env.validate.use-existing-vpc
+ifeq ($(VPC_ID),)
+	$(call red, "\`VPC_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`false\`")
+	@exit 1
+else
+	$(call green, "Found VPC_ID: ${VPC_ID}")
+endif
+ifeq ($(PUBLIC_SUBNET_ID),)
+	$(call red, "\`PUBLIC_SUBNET_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`false\`")
+	@exit 1
+else
+	$(call green, "Found PUBLIC_SUBNET_ID: ${PUBLIC_SUBNET_ID}")
+endif
 else ifeq ($(CREATE_VPC),true)
 	$(call blue, "**** This deployment includes a VPC ****")
 endif
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
 
-env.validate: check.dependencies env.validate.vars env.validate.boolean-vars env.validate.stage env.validate.create-vpc
+env.validate: check.dependencies env.validate.vars env.validate.boolean-vars env.validate.stage env.validate.create-vpc.vars env.validate.use-private-subnet.vars
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 infrastructure.deploy: 
 	$(MAKE) -C ${APP_NAME}/infrastructure/ deploy

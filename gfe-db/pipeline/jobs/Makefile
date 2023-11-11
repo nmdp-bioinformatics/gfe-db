@@ -6,7 +6,6 @@ target:
 
 deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH
-	# $(MAKE) ecr.login
 	$(MAKE) deploy.ecr.jobs.build
 
 deploy.ecr.jobs.build:
