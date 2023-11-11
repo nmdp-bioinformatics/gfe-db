@@ -9,7 +9,7 @@ deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
 	$(MAKE) service.deploy
 
-service.deploy: 
+service.deploy: #=> admin_ip=<ip address>
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying bastion server" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws cloudformation deploy \
 		--region $${AWS_REGION} \
@@ -21,7 +21,7 @@ service.deploy:
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
 			Ec2KeyPairName="${EC2_KEY_PAIR_NAME}" \
-			MyIp="0.0.0.0/0" 2>&1
+			AdminIp="$${ADMIN_IP}"
 	$(MAKE) service.authorize-security-group-ingress
 
 service.connect:
