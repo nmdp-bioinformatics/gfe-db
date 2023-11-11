@@ -35,7 +35,7 @@ target:
 	@exit 0
 
 deploy: 
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} services\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
 	$(MAKE) service.key-pair.create
 	$(MAKE) service.deploy
 ifeq ($(USE_PRIVATE_SUBNET),false)
@@ -77,8 +77,6 @@ service.deploy.update-dns:
 	echo && \
 	echo "Successfully updated DNS records"
 
-# TODO for CREATE_VPC=true and USE_PRIVATE_SUBNET=true, need to get the PrivateSubnetId from SSM Param Store, the endpoints are created
-# but they are not associated with any subnet
 service.deploy.create-endpoint: #=> service=<string>
 	@if [ -z $$service ]; then \
 		echo "\033[0;31mERROR: No service specified\033[0m" && exit 1; \
@@ -130,7 +128,7 @@ service.deploy.create-endpoint: #=> service=<string>
 	$(call blue, Successfully created VPC endpoint for $$service)
 
 service.key-pair.create: ##=> Checks if the key pair already exists and creates it if it does not
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Checking for key pair ${EC2_KEY_PAIR_NAME}" 2>&1 | tee -a $$CFN_LOG_PATH
+	@echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Creating EC2 key pair\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
 	@key_pair="$$(aws ec2 describe-key-pairs --key-name ${EC2_KEY_PAIR_NAME} | jq '.KeyPairs[0].KeyName' || true)" && \
 	[ "$$key_pair" ] && echo "Key pair found: $$key_pair" && exit 0 || echo "No key pair found..." && \
 	echo "Creating EC2 key pair \"${EC2_KEY_PAIR_NAME}\"" && \
@@ -145,9 +143,7 @@ service.key-pair.create: ##=> Checks if the key pair already exists and creates 
 		--value "${EC2_KEY_PAIR_NAME}" \
 		--overwrite 2>&1 | tee -a $$CFN_LOG_PATH || true
 
-# TODO test the return code of aws cloudformation deploy and exit if it is 1
 service.deploy:
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying CloudFormation" 2>&1 | tee -a $${CFN_LOG_PATH}
 	@aws cloudformation deploy \
 		--region $${AWS_REGION} \
 		--template-file template.yaml \
@@ -167,13 +163,19 @@ service.deploy:
 	$(MAKE) service.access-services.deploy
 
 service.access-services.deploy:
-	$(MAKE) -C access-services/nat-gateway deploy
-	$(MAKE) -C access-services/bastion-server deploy
+ifeq ($(DEPLOY_NAT_GATEWAY),true)
+	$(MAKE) service.access-services.nat-gateway.deploy
+endif
+ifeq ($(DEPLOY_BASTION_SERVER),true)
+	$(MAKE) service.access-services.bastion-server.deploy
+endif
 
 service.access-services.nat-gateway.deploy:
+	@echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying NAT Gateway\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
 	$(MAKE) -C access-services/nat-gateway deploy
 
 service.access-services.bastion-server.deploy:
+	@echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Bastion Server\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
 	$(MAKE) -C access-services/bastion-server deploy
 
 service.access-services.bastion-server.connect:
