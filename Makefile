@@ -65,8 +65,7 @@ REQUIRED_VARS := STAGE APP_NAME AWS_ACCOUNT AWS_REGION AWS_PROFILE SUBSCRIBE_EMA
 	ADMIN_EMAIL NEO4J_AMI_ID APOC_VERSION GDS_VERSION
 
 BOOLEAN_VARS := CREATE_VPC USE_PRIVATE_SUBNET CREATE_SSM_VPC_ENDPOINT CREATE_SECRETSMANAGER_VPC_ENDPOINT \
-	DEPLOY_NAT_GATEWAY DEPLOY_BASTION_SERVER DELETE_NAT_GATEWAY_AFTER_DEPLOYMENT \
-	DELETE_BASTION_SERVER_AFTER_DEPLOYMENT
+	DEPLOY_NAT_GATEWAY DEPLOY_BASTION_SERVER
 
 # stdout colors
 # blue: runtime message, no action required
@@ -243,13 +242,6 @@ ifeq ($(DEPLOY_BASTION_SERVER),)
 	$(call red, "\`DEPLOY_BASTION_SERVER\` must be set when \`USE_PRIVATE_SUBNET\` is \`true\`")
 	@exit 1
 endif
-ifeq ($(DELETE_NAT_GATEWAY_AFTER_DEPLOYMENT),)
-	$(call red, "\`DELETE_NAT_GATEWAY_AFTER_DEPLOYMENT\` must be set when \`USE_PRIVATE_SUBNET\` is \`true\`")
-	@exit 1
-endif
-ifeq ($(DELETE_BASTION_SERVER_AFTER_DEPLOYMENT),)
-	$(call red, "\`DELETE_BASTION_SERVER_AFTER_DEPLOYMENT\` must be set when \`USE_PRIVATE_SUBNET\` is \`true\`")
-	@exit 1
 else ifeq ($(USE_PRIVATE_SUBNET),false)
 	$(call blue, "**** This deployment uses a public subnet for Neo4j ****")
 ifeq ($(HOST_DOMAIN),)
@@ -519,6 +511,12 @@ infrastructure.access-services.delete:
 	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/bastion-server/ delete
 	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/nat-gateway/ delete
 
+infrastructure.access-services.bastion-server.delete:
+	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/bastion-server/ delete
+
+infrastructure.access-services.nat-gateway.delete:
+	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/nat-gateway/ delete
+
 infrastructure.delete-endpoint: #=> service=<string>
 	$(MAKE) -C ${APP_NAME}/infrastructure/ service.delete.delete-endpoint service=$$service
 
@@ -612,4 +610,3 @@ define HELP_MESSAGE
 	$ make delete
 
 endef
-endif

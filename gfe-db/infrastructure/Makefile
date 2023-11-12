@@ -171,11 +171,9 @@ ifeq ($(DEPLOY_BASTION_SERVER),true)
 endif
 
 service.access-services.nat-gateway.deploy:
-	@echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying NAT Gateway\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
 	$(MAKE) -C access-services/nat-gateway deploy
 
 service.access-services.bastion-server.deploy:
-	@echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Bastion Server\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
 	$(MAKE) -C access-services/bastion-server deploy
 
 service.access-services.bastion-server.connect:
@@ -273,6 +271,7 @@ service.parameters.delete:
 		--path "/${APP_NAME}/${STAGE}/${AWS_REGION}" \
 		--query "Parameters[*].Name" \
 		--output json) && \
+	echo $$params | jq -r && \
 	if [ -n "$$params" ] && [ "$$params" != "[]" ]; then \
 		aws ssm delete-parameters --names $$params | jq -r; \
 	else \

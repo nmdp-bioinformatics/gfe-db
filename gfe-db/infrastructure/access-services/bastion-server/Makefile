@@ -10,7 +10,7 @@ deploy:
 	$(MAKE) service.deploy
 
 service.deploy: #=> admin_ip=<ip address>
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying bastion server" 2>&1 | tee -a $$CFN_LOG_PATH
+	@echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Bastion Server\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
 	@aws cloudformation deploy \
 		--region $${AWS_REGION} \
 		--template-file template.yaml \
