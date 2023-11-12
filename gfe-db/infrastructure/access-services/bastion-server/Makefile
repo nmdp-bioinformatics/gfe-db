@@ -11,6 +11,7 @@ deploy:
 
 service.deploy: #=> admin_ip=<ip address>
 	@echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Bastion Server\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@echo "\033[0;32mFound Admin IP: $${ADMIN_IP}\033[0m"
 	@aws cloudformation deploy \
 		--region $${AWS_REGION} \
 		--template-file template.yaml \
@@ -39,13 +40,16 @@ service.authorize-security-group-ingress:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Updating Neo4j database security group for bastion host" 2>&1 | tee -a $$CFN_LOG_PATH
 	@bastion_host_security_group_id="$$(aws ssm get-parameter \
 			--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/BastionHostSecurityGroupId" | jq -r '.Parameter.Value')" && \
+	echo "\033[0;32mFound bastion host security group ID: $$bastion_host_security_group_id\033[0m" && \
 	neo4j_database_security_group_id="$$(aws ssm get-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseSecurityGroupId" | jq -r '.Parameter.Value')" && \
+	echo "\033[0;32mFound Neo4j database security group ID: $$neo4j_database_security_group_id\033[0m" && \
+	echo "\033[0;34mValidating security group configuration...\033[0m" && \
 	res=$$(aws ec2 describe-security-groups \
 		--group-ids "$$neo4j_database_security_group_id" \
-		| jq -r '.SecurityGroups[].IpPermissions[] | select(.FromPort == 22 and .ToPort == 22 and .IpProtocol == "tcp") | .UserIdGroupPairs[].GroupId' \
-		| grep "$$bastion_host_security_group_id") && \
+		| jq -r '.SecurityGroups[].IpPermissions[] | select(.FromPort == 22 and .ToPort == 22 and .IpProtocol == "tcp") | .UserIdGroupPairs[].GroupId') && \
 	if [ "$$res" != "$$bastion_host_security_group_id" ]; then \
+		echo "\033[0;34mAuthorizing bastion host access to database...\033[0m"; \
 		res=$$(aws ec2 authorize-security-group-ingress \
 			--group-id "$$neo4j_database_security_group_id" \
 			--protocol tcp \

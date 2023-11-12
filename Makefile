@@ -100,6 +100,9 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
+test:
+	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/bastion-server/ service.authorize-security-group-ingress
+
 splash-screen:
 ifeq ($(SPLASH_FONT),slant)
 	@echo "\033[0;34m                                            "

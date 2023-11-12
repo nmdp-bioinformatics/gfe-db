@@ -38,6 +38,7 @@ deploy:
 	@echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} services\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
 	$(MAKE) service.key-pair.create
 	$(MAKE) service.deploy
+	$(MAKE) service.access-services.deploy
 ifeq ($(USE_PRIVATE_SUBNET),false)
 	$(MAKE) service.deploy.update-dns
 else ifeq ($(USE_PRIVATE_SUBNET),true)
@@ -160,7 +161,6 @@ service.deploy:
 			PublicSubnetId="$${PUBLIC_SUBNET_ID}" \
 			PrivateSubnetId="$${PRIVATE_SUBNET_ID}" \
 			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN"
-	$(MAKE) service.access-services.deploy
 
 service.access-services.deploy:
 ifeq ($(DEPLOY_NAT_GATEWAY),true)
@@ -232,7 +232,6 @@ service.access-services.delete:
 	$(MAKE) -C access-services/bastion-server delete
 	$(MAKE) -C access-services/nat-gateway delete
 
-# TODO delete "/${APP_NAME}/${STAGE}/${AWS_REGION}/$${service}EndpointId"
 service.delete.delete-endpoint: #=> service=<string>
 	@if [ -z $$service ]; then \
 		echo "No service specified" && exit 1; \
@@ -244,10 +243,18 @@ service.delete.delete-endpoint: #=> service=<string>
 		--with-decryption \
 		--query "Parameters[0].Value" \
 		--output text) && \
-	echo "Deleting VPC endpoint for $${service}..." && \
-	res=$$(aws ec2 delete-vpc-endpoints \
-		--vpc-endpoint-ids "$$endpoint_id") && \
-	echo $$res | jq -r
+	if [ "$$endpoint_id" != "null" ] && [ "$$endpoint_id" != "None" ]; then \
+		echo "Deleting VPC endpoint for $${service}..." && \
+		res=$$(aws ec2 delete-vpc-endpoints \
+			--vpc-endpoint-ids "$$endpoint_id") && \
+		echo $$res | jq -r && \
+		echo "Deleting SSM parameter..." && \
+		res=$$(aws ssm delete-parameter \
+			--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/$${service}EndpointId") && \
+		echo $$res | jq -r; \
+	else \
+		echo "\033[0;33mNo endpoint ID found for $${service}\033[0m"; \
+	fi
 
 service.delete:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting CloudFormation" 2>&1 | tee -a $${CFN_LOG_PATH}
@@ -270,9 +277,9 @@ service.parameters.delete:
 	@params=$$(aws ssm get-parameters-by-path \
 		--path "/${APP_NAME}/${STAGE}/${AWS_REGION}" \
 		--query "Parameters[*].Name" \
-		--output json) && \
-	echo $$params | jq -r && \
-	if [ -n "$$params" ] && [ "$$params" != "[]" ]; then \
+		--output json | jq -r '.[]') && \
+	echo $$params && \
+	if [ -n "$$params" ] && [ "$$params" != "" ]; then \
 		aws ssm delete-parameters --names $$params | jq -r; \
 	else \
 		echo "No parameters to delete."; \
