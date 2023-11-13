@@ -226,6 +226,10 @@ env.validate.subdomain:
 env.validate.use-private-subnet.vars:
 ifeq ($(USE_PRIVATE_SUBNET),true)
 ifeq ($(CREATE_VPC),false)
+ifeq ($(PUBLIC_SUBNET_ID),)
+	$(call red, "\`PUBLIC_SUBNET_ID\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`true\`")
+	@exit 1
+endif
 ifeq ($(PRIVATE_SUBNET_ID),)
 	$(call red, "\`PRIVATE_SUBNET_ID\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`true\`")
 	@exit 1
@@ -247,6 +251,14 @@ ifeq ($(DEPLOY_BASTION_SERVER),)
 endif
 else ifeq ($(USE_PRIVATE_SUBNET),false)
 	$(call blue, "**** This deployment uses a public subnet for Neo4j ****")
+ifneq ($(DEPLOY_NAT_GATEWAY),)
+	$(call red, "\`DEPLOY_NAT_GATEWAY\` must not be set when \`USE_PRIVATE_SUBNET\` is \`false\`")
+	@exit 1
+endif
+ifneq ($(DEPLOY_BASTION_SERVER),)
+	$(call red, "\`DEPLOY_BASTION_SERVER\` must not be set when \`USE_PRIVATE_SUBNET\` is \`false\`")
+	@exit 1
+endif
 ifeq ($(HOST_DOMAIN),)
 	$(call red, "\`HOST_DOMAIN\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`false\`")
 	@exit 1
@@ -268,6 +280,33 @@ endif
 	$(call blue, Validating Route53 configuration...)
 	$(MAKE) env.validate.subdomain fqdn="${SUBDOMAIN}.${HOST_DOMAIN}."
 	$(call green, Found configuration for ${SUBDOMAIN}.${HOST_DOMAIN})
+ifeq ($(CREATE_VPC),false)
+ifeq ($(VPC_ID),)
+	$(call red, "\`VPC_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`false\`")
+	@exit 1
+endif
+ifeq ($(PUBLIC_SUBNET_ID),)
+	$(call red, "\`PUBLIC_SUBNET_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`false\`")
+	@exit 1
+endif
+ifneq ($(PRIVATE_SUBNET_ID),)
+	$(call red, "\`PRIVATE_SUBNET_ID\` must not be set when \`CREATE_VPC\` is \`false\`")
+	@exit 1
+endif
+else ifeq ($(CREATE_VPC),true)
+ifneq ($(VPC_ID),)
+	$(call red, "\`VPC_ID\` must not be set as an environment variable when \`CREATE_VPC\` is \`true\`")
+	@exit 1
+endif
+ifneq ($(PUBLIC_SUBNET_ID),)
+	$(call red, "\`PUBLIC_SUBNET_ID\` must not be set as an environment variable when \`CREATE_VPC\` is \`true\`")
+	@exit 1
+endif
+ifneq ($(PRIVATE_SUBNET_ID),)
+	$(call red, "\`PRIVATE_SUBNET_ID\` must not be set when \`CREATE_VPC\` is \`false\`")
+	@exit 1
+endif
+endif
 endif
 
 env.validate.boolean-vars:
