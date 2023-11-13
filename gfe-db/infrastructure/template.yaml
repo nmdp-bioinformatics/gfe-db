@@ -20,6 +20,7 @@ Parameters:
   deployNatGateway:
     Type: String
     AllowedValues:
+      - ""
       - "true"
       - "false"
   AdminEmail:
@@ -49,7 +50,6 @@ Conditions:
   UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
   UsePrivateSubnet: !Equals [!Ref usePrivateSubnet, 'true']
   UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
-  UsePrivateSubnetDeployNatGateway: !And [!Equals [!Ref usePrivateSubnet, 'true'], !Equals [!Ref deployNatGateway, 'true']]
 
 Mappings:
   # AvailabilityZoneMap defines availability zones where an m5d.xlarge instance is available (used for Neo4j server).
@@ -135,9 +135,9 @@ Resources:
       VpcId: !Ref CreateVpcConditionVpc
   
   # Required for NAT Gateway
-  UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable:
+  UsePrivateSubnetConditionPrivateRouteTable:
     Type: AWS::EC2::RouteTable
-    Condition: UsePrivateSubnetDeployNatGateway
+    Condition: UsePrivateSubnet
     Properties:
       VpcId: !If
         - CreateVpc
@@ -145,14 +145,14 @@ Resources:
         - !Ref VpcId
 
   # Required for NAT Gateway
-  UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTableParameter:
+  UsePrivateSubnetConditionPrivateRouteTableParameter:
     Type: AWS::SSM::Parameter
-    Condition: UsePrivateSubnetDeployNatGateway
+    Condition: UsePrivateSubnet
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PrivateRouteTableId'
       Description: !Sub "ID of the private route table for ${AppName}"
-      Value: !Ref UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable
+      Value: !Ref UsePrivateSubnetConditionPrivateRouteTable
   
   CreateVpcConditionVpcGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -189,11 +189,11 @@ Resources:
       SubnetId: !Ref CreateVpcConditionPublicSubnet
 
   # Required for NAT Gateway  
-  UsePrivateSubnetDeployNatGatewayConditionPrivateSubnetRouteTableAssociation:
+  UsePrivateSubnetConditionPrivateSubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: UsePrivateSubnetDeployNatGateway
+    Condition: UsePrivateSubnet
     Properties:
-      RouteTableId: !Ref UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable
+      RouteTableId: !Ref UsePrivateSubnetConditionPrivateRouteTable
       SubnetId: !If
         - CreateVpcPrivate
         - !Ref CreateVpcPrivateConditionPrivateSubnet
@@ -232,7 +232,11 @@ Resources:
         - CreateVpcPrivate
         - !Ref CreateVpcPrivateConditionPrivateSubnet
         - !Ref PrivateSubnetId
-        
+  
+  # if CREATE_VPC=true and USE_PRIVATE_SUBNET=false: `!Ref CreateVpcConditionPublicSubnet`
+  # if CREATE_VPC=true and USE_PRIVATE_SUBNET=true: `!Ref CreateVpcPrivateConditionPrivateSubnet`
+  # if CREATE_VPC=false and USE_PRIVATE_SUBNET=false: `!Ref PublicSubnetId`
+  # if CREATE_VPC=false and USE_PRIVATE_SUBNET=true: `!Ref PrivateSubnetId`
   Neo4jSubnetIdParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -240,9 +244,15 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jSubnetId'
       Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
       Value: !If
-        - UsePrivateSubnet
-        - !GetAtt UsePrivateSubnetConditionPrivateSubnetIdParameter.Value
-        - !Ref PublicSubnetId
+        - CreateVpc
+        - !If
+          - UsePrivateSubnet
+          - !Ref CreateVpcPrivateConditionPrivateSubnet
+          - !Ref CreateVpcConditionPublicSubnet
+        - !If
+          - UsePrivateSubnet
+          - !Ref PrivateSubnetId
+          - !Ref PublicSubnetId
   
   DataBucket:
     Type: AWS::S3::Bucket
