@@ -155,6 +155,7 @@ service.deploy:
 			AppName="$${APP_NAME}" \
 			createVpc="$${CREATE_VPC}" \
 			usePrivateSubnet="$${USE_PRIVATE_SUBNET}" \
+			deployNatGateway="$${DEPLOY_NAT_GATEWAY}" \
 			AdminEmail="$${ADMIN_EMAIL}" \
 			DataBucketName="$$DATA_BUCKET_NAME" \
 			VpcId="$${VPC_ID}" \

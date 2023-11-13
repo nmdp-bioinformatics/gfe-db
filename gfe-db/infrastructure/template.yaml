@@ -17,6 +17,11 @@ Parameters:
     AllowedValues:
       - "true"
       - "false"
+  deployNatGateway:
+    Type: String
+    AllowedValues:
+      - "true"
+      - "false"
   AdminEmail:
     Type: String
   DataBucketName:
@@ -44,6 +49,7 @@ Conditions:
   UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
   UsePrivateSubnet: !Equals [!Ref usePrivateSubnet, 'true']
   UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
+  UsePrivateSubnetDeployNatGateway: !And [!Equals [!Ref usePrivateSubnet, 'true'], !Equals [!Ref deployNatGateway, 'true']]
 
 Mappings:
   # AvailabilityZoneMap defines availability zones where an m5d.xlarge instance is available (used for Neo4j server).
@@ -81,6 +87,7 @@ Resources:
       Description: "Name of application"
       Value: !Ref AppName
 
+  CreateVpcParameter:
   CreateVpcParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -127,20 +134,25 @@ Resources:
     Properties:
       VpcId: !Ref CreateVpcConditionVpc
   
-  CreateVpcPrivateConditionPrivateRouteTable:
+  # Required for NAT Gateway
+  UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable:
     Type: AWS::EC2::RouteTable
-    Condition: CreateVpcPrivate
+    Condition: UsePrivateSubnetDeployNatGateway
     Properties:
-      VpcId: !Ref CreateVpcConditionVpc
+      VpcId: !If
+        - CreateVpc
+        - !Ref CreateVpcConditionVpc
+        - !Ref VpcId
 
-  CreateVpcPrivateConditionPrivateRouteTableParameter:
+  # Required for NAT Gateway
+  UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTableParameter:
     Type: AWS::SSM::Parameter
-    Condition: CreateVpcPrivate
+    Condition: UsePrivateSubnetDeployNatGateway
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PrivateRouteTableId'
       Description: !Sub "ID of the private route table for ${AppName}"
-      Value: !Ref CreateVpcPrivateConditionPrivateRouteTable
+      Value: !Ref UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable
   
   CreateVpcConditionVpcGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -166,7 +178,7 @@ Resources:
   #   Type: AWS::EC2::Route
   #   Condition: CreateVpcPrivate
   #   Properties:
-  #     RouteTableId: !Ref CreateVpcPrivateConditionPrivateRouteTable
+  #     RouteTableId: !Ref UsePrivateSubnetConditionPrivateRouteTable
   #     # DestinationCidrBlock: 0.0.0.0/0 # Not required for private subnet
   
   CreateVpcConditionPublicSubnetRouteTableAssociation:
@@ -175,103 +187,62 @@ Resources:
     Properties:
       RouteTableId: !Ref CreateVpcConditionPublicRouteTable
       SubnetId: !Ref CreateVpcConditionPublicSubnet
-  
-  CreateVpcPrivateConditionPrivateSubnetRouteTableAssociation:
+
+  # Required for NAT Gateway  
+  UsePrivateSubnetDeployNatGatewayConditionPrivateSubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: CreateVpcPrivate
+    Condition: UsePrivateSubnetDeployNatGateway
     Properties:
-      RouteTableId: !Ref CreateVpcPrivateConditionPrivateRouteTable
-      SubnetId: !Ref CreateVpcPrivateConditionPrivateSubnet
-  
-  CreateVpcConditionVpcIdParameter:
+      RouteTableId: !Ref UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable
+      SubnetId: !If
+        - CreateVpcPrivate
+        - !Ref CreateVpcPrivateConditionPrivateSubnet
+        - !Ref PrivateSubnetId
+        
+  VpcIdParameter:
     Type: AWS::SSM::Parameter
-    Condition: CreateVpc
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/VpcId'
       Description: !Sub "Name of VPC network for ${AppName}"
-      Value: !Ref CreateVpcConditionVpc
+      Value: !If 
+        - CreateVpc
+        - !Ref CreateVpcConditionVpc
+        - !Ref VpcId
   
-  CreateVpcConditionPublicSubnetIdParameter:
+  PublicSubnetIdParameter:
     Type: AWS::SSM::Parameter
-    Condition: CreateVpc
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PublicSubnetId'
       Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
-      Value: !Ref CreateVpcConditionPublicSubnet
+      Value: !If
+        - CreateVpc
+        - !Ref CreateVpcConditionPublicSubnet
+        - !Ref PublicSubnetId
   
-  CreateVpcPrivateConditionPrivateSubnetIdParameter:
+  UsePrivateSubnetConditionPrivateSubnetIdParameter:
     Type: AWS::SSM::Parameter
-    Condition: CreateVpcPrivate
+    Condition: UsePrivateSubnet
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId'
       Description: !Sub "Private Subnet for the ${AppName} Neo4j server"
-      Value: !Ref CreateVpcPrivateConditionPrivateSubnet
-  
-  CreateVpcPublicConditionNeo4jSubnetIdParameter:
+      Value: !If
+        - CreateVpcPrivate
+        - !Ref CreateVpcPrivateConditionPrivateSubnet
+        - !Ref PrivateSubnetId
+        
+  Neo4jSubnetIdParameter:
     Type: AWS::SSM::Parameter
-    Condition: CreateVpcPublic
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jSubnetId'
       Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
-      Value: !Ref CreateVpcConditionPublicSubnet
-  
-  CreateVpcPrivateConditionNeo4jSubnetIdParameter:
-    Type: AWS::SSM::Parameter
-    Condition: CreateVpcPrivate
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jSubnetId'
-      Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
-      Value: !Ref CreateVpcPrivateConditionPrivateSubnet
-  
-  UseExternalVpcConditionVpcIdParameter:
-    Type: AWS::SSM::Parameter
-    Condition: UseExternalVpc
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/VpcId'
-      Description: !Sub "Name of VPC network for ${AppName}"
-      Value: !Ref VpcId
-  
-  UseExternalVpcConditionPublicSubnetIdParameter:
-    Type: AWS::SSM::Parameter
-    Condition: UseExternalVpc
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PublicSubnetId'
-      Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
-      Value: !Ref PublicSubnetId
-  
-  UseExternalVpcPrivateConditionPrivateSubnetIdParameter:
-    Type: AWS::SSM::Parameter
-    Condition: UseExternalVpcPrivate
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId'
-      Description: !Sub "Private Subnet for the ${AppName} Neo4j server"
-      Value: !Ref PrivateSubnetId
-  
-  UseExternalVpcPrivateConditionNeo4jSubnetIdParameter:
-    Type: AWS::SSM::Parameter
-    Condition: UseExternalVpcPrivate
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jSubnetId'
-      Description: !Sub "Private Subnet for the ${AppName} Neo4j server"
-      Value: !Ref PrivateSubnetId
-  
-  UseExternalVpcPublicConditionNeo4jSubnetIdParameter:
-    Type: AWS::SSM::Parameter
-    Condition: UseExternalVpcPublic
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jSubnetId'
-      Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
-      Value: !Ref PublicSubnetId
+      Value: !If
+        - UsePrivateSubnet
+        - !GetAtt UsePrivateSubnetConditionPrivateSubnetIdParameter.Value
+        - !Ref PublicSubnetId
   
   DataBucket:
     Type: AWS::S3::Bucket
@@ -302,55 +273,15 @@ Resources:
       Description: "S3 Bucket Regional Domain name for application bucket"
       Value: !GetAtt DataBucket.RegionalDomainName
   
-  UseExternalVpcConditionNeo4jDatabaseSecurityGroup:
+  Neo4jDatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
-    Condition: UseExternalVpc
     Properties:
       GroupName: !Sub '${Stage}-${AppName}-neo4j-sg'
       GroupDescription: Security group for the GFE database
-      VpcId: !Ref VpcId
-      SecurityGroupIngress:
-        - CidrIp: 0.0.0.0/0
-          FromPort: 80
-          IpProtocol: tcp
-          ToPort: 80
-          Description: HTTP access for SSL certificate creation (required)
-        - CidrIp: 0.0.0.0/0
-          FromPort: 443
-          IpProtocol: tcp
-          ToPort: 443
-          Description: HTTPs access (required)
-        - CidrIp: 0.0.0.0/0
-          FromPort: 7474
-          IpProtocol: tcp
-          ToPort: 7474
-          Description: Neo4j HTTP access (required)
-        - CidrIp: 0.0.0.0/0
-          FromPort: 7473
-          IpProtocol: tcp
-          ToPort: 7473
-          Description: Neo4j HTTPS access (required)
-        - CidrIp: 0.0.0.0/0
-          FromPort: 7687
-          IpProtocol: tcp
-          ToPort: 7687
-          Description: Neo4j Bolt driver access (required)
-        - CidrIp: 0.0.0.0/0
-          FromPort: 22
-          IpProtocol: tcp
-          ToPort: 22
-          Description: Update IP to use MyIP
-      Tags:
-        - Key: Name
-          Value: !Sub '${Stage}-${AppName}-neo4j-sg'
-  
-  CreateVpcConditionNeo4jDatabaseSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Condition: CreateVpc
-    Properties:
-      GroupName: !Sub '${Stage}-${AppName}-neo4j-sg'
-      GroupDescription: Security group for the GFE database
-      VpcId: !Ref CreateVpcConditionVpc
+      VpcId: !If
+        - CreateVpc
+        - !Ref CreateVpcConditionVpc
+        - !Ref VpcId
       SecurityGroupIngress:
         - CidrIp: 0.0.0.0/0
           FromPort: 80
@@ -386,23 +317,13 @@ Resources:
         - Key: Name
           Value: !Sub '${Stage}-${AppName}-neo4j-sg'
 
-  UseExternalVpcConditionNeo4jDatabaseSecurityGroupIdParameter:
+  Neo4jDatabaseSecurityGroupIdParameter:
     Type: AWS::SSM::Parameter
-    Condition: UseExternalVpc
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId'
       Description: "Name of the Neo4jDatabaseSecurityGroup"
-      Value: !Ref UseExternalVpcConditionNeo4jDatabaseSecurityGroup
-
-  CreateVpcConditionNeo4jDatabaseSecurityGroupIdParameter:
-    Type: AWS::SSM::Parameter
-    Condition: CreateVpc
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId'
-      Description: "Name of the Neo4jDatabaseSecurityGroup"
-      Value: !Ref CreateVpcConditionNeo4jDatabaseSecurityGroup
+      Value: !Ref Neo4jDatabaseSecurityGroup
 
   GitHubPersonalAccessTokenSecret:
     Type: AWS::SecretsManager::Secret
