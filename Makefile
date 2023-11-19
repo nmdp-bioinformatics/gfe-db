@@ -225,6 +225,18 @@ env.validate.subdomain:
 
 env.validate.use-private-subnet.vars:
 ifeq ($(USE_PRIVATE_SUBNET),true)
+ifeq ($(ADMIN_IP),)
+	$(call red, "\`ADMIN_IP\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`true\`")
+	@exit 1
+endif
+ifeq ($(DEPLOY_NAT_GATEWAY),)
+	$(call red, "\`DEPLOY_NAT_GATEWAY\` must be set when \`USE_PRIVATE_SUBNET\` is \`true\`")
+	@exit 1
+endif
+ifeq ($(DEPLOY_BASTION_SERVER),)
+	$(call red, "\`DEPLOY_BASTION_SERVER\` must be set when \`USE_PRIVATE_SUBNET\` is \`true\`")
+	@exit 1
+endif
 ifeq ($(CREATE_VPC),false)
 ifeq ($(PUBLIC_SUBNET_ID),)
 	$(call red, "\`PUBLIC_SUBNET_ID\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`true\`")
@@ -238,18 +250,11 @@ ifeq ($(PRIVATE_SUBNET_ID),)
 else
 	$(call green, "Found PRIVATE_SUBNET_ID: ${PRIVATE_SUBNET_ID}")
 endif
-endif
-ifeq ($(ADMIN_IP),)
-	$(call red, "\`ADMIN_IP\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`true\`")
+else ifeq ($(CREATE_VPC),true)
+ifneq ($(DEPLOY_NAT_GATEWAY),true)
+	$(call red, "\`DEPLOY_NAT_GATEWAY\` must be set to \`true\` when \`CREATE_VPC\` is \`true\` and \`USE_PRIVATE_SUBNET\` is \`true\`")
 	@exit 1
 endif
-ifeq ($(DEPLOY_NAT_GATEWAY),)
-	$(call red, "\`DEPLOY_NAT_GATEWAY\` must be set when \`USE_PRIVATE_SUBNET\` is \`true\`")
-	@exit 1
-endif
-ifeq ($(DEPLOY_BASTION_SERVER),)
-	$(call red, "\`DEPLOY_BASTION_SERVER\` must be set when \`USE_PRIVATE_SUBNET\` is \`true\`")
-	@exit 1
 endif
 else ifeq ($(USE_PRIVATE_SUBNET),false)
 	$(call blue, "**** This deployment uses a public subnet for Neo4j ****")

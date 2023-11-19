@@ -164,18 +164,22 @@ service.deploy:
 			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN"
 
 service.access-services.deploy:
-ifeq ($(DEPLOY_NAT_GATEWAY),true)
 	$(MAKE) service.access-services.nat-gateway.deploy
-endif
-ifeq ($(DEPLOY_BASTION_SERVER),true)
 	$(MAKE) service.access-services.bastion-server.deploy
-endif
 
 service.access-services.nat-gateway.deploy:
+ifeq ($(DEPLOY_NAT_GATEWAY),true)
 	$(MAKE) -C access-services/nat-gateway deploy
+else
+	$(call blue, \`DEPLOY_NAT_GATEWAY\` is set to \`false\`. Update \`DEPLOY_NAT_GATEWAY\` to \`true\` to deploy.)
+endif
 
 service.access-services.bastion-server.deploy:
+ifeq ($(DEPLOY_BASTION_SERVER),true)
 	$(MAKE) -C access-services/bastion-server deploy
+else 
+	$(call blue, \`DEPLOY_BASTION_SERVER\` is set to \`false\`. Update \`DEPLOY_BASTION_SERVER\` to \`true\` to deploy.)
+endif
 
 service.access-services.bastion-server.connect:
 	$(MAKE) -C access-services/bastion-server service.bastion-server.connect
@@ -214,7 +218,12 @@ ifeq ($(data),true)
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting data in $${DATA_BUCKET_NAME}" 2>&1 | tee -a $${CFN_LOG_PATH}
 	@aws s3 rm --recursive s3://$${DATA_BUCKET_NAME}/
 endif
-	$(MAKE) service.access-services.delete
+ifeq ($(DEPLOY_NAT_GATEWAY),true)
+	$(MAKE) service.access-services.nat-gateway.delete
+endif
+ifeq ($(DEPLOY_BASTION_SERVER),true)
+	$(MAKE) service.access-services.bastion-server.delete
+endif
 ifeq ($(CREATE_SSM_VPC_ENDPOINT),true)
 	$(MAKE) service.delete.delete-endpoint service=ssm
 endif
