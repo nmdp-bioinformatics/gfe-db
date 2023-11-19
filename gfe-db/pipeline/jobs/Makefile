@@ -11,6 +11,7 @@ deploy:
 deploy.ecr.jobs.build:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Pushing Build Service Docker image to ECR" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws ecr get-login-password \
+		--profile "$${AWS_PROFILE}" \
 		--region "$${AWS_REGION}" | docker login \
 			--username AWS \
 			--password-stdin "$${ECR_BASE_URI}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \

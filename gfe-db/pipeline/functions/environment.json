@@ -8,8 +8,8 @@
                 "Timeout": 60,
                 "Environment": {
                     "Variables": {
-                        "PIPELINE_STATE_PATH": "config/IMGTHLA-repository-state.json",
-                        "PIPELINE_PARAMS_PATH": "config/pipeline-input.json"
+                        "PIPELINE_STATE_PATH": "config/pipeline/IMGTHLA-repository-state.json",
+                        "PIPELINE_PARAMS_PATH": "config/pipeline/pipeline-input.json"
                     }
                 }
             }

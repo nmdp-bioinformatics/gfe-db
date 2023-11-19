@@ -246,7 +246,7 @@ Resources:
       Roles:
         - !Ref Neo4jDatabaseInstanceRole
   
-  Neo4jDatabaseElasticIpAssociation:
+  UsePublicSubnetConditionNeo4jDatabaseElasticIpAssociation:
     Type: AWS::EC2::EIPAssociation
     Condition: UsePublicSubnet
     Properties:
@@ -261,23 +261,36 @@ Resources:
       Description: "Instance ID for gfe-db Neo4j database instance"
       Value: !Ref Neo4jDatabaseInstance
 
-  UsePublicSubnetConditionNeo4jUriParameter:
-    Type: AWS::SSM::Parameter
-    Condition: UsePublicSubnet
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jUri'
-      Description: "Connection URI for Neo4j"
-      Value: !Sub "neo4j+s://${Subdomain}.${HostDomain}:7687"
+  # # TODO refactor using If function
+  # UsePublicSubnetConditionNeo4jUriParameter:
+  #   Type: AWS::SSM::Parameter
+  #   Condition: UsePublicSubnet
+  #   Properties:
+  #     Type: String
+  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jUri'
+  #     Description: "Connection URI for Neo4j"
+  #     Value: !Sub "neo4j+s://${Subdomain}.${HostDomain}:7687"
 
-  UsePrivateSubnetConditionNeo4jUriParameter:
+  # # TODO refactor using If function
+  # UsePrivateSubnetConditionNeo4jUriParameter:
+  #   Type: AWS::SSM::Parameter
+  #   Condition: UsePrivateSubnet
+  #   Properties:
+  #     Type: String
+  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jUri'
+  #     Description: "Connection URI for Neo4j"
+  #     Value: !Sub "bolt://${Neo4jDatabaseInstance.PrivateIp}:7687"
+  
+  Neo4jUriParameter:
     Type: AWS::SSM::Parameter
-    Condition: UsePrivateSubnet
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jUri'
       Description: "Connection URI for Neo4j"
-      Value: !Sub "bolt://${Neo4jDatabaseInstance.PrivateIp}:7687"
+      Value: !If 
+        - UsePrivateSubnet
+        - !Sub "bolt://${Neo4jDatabaseInstance.PrivateIp}:7687"
+        - !Sub "neo4j+s://${Subdomain}.${HostDomain}:7687"
 
   UsePublicSubnetConditionNeo4jBrowserUrlParameter:
     Type: AWS::SSM::Parameter

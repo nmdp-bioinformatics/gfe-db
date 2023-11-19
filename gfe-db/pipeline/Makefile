@@ -7,9 +7,9 @@ target:
 # TODO: Don't deploy jobs if pipeline stack fails to create (exit Make)
 deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
+	$(MAKE) service.config.deploy
 	$(MAKE) service.deploy
 	$(MAKE) service.jobs.deploy
-	$(MAKE) service.config.deploy
 
 service.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} - functions" 2>&1 | tee -a $$CFN_LOG_PATH
@@ -36,8 +36,8 @@ service.deploy:
 			InvokePipelineFunctionSchedule="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.InvokePipelineFunctionSchedule')" \
 			InvokePipelineFunctionMemorySize="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.MemorySize')" \
 			InvokePipelineFunctionTimeout="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Timeout')" \
-			PipelineStatePath="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.EnvironmentVariables.PIPELINE_STATE_PATH')" \
-			PipelineParamsPath="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.EnvironmentVariables.PIPELINE_PARAMS_PATH')" \
+			PipelineStatePath="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Environment.Variables.PIPELINE_STATE_PATH')" \
+			PipelineParamsPath="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Environment.Variables.PIPELINE_PARAMS_PATH')" \
 			ExecuteValidationQueriesFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.ExecuteValidationQueries.FunctionConfiguration.FunctionName')" \
 			ExecuteValidationQueriesFunctionMemorySize="$$(cat functions/environment.json | jq -r '.Functions.ExecuteValidationQueries.FunctionConfiguration.MemorySize')" \
 			ExecuteValidationQueriesFunctionTimeout="$$(cat functions/environment.json | jq -r '.Functions.ExecuteValidationQueries.FunctionConfiguration.Timeout')" \
@@ -55,9 +55,27 @@ service.jobs.deploy:
 
 # TODO parameterize S3 config path and export as environment variable to recall in database shell scripts
 service.config.deploy:
-	@config_s3_path=s3://$$DATA_BUCKET_NAME/config/ && \
+	$(MAKE) service.config.pipeline-params.deploy
+	$(MAKE) service.config.state-machine.deploy
+
+service.config.pipeline-params.deploy:
+	@config_s3_path=s3://$$DATA_BUCKET_NAME/config/pipeline/ && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying config to $$config_s3_path" 2>&1 | tee -a $$CFN_LOG_PATH && \
 	aws s3 cp --recursive config/ $$config_s3_path 2>&1 | tee -a $$CFN_LOG_PATH
+
+service.config.state-machine.deploy:
+ifeq ($(USE_PRIVATE_SUBNET),true)
+	@state_machine_s3_path=s3://$$DATA_BUCKET_NAME/config/pipeline/statemachines/update-pipeline.asl.json && \
+	echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying state machine for private deployment to $$state_machine_s3_path\033[0m" 2>&1 | tee -a $$CFN_LOG_PATH && \
+	aws s3 cp statemachines/pipeline.no-backup-private.asl.json $$state_machine_s3_path 2>&1 | tee -a $$CFN_LOG_PATH
+else ifeq ($(USE_PRIVATE_SUBNET),false)
+	@state_machine_s3_path=s3://$$DATA_BUCKET_NAME/config/pipeline/statemachines/update-pipeline.asl.json && \
+	echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying state machine for public deployment\033[0m" 2>&1 | tee -a $$CFN_LOG_PATH && \
+	aws s3 cp statemachines/pipeline.no-backup-public.asl.json $$state_machine_s3_path 2>&1 | tee -a $$CFN_LOG_PATH
+else
+	@echo "USE_PRIVATE_SUBNET must be set to true or false"
+	@exit 1
+endif
 
 service.delete:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH

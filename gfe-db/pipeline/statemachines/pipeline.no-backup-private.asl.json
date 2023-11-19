@@ -3,7 +3,7 @@
     "States": {
         "Pre-Execution Validation Query": {
             "Type": "Task",
-            "Resource": "${UsePrivateSubnetConditionExecuteValidationQueriesFunctionArn}",
+            "Resource": "${ExecuteValidationQueriesFunctionArn}",
             "ResultPath": "$.validations.queries.pre",
             "Next": "Build Stage"
         },
@@ -216,7 +216,7 @@
         },
         "Post-Execution Validation Query": {
             "Type": "Task",
-            "Resource": "${UsePrivateSubnetConditionExecuteValidationQueriesFunctionArn}",
+            "Resource": "${ExecuteValidationQueriesFunctionArn}",
             "ResultPath": "$.validations.queries.post",
             "End": true
         }
