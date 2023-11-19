@@ -46,14 +46,47 @@ ifeq ($(HAS_STAGE),null)
 ifeq ($(CREATE_SSM_VPC_ENDPOINT),true)
 	$(call blue, Creating Systems Manager VPC endpoint...)
 	$(MAKE) service.deploy.create-endpoint service=ssm
+else 
+	$(call blue, Updating SSM Parameters for Systems Manager VPC endpoint...)
+	@service=ssm && \
+	res=$$(aws ssm put-parameter \
+		--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/$${service}EndpointId" \
+		--value "${SSM_VPC_ENDPOINT_ID}" \
+		--type String \
+		--overwrite) && \
+	echo $$res | jq -r
+	$(call blue, Adding Neo4j Security Group to existing SSM VPC endpoint...)
+	$(MAKE) service.deploy.modify-endpoint service=ssm
 endif
 ifeq ($(CREATE_SECRETSMANAGER_VPC_ENDPOINT),true)
 	$(call blue, Creating SecretsManager VPC endpoint...)
 	$(MAKE) service.deploy.create-endpoint service=secretsmanager
+else 
+	$(call blue, Updating SSM Parameters for SecretsManager VPC endpoint...)
+	@service=secretsmanager && \
+	res=$$(aws ssm put-parameter \
+		--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/$${service}EndpointId" \
+		--value "${SECRETSMANAGER_VPC_ENDPOINT_ID}" \
+		--type String \
+		--overwrite) && \
+	echo $$res | jq -r
+	$(call blue, Adding Neo4j Security Group to existing SecretsManager VPC endpoint...)
+	$(MAKE) service.deploy.modify-endpoint service=secretsmanager
 endif
 ifeq ($(CREATE_S3_VPC_ENDPOINT),true)
 	$(call blue, Creating S3 VPC endpoint...)
 	$(MAKE) service.deploy.create-endpoint service=s3
+else
+	$(call blue, Updating SSM Parameters for S3 VPC endpoint...)
+	@service=s3 && \
+	res=$$(aws ssm put-parameter \
+		--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/$${service}EndpointId" \
+		--value "${S3_VPC_ENDPOINT_ID}" \
+		--type String \
+		--overwrite) && \
+	echo $$res | jq -r
+	$(call blue, Adding Neo4j Security Group to existing S3 VPC endpoint...)
+	$(MAKE) service.deploy.modify-endpoint service=s3
 endif
 endif
 endif
@@ -127,6 +160,27 @@ service.deploy.create-endpoint: #=> service=<string>
 		--overwrite) && \
 	echo $$res | jq -r
 	$(call blue, Successfully created VPC endpoint for $$service)
+
+# TODO get the neo4j security group id and add it to the endpoint
+service.deploy.modify-endpoint: #=> service=<service>
+	@if [ -z $$service ]; then \
+		echo "\033[0;31mERROR: No service specified\033[0m" && exit 1; \
+	elif [ $$service != "ssm" ] && [ $$service != "secretsmanager" ] && [ $$service != "s3" ]; then \
+		echo "\033[0;31mERROR: Invalid service specified. Valid services are 'ssm', 'secretsmanager' or 's3'\033[0m" && exit 1; \
+	fi && \
+	neo4j_sg_id=$$(aws ssm get-parameters \
+		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseSecurityGroupId" \
+        --output json | jq -r '.Parameters[0].Value') && \
+	if [ "$$neo4j_sg_id" = "" ]; then \
+		echo "\033[0;31mERROR: Neo4j security group id not found\033[0m" && exit 1; \
+	fi && \
+	res=$$(aws ec2 modify-vpc-endpoint \
+		--vpc-endpoint-id $$(aws ssm get-parameters \
+			--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/$${service}EndpointId" \
+			--output json | jq -r '.Parameters[0].Value') \
+		--add-security-group-ids $$neo4j_sg_id) && \
+	echo $$res | jq -r
+	$(call blue, Successfully modified VPC endpoint for $$service)
 
 service.key-pair.create: ##=> Checks if the key pair already exists and creates it if it does not
 	@echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Creating EC2 key pair\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
@@ -226,12 +280,18 @@ ifeq ($(DEPLOY_BASTION_SERVER),true)
 endif
 ifeq ($(CREATE_SSM_VPC_ENDPOINT),true)
 	$(MAKE) service.delete.delete-endpoint service=ssm
+else
+	$(MAKE) service.delete.modify-endpoint service=ssm
 endif
 ifeq ($(CREATE_SECRETSMANAGER_VPC_ENDPOINT),true)
 	$(MAKE) service.delete.delete-endpoint service=secretsmanager
+else
+	$(MAKE) service.delete.modify-endpoint service=secretsmanager
 endif
 ifeq ($(CREATE_S3_VPC_ENDPOINT),true)
 	$(MAKE) service.delete.delete-endpoint service=s3
+else
+	$(MAKE) service.delete.modify-endpoint service=s3
 endif
 	$(MAKE) service.delete
 	$(MAKE) service.key-pair.delete
@@ -241,6 +301,12 @@ endif
 service.access-services.delete:
 	$(MAKE) -C access-services/bastion-server delete
 	$(MAKE) -C access-services/nat-gateway delete
+
+service.access-services.nat-gateway.delete:
+	$(MAKE) -C access-services/nat-gateway delete
+
+service.access-services.bastion-server.delete:
+	$(MAKE) -C access-services/bastion-server delete
 
 service.delete.delete-endpoint: #=> service=<string>
 	@if [ -z $$service ]; then \
@@ -265,6 +331,21 @@ service.delete.delete-endpoint: #=> service=<string>
 	else \
 		echo "\033[0;33mNo endpoint ID found for $${service}\033[0m"; \
 	fi
+
+service.delete.modify-endpoint: #=> service=<service>
+	@if [ -z $$service ]; then \
+		echo "\033[0;31mERROR: No service specified\033[0m" && exit 1; \
+	elif [ $$service != "ssm" ] && [ $$service != "secretsmanager" ] && [ $$service != "s3" ]; then \
+		echo "\033[0;31mERROR: Invalid service specified. Valid services are 'ssm', 'secretsmanager' or 's3'\033[0m" && exit 1; \
+	fi && \
+	-aws ec2 modify-vpc-endpoint \
+		--vpc-endpoint-id $$(aws ssm get-parameters \
+			--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/$${service}EndpointId" \
+			--output json | jq -r '.Parameters[0].Value') \
+		--remove-security-group-ids $$(aws ssm get-parameters \
+			--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseSecurityGroupId" \
+			--output json | jq -r '.Parameters[0].Value') && \
+	echo "Successfully removed Neo4j security group from $${service} VPC endpoint"
 
 service.delete:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting CloudFormation" 2>&1 | tee -a $${CFN_LOG_PATH}

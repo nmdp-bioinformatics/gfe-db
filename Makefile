@@ -29,6 +29,10 @@ CREATE_VPC ?= false
 USE_PRIVATE_SUBNET ?= false
 CREATE_SSM_VPC_ENDPOINT ?=
 CREATE_SECRETSMANAGER_VPC_ENDPOINT ?=
+CREATE_S3_VPC_ENDPOINT ?=
+SSM_VPC_ENDPOINT_ID ?=
+SECRETSMANAGER_VPC_ENDPOINT_ID ?=
+S3_VPC_ENDPOINT_ID ?=
 DEPLOY_NAT_GATEWAY ?=
 DEPLOY_BASTION_SERVER ?=
 VPC_ID ?=
@@ -249,6 +253,30 @@ ifeq ($(PRIVATE_SUBNET_ID),)
 	@exit 1
 else
 	$(call green, "Found PRIVATE_SUBNET_ID: ${PRIVATE_SUBNET_ID}")
+endif
+ifeq ($(CREATE_SSM_VPC_ENDPOINT),false)
+ifeq ($(SSM_VPC_ENDPOINT_ID),)
+	$(call red, "\`SSM_VPC_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`true\` and \`CREATE_SSM_VPC_ENDPOINT\` is \`false\`")
+	@exit 1
+else
+	$(call green, "Found SSM_VPC_ENDPOINT_ID: ${SSM_VPC_ENDPOINT_ID}")
+endif
+endif
+ifeq ($(CREATE_SECRETSMANAGER_VPC_ENDPOINT),false)
+ifeq ($(SECRETSMANAGER_VPC_ENDPOINT_ID),)
+	$(call red, "\`SECRETSMANAGER_VPC_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`true\` and \`CREATE_SSM_VPC_ENDPOINT\` is \`false\`")
+	@exit 1
+else
+	$(call green, "Found SECRETSMANAGER_VPC_ENDPOINT_ID: ${SECRETSMANAGER_VPC_ENDPOINT_ID}")
+endif
+endif
+ifeq ($(CREATE_S3_VPC_ENDPOINT),false)
+ifeq ($(S3_VPC_ENDPOINT_ID),)
+	$(call red, "\`S3_VPC_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`true\` and \`CREATE_SSM_VPC_ENDPOINT\` is \`false\`")
+	@exit 1
+else
+	$(call green, "Found S3_VPC_ENDPOINT_ID: ${S3_VPC_ENDPOINT_ID}")
+endif
 endif
 else ifeq ($(CREATE_VPC),true)
 ifneq ($(DEPLOY_NAT_GATEWAY),true)
