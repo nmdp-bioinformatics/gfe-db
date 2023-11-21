@@ -249,10 +249,6 @@ Resources:
         - !Ref CreateVpcPrivateConditionPrivateSubnet
         - !Ref PrivateSubnetId
   
-  # if CREATE_VPC=true and USE_PRIVATE_SUBNET=false: `!Ref CreateVpcConditionPublicSubnet`
-  # if CREATE_VPC=true and USE_PRIVATE_SUBNET=true: `!Ref CreateVpcPrivateConditionPrivateSubnet`
-  # if CREATE_VPC=false and USE_PRIVATE_SUBNET=false: `!Ref PublicSubnetId`
-  # if CREATE_VPC=false and USE_PRIVATE_SUBNET=true: `!Ref PrivateSubnetId`
   Neo4jSubnetIdParameter:
     Type: AWS::SSM::Parameter
     Properties:

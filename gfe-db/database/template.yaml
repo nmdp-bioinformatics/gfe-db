@@ -22,8 +22,7 @@ Parameters:
   DataBucketName:
     Type: String
   Neo4jAmiId:
-    Type: String #AWS::EC2::Image::Id
-    # Default: ami-0e1324ddfc4d086bb
+    Type: String
     Description: AMI ID for Neo4j Community edition from AWS Marketplace
   DatabaseVolumeSize:
     Type: String
@@ -56,12 +55,6 @@ Resources:
       Name: !Sub "${AppName}-${Stage}-Neo4jCredentials"
       Description: Must match the username/password specified in the Neo4j Dockerfile. Empty until the database is created.
       SecretString: '{"NEO4J_USERNAME":"","NEO4J_PASSWORD":""}'
-      # TODO remove
-      Tags:
-        - Key: Stage
-          Value: !Ref Stage
-        - Key: AppName 
-          Value: !Ref AppName
 
   Neo4jCredentialsSecretArnParameter:
     Type: AWS::SSM::Parameter
@@ -70,10 +63,6 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn'
       Description: "ARN for Neo4jCredentialsSecret"
       Value: !Ref Neo4jCredentialsSecret
-      # TODO remove
-      Tags:
-        Stage: !Ref Stage
-        AppName: !Ref AppName
   
   Neo4jDatabaseInstance:
     Type: AWS::EC2::Instance
@@ -176,11 +165,8 @@ Resources:
           sudo journalctl -b > logs/boot.log
           cat /opt/bitnami/neo4j/logs/neo4j.log > logs/neo4j.log
           cat /opt/bitnami/neo4j/logs/debug.log > logs/debug.log
-      # TODO remove
       Tags:
         - Key: Name
-          Value: !Sub '${AppName}-${Stage}'
-        - Key: Stage
           Value: !Sub '${AppName}-${Stage}'
           
   Neo4jDatabaseInstanceRole:
@@ -260,26 +246,6 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId'
       Description: "Instance ID for gfe-db Neo4j database instance"
       Value: !Ref Neo4jDatabaseInstance
-
-  # # TODO refactor using If function
-  # UsePublicSubnetConditionNeo4jUriParameter:
-  #   Type: AWS::SSM::Parameter
-  #   Condition: UsePublicSubnet
-  #   Properties:
-  #     Type: String
-  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jUri'
-  #     Description: "Connection URI for Neo4j"
-  #     Value: !Sub "neo4j+s://${Subdomain}.${HostDomain}:7687"
-
-  # # TODO refactor using If function
-  # UsePrivateSubnetConditionNeo4jUriParameter:
-  #   Type: AWS::SSM::Parameter
-  #   Condition: UsePrivateSubnet
-  #   Properties:
-  #     Type: String
-  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jUri'
-  #     Description: "Connection URI for Neo4j"
-  #     Value: !Sub "bolt://${Neo4jDatabaseInstance.PrivateIp}:7687"
   
   Neo4jUriParameter:
     Type: AWS::SSM::Parameter
@@ -301,7 +267,6 @@ Resources:
       Description: "Connection URI for Neo4j"
       Value: !Sub "https://${Subdomain}.${HostDomain}:7473/browser/"
 
-  # TODO test from EC2 instance
   Neo4jPrivateIpParameter:
     Type: AWS::SSM::Parameter
     Properties:

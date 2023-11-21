@@ -161,7 +161,6 @@ service.deploy.create-endpoint: #=> service=<string>
 	echo $$res | jq -r
 	$(call blue, Successfully created VPC endpoint for $$service)
 
-# TODO get the neo4j security group id and add it to the endpoint
 service.deploy.modify-endpoint: #=> service=<service>
 	@if [ -z $$service ]; then \
 		echo "\033[0;31mERROR: No service specified\033[0m" && exit 1; \
@@ -267,7 +266,6 @@ service.monitoring.subscribe-email: #email=<string>
 		--protocol email \
 		--notification-endpoint "$$email" 2>&1 | tee -a $${CFN_LOG_PATH} || true;
 
-# TODO only delete access-services if the stacks are deployed
 delete: ##=> Delete resources
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $${CFN_LOG_PATH}
 ifeq ($(data),true)
@@ -299,7 +297,6 @@ endif
 	$(MAKE) service.key-pair.delete
 	$(MAKE) service.parameters.delete
 
-# TODO only delete access-services if the stacks are deployed
 service.access-services.delete:
 	$(MAKE) -C access-services/bastion-server delete
 	$(MAKE) -C access-services/nat-gateway delete

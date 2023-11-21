@@ -214,21 +214,6 @@ env.validate.subdomain:
 		jq -r --arg fqdn "$$fqdn" '.ResourceRecordSets[] | select(.Name == $$fqdn) | .Name') && \
 	[[ $$res = "" ]] && echo "\033[0;31mERROR: No Route53 domain found for $$fqdn\033[0m" && exit 1 || true
 
-# env.validate.use-existing-vpc.vars:
-# ifeq ($(VPC_ID),)
-# 	$(call red, "\`VPC_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`false\`")
-# 	@exit 1
-# else
-# 	$(call green, "Found VPC_ID: ${VPC_ID}")
-# endif
-# ifeq ($(PUBLIC_SUBNET_ID),)
-# 	$(call red, "\`PUBLIC_SUBNET_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`false\`")
-# 	@exit 1
-# else
-# 	$(call green, "Found PUBLIC_SUBNET_ID: ${PUBLIC_SUBNET_ID}")
-# endif
-# 	$(MAKE) env.validate.use-private-subnet.vars
-
 env.validate.use-private-subnet.vars:
 ifeq ($(USE_PRIVATE_SUBNET),true)
 ifeq ($(ADMIN_IP),)
@@ -366,7 +351,6 @@ endif
 endif
 endif
 
-# echo "\033[0;32mFound NAT Gateway route\033[0m" || echo "\033[0;31mERROR: No NAT Gateway route found\033[0m"
 env.validate.external-nat-gateway:
 ifeq ($(DEPLOY_NAT_GATEWAY),false)
 ifeq ($(EXTERNAL_NAT_GATEWAY_ID),)

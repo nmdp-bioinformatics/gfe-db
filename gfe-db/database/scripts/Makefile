@@ -117,7 +117,6 @@ else ifeq ($(USE_PRIVATE_SUBNET),false)
 	$(MAKE) neo4j.config.update-dns.public
 endif
 
-# TODO test init scripts for public and private deployment
 # This target will configure the database to use the correct DNS name using env vars
 neo4j.config.update-dns.private:
 	@private_ip="$$(aws ssm get-parameter \
@@ -127,7 +126,6 @@ neo4j.config.update-dns.private:
 	cat ${NEO4J_HOME}/conf/neo4j.template | \
 	sed "s|# dbms.default_advertised_address=.*|dbms.default_advertised_address="$$private_ip"|" > ${NEO4J_HOME}/conf/neo4j.conf
 
-# TODO test init scripts for public and private deployment
 # This target will configure the database to use the correct DNS name using env vars
 neo4j.config.update-dns.public:
 	@[ "${HOST_DOMAIN}" != "" ] && \
@@ -144,7 +142,6 @@ neo4j.config.reset-auth.ssl:
 	@sed -i 's/dbms.security.auth_enabled=false/#dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
 	$(MAKE) neo4j.start
 
-# TODO fix this for private subnet
 neo4j.config.reset-auth.no-ssl:
 	@echo "Resetting Neo4j authentication"
 	$(MAKE) neo4j.stop
@@ -266,7 +263,6 @@ neo4j.drop-constraints:
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
 	@cat ${NEO4J_HOME}/cypher/drop_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 
-# TODO integrate reporting, copy to S3 with logs
 neo4j.create-report:
 	@mkdir -p ${REPORTS_DIR}
 	@neo4j-admin check-consistency --database=neo4j --verbose=true --report-dir=reports > reports/consistency_check.txt

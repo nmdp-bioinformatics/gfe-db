@@ -19,21 +19,6 @@ else ifeq ($(USE_PRIVATE_SUBNET),false)
 endif
 	@aws s3 cp --recursive neo4j/cypher/ s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
 
-# # This target will configure the database to use the correct DNS name using env vars
-# service.config.update-dns.public:
-# 	@[ "${HOST_DOMAIN}" != "" ] && \
-# 	cat neo4j/neo4j.template | \
-# 	sed s"/# dbms.default_advertised_address=.*/dbms.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > neo4j/neo4j.conf
-
-# # TODO Neo4jPrivateIp isn't available when this is run, so it needs to be refactored
-# # This target will configure the database to use the correct DNS name using env vars
-# service.config.update-dns.private:
-# 	@private_ip="$$(aws ssm get-parameter \
-# 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jPrivateIp" | jq -r '.Parameter.Value')" && \
-# 	echo "Private IP: $$private_ip" && \
-# 	cat neo4j/neo4j.private.template | \
-# 	sed "s|# dbms.default_advertised_address=.*|dbms.default_advertised_address="$$private_ip"|" > neo4j/neo4j.conf
-
 service.config.scripts.deploy:
 	@script_s3_path=s3://$$DATA_BUCKET_NAME/config/scripts/ && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying backup script to $$script_s3_path" 2>&1 \
