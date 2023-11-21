@@ -215,6 +215,8 @@ service.deploy:
 			VpcId="$${VPC_ID}" \
 			PublicSubnetId="$${PUBLIC_SUBNET_ID}" \
 			PrivateSubnetId="$${PRIVATE_SUBNET_ID}" \
+			ExternalNatGatewayId="$${EXTERNAL_NAT_GATEWAY_ID}" \
+			ExternalPrivateRouteTableId="$${EXTERNAL_PRIVATE_ROUTE_TABLE_ID}" \
 			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN"
 
 service.access-services.deploy:
@@ -338,13 +340,14 @@ service.delete.modify-endpoint: #=> service=<service>
 	elif [ $$service != "ssm" ] && [ $$service != "secretsmanager" ] && [ $$service != "s3" ]; then \
 		echo "\033[0;31mERROR: Invalid service specified. Valid services are 'ssm', 'secretsmanager' or 's3'\033[0m" && exit 1; \
 	fi && \
-	-aws ec2 modify-vpc-endpoint \
+	res=$$(aws ec2 modify-vpc-endpoint \
 		--vpc-endpoint-id $$(aws ssm get-parameters \
 			--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/$${service}EndpointId" \
 			--output json | jq -r '.Parameters[0].Value') \
 		--remove-security-group-ids $$(aws ssm get-parameters \
 			--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseSecurityGroupId" \
-			--output json | jq -r '.Parameters[0].Value') && \
+			--output json | jq -r '.Parameters[0].Value')) && \
+	echo $$res | jq -r && \
 	echo "Successfully removed Neo4j security group from $${service} VPC endpoint"
 
 service.delete:

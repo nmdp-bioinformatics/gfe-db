@@ -36,6 +36,12 @@ Parameters:
   PrivateSubnetId:
     Type: String
     Description: Required if createVpc is false
+  # ExternalNatGatewayId:
+  #   Type: String
+  #   Description: Required if createVpc is false and useExternalNatGateway is true
+  # ExternalPrivateRouteTableId:
+  #   Type: String
+  #   Description: Required if createVpc is false and useExternalNatGateway is true
   GitHubPersonalAccessToken:
     Type: String
     NoEcho: true
@@ -49,7 +55,9 @@ Conditions:
   UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
   UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
   UsePrivateSubnet: !Equals [!Ref usePrivateSubnet, 'true']
+  UsePrivateSubnetDeployNatGateway: !And [!Equals [!Ref usePrivateSubnet, 'true'], !Equals [!Ref deployNatGateway, 'true']]
   UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
+  # UseExternalNatGateway: !Equals [!Ref deployNatGateway, 'false']
 
 Mappings:
   # AvailabilityZoneMap defines availability zones where an m5d.xlarge instance is available (used for Neo4j server).
@@ -135,9 +143,9 @@ Resources:
       VpcId: !Ref CreateVpcConditionVpc
   
   # Required for NAT Gateway
-  UsePrivateSubnetConditionPrivateRouteTable:
+  UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable:
     Type: AWS::EC2::RouteTable
-    Condition: UsePrivateSubnet
+    Condition: UsePrivateSubnetDeployNatGateway
     Properties:
       VpcId: !If
         - CreateVpc
@@ -145,14 +153,14 @@ Resources:
         - !Ref VpcId
 
   # Required for NAT Gateway
-  UsePrivateSubnetConditionPrivateRouteTableParameter:
+  UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTableParameter:
     Type: AWS::SSM::Parameter
-    Condition: UsePrivateSubnet
+    Condition: UsePrivateSubnetDeployNatGateway
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PrivateRouteTableId'
       Description: !Sub "ID of the private route table for ${AppName}"
-      Value: !Ref UsePrivateSubnetConditionPrivateRouteTable
+      Value: !Ref UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable
   
   CreateVpcConditionVpcGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -172,13 +180,21 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref CreateVpcConditionInternetGateway
   
+  # UseExternalNatGatewayPrivateRoute:
+  #   Type: AWS::EC2::Route
+  #   Condition: UseExternalNatGateway
+  #   Properties:
+  #     RouteTableId: !Ref UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable
+  #     DestinationCidrBlock: 0.0.0.0/0
+  #     NatGatewayId: !Ref ExternalNatGatewayId
+  
   # # No default route is required because the private subnet is not connected to the internet
   # # AWS automatically updates the route table for VPC endpoints for S3, SSM and SecretsManager
   # CreateVpcPrivateConditionPrivateRoute:
   #   Type: AWS::EC2::Route
   #   Condition: CreateVpcPrivate
   #   Properties:
-  #     RouteTableId: !Ref UsePrivateSubnetConditionPrivateRouteTable
+  #     RouteTableId: !Ref UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable
   #     # DestinationCidrBlock: 0.0.0.0/0 # Not required for private subnet
   
   CreateVpcConditionPublicSubnetRouteTableAssociation:
@@ -189,11 +205,11 @@ Resources:
       SubnetId: !Ref CreateVpcConditionPublicSubnet
 
   # Required for NAT Gateway  
-  UsePrivateSubnetConditionPrivateSubnetRouteTableAssociation:
+  UsePrivateSubnetDeployNatGatewayConditionPrivateSubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: UsePrivateSubnet
+    Condition: UsePrivateSubnetDeployNatGateway
     Properties:
-      RouteTableId: !Ref UsePrivateSubnetConditionPrivateRouteTable
+      RouteTableId: !Ref UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable
       SubnetId: !If
         - CreateVpcPrivate
         - !Ref CreateVpcPrivateConditionPrivateSubnet
