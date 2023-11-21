@@ -27,14 +27,16 @@ export PURGE_LOGS := false
 # conditionally required variable defaults
 CREATE_VPC ?= false
 USE_PRIVATE_SUBNET ?= false
+DEPLOY_NAT_GATEWAY ?=
+# EXTERNAL_NAT_GATEWAY_ID ?=
+# EXTERNAL_PRIVATE_ROUTE_TABLE_ID ?=
+DEPLOY_BASTION_SERVER ?=
 CREATE_SSM_VPC_ENDPOINT ?=
 CREATE_SECRETSMANAGER_VPC_ENDPOINT ?=
 CREATE_S3_VPC_ENDPOINT ?=
 SSM_VPC_ENDPOINT_ID ?=
 SECRETSMANAGER_VPC_ENDPOINT_ID ?=
 S3_VPC_ENDPOINT_ID ?=
-DEPLOY_NAT_GATEWAY ?=
-DEPLOY_BASTION_SERVER ?=
 VPC_ID ?=
 PUBLIC_SUBNET_ID ?=
 HOST_DOMAIN ?=
@@ -254,6 +256,26 @@ ifeq ($(PRIVATE_SUBNET_ID),)
 else
 	$(call green, "Found PRIVATE_SUBNET_ID: ${PRIVATE_SUBNET_ID}")
 endif
+ifeq ($(DEPLOY_NAT_GATEWAY),)
+	$(call red, "\`DEPLOY_NAT_GATEWAY\` must be set when \`CREATE_VPC\` is \`false\` and \`USE_PRIVATE_SUBNET\` is \`true\`")
+	@exit 1
+else ifneq ($(DEPLOY_NAT_GATEWAY),)
+	$(MAKE) env.validate.external-nat-gateway
+endif
+# ifeq ($(DEPLOY_NAT_GATEWAY),false)
+# ifeq ($(EXTERNAL_NAT_GATEWAY_ID),)
+# 	$(call red, "\`EXTERNAL_NAT_GATEWAY_ID\` must be set as an environment variable when \`DEPLOY_NAT_GATEWAY\` is \`false\`")
+# 	@exit 1
+# else
+# 	$(call green, "Found EXTERNAL_NAT_GATEWAY_ID: ${EXTERNAL_NAT_GATEWAY_ID}")
+# endif
+# ifeq ($(EXTERNAL_PRIVATE_ROUTE_TABLE_ID),)
+# 	$(call red, "\`EXTERNAL_PRIVATE_ROUTE_TABLE_ID\` must be set as an environment variable when \`DEPLOY_NAT_GATEWAY\` is \`false\`")
+# 	@exit 1
+# else
+# 	$(call green, "Found EXTERNAL_PRIVATE_ROUTE_TABLE_ID: ${EXTERNAL_PRIVATE_ROUTE_TABLE_ID}")
+# endif
+# endif
 ifeq ($(CREATE_SSM_VPC_ENDPOINT),false)
 ifeq ($(SSM_VPC_ENDPOINT_ID),)
 	$(call red, "\`SSM_VPC_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`true\` and \`CREATE_SSM_VPC_ENDPOINT\` is \`false\`")
@@ -341,6 +363,23 @@ ifneq ($(PRIVATE_SUBNET_ID),)
 	$(call red, "\`PRIVATE_SUBNET_ID\` must not be set when \`CREATE_VPC\` is \`false\`")
 	@exit 1
 endif
+endif
+endif
+
+# echo "\033[0;32mFound NAT Gateway route\033[0m" || echo "\033[0;31mERROR: No NAT Gateway route found\033[0m"
+env.validate.external-nat-gateway:
+ifeq ($(DEPLOY_NAT_GATEWAY),false)
+ifeq ($(EXTERNAL_NAT_GATEWAY_ID),)
+	$(call red, "\`EXTERNAL_NAT_GATEWAY_ID\` must be set as an environment variable when \`DEPLOY_NAT_GATEWAY\` is \`false\`")
+	@exit 1
+else
+	$(call green, "Found EXTERNAL_NAT_GATEWAY_ID: ${EXTERNAL_NAT_GATEWAY_ID}")
+	$(call blue, Validating NAT Gateway configuration...)
+	@res=$$(aws ec2 describe-route-tables \
+		--filters "Name=vpc-id,Values=${VPC_ID}" | jq -r --arg SUBNET_ID "${PRIVATE_SUBNET_ID}" --arg NAT_ID "${EXTERNAL_NAT_GATEWAY_ID}" '.RouteTables[] \
+			| select(.Associations[]? | .SubnetId == $$SUBNET_ID) | {RouteTableId: .RouteTableId, Routes: .Routes, IsNATGatewayRoutePresent: any(.Routes[]; .NatGatewayId == $$NAT_ID)}' \
+	| jq -r '.IsNATGatewayRoutePresent') && \
+	[[ $$res = "true" ]] && echo "\033[0;34mFound NAT Gateway route\033[0m" || (echo "\033[0;31mERROR: No NAT Gateway route found\033[0m" && exit 1)
 endif
 endif
 
