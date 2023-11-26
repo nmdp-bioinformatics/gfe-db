@@ -9,8 +9,8 @@ export BITNAMI_HOME ?= /home/bitnami
 export LOGS_DIR := /tmp/logs
 export REPORTS_DIR := ${BITNAMI_HOME}/reports
 export NEO4J_HOME := /opt/bitnami/neo4j
-export NEO4J_USERNAME := $(shell cat ${BITNAMI_HOME}/bitnami_credentials | sed 's/ /\n/g' | grep -E "'([a-zA-Z0-9]+)'" | sed "s/'//g" | sed "s/\.//g" | head -n 1)
-export NEO4J_PASSWORD := $(shell cat ${BITNAMI_HOME}/bitnami_credentials | sed 's/ /\n/g' | grep -E "'([a-zA-Z0-9]+)'" | sed "s/'//g" | sed "s/\.//g" | tail -n 1)
+export NEO4J_USERNAME=$(shell awk -F"'" '/The default username and password is/ {print $$2}' bitnami_credentials)
+export NEO4J_PASSWORD=$(shell awk -F"'" '/The default username and password is/ {print $$4}' bitnami_credentials)
 export INSTANCE_ID := $(shell curl -sS http://169.254.169.254/latest/meta-data/instance-id)
 
 target:
@@ -65,8 +65,8 @@ endif
 neo4j: bootstrap
 	$(MAKE) neo4j.update-credentials
 	$(MAKE) neo4j.config.update
-	$(MAKE) neo4j.plugins.install-apoc
-	$(MAKE) neo4j.plugins.install-gds
+	# $(MAKE) neo4j.plugins.install-apoc # TODO already installed
+	# $(MAKE) neo4j.plugins.install-gds # TODO enable
 	$(MAKE) neo4j.restart
 	$(MAKE) neo4j.init
 	$(MAKE) neo4j.restart
@@ -81,6 +81,10 @@ neo4j.update-credentials:
 	@aws --region ${AWS_REGION} secretsmanager update-secret \
 		--secret-id ${NEO4J_CREDENTIALS_SECRET_ARN} \
 		--secret-string "{\"NEO4J_USERNAME\":\"${NEO4J_USERNAME}\",\"NEO4J_PASSWORD\":\"${NEO4J_PASSWORD}\"}"
+
+neo4j.credentials.show:
+	@echo "Username: ${NEO4J_USERNAME}"
+	@echo "Password: ${NEO4J_PASSWORD}"
 
 neo4j.status:
 	@/opt/bitnami/ctlscript.sh status
@@ -124,14 +128,15 @@ neo4j.config.update-dns.private:
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jPrivateIp" | jq -r '.Parameter.Value')" && \
 	echo "Private IP: $$private_ip" && \
 	cat ${NEO4J_HOME}/conf/neo4j.template | \
-	sed "s|# dbms.default_advertised_address=.*|dbms.default_advertised_address="$$private_ip"|" > ${NEO4J_HOME}/conf/neo4j.conf
+	sed "s|# server.default_advertised_address=.*|server.default_advertised_address="$$private_ip"|" > ${NEO4J_HOME}/conf/neo4j.conf
 
 # This target will configure the database to use the correct DNS name using env vars
 neo4j.config.update-dns.public:
 	@[ "${HOST_DOMAIN}" != "" ] && \
 	cat ${NEO4J_HOME}/conf/neo4j.template | \
-	sed s"/# dbms.default_advertised_address=.*/dbms.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > ${NEO4J_HOME}/conf/neo4j.conf
+	sed s"/# server.default_advertised_address=.*/server.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > ${NEO4J_HOME}/conf/neo4j.conf
 
+# TODO update for Neo4j 5
 neo4j.config.reset-auth.ssl:
 	@echo "Resetting Neo4j authentication"
 	$(MAKE) neo4j.stop
@@ -142,6 +147,7 @@ neo4j.config.reset-auth.ssl:
 	@sed -i 's/dbms.security.auth_enabled=false/#dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
 	$(MAKE) neo4j.start
 
+# TODO update for Neo4j 5
 neo4j.config.reset-auth.no-ssl:
 	@echo "Resetting Neo4j authentication"
 	$(MAKE) neo4j.stop
@@ -189,6 +195,13 @@ else ifeq ($(USE_PRIVATE_SUBNET),false)
 	@cat ${NEO4J_HOME}/cypher/init.cyp | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 endif
 
+neo4j.query.show-constraints: # public: neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687; private: bolt://<private_ip>:7687
+ifeq ($(USE_PRIVATE_SUBNET),true)
+	@echo "SHOW CONSTRAINTS;" | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
+else ifeq ($(USE_PRIVATE_SUBNET),false)
+	@echo "SHOW CONSTRAINTS;" | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
+endif
+
 neo4j.init.queries.no-ssl:
 	@echo "Executing initialization queries..."
 	@cat ${NEO4J_HOME}/cypher/init.cyp | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
@@ -232,6 +245,7 @@ neo4j.backup:
 	@rm ${BITNAMI_HOME}/gfedb.zip
 	$(MAKE) neo4j.start
 
+# TODO update for Neo4j 5
 # TODO testing s3://prod-gfe-db-531868584498-us-east-1/backups/neo4j/2023/09/14/05
 neo4j.restore: #from_path=s3://<backup path>
 	@echo "Received data restore request for backup $$from_path"
@@ -263,6 +277,7 @@ neo4j.drop-constraints:
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
 	@cat ${NEO4J_HOME}/cypher/drop_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 
+# TODO update for Neo4j 5
 neo4j.create-report:
 	@mkdir -p ${REPORTS_DIR}
 	@neo4j-admin check-consistency --database=neo4j --verbose=true --report-dir=reports > reports/consistency_check.txt

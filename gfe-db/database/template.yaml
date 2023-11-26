@@ -110,6 +110,11 @@ Resources:
           git \
           python3-pip \
           python3-venv
+          openjdk-17-jdk \
+          openjdk-17-jre
+          # Update system Java for Neo4j cypher-shell
+          update-java-alternatives --set /usr/lib/jvm/java-1.17.0-openjdk-amd64
+          /usr/bin/java -version
           export BITNAMI_HOME=/home/bitnami
           # CloudWatch Logs Agent
           mkdir -p /tmp/amazon-cloudwatch-agent
@@ -129,6 +134,8 @@ Resources:
           systemctl enable amazon-ssm-agent
           systemctl start amazon-ssm-agent
           # Permanently set application environment variables (these should never change for the duration of the deployment) # TODO: Move to Makefile target
+          export BITNAMI_HOME=/home/bitnami
+          echo "BITNAMI_HOME=$BITNAMI_HOME" >> $BITNAMI_HOME/env.sh
           echo "STAGE=${Stage}" >> $BITNAMI_HOME/env.sh
           echo "APP_NAME=${AppName}" >> $BITNAMI_HOME/env.sh
           echo "USE_PRIVATE_SUBNET=${usePrivateSubnet}" >> $BITNAMI_HOME/env.sh
