@@ -332,7 +332,7 @@ service.delete.delete-endpoint: #=> service=<string>
 	fi
 
 service.delete.modify-endpoint: #=> service=<service>
-	@if [ -z $$service ]; then \
+	@-if [ -z $$service ]; then \
 		echo "\033[0;31mERROR: No service specified\033[0m" && exit 1; \
 	elif [ $$service != "ssm" ] && [ $$service != "secretsmanager" ] && [ $$service != "s3" ]; then \
 		echo "\033[0;31mERROR: Invalid service specified. Valid services are 'ssm', 'secretsmanager' or 's3'\033[0m" && exit 1; \

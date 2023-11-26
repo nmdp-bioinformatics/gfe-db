@@ -25,6 +25,7 @@ service.deploy: #=> admin_ip=<ip address>
 			AdminIp="$${ADMIN_IP}"
 	$(MAKE) service.authorize-security-group-ingress
 
+# 
 service.connect:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Setting up SSH tunnel to database instance using bastion host" 2>&1 | tee -a $$CFN_LOG_PATH
 	@bastion_host_public_ip="$$(aws ssm get-parameter \
@@ -33,8 +34,8 @@ service.connect:
 	database_private_ip="$$(aws ssm get-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jPrivateIp" | jq -r '.Parameter.Value')" && \
 	echo "\033[0;32mDatabase private IP: $$database_private_ip\033[0m" && \
-	ssh-add ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem && \
-	ssh -tt -i ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem -A ec2-user@"$$bastion_host_public_ip" ssh bitnami@"$$database_private_ip"
+	ssh-add -K ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem && \
+	ssh -tt -o IdentitiesOnly=yes -i ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem -A ec2-user@"$$bastion_host_public_ip" ssh -o IdentitiesOnly=yes bitnami@"$$database_private_ip"
 
 service.authorize-security-group-ingress:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Updating Neo4j database security group for bastion host" 2>&1 | tee -a $$CFN_LOG_PATH
