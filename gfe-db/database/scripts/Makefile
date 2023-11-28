@@ -13,6 +13,8 @@ export NEO4J_USERNAME=$(shell awk -F"'" '/The default username and password is/ 
 export NEO4J_PASSWORD=$(shell awk -F"'" '/The default username and password is/ {print $$4}' bitnami_credentials)
 export INSTANCE_ID := $(shell curl -sS http://169.254.169.254/latest/meta-data/instance-id)
 
+REQUIRED_VARS := DATA_BUCKET_NAME NEO4J_HOME NEO4J_USERNAME NEO4J_PASSWORD ADMIN_EMAIL GDS_VERSION
+
 target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
@@ -25,34 +27,39 @@ get.data: #=> Download the build data locally; get.data release=3470
 	@[ -z "$$release" ] && aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/data/$$release/csv/ ${NEO4J_HOME}/import/ || echo "No release argument"
 # env.fetch:
 
-env.check:
-ifndef DATA_BUCKET_NAME
-$(error DATA_BUCKET_NAME is not set.)
-endif
-ifndef NEO4J_HOME
-$(error NEO4J_HOME is not set.)
-endif
-ifndef NEO4J_USERNAME
-$(error NEO4J_HOME is not set.)
-endif
-ifndef NEO4J_PASSWORD
-$(error NEO4J_HOME is not set.)
-endif
-# ifndef HOST_DOMAIN
-# $(error HOST_DOMAIN is not set.)
-# endif
-ifndef ADMIN_EMAIL
-$(error ADMIN_EMAIL is not set.)
-endif
-ifndef APOC_VERSION
-$(error APOC_VERSION is not set.)
-endif
-ifndef GDS_VERSION
-$(error GDS_VERSION is not set.)
-endif
+env.validate.vars:
+	$(foreach var,$(REQUIRED_VARS),\
+		$(if $(value $(var)),,$(error $(var) is not set. Please add $(var) to the environment variables.)))
 	@echo "$$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1
 
-bootstrap:
+# env.check:
+# ifndef DATA_BUCKET_NAME
+# $(error DATA_BUCKET_NAME is not set.)
+# endif
+# ifndef NEO4J_HOME
+# $(error NEO4J_HOME is not set.)
+# endif
+# ifndef NEO4J_USERNAME
+# $(error NEO4J_HOME is not set.)
+# endif
+# ifndef NEO4J_PASSWORD
+# $(error NEO4J_HOME is not set.)
+# endif
+# # ifndef HOST_DOMAIN
+# # $(error HOST_DOMAIN is not set.)
+# # endif
+# ifndef ADMIN_EMAIL
+# $(error ADMIN_EMAIL is not set.)
+# endif
+# ifndef APOC_VERSION
+# $(error APOC_VERSION is not set.)
+# endif
+# ifndef GDS_VERSION
+# $(error GDS_VERSION is not set.)
+# endif
+# 	@echo "$$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1
+
+bootstrap: env.validate.vars
 	# $(MAKE) cfn-helpers.install
 	# $(MAKE) ssm.install
 	# $(MAKE) cloudwatch.install
@@ -123,18 +130,14 @@ endif
 
 # This target will configure the database to use the correct DNS name using env vars
 neo4j.config.update-dns.private:
-	@private_ip="$$(aws ssm get-parameter \
-		--region ${AWS_REGION} \
-		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jPrivateIp" | jq -r '.Parameter.Value')" && \
-	echo "Private IP: $$private_ip" && \
-	cat ${NEO4J_HOME}/conf/neo4j.template | \
+	@cat ${NEO4J_HOME}/conf/neo4j.template | \
 	sed "s|# server.default_advertised_address=.*|server.default_advertised_address="$$private_ip"|" > ${NEO4J_HOME}/conf/neo4j.conf
 
 # This target will configure the database to use the correct DNS name using env vars
 neo4j.config.update-dns.public:
 	@[ "${HOST_DOMAIN}" != "" ] && \
 	cat ${NEO4J_HOME}/conf/neo4j.template | \
-	sed s"/# server.default_advertised_address=.*/server.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > ${NEO4J_HOME}/conf/neo4j.conf
+	sed s"/# server.default_advertised_address=127\.0\.0\.1/server.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > ${NEO4J_HOME}/conf/neo4j.conf
 
 # TODO update for Neo4j 5
 neo4j.config.reset-auth.ssl:
@@ -162,11 +165,14 @@ neo4j.config.backup:
 	@echo "Backing up Neo4j configuration to ${NEO4J_HOME}/conf/$$(date -u +'%Y-%m-%d-%H-%M')-neo4j.conf.bkp"
 	@cp "${NEO4J_HOME}/conf/neo4j.conf" "${NEO4J_HOME}/conf/$$(date -u +'%Y-%m-%d-%H-%M')-neo4j.conf.bkp"
 
+# TODO check if the APOC plugin is already installed for the version specified and skip if it is
 neo4j.plugins.install-apoc:
 	@echo "Downloading APOC Full plugin..."
 	@curl -L https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/${APOC_VERSION}/apoc-${APOC_VERSION}-all.jar -O
 	@mv apoc-${APOC_VERSION}-all.jar ${NEO4J_HOME}/plugins/apoc-${APOC_VERSION}-all.jar
 
+# TODO check if the GDS plugin is already installed for the version specified and skip if it is
+# https://graphdatascience.ninja/neo4j-graph-data-science-2.5.5.zip
 neo4j.plugins.install-gds:
 	@echo "Downloading Neo4j Graph Data Science plugin..."
 	@curl -L https://graphdatascience.ninja/neo4j-graph-data-science-${GDS_VERSION}.zip -O

@@ -68,7 +68,7 @@ export FUNCTIONS_PATH := ${APP_NAME}/pipeline/functions
 # Required environment variables
 REQUIRED_VARS := STAGE APP_NAME AWS_ACCOUNT AWS_REGION AWS_PROFILE SUBSCRIBE_EMAILS \
 	GITHUB_REPOSITORY_OWNER GITHUB_REPOSITORY_NAME GITHUB_PERSONAL_ACCESS_TOKEN \
-	ADMIN_EMAIL NEO4J_AMI_ID APOC_VERSION GDS_VERSION
+	ADMIN_EMAIL NEO4J_AMI_ID GDS_VERSION
 
 BOOLEAN_VARS := CREATE_VPC USE_PRIVATE_SUBNET CREATE_SSM_VPC_ENDPOINT CREATE_SECRETSMANAGER_VPC_ENDPOINT \
 	DEPLOY_NAT_GATEWAY DEPLOY_BASTION_SERVER
@@ -445,7 +445,11 @@ database.service.deploy:
 	$(MAKE) -C ${APP_NAME}/database/ service.deploy
 
 database.connect:
+ifeq ($(USE_PRIVATE_SUBNET),true)
 	$(MAKE) infrastructure.access-services.bastion-server.connect
+else
+	$(MAKE) -C ${APP_NAME}/database/ service.connect
+endif
 
 pipeline.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ deploy
@@ -533,6 +537,10 @@ database.reboot:
 	@response=$$(aws ec2 reboot-instances --instance-ids ${INSTANCE_ID}) && echo "$$response"
 	$(MAKE) database.status
 
+database.config.deploy:
+	@echo "Deploying \`neo4j.conf\` to $${APP_NAME} server..."
+	$(MAKE) -C ${APP_NAME}/database/ service.config.neo4j.deploy
+
 # TODO make sure database is running before syncing
 database.sync-scripts:
 	$(MAKE) -C ${APP_NAME}/database/ service.config.scripts.sync
@@ -580,12 +588,13 @@ database.get.private-ip:
 		| jq -r '.Parameters[0].Value') && \
 	echo "$${private_ip}"
 
-database.get.public-ip:
-	@public_ip=$$(aws ssm get-parameters \
-		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jPublicIp" \
-		--output json \
-		| jq -r '.Parameters[0].Value') && \
-	echo "$${public_ip}"
+# TODO remove
+# database.get.public-ip:
+# 	@public_ip=$$(aws ssm get-parameters \
+# 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jPublicIp" \
+# 		--output json \
+# 		| jq -r '.Parameters[0].Value') && \
+# 	echo "$${public_ip}"
 
 database.get.instance-id:
 	@echo "${INSTANCE_ID}"
