@@ -28,17 +28,31 @@ service.config.scripts.deploy:
 service.config.scripts.sync: service.config.scripts.deploy
 	@document_name="$$(aws ssm get-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/DatabaseSyncScriptsDocumentName" | jq -r '.Parameter.Value')" && \
-	aws ssm send-command \
+	res=$$(aws ssm send-command \
 		--document-name "$$document_name" \
 		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
-		--comment "${STAGE}=${APP_NAME} backup service" 2>&1 | tee -a $$CFN_LOG_PATH || true
+		--comment "${STAGE}-${APP_NAME} sync scripts to database server") && \
+	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
+	aws ssm wait command-executed \
+		--command-id "$$command_id" \
+		--instance-id "$${INSTANCE_ID}" && \
+	aws ssm get-command-invocation \
+		--command-id "$$command_id" \
+		--instance-id "$${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
 
 service.ssl.renew-cert:
-	@aws ssm send-command \
+	@res=$$(aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/bitnami && sudo make ssl.renew-cert]" \
 		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
-		--comment "${STAGE}-${APP_NAME} SSL certificate renewal utility" 2>&1 | tee -a $$CFN_LOG_PATH || true
+		--comment "${STAGE}-${APP_NAME} SSL certificate renewal utility") && \
+	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
+	aws ssm wait command-executed \
+		--command-id "$$command_id" \
+		--instance-id "$${INSTANCE_ID}" && \
+	aws ssm get-command-invocation \
+		--command-id "$$command_id" \
+		--instance-id "$${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
 
 service.config.cloudwatch-agent.deploy:
 	@mkdir -p amazon-cloudwatch-agent/tmp/ 
@@ -74,18 +88,32 @@ service.deploy:
 
 # TODO repurpose for updating neo4j.conf
 service.config.neo4j.update: service.config.update-dns.private service.config.neo4j.deploy
-	@aws ssm send-command \
+	@res=$$(aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/bitnami && sudo make neo4j.config.update]" \
 		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
-		--comment "${STAGE}=${APP_NAME} backup service" 2>&1 | tee -a $$CFN_LOG_PATH || true
+		--comment "${STAGE}=${APP_NAME} backup service") && \
+	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
+	aws ssm wait command-executed \
+		--command-id "$$command_id" \
+		--instance-id "$${INSTANCE_ID}" && \
+	aws ssm get-command-invocation \
+		--command-id "$$command_id" \
+		--instance-id "$${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
 
 service.backup:
-	@aws ssm send-command \
+	@res=$$(aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/bitnami && sudo make neo4j.backup]" \
 		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
-		--comment "${STAGE}=${APP_NAME} backup service" 2>&1 | tee -a $$CFN_LOG_PATH || true
+		--comment "${STAGE}=${APP_NAME} backup service") && \
+	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
+	aws ssm wait command-executed \
+		--command-id "$$command_id" \
+		--instance-id "$${INSTANCE_ID}" && \
+	aws ssm get-command-invocation \
+		--command-id "$$command_id" \
+		--instance-id "$${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
 
 service.backup.list:
 	@aws s3 ls --recursive s3://${DATA_BUCKET_NAME}/backups/neo4j/ | cut -d' ' -f7 | cut -d'/' -f3-6
@@ -95,11 +123,18 @@ service.restore: #from_path=s3://<backup path>
 	echo "$$from_path" | grep -E '^s3:\/\/[a-zA-Z0-9\.-]+\/([a-zA-Z0-9\.-]+\/)*[a-zA-Z0-9\.-]+\.zip$$' > /dev/null || (echo "\`from_path\` must be an S3 URI: 's3://<bucket>/path'" && exit 1) && \
 	echo "Restore $${APP_NAME} from S3 path \`$$from_path\`? [y/N] \c " && read ans && [ $${ans:-N} = y ]
 	$(MAKE) service.restore.pre-validate from_path=$$from_path
-	@aws ssm send-command \
+	@res=$$(aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/bitnami && sudo make neo4j.restore from_path=$$from_path]" \
 		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
-		--comment "${STAGE}=${APP_NAME} restore service" 2>&1 | tee -a $$CFN_LOG_PATH || true
+		--comment "${STAGE}=${APP_NAME} restore service") && \
+	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
+	aws ssm wait command-executed \
+		--command-id "$$command_id" \
+		--instance-id "$${INSTANCE_ID}" && \
+	aws ssm get-command-invocation \
+		--command-id "$$command_id" \
+		--instance-id "$${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
 
 service.restore.pre-validate:
 	@echo "Validating restore pre-conditions"
