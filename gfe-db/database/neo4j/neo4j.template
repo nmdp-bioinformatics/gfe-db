@@ -1,4 +1,3 @@
-
 #*****************************************************************
 # Neo4j configuration
 #
@@ -7,28 +6,25 @@
 #*****************************************************************
 
 # The name of the default database
-#dbms.default_database=neo4j
+#initial.dbms.default_database=neo4j
 
 # Paths of directories in the installation.
-dbms.directories.data = /bitnami/neo4j/data
-dbms.directories.plugins = /opt/bitnami/neo4j/plugins
-dbms.directories.logs = /opt/bitnami/neo4j/logs
-#dbms.directories.lib=lib
-#dbms.directories.run=run
-#dbms.directories.licenses=licenses
-dbms.directories.transaction.logs.root = /bitnami/neo4j/data/transactions
+server.directories.data = /bitnami/neo4j/data
+server.directories.plugins = /opt/bitnami/neo4j/plugins
+server.directories.logs = /opt/bitnami/neo4j/logs
+#server.directories.lib=lib
+#server.directories.run=run
+#server.directories.licenses=licenses
+server.directories.transaction.logs.root = /bitnami/neo4j/data/transactions
 
 # This setting constrains all `LOAD CSV` import files to be under the `import` directory. Remove or comment it out to
 # allow files to be loaded from anywhere in the filesystem; this introduces possible security problems. See the
 # `LOAD CSV` section of the manual for details.
-dbms.directories.import = /bitnami/neo4j/import
+server.directories.import = /bitnami/neo4j/import
 
 # Whether requests to Neo4j are authenticated.
 # To disable authentication, uncomment this line
 #dbms.security.auth_enabled=false
-
-# Enable this to be able to upgrade a store from an older version.
-dbms.allow_upgrade = true
 
 #********************************************************************
 # Memory Settings
@@ -44,24 +40,24 @@ dbms.allow_upgrade = true
 # Java Heap Size: by default the Java heap size is dynamically calculated based
 # on available system resources. Uncomment these lines to set specific initial
 # and maximum heap size.
-#dbms.memory.heap.initial_size = 5000m
-#dbms.memory.heap.max_size = 5000m
+#server.memory.heap.initial_size = 5000m
+#server.memory.heap.max_size = 5000m
 
 # The amount of memory to use for mapping the store files.
 # The default page cache memory assumes the machine is dedicated to running
 # Neo4j, and is heuristically set to 50% of RAM minus the Java heap size.
-#dbms.memory.pagecache.size = 6600m
+#server.memory.pagecache.size = 6600m
 
 # Limit the amount of memory that all of the running transaction can consume.
-# By default there is no limit.
-#dbms.memory.transaction.global_max_size=256m
+# The default value is 70% of the heap size limit.
+#dbms.memory.transaction.total.max=256m
 
 # Limit the amount of memory that a single transaction can consume.
 # By default there is no limit.
-#dbms.memory.transaction.max_size=16m
+#db.memory.transaction.max=16m
 
 # Transaction state location. It is recommended to use ON_HEAP.
-dbms.tx_state.memory_allocation=ON_HEAP
+db.tx_state.memory_allocation=ON_HEAP
 
 #*****************************************************************
 # Network connector configuration
@@ -69,7 +65,7 @@ dbms.tx_state.memory_allocation=ON_HEAP
 
 # With default configuration Neo4j only accepts local connections.
 # To accept non-local connections, uncomment this line:
-dbms.default_listen_address=0.0.0.0
+server.default_listen_address=0.0.0.0
 
 # You can also choose a specific network interface, and configure a non-default
 # port for each connector, by setting their individual listen_address.
@@ -77,7 +73,7 @@ dbms.default_listen_address=0.0.0.0
 # The address at which this server can be reached by its clients. This may be the server's IP address or DNS name, or
 # it may be the address of a reverse proxy which sits in front of the server. This setting may be overridden for
 # individual connectors below.
-# dbms.default_advertised_address=<fqdn>
+# server.default_advertised_address=127.0.0.1
 
 # You can also choose a specific advertised hostname or IP address, and
 # configure an advertised port for each connector, by setting their
@@ -88,23 +84,23 @@ dbms.default_listen_address=0.0.0.0
 # Read more in SSL policy section in this file for how to define a SSL policy.
 
 # Bolt connector
-dbms.connector.bolt.enabled=true
-dbms.connector.bolt.tls_level=REQUIRED
-dbms.connector.bolt.listen_address=:7687
-dbms.connector.bolt.advertised_address=:7687
+server.bolt.enabled=true
+server.bolt.tls_level=REQUIRED
+server.bolt.listen_address=:7687
+server.bolt.advertised_address=:7687
 
 # HTTP Connector. There can be zero or one HTTP connectors.
-# dbms.connector.http.enabled=true
-# dbms.connector.http.listen_address=:7474
-# dbms.connector.http.advertised_address=:7474
+# server.http.enabled=true
+# server.http.listen_address=:7474
+# server.http.advertised_address=:7474
 
 # HTTPS Connector. There can be zero or one HTTPS connectors.
-dbms.connector.https.enabled=true
-dbms.connector.https.listen_address=:7473
-dbms.connector.https.advertised_address=:7473
+server.https.enabled=true
+server.https.listen_address=:7473
+server.https.advertised_address=:7473
 
 # Number of Neo4j worker threads.
-#dbms.threads.worker_count=
+#server.threads.worker_count=
 
 #*****************************************************************
 # SSL policy configuration
@@ -162,7 +158,6 @@ dbms.ssl.policy.bolt.base_directory=/opt/bitnami/neo4j/certificates/bolt
 dbms.ssl.policy.bolt.private_key=/opt/bitnami/neo4j/certificates/bolt/neo4j.key
 dbms.ssl.policy.bolt.public_certificate=/opt/bitnami/neo4j/certificates/bolt/neo4j.cert
 dbms.ssl.policy.bolt.client_auth=NONE
-#dbms.ssl.policy.bolt.trust_all=true
 
 # Https SSL configuration
 dbms.ssl.policy.https.enabled=true
@@ -190,41 +185,22 @@ dbms.ssl.policy.https.client_auth=NONE
 # To enable HTTP logging, uncomment this line
 dbms.logs.http.enabled=true
 
-# Number of HTTP logs to keep.
-dbms.logs.http.rotation.keep_number=5
-
-# Size of each HTTP log that is kept.
-#dbms.logs.http.rotation.size=20m
-
 # To enable GC Logging, uncomment this line
-#dbms.logs.gc.enabled=true
+#server.logs.gc.enabled=true
 
 # GC Logging Options
 # see https://docs.oracle.com/en/java/javase/11/tools/java.html#GUID-BE93ABDC-999C-4CB5-A88B-1994AAAC74D5
-#dbms.logs.gc.options=-Xlog:gc*,safepoint,age*=trace
+#server.logs.gc.options=-Xlog:gc*,safepoint,age*=trace
 
 # Number of GC logs to keep.
-#dbms.logs.gc.rotation.keep_number=5
+#server.logs.gc.rotation.keep_number=5
 
 # Size of each GC log that is kept.
-#dbms.logs.gc.rotation.size=20m
-
-# Log level for the debug log. One of DEBUG, INFO, WARN and ERROR. Be aware that logging at DEBUG level can be very verbose.
-#dbms.logs.debug.level=INFO
-
-# Size threshold for rotation of the debug log. If set to zero then no rotation will occur. Accepts a binary suffix "k",
-# "m" or "g".
-#dbms.logs.debug.rotation.size=20m
-
-# Maximum number of history files for the internal log.
-#dbms.logs.debug.rotation.keep_number=7
+#server.logs.gc.rotation.size=20m
 
 #*****************************************************************
 # Miscellaneous configuration
 #*****************************************************************
-
-# Enable this to specify a parser other than the default one.
-#cypher.default_language_version=3.5
 
 # Determines if Cypher will allow using file URLs when loading data using
 # `LOAD CSV`. Setting this value to `false` will cause Neo4j to fail `LOAD CSV`
@@ -245,11 +221,12 @@ dbms.security.allow_csv_import_from_file_urls=true
 #dbms.security.http_strict_transport_security=
 
 # Retention policy for transaction logs needed to perform recovery and backups.
-dbms.tx_log.rotation.retention_policy=keep_none
+db.tx_log.rotation.retention_policy=keep_none
 
-# Only allow read operations from this Neo4j instance. This mode still requires
-# write access to the directory for lock purposes.
-#dbms.read_only=false
+# Whether or not any database on this instance are read_only by default.
+# If false, individual databases may be marked as read_only using dbms.database.read_only.
+# If true, individual databases may be marked as writable using dbms.databases.writable.
+#dbms.databases.default_to_read_only=false
 
 # Comma separated list of JAX-RS packages containing JAX-RS resources, one
 # package name for each mountpoint. The listed package names will be loaded
@@ -257,7 +234,7 @@ dbms.tx_log.rotation.retention_policy=keep_none
 # org.neo4j.examples.server.unmanaged.HelloWorldResource.java from
 # neo4j-server-examples under /examples/unmanaged, resulting in a final URL of
 # http://localhost:7474/examples/unmanaged/helloworld/{nodeId}
-#dbms.unmanaged_extension_classes=org.neo4j.examples.server.unmanaged=/examples/unmanaged
+#server.unmanaged_extension_classes=org.neo4j.examples.server.unmanaged=/examples/unmanaged
 
 # A comma separated list of procedures and user defined functions that are allowed
 # full access to the database through unsupported/insecure internal APIs.
@@ -265,7 +242,7 @@ dbms.security.procedures.unrestricted=apoc.*,gds.*
 
 # A comma separated list of procedures to be loaded by default.
 # Leaving this unconfigured will load all procedures found.
-# dbms.security.procedures.allowlist=apoc.coll.*,apoc.load.*,gds.*
+dbms.security.procedures.allowlist=apoc.coll.*,apoc.load.*,gds.*
 
 #********************************************************************
 # JVM Parameters
@@ -273,11 +250,11 @@ dbms.security.procedures.unrestricted=apoc.*,gds.*
 
 # G1GC generally strikes a good balance between throughput and tail
 # latency, without too much tuning.
-dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
+server.jvm.additional=-XX:+UseG1GC
 
 # Have common exceptions keep producing stack traces, so they can be
 # debugged regardless of how often logs are rotated.
-dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
+server.jvm.additional=-XX:-OmitStackTraceInFastThrow
 
 # Make sure that `initmemory` is not only allocated, but committed to
 # the process, before starting the database. This reduces memory
@@ -286,63 +263,63 @@ dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
 # due to heap-growing GC events, where a decrease in available page
 # cache leads to an increase in mean IO response time.
 # Try reducing the heap memory, if this flag degrades performance.
-dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
+server.jvm.additional=-XX:+AlwaysPreTouch
 
 # Trust that non-static final fields are really final.
 # This allows more optimizations and improves overall performance.
 # NOTE: Disable this if you use embedded mode, or have extensions or dependencies that may use reflection or
 # serialization to change the value of final fields!
-dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
-dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
+server.jvm.additional=-XX:+UnlockExperimentalVMOptions
+server.jvm.additional=-XX:+TrustFinalNonStaticFields
 
 # Disable explicit garbage collection, which is occasionally invoked by the JDK itself.
-dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
+server.jvm.additional=-XX:+DisableExplicitGC
 
-#Increase maximum number of nested calls that can be inlined from 9 (default) to 15
-dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
-
-# Disable biased locking
-dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
-
-# Restrict size of cached JDK buffers to 256 KB
-dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
+# Restrict size of cached JDK buffers to 1 KB
+server.jvm.additional=-Djdk.nio.maxCachedBufferSize=1024
 
 # More efficient buffer allocation in Netty by allowing direct no cleaner buffers.
-dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
+server.jvm.additional=-Dio.netty.tryReflectionSetAccessible=true
 
 # Exits JVM on the first occurrence of an out-of-memory error. Its preferable to restart VM in case of out of memory errors.
-dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
+# server.jvm.additional=-XX:+ExitOnOutOfMemoryError
 
 # Expand Diffie Hellman (DH) key size from default 1024 to 2048 for DH-RSA cipher suites used in server TLS handshakes.
 # This is to protect the server from any potential passive eavesdropping.
-dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
+server.jvm.additional=-Djdk.tls.ephemeralDHKeySize=2048
 
 # This mitigates a DDoS vector.
-dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
+server.jvm.additional=-Djdk.tls.rejectClientInitiatedRenegotiation=true
 
 # Enable remote debugging
-dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
+#server.jvm.additional=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
 
 # This filter prevents deserialization of arbitrary objects via java object serialization, addressing potential vulnerabilities.
 # By default this filter whitelists all neo4j classes, as well as classes from the hazelcast library and the java standard library.
 # These defaults should only be modified by expert users!
 # For more details (including filter syntax) see: https://openjdk.java.net/jeps/290
-dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
+#server.jvm.additional=-Djdk.serialFilter=java.**;org.neo4j.**;com.neo4j.**;com.hazelcast.**;net.sf.ehcache.Element;com.sun.proxy.*;org.openjdk.jmh.**;!*
 
 # Increase the default flight recorder stack sampling depth from 64 to 256, to avoid truncating frames when profiling.
-dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
+server.jvm.additional=-XX:FlightRecorderOptions=stackdepth=256
 
 # Allow profilers to sample between safepoints. Without this, sampling profilers may produce less accurate results.
-dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
-dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
+server.jvm.additional=-XX:+UnlockDiagnosticVMOptions
+server.jvm.additional=-XX:+DebugNonSafepoints
+
+# Open modules for neo4j to allow internal access
+server.jvm.additional=--add-opens=java.base/java.nio=ALL-UNNAMED
+server.jvm.additional=--add-opens=java.base/java.io=ALL-UNNAMED
+server.jvm.additional=--add-opens=java.base/sun.nio.ch=ALL-UNNAMED
 
 # Disable logging JMX endpoint.
-dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
+server.jvm.additional=-Dlog4j2.disable.jmx=true
 
 # Limit JVM metaspace and code cache to allow garbage collection. Used by cypher for code generation and may grow indefinitely unless constrained.
 # Useful for memory constrained environments
-dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
-dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
+#server.jvm.additional=-XX:MaxMetaspaceSize=1024m
+#server.jvm.additional=-XX:ReservedCodeCacheSize=512m
+server.jvm.additional = -XX:+ExitOnOutOfMemoryError
 
 #********************************************************************
 # Wrapper Windows NT/2000/XP Service Properties
@@ -353,9 +330,9 @@ dbms.jvm.additional = -XX:+ExitOnOutOfMemoryError
 #  service can then be reinstalled.
 
 # Name of the service
-dbms.windows_service_name=neo4j
+server.windows_service_name=neo4j
 
 #********************************************************************
 # Other Neo4j system properties
 #********************************************************************
-dbms.directories.dumps.root = /bitnami/neo4j/data/dumps
+server.directories.dumps.root = /bitnami/neo4j/data/dumps
