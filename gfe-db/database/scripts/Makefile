@@ -79,7 +79,7 @@ eip.waiter:
 # neo4j
 neo4j.update-credentials:
 	@aws --region ${AWS_REGION} secretsmanager update-secret \
-		--secret-id ${NEO4J_CREDENTIALS_SECRET_ARN} \
+		--secret-id "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jCredentials" \
 		--secret-string "{\"NEO4J_USERNAME\":\"${NEO4J_USERNAME}\",\"NEO4J_PASSWORD\":\"${NEO4J_PASSWORD}\"}"
 
 neo4j.credentials.show:

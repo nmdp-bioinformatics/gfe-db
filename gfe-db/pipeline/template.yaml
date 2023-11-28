@@ -470,7 +470,7 @@ Resources:
                 - "secretsmanager:ListSecretVersionIds"
                 - "secretsmanager:ListSecrets"
               Resource:
-                - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn}}'
+                - !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentials*'
         - Version: "2012-10-17"
           Statement:
             - Effect: "Allow"

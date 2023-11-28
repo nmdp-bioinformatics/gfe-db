@@ -26,13 +26,7 @@ uri = ssm.get_parameter(
 )["Parameter"]["Value"]
 logger.info(f"Found uri: {uri}")
 
-# Get Neo4j Credentials from SSM Parameter Store
-auth_arn = ssm.get_parameter(
-    Name=f"/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jCredentialsSecretArn"
-)["Parameter"]["Value"]
-
-# get secret from arn
-auth = json.loads(secrets.get_secret_value(SecretId=auth_arn)["SecretString"])
+auth = json.loads(secrets.get_secret_value(SecretId=f'/{APP_NAME}/{STAGE}/{AWS_REGION}/Neo4jCredentials')["SecretString"])
 logger.info(f'Found auth: {auth["NEO4J_USERNAME"]}')
 
 logger.info(f"Connecting to Neo4j at {uri}")

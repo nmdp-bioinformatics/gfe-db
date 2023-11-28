@@ -52,10 +52,11 @@ Resources:
   Neo4jCredentialsSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: !Sub "${AppName}-${Stage}-Neo4jCredentials"
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentials"
       Description: Must match the username/password specified in the Neo4j Dockerfile. Empty until the database is created.
       SecretString: '{"NEO4J_USERNAME":"","NEO4J_PASSWORD":""}'
 
+  # TODO remove this parameter and use the secret ARN directly
   Neo4jCredentialsSecretArnParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -109,7 +110,7 @@ Resources:
           certbot \
           git \
           python3-pip \
-          python3-venv
+          python3-venv \
           openjdk-17-jdk \
           openjdk-17-jre
           # Update system Java for Neo4j cypher-shell
@@ -126,6 +127,7 @@ Resources:
           # CloudFormation Helpers
           mkdir -p /tmp/cfn
           wget -q -O /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+          # Install cfn-init not working
           python3 -m easy_install --script-dir /opt/aws/bin /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz
           # SSM Agent
           mkdir -p /tmp/ssm
@@ -223,7 +225,7 @@ Resources:
                   - "secretsmanager:GetSecretValue"
                   - "secretsmanager:DescribeSecret"
                 Resource: 
-                  - !Ref Neo4jCredentialsSecret
+                  - !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentials*'
               - Effect: "Allow"
                 Action: 
                   - "states:GetActivityTask"
