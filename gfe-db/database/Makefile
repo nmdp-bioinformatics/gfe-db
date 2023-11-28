@@ -13,8 +13,10 @@ deploy:
 
 service.config.neo4j.deploy:
 ifeq ($(USE_PRIVATE_SUBNET),true)
+	@echo "\033[0;34mDeploying Neo4j config for private subnet\033[0m"
 	@aws s3 cp neo4j/neo4j.private.template s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
 else ifeq ($(USE_PRIVATE_SUBNET),false)
+	@echo "\033[0;34mDeploying Neo4j config for public subnet\033[0m"
 	@aws s3 cp neo4j/neo4j.template s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
 endif
 	@aws s3 cp --recursive neo4j/cypher/ s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
@@ -33,6 +35,7 @@ service.config.scripts.sync: service.config.scripts.deploy
 		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
 		--comment "${STAGE}-${APP_NAME} sync scripts to database server") && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
+	echo "\033[0;34mWaiting for command $$command_id to complete on server $${INSTANCE_ID}\033[0m" && \
 	aws ssm wait command-executed \
 		--command-id "$$command_id" \
 		--instance-id "$${INSTANCE_ID}" && \
@@ -142,6 +145,14 @@ service.restore.pre-validate:
 	@backup_object=$$(aws s3 ls $$from_path | cut -d ' ' -f 6-) && \
 	[ "$$backup_object" != "" ] || (echo "ERROR: Backup does not exist" && exit 1) && \
 	echo "Found backup target for $$backup_object"
+
+service.connect:
+	@echo "Connecting to public Neo4j EC2 instance"
+	@instance_ip=$$(aws ssm get-parameter \
+		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseEndpoint" | jq -r '.Parameter.Value') && \
+	echo "Connecting to Neo4j EC2 instance at $$instance_ip" && \
+	ssh -tt -i ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem bitnami@$$instance_ip
+
 
 delete: ##=> Delete resources
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
