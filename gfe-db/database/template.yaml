@@ -126,9 +126,11 @@ Resources:
           service amazon-cloudwatch-agent start
           # CloudFormation Helpers
           mkdir -p /tmp/cfn
-          wget -q -O /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
-          # Install cfn-init not working
-          python3 -m easy_install --script-dir /opt/aws/bin /tmp/cfn/aws-cfn-bootstrap-py3-latest.tar.gz
+          wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.zip -P /tmp/cfn/
+          unzip /tmp/cfn/aws-cfn-bootstrap-py3-latest.zip -d /tmp/cfn/aws-cfn-bootstrap-py3-latest
+          echo "/tmp/cfn/aws-cfn-bootstrap-py3-latest/$(ls /tmp/cfn/aws-cfn-bootstrap-py3-latest)"
+          cd /tmp/cfn/aws-cfn-bootstrap-py3-latest/$(ls /tmp/cfn/aws-cfn-bootstrap-py3-latest) && python3 setup.py install && cd -
+          pip list
           # SSM Agent
           mkdir -p /tmp/ssm
           wget -q -O /tmp/ssm/amazon-ssm-agent.deb https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb
@@ -151,7 +153,6 @@ Resources:
           echo "BITNAMI_HOME=/home/bitnami" >> $BITNAMI_HOME/env.sh
           echo "NEO4J_HOME=/opt/bitnami/neo4j" >> $BITNAMI_HOME/env.sh
           echo "BITNAMI_NEO4J=/bitnami/neo4j" >> $BITNAMI_HOME/env.sh
-          # get the instance's private IP from instance metadata
           echo "PRIVATE_IP=$(curl http://169.254.169.254/latest/meta-data/local-ipv4)" >> $BITNAMI_HOME/env.sh
           echo "NEO4J_CREDENTIALS_SECRET_ARN=${Neo4jCredentialsSecret}" >> $BITNAMI_HOME/env.sh
           echo "# Make application variables available" >> $BITNAMI_HOME/.bashrc
@@ -161,12 +162,6 @@ Resources:
           source $BITNAMI_HOME/.bashrc
           # Download Makefile from data bucket
           aws s3 cp --recursive s3://${DataBucketName}/config/scripts/ $BITNAMI_HOME/
-          # cfn-signal
-          /opt/aws/bin/cfn-signal \
-            --exit-code $? \
-            --stack  ${Stage}-${AppName}-database \
-            --resource Neo4jDatabaseInstance \
-            --region ${AWS::Region}
           # Bootstrap Neo4j 
           cd $BITNAMI_HOME && make neo4j
           # Copy logs to home dir for easy access
@@ -174,6 +169,12 @@ Resources:
           sudo journalctl -b > logs/boot.log
           cat /opt/bitnami/neo4j/logs/neo4j.log > logs/neo4j.log
           cat /opt/bitnami/neo4j/logs/debug.log > logs/debug.log
+          # TODO cfn-signal: success code requires env variables to be available and Neo4j to be bootstrapped
+          $(which cfn-signal) \
+            --exit-code $? \
+            --stack  ${AWS::StackName} \
+            --resource Neo4jDatabaseInstance \
+            --region ${AWS::Region}
       Tags:
         - Key: Name
           Value: !Sub '${AppName}-${Stage}'
