@@ -274,6 +274,7 @@ ifeq ($(data),true)
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting data in $${DATA_BUCKET_NAME}" 2>&1 | tee -a $${CFN_LOG_PATH}
 	@aws s3 rm --recursive s3://$${DATA_BUCKET_NAME}/
 endif
+ifeq ($(USE_PRIVATE_SUBNET),true)
 ifeq ($(DEPLOY_NAT_GATEWAY),true)
 	$(MAKE) service.access-services.nat-gateway.delete
 endif
@@ -294,6 +295,7 @@ ifeq ($(CREATE_S3_VPC_ENDPOINT),true)
 	$(MAKE) service.delete.delete-endpoint service=s3
 else
 	$(MAKE) service.delete.modify-endpoint service=s3
+endif
 endif
 	$(MAKE) service.delete
 	$(MAKE) service.key-pair.delete
