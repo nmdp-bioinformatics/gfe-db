@@ -38,7 +38,9 @@ deploy:
 	@echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} services\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
 	$(MAKE) service.key-pair.create
 	$(MAKE) service.deploy
+ifeq ($(USE_PRIVATE_SUBNET),true)
 	$(MAKE) service.access-services.deploy
+endif
 ifeq ($(USE_PRIVATE_SUBNET),false)
 	$(MAKE) service.deploy.update-dns
 else ifeq ($(USE_PRIVATE_SUBNET),true)
