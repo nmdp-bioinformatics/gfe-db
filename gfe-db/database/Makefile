@@ -30,9 +30,10 @@ service.config.scripts.deploy:
 service.config.scripts.sync: service.config.scripts.deploy
 	@document_name="$$(aws ssm get-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/DatabaseSyncScriptsDocumentName" | jq -r '.Parameter.Value')" && \
+	echo $${INSTANCE_ID} && \
 	res=$$(aws ssm send-command \
 		--document-name "$$document_name" \
-		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
+		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
 		--comment "${STAGE}-${APP_NAME} sync scripts to database server") && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
 	echo "\033[0;34mWaiting for command $$command_id to complete on server $${INSTANCE_ID}\033[0m" && \
@@ -90,7 +91,7 @@ service.deploy:
 			GDSVersion="$${GDS_VERSION}" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 # TODO repurpose for updating neo4j.conf
-service.config.neo4j.update: service.config.update-dns.private service.config.neo4j.deploy
+service.config.neo4j.update: service.config.neo4j.deploy
 	@res=$$(aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/bitnami && sudo make neo4j.config.update]" \
