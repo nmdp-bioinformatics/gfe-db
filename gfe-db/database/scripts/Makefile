@@ -5,15 +5,15 @@
 include env.sh
 export
 
-export BITNAMI_HOME ?= /home/bitnami
+# export BITNAMI_HOME ?= /home/bitnami
 export LOGS_DIR := /tmp/logs
 export REPORTS_DIR := ${BITNAMI_HOME}/reports
 export NEO4J_HOME := /opt/bitnami/neo4j
 export NEO4J_USERNAME=$(shell awk -F"'" '/The default username and password is/ {print $$2}' bitnami_credentials)
 export NEO4J_PASSWORD=$(shell awk -F"'" '/The default username and password is/ {print $$4}' bitnami_credentials)
-export INSTANCE_ID := $(shell curl -sS http://169.254.169.254/latest/meta-data/instance-id)
+# export INSTANCE_ID := $(shell curl -sS http://169.254.169.254/latest/meta-data/instance-id)
 
-REQUIRED_VARS := DATA_BUCKET_NAME NEO4J_HOME NEO4J_USERNAME NEO4J_PASSWORD ADMIN_EMAIL GDS_VERSION
+REQUIRED_VARS := BITNAMI_HOME NEO4J_HOME INSTANCE_ID DATA_BUCKET_NAME NEO4J_USERNAME NEO4J_PASSWORD ADMIN_EMAIL GDS_VERSION
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -184,7 +184,7 @@ neo4j.plugins.install-gds:
 
 neo4j.init:
 	$(MAKE) neo4j.init.download-scripts
-	$(MAKE) neo4j.init.queries
+	$(MAKE) neo4j.query.init
 
 neo4j.update-permissions:
 	@sudo chown -R neo4j:neo4j ${NEO4J_HOME}/*
@@ -194,13 +194,16 @@ neo4j.init.download-scripts:
 	@echo "Fetching Cypher scripts from S3..."
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
 
-neo4j.init.queries: # public: neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687; private: bolt://<private_ip>:7687
+neo4j.query.init: # public: neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687; private: bolt://<private_ip>:7687
 ifeq ($(USE_PRIVATE_SUBNET),true)
-	$(MAKE) neo4j.init.queries.no-ssl
+	$(MAKE) neo4j.query.init.no-ssl
 else ifeq ($(USE_PRIVATE_SUBNET),false)
+	$(MAKE) neo4j.query.init.ssl
+endif
+
+neo4j.query.init.ssl:
 	@echo "Executing initialization queries..."
 	@cat ${NEO4J_HOME}/cypher/init.cyp | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
-endif
 
 neo4j.query.show-constraints: # public: neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687; private: bolt://<private_ip>:7687
 ifeq ($(USE_PRIVATE_SUBNET),true)
@@ -209,7 +212,7 @@ else ifeq ($(USE_PRIVATE_SUBNET),false)
 	@echo "SHOW CONSTRAINTS;" | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 endif
 
-neo4j.init.queries.no-ssl:
+neo4j.query.init.no-ssl:
 	@echo "Executing initialization queries..."
 	@cat ${NEO4J_HOME}/cypher/init.cyp | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
 
@@ -272,13 +275,13 @@ else ifeq ($(USE_PRIVATE_SUBNET),false)
 	$(MAKE) neo4j.config.reset-auth.ssl
 endif
 
-neo4j.create-constraints:
+neo4j.query.create-constraints:
 	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
 	@echo "Fetching cypher scripts from S3..."
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
 	@cat ${NEO4J_HOME}/cypher/create_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 
-neo4j.drop-constraints:
+neo4j.query.drop-constraints:
 	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
 	@echo "Fetching cypher scripts from S3..."
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
@@ -307,13 +310,13 @@ logs.bootstrap:
 	@journalctl -b > ${LOGS_DIR}/bootstrap.log
 
 logs.system:
-	@cp -r /var/log/* ${LOGS_DIR}/system
+	@cp -r /var/log/* ${LOGS_DIR}/system/
 
 logs.neo4j:
 	@cp -r ${NEO4J_HOME}/logs/* ${LOGS_DIR}/neo4j/
 
 logs.bootstrap.show:
-	@journalctl -b
+	@journalctl -b | less
 
 logs.neo4j.show:
 	@cat ${NEO4J_HOME}/logs/neo4j.log

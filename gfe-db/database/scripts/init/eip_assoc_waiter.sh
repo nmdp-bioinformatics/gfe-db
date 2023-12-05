@@ -16,7 +16,18 @@ export NEO4J_ENDPOINT=$(aws ssm get-parameters \
     --names "/$APP_NAME/$STAGE/$AWS_REGION/Neo4jDatabaseEndpoint" \
     | jq -r '.Parameters[0].Value')
 
+export ALLOCATION_ID=$(aws ssm get-parameters \
+    --region $AWS_REGION \
+    --names "/$APP_NAME/$STAGE/$AWS_REGION/Neo4jDatabaseEndpointAllocationId" \
+    | jq -r '.Parameters[0].Value')
+
 echo "Target Elastic IP is $NEO4J_ENDPOINT"
+echo "Creating Elastic IP association"
+res=$(aws ec2 associate-address \
+    --allocation-id $ALLOCATION_ID \
+    --region $AWS_REGION \
+    --instance-id $INSTANCE_ID)
+echo $res | jq -r
 
 # Set timeout
 TIMEOUT=${1:-60}

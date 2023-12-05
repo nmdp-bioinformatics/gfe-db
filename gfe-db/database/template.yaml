@@ -1,8 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: Deploys an EC2 instance hosting the gfe-db Neo4j server
-
 Parameters:
-
   Stage:
     Type: String
     Description: Stage of production
@@ -12,13 +10,13 @@ Parameters:
   createVpc:
     Type: String
     AllowedValues:
-      - "true"
-      - "false"
+      - 'true'
+      - 'false'
   usePrivateSubnet:
     Type: String
     AllowedValues:
-      - "true"
-      - "false"
+      - 'true'
+      - 'false'
   DataBucketName:
     Type: String
   Neo4jAmiId:
@@ -28,7 +26,7 @@ Parameters:
     Type: String
   HostDomain:
     Type: String
-    AllowedPattern: '((^[a-z0-9-]{1,}\.[a-z]{1,}$)|^$)'
+    AllowedPattern: ((^[a-z0-9-]{1,}\.[a-z]{1,}$)|^$)
   Subdomain:
     Type: String
   AdminEmail:
@@ -37,62 +35,75 @@ Parameters:
     Type: String
   GDSVersion:
     Type: String
-
 Conditions:
-  # Important: All stacks (infra, database, pipeline) should use the same conditions
-  CreateVpc: !Equals [!Ref createVpc, 'true']
-  UseExternalVpc: !Equals [!Ref createVpc, 'false']
-  UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
-  UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
-  UsePrivateSubnet: !Equals [!Ref usePrivateSubnet, 'true']
-  UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
-
+  # CreateVpc: !Equals
+  #   - !Ref createVpc
+  #   - 'true'
+  # UseExternalVpc: !Equals
+  #   - !Ref createVpc
+  #   - 'false'
+  # UseExternalVpcPublic: !And
+  #   - !Equals
+  #     - !Ref createVpc
+  #     - 'false'
+  #   - !Equals
+  #     - !Ref usePrivateSubnet
+  #     - 'false'
+  # UseExternalVpcPrivate: !And
+  #   - !Equals
+  #     - !Ref createVpc
+  #     - 'false'
+  #   - !Equals
+  #     - !Ref usePrivateSubnet
+  #     - 'true'
+  UsePrivateSubnet: !Equals
+    - !Ref usePrivateSubnet
+    - 'true'
+  UsePublicSubnet: !Equals
+    - !Ref usePrivateSubnet
+    - 'false'
 Resources:
-
   Neo4jCredentialsSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentials"
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jCredentials
       Description: Must match the username/password specified in the Neo4j Dockerfile. Empty until the database is created.
       SecretString: '{"NEO4J_USERNAME":"","NEO4J_PASSWORD":""}'
-
-  # TODO remove this parameter and use the secret ARN directly
   Neo4jCredentialsSecretArnParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn'
-      Description: "ARN for Neo4jCredentialsSecret"
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn
+      Description: ARN for Neo4jCredentialsSecret
       Value: !Ref Neo4jCredentialsSecret
-  
   Neo4jDatabaseInstance:
     Type: AWS::EC2::Instance
-    # CreationPolicy:
-    #   ResourceSignal:
-    #     Timeout: PT10M
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT10M
     Properties:
       KeyName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}'
       DisableApiTermination: false
       ImageId: !Ref Neo4jAmiId
-      InstanceType: m5.large # m5.xlarge
+      InstanceType: m5.large
       IamInstanceProfile: !Ref Neo4jDatabaseInstanceProfile
       Monitoring: true
-      BlockDeviceMappings: 
-        - DeviceName: "/dev/sda1"
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
           Ebs:
             VolumeSize: !Ref DatabaseVolumeSize
-            VolumeType: "gp3"
+            VolumeType: gp3
       NetworkInterfaces:
         - AssociatePublicIpAddress: true
-          DeviceIndex: "0"
-          GroupSet: 
+          DeviceIndex: '0'
+          GroupSet:
             - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
           SubnetId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jSubnetId}}'
-      # TODO Create .venv for running Python tests
-      UserData:
-        Fn::Base64: 
-          !Sub |
+      # TODO BOOKMARK STEP THROUGH USER DATA
+      UserData: !Base64
+        Fn::Sub: |
           #!/bin/bash -x
+          echo "INFO: Running user data for ${AWS::StackName}-database instance"
           apt-get update -y
           DEBIAN_FRONTEND=noninteractive apt-get upgrade -yq
           apt-get install -y \
@@ -117,68 +128,110 @@ Resources:
           update-java-alternatives --set /usr/lib/jvm/java-1.17.0-openjdk-amd64
           /usr/bin/java -version
           export BITNAMI_HOME=/home/bitnami
-          # CloudWatch Logs Agent
+          export INSTANCE_ID=$(curl -sS http://169.254.169.254/latest/meta-data/instance-id)
+          export NEO4J_HOME=/opt/bitnami/neo4j
+          mkdir -p /tmp/logs/system /tmp/logs/neo4j
+          copy_logs_to_s3() {
+            # copy logs to S3
+            journalctl -b > /tmp/logs/bootstrap.log
+            cp -r /var/log/* /tmp/logs/system/
+            cp -r $NEO4J_HOME/logs/* /tmp/logs/neo4j/
+            aws s3 cp --quiet --recursive /tmp/logs/ s3://${DataBucketName}/logs/database/$INSTANCE_ID/$(date +'%Y/%m/%d/%H')/
+          }
+          echo "INFO: Installing CloudFormation Helpers"
+          mkdir -p /tmp/cfn
+          wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.zip -P /tmp/cfn/
+          unzip -q /tmp/cfn/aws-cfn-bootstrap-py3-latest.zip -d /tmp/cfn/aws-cfn-bootstrap-py3-latest
+          echo "/tmp/cfn/aws-cfn-bootstrap-py3-latest/$(ls /tmp/cfn/aws-cfn-bootstrap-py3-latest)"
+          cd /tmp/cfn/aws-cfn-bootstrap-py3-latest/$(ls /tmp/cfn/aws-cfn-bootstrap-py3-latest) && python3 setup.py install && cd -
+          [ $((which cfn-signal | grep -q cfn-signal && echo 0) || echo 1) -eq 0 ] && echo "INFO: CloudFormation Helpers installation successful" || \
+            (echo "ERROR: CloudFormation Helpers installation failed, aborting user data" && exit 1)
+          cfn_signal() {
+            local exit_code=$1
+            local reason=$2
+            echo "INFO: Sending CloudFormation signal with exit code $exit_code and reason: '$reason'"
+            copy_logs_to_s3
+            $(which cfn-signal) \
+              --region us-east-1 \
+              --exit-code $exit_code \
+              --stack ${AWS::StackName} \
+              --resource Neo4jDatabaseInstance \
+              --reason "$reason"
+          }
+          echo "INFO: Installing CloudWatch Logs Agent"
           mkdir -p /tmp/amazon-cloudwatch-agent
           wget -q -O /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb https://s3.amazonaws.com/amazoncloudwatch-agent/debian/amd64/latest/amazon-cloudwatch-agent.deb
           dpkg -i -E /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb
-          aws s3 cp s3://${DataBucketName}/config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+          aws s3 cp --quiet s3://${DataBucketName}/config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
           systemctl enable amazon-cloudwatch-agent.service
           service amazon-cloudwatch-agent start
-          # CloudFormation Helpers
-          mkdir -p /tmp/cfn
-          wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.zip -P /tmp/cfn/
-          unzip /tmp/cfn/aws-cfn-bootstrap-py3-latest.zip -d /tmp/cfn/aws-cfn-bootstrap-py3-latest
-          echo "/tmp/cfn/aws-cfn-bootstrap-py3-latest/$(ls /tmp/cfn/aws-cfn-bootstrap-py3-latest)"
-          cd /tmp/cfn/aws-cfn-bootstrap-py3-latest/$(ls /tmp/cfn/aws-cfn-bootstrap-py3-latest) && python3 setup.py install && cd -
-          pip list
-          # SSM Agent
+          sleep 5
+          [ $(amazon-cloudwatch-agent-ctl -a status | jq -r '.status') = running ] && echo "INFO: CloudWatch Logs Agent is running" || \
+            (msg="ERROR: CloudWatch Logs Agent did not initialize correctly" && echo $msg && cfn_signal 1 "$msg" && exit 1)
+          echo "INFO: Installing SSM Agent"
           mkdir -p /tmp/ssm
           wget -q -O /tmp/ssm/amazon-ssm-agent.deb https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb
           dpkg -i /tmp/ssm/amazon-ssm-agent.deb
           systemctl enable amazon-ssm-agent
           systemctl start amazon-ssm-agent
+          [ $((which amazon-ssm-agent | grep -q amazon-ssm-agent && echo 0) || echo 1) -eq 0 ] && echo "INFO: SSM Agent is running" || \
+            (msg="ERROR: SSM Agent did not initialize correctly" && echo $msg && cfn_signal 1 "$msg" && exit 1)
           # Permanently set application environment variables (these should never change for the duration of the deployment) # TODO: Move to Makefile target
-          export BITNAMI_HOME=/home/bitnami
+          echo "INFO: Setting application environment variables"
+          echo "INSTANCE_ID=$INSTANCE_ID" > $BITNAMI_HOME/env.sh
           echo "BITNAMI_HOME=$BITNAMI_HOME" >> $BITNAMI_HOME/env.sh
+          echo "NEO4J_HOME=$NEO4J_HOME" >> $BITNAMI_HOME/env.sh
+          echo "BITNAMI_NEO4J=/bitnami/neo4j" >> $BITNAMI_HOME/env.sh
           echo "STAGE=${Stage}" >> $BITNAMI_HOME/env.sh
           echo "APP_NAME=${AppName}" >> $BITNAMI_HOME/env.sh
           echo "USE_PRIVATE_SUBNET=${usePrivateSubnet}" >> $BITNAMI_HOME/env.sh
-          echo "AWS_REGION=${AWS::Region}" >> $BITNAMI_HOME/env.sh
+          echo "AWS_REGION=us-east-1" >> $BITNAMI_HOME/env.sh
           echo "DATA_BUCKET_NAME=${DataBucketName}" >> $BITNAMI_HOME/env.sh
           echo "HOST_DOMAIN=${HostDomain}" >> $BITNAMI_HOME/env.sh
           echo "SUBDOMAIN=${Subdomain}" >> $BITNAMI_HOME/env.sh
           echo "ADMIN_EMAIL=${AdminEmail}" >> $BITNAMI_HOME/env.sh
           echo "APOC_VERSION=${APOCVersion}" >> $BITNAMI_HOME/env.sh
           echo "GDS_VERSION=${GDSVersion}" >> $BITNAMI_HOME/env.sh
-          echo "BITNAMI_HOME=/home/bitnami" >> $BITNAMI_HOME/env.sh
-          echo "NEO4J_HOME=/opt/bitnami/neo4j" >> $BITNAMI_HOME/env.sh
-          echo "BITNAMI_NEO4J=/bitnami/neo4j" >> $BITNAMI_HOME/env.sh
-          echo "PRIVATE_IP=$(curl http://169.254.169.254/latest/meta-data/local-ipv4)" >> $BITNAMI_HOME/env.sh
-          echo "NEO4J_CREDENTIALS_SECRET_ARN=${Neo4jCredentialsSecret}" >> $BITNAMI_HOME/env.sh
+          echo "PRIVATE_IP=$(curl -sS http://169.254.169.254/latest/meta-data/local-ipv4)" >> $BITNAMI_HOME/env.sh
           echo "# Make application variables available" >> $BITNAMI_HOME/.bashrc
           echo "set -a && source /home/bitnami/env.sh && set +a" >> $BITNAMI_HOME/.bashrc
           # disable disruptive autoescaping in shells
           echo "shopt -s direxpand" >> $BITNAMI_HOME/.bashrc
           source $BITNAMI_HOME/.bashrc
-          # Download Makefile from data bucket
-          aws s3 cp --recursive s3://${DataBucketName}/config/scripts/ $BITNAMI_HOME/
-          # Bootstrap Neo4j 
+          echo "INFO: Validating environment variables"
+          exit_code=0
+          msg="The following variables failed to be set: "
+          for var in BITNAMI_HOME STAGE APP_NAME USE_PRIVATE_SUBNET AWS_REGION DATA_BUCKET_NAME HOST_DOMAIN SUBDOMAIN ADMIN_EMAIL APOC_VERSION GDS_VERSION; do
+              if [ -z "${!var}" ]; then
+                  echo "$var is not set"
+                  msg="$msg $var"
+                  exit_code=1
+              else
+                  echo "$var is set to '${!var}'"
+              fi
+          done
+          [ $exit_code -eq 1 ] && (echo $msg && cfn_signal 1 "$msg" && exit 1) || echo "INFO: Environment variables set"
+          echo "INFO: Downloading scripts"
+          aws s3 cp --quiet --recursive s3://${DataBucketName}/config/scripts/ $BITNAMI_HOME/
+          echo "INFO: Initiliazing Neo4j database"
+          # TODO add cfn-signal handling to Makefile
           cd $BITNAMI_HOME && make neo4j
-          # Copy logs to home dir for easy access
+          exit_code=$?
+          [ $exit_code -eq 0 ] && echo "INFO: Neo4j initialized successfully" || (msg="ERROR: Neo4j failed to initialize" && echo $msg && cfn_signal 1 "$msg" && exit 1)
+          cypher_constraints=$(sudo make neo4j.query.show-constraints | awk -F, 'NR>1 {print $2}')
+          [[ $(echo "$cypher_constraints" | grep -c "gfe_constraint") -gt 0 && \
+            $(echo "$cypher_constraints" | grep -c "ipd_acc_constraint") -gt 0 && \
+            $(echo "$cypher_constraints" | grep -c "ipd_allele_constraint") -gt 0 \
+            && $(echo "$cypher_constraints" | grep -c "submitter_constraint") -gt 0 ]] && \
+          echo "INFO: Found Cypher constraints: $cypher_constraints" | tr '\n' ' ' | sed 's/  / /g' || (msg="ERROR: No Cypher constraints were found" && echo $msg && cfn_signal 1 "$msg" && exit 1)
           mkdir logs
           sudo journalctl -b > logs/boot.log
           cat /opt/bitnami/neo4j/logs/neo4j.log > logs/neo4j.log
           cat /opt/bitnami/neo4j/logs/debug.log > logs/debug.log
-          # TODO cfn-signal: success code requires env variables to be available and Neo4j to be bootstrapped
-          $(which cfn-signal) \
-            --exit-code $? \
-            --stack  ${AWS::StackName} \
-            --resource Neo4jDatabaseInstance \
-            --region ${AWS::Region}
+          cfn_signal 0 "INFO: Finished running user data for ${AWS::StackName}-database instance"
       Tags:
         - Key: Name
-          Value: !Sub '${AppName}-${Stage}'
-          
+          Value: !Sub ${AppName}-${Stage}
   Neo4jDatabaseInstanceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -189,166 +242,153 @@ Resources:
             Principal:
               Service:
                 - ec2.amazonaws.com
-            Action: "sts:AssumeRole"
+            Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
       Path: /
       Policies:
-        - PolicyName: !Sub '${Stage}-${AppName}-Neo4jDatabasePolicy'
+        - PolicyName: !Sub ${Stage}-${AppName}-Neo4jDatabasePolicy
           PolicyDocument:
-            Version: "2012-10-17"
+            Version: '2012-10-17'
             Statement:
-              - Effect: "Allow"
+              - Effect: Allow
                 Action:
-                  - "s3:GetObject"
-                  - "s3:GetObjectAcl"
-                  - "s3:HeadObject"
-                  - "s3:ListBuckets"
-                  - "s3:ListBucket"
-                  - "s3:CopyObject"
-                  - "s3:PutObject"
-                  - "s3:PutObjectAcl"
-                  - "s3:GetEncryptionConfiguration"
-                Resource: 
+                  - s3:GetObject
+                  - s3:GetObjectAcl
+                  - s3:HeadObject
+                  - s3:ListBuckets
+                  - s3:ListBucket
+                  - s3:CopyObject
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                  - s3:GetEncryptionConfiguration
+                Resource:
                   - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
                   - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
-              - Effect: "Allow"
+              - Effect: Allow
                 Action:
-                  - "secretsmanager:GetResourcePolicy"
-                  - "secretsmanager:ListSecretVersionIds"
-                  - "secretsmanager:ListSecrets"
-                Resource: 
-                  - "*"
-              - Effect: "Allow"
-                Action:
-                  - "secretsmanager:UpdateSecret"
-                  - "secretsmanager:GetSecretValue"
-                  - "secretsmanager:DescribeSecret"
-                Resource: 
-                  - !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentials*'
-              - Effect: "Allow"
-                Action: 
-                  - "states:GetActivityTask"
-                  - "states:SendTaskHeartbeat"
-                  - "states:SendTaskSuccess"
-                  - "states:SendTaskFailure"
+                  - secretsmanager:GetResourcePolicy
+                  - secretsmanager:ListSecretVersionIds
+                  - secretsmanager:ListSecrets
                 Resource:
-                  - "*"
-  
+                  - '*'
+              - Effect: Allow
+                Action:
+                  - secretsmanager:UpdateSecret
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                Resource:
+                  - !Sub arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentials*
+              - Effect: Allow
+                Action:
+                  - states:GetActivityTask
+                  - states:SendTaskHeartbeat
+                  - states:SendTaskSuccess
+                  - states:SendTaskFailure
+                Resource:
+                  - '*'
+              - Effect: Allow
+                Action:
+                  - ec2:AssociateAddress
+                Resource:
+                  - '*'
   Neo4jDatabaseInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
         - !Ref Neo4jDatabaseInstanceRole
-  
-  UsePublicSubnetConditionNeo4jDatabaseElasticIpAssociation:
-    Type: AWS::EC2::EIPAssociation
-    Condition: UsePublicSubnet
-    Properties:
-      InstanceId: !Ref Neo4jDatabaseInstance
-      AllocationId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId}}'
 
+  # # TODO move to database init script
+  # UsePublicSubnetConditionNeo4jDatabaseElasticIpAssociation:
+  #   Type: AWS::EC2::EIPAssociation
+  #   Condition: UsePublicSubnet
+  #   Properties:
+  #     InstanceId: !Ref Neo4jDatabaseInstance
+  #     AllocationId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId}}'
   Neo4jDatabaseInstanceIdParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId'
-      Description: "Instance ID for gfe-db Neo4j database instance"
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId
+      Description: Instance ID for gfe-db Neo4j database instance
       Value: !Ref Neo4jDatabaseInstance
-  
   Neo4jUriParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jUri'
-      Description: "Connection URI for Neo4j"
-      Value: !If 
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jUri
+      Description: Connection URI for Neo4j
+      Value: !If
         - UsePrivateSubnet
-        - !Sub "bolt://${Neo4jDatabaseInstance.PrivateIp}:7687"
-        - !Sub "neo4j+s://${Subdomain}.${HostDomain}:7687"
-
+        - !Sub bolt://${Neo4jDatabaseInstance.PrivateIp}:7687
+        - !Sub neo4j+s://${Subdomain}.${HostDomain}:7687
   UsePublicSubnetConditionNeo4jBrowserUrlParameter:
     Type: AWS::SSM::Parameter
     Condition: UsePublicSubnet
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jBrowserUrl'
-      Description: "Connection URI for Neo4j"
-      Value: !Sub "https://${Subdomain}.${HostDomain}:7473/browser/"
-
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jBrowserUrl
+      Description: Connection URI for Neo4j
+      Value: !Sub https://${Subdomain}.${HostDomain}:7473/browser/
   Neo4jPrivateIpParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jPrivateIp'
-      Description: "Private IP for Neo4j"
-      Value: !Sub "${Neo4jDatabaseInstance.PrivateIp}"
-
-  # TODO remove, not used for private deployments, public deployments use the Elastic IP value
-  # Neo4jPublicIpParameter:
-  #   Type: AWS::SSM::Parameter
-  #   Properties:
-  #     Type: String
-  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jPublicIp'
-  #     Description: "Public IP for Neo4j"
-  #     Value: !Sub "${Neo4jDatabaseInstance.PublicIp}"
-
-  Neo4jBackupDocument: 
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jPrivateIp
+      Description: Private IP for Neo4j
+      Value: !Sub ${Neo4jDatabaseInstance.PrivateIp}
+  Neo4jBackupDocument:
     Type: AWS::SSM::Document
     Properties:
-      DocumentType: "Command"
-      DocumentFormat: "YAML"
-      TargetType: "/AWS::EC2::Instance"
+      DocumentType: Command
+      DocumentFormat: YAML
+      TargetType: /AWS::EC2::Instance
       UpdateMethod: Replace
       Content:
-        schemaVersion: "2.2"
-        description: "Neo4j to S3 backup"
+        schemaVersion: '2.2'
+        description: Neo4j to S3 backup
         parameters:
           commandLine:
-            type: "String"
-            description: "(Required) Specify the command line to be executed. The following formats of commands can be run: 'pythonMainFile.py argument1 argument2', 'ansible-playbook -i \"localhost,\" -c local example.yml'"
-            default: "make neo4j.backup"
+            type: String
+            description: '(Required) Specify the command line to be executed. The following formats of commands can be run: ''pythonMainFile.py argument1 argument2'', ''ansible-playbook -i "localhost," -c local example.yml'''
+            default: make neo4j.backup
           workingDirectory:
-            type: "String"
-            description: "Working directory"
-            default: "/home/bitnami"
+            type: String
+            description: Working directory
+            default: /home/bitnami
         mainSteps:
-          - action: "aws:runShellScript"
-            name: "runShellScript"
-            inputs: 
+          - action: aws:runShellScript
+            name: runShellScript
+            inputs:
               runCommand:
-                - "directory=$(pwd)"
-                - "export PATH=$PATH:$directory"
-                - "cd {{ workingDirectory }} && {{ commandLine }}"
-                
+                - directory=$(pwd)
+                - export PATH=$PATH:$directory
+                - cd {{ workingDirectory }} && {{ commandLine }}
   Neo4jBackupDocumentNameParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jBackupDocumentName'
-      Description: "Name of SSM document for backing up Neo4j"
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jBackupDocumentName
+      Description: Name of SSM document for backing up Neo4j
       Value: !Ref Neo4jBackupDocument
-
   Neo4jBackupMaintenanceWindow:
     Type: AWS::SSM::MaintenanceWindow
     Properties:
       AllowUnassociatedTargets: false
       Cutoff: 0
-      Description: !Sub "${AppName} Neo4j backup maintenance window"
+      Description: !Sub ${AppName} Neo4j backup maintenance window
       Duration: 1
       Name: BackupNeo4jMaintenanceWindow
       Schedule: cron(0 0 ? * * *)
       ScheduleTimezone: US/Central
-
   Neo4jBackupMaintenanceWindowIdParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jBackupMaintenanceWindowId'
-      Description: "ID for Neo4jBackupMaintenanceWindow"
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jBackupMaintenanceWindowId
+      Description: ID for Neo4jBackupMaintenanceWindow
       Value: !Ref Neo4jBackupMaintenanceWindow
-
   Neo4jBackupMaintenanceWindowTask:
     Type: AWS::SSM::MaintenanceWindowTask
     Properties:
@@ -364,7 +404,6 @@ Resources:
         - Key: WindowTargetIds
           Values:
             - !Ref Neo4jBackupMaintenanceWindowTarget
-
   Neo4jBackupMaintenanceWindowTarget:
     Type: AWS::SSM::MaintenanceWindowTarget
     Properties:
