@@ -56,7 +56,7 @@ service.ssl.renew-cert:
 	@res=$$(aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/bitnami && sudo make ssl.renew-cert]" \
-		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
+		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
 		--comment "${STAGE}-${APP_NAME} SSL certificate renewal utility") && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
 	aws ssm wait command-executed \
@@ -94,7 +94,7 @@ service.config.neo4j.update: service.config.neo4j.deploy
 	@res=$$(aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/bitnami && sudo make neo4j.config.update && sudo make neo4j.restart]" \
-		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
+		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
 		--comment "${STAGE}=${APP_NAME} backup service") && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
 	aws ssm wait command-executed \
@@ -108,7 +108,7 @@ service.backup:
 	@res=$$(aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/bitnami && sudo make neo4j.backup]" \
-		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
+		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
 		--comment "${STAGE}=${APP_NAME} backup service") && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
 	aws ssm wait command-executed \
@@ -129,7 +129,7 @@ service.restore: #from_path=s3://<backup path>
 	@res=$$(aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/bitnami && sudo make neo4j.restore from_path=$$from_path]" \
-		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
+		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
 		--comment "${STAGE}=${APP_NAME} restore service") && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
 	aws ssm wait command-executed \
@@ -151,7 +151,7 @@ service.connect:
 	@instance_ip=$$(aws ssm get-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseEndpoint" | jq -r '.Parameter.Value') && \
 	echo "Connecting to Neo4j EC2 instance at $$instance_ip" && \
-	ssh -tt -i ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem bitnami@$$instance_ip
+	ssh -o "IdentitiesOnly yes" -tt -i ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem bitnami@$$instance_ip
 
 
 delete: ##=> Delete resources
