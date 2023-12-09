@@ -93,7 +93,7 @@ service.deploy:
 service.config.neo4j.update: service.config.neo4j.deploy
 	@res=$$(aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
-		--parameters "commands=[cd /home/bitnami && sudo make neo4j.config.update]" \
+		--parameters "commands=[cd /home/bitnami && sudo make neo4j.config.update && sudo make neo4j.restart]" \
 		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
 		--comment "${STAGE}=${APP_NAME} backup service") && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
