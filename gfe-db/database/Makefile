@@ -6,20 +6,8 @@ target:
 
 deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
-	$(MAKE) service.config.scripts.deploy
-	$(MAKE) service.config.cloudwatch-agent.deploy
+	$(MAKE) service.config.deploy
 	$(MAKE) service.deploy
-	$(MAKE) service.config.neo4j.deploy
-
-service.config.neo4j.deploy:
-ifeq ($(USE_PRIVATE_SUBNET),true)
-	@echo "\033[0;34mDeploying Neo4j config for private subnet\033[0m"
-	@aws s3 cp neo4j/neo4j.private.template s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
-else ifeq ($(USE_PRIVATE_SUBNET),false)
-	@echo "\033[0;34mDeploying Neo4j config for public subnet\033[0m"
-	@aws s3 cp neo4j/neo4j.template s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
-endif
-	@aws s3 cp --recursive neo4j/cypher/ s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
 
 service.config.scripts.deploy:
 	@script_s3_path=s3://$$DATA_BUCKET_NAME/config/scripts/ && \
@@ -30,27 +18,12 @@ service.config.scripts.deploy:
 service.config.scripts.sync: service.config.scripts.deploy
 	@document_name="$$(aws ssm get-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/DatabaseSyncScriptsDocumentName" | jq -r '.Parameter.Value')" && \
-	echo $${INSTANCE_ID} && \
 	res=$$(aws ssm send-command \
 		--document-name "$$document_name" \
 		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
 		--comment "${STAGE}-${APP_NAME} sync scripts to database server") && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
 	echo "\033[0;34mWaiting for command $$command_id to complete on server $${INSTANCE_ID}\033[0m" && \
-	aws ssm wait command-executed \
-		--command-id "$$command_id" \
-		--instance-id "$${INSTANCE_ID}" && \
-	aws ssm get-command-invocation \
-		--command-id "$$command_id" \
-		--instance-id "$${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
-
-service.ssl.renew-cert:
-	@res=$$(aws ssm send-command \
-		--document-name "AWS-RunShellScript" \
-		--parameters "commands=[cd /home/bitnami && sudo make ssl.renew-cert]" \
-		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
-		--comment "${STAGE}-${APP_NAME} SSL certificate renewal utility") && \
-	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
 	aws ssm wait command-executed \
 		--command-id "$$command_id" \
 		--instance-id "$${INSTANCE_ID}" && \
@@ -66,6 +39,32 @@ service.config.cloudwatch-agent.deploy:
 		| tee -a $$CFN_LOG_PATH && \
 	aws s3 cp amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json $$config_s3_path
 	@rm -rf amazon-cloudwatch-agent/tmp/
+
+service.config.neo4j.deploy:
+ifeq ($(USE_PRIVATE_SUBNET),true)
+	@echo "\033[0;34mDeploying Neo4j config for private subnet\033[0m"
+	@aws s3 cp neo4j/neo4j.private.template s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
+else ifeq ($(USE_PRIVATE_SUBNET),false)
+	@echo "\033[0;34mDeploying Neo4j config for public subnet\033[0m"
+	@aws s3 cp neo4j/neo4j.template s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
+endif
+	@aws s3 cp --recursive neo4j/cypher/ s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
+
+service.config.deploy: service.config.scripts.deploy service.config.cloudwatch-agent.deploy service.config.neo4j.deploy
+
+service.ssl.renew-cert:
+	@res=$$(aws ssm send-command \
+		--document-name "AWS-RunShellScript" \
+		--parameters "commands=[cd /home/bitnami && sudo make ssl.renew-cert]" \
+		--targets "Key=instanceids,Values=${INSTANCE_ID}" \
+		--comment "${STAGE}-${APP_NAME} SSL certificate renewal utility") && \
+	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
+	aws ssm wait command-executed \
+		--command-id "$$command_id" \
+		--instance-id "$${INSTANCE_ID}" && \
+	aws ssm get-command-invocation \
+		--command-id "$$command_id" \
+		--instance-id "$${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
 
 service.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Neo4j to EC2 with ${NEO4J_AMI_ID}" 2>&1 | tee -a $$CFN_LOG_PATH
