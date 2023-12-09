@@ -130,13 +130,13 @@ endif
 # This target will configure the database to use the correct DNS name using env vars
 neo4j.config.update-dns.private:
 	@cat ${NEO4J_HOME}/conf/neo4j.template | \
-	sed "s|# server.default_advertised_address=.*|server.default_advertised_address="$$private_ip"|" > ${NEO4J_HOME}/conf/neo4j.conf
+	sed "s|# server.default_advertised_address=127\.0\.0\.1|server.default_advertised_address=${PRIVATE_IP}|" > ${NEO4J_HOME}/conf/neo4j.conf
 
 # This target will configure the database to use the correct DNS name using env vars
 neo4j.config.update-dns.public:
 	@[ "${HOST_DOMAIN}" != "" ] && \
 	cat ${NEO4J_HOME}/conf/neo4j.template | \
-	sed s"/# server.default_advertised_address=127\.0\.0\.1/server.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > ${NEO4J_HOME}/conf/neo4j.conf
+	sed s"|# server.default_advertised_address=127\.0\.0\.1|server.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}|" > ${NEO4J_HOME}/conf/neo4j.conf
 
 # TODO update for Neo4j 5
 neo4j.config.reset-auth.ssl:
@@ -187,7 +187,7 @@ neo4j.init:
 	$(MAKE) neo4j.query.init
 
 neo4j.update-permissions:
-	@sudo chown -R neo4j:neo4j ${NEO4J_HOME}/*
+	@chown -R neo4j:neo4j ${NEO4J_HOME}/*
 
 neo4j.init.download-scripts:
 	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
