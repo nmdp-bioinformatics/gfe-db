@@ -216,6 +216,13 @@ neo4j.query.init.no-ssl:
 	@echo "Executing initialization queries..."
 	@cat ${NEO4J_HOME}/cypher/init.cyp | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
 
+neo4j.query: #=> query=<cypher string>
+ifeq ($(USE_PRIVATE_SUBNET),true)
+	@echo "$$query" | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
+else ifeq ($(USE_PRIVATE_SUBNET),false)
+	@echo "$$query" | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
+endif
+
 neo4j.waiter:
 ifeq ($(USE_PRIVATE_SUBNET),true)
 	$(MAKE) neo4j.waiter.no-ssl
