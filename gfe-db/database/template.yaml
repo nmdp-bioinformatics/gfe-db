@@ -89,7 +89,8 @@ Resources:
       IamInstanceProfile: !Ref Neo4jDatabaseInstanceProfile
       Monitoring: true
       BlockDeviceMappings:
-        - DeviceName: /dev/sda1
+        # - DeviceName: /dev/sda1
+        - DeviceName: /dev/xvda
           Ebs:
             VolumeSize: !Ref DatabaseVolumeSize
             VolumeType: gp3
@@ -99,7 +100,6 @@ Resources:
           GroupSet:
             - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
           SubnetId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jSubnetId}}'
-      # TODO BOOKMARK STEP THROUGH USER DATA
       UserData: !Base64
         Fn::Sub: |
           #!/bin/bash -x
@@ -198,19 +198,19 @@ Resources:
           # disable disruptive autoescaping in shells
           echo "shopt -s direxpand" >> $BITNAMI_HOME/.bashrc
           source $BITNAMI_HOME/.bashrc
-          echo "INFO: Validating environment variables"
-          exit_code=0
-          msg="The following variables failed to be set: "
-          for var in BITNAMI_HOME STAGE APP_NAME USE_PRIVATE_SUBNET AWS_REGION DATA_BUCKET_NAME HOST_DOMAIN SUBDOMAIN ADMIN_EMAIL APOC_VERSION GDS_VERSION; do
-              if [ -z "${!var}" ]; then
-                  echo "$var is not set"
-                  msg="$msg $var"
-                  exit_code=1
-              else
-                  echo "$var is set to '${!var}'"
-              fi
-          done
-          [ $exit_code -eq 1 ] && (echo $msg && cfn_signal 1 "$msg" && exit 1) || echo "INFO: Environment variables set"
+          # echo "INFO: Validating environment variables"
+          # exit_code=0
+          # msg="The following variables failed to be set: "
+          # for var in BITNAMI_HOME STAGE APP_NAME USE_PRIVATE_SUBNET AWS_REGION DATA_BUCKET_NAME HOST_DOMAIN SUBDOMAIN ADMIN_EMAIL APOC_VERSION GDS_VERSION; do
+          #     if [ -z "${!var}" ]; then
+          #         echo "$var is not set"
+          #         msg="$msg $var"
+          #         exit_code=1
+          #     else
+          #         echo "$var is set to '${!var}'"
+          #     fi
+          # done
+          # [ $exit_code -eq 0 ] && echo "INFO: Environment variables set" || (echo $msg && cfn_signal 1 "$msg" && exit 1)
           echo "INFO: Downloading scripts"
           aws s3 cp --quiet --recursive s3://${DataBucketName}/config/scripts/ $BITNAMI_HOME/
           echo "INFO: Initiliazing Neo4j database"
@@ -413,3 +413,60 @@ Resources:
           Values:
             - !Ref Neo4jDatabaseInstance
       WindowId: !Ref Neo4jBackupMaintenanceWindow
+  DatabaseSyncScriptsDocument: 
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: "Command"
+      DocumentFormat: "YAML"
+      TargetType: "/AWS::EC2::Instance"
+      Content:
+        schemaVersion: "2.2"
+        description: !Sub "Sync database scripts for ${AppName}"
+        parameters:
+          sourceType:
+            type: "String"
+            description: "S3"
+            default: "S3"
+          sourceInfo:
+            type: "StringMap"
+            description: !Sub "Downloads all files under the ${AppName} scripts prefix"
+            default:
+              path: !Sub 'https://{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}.s3.amazonaws.com/config/scripts/'
+          commandLine:
+            type: "String"
+            description: "Deletes ETag files created by SSM Agent."
+            default: 'rm *.etag && find . \( -name "*.sh" -o -name "Makefile" -o -name "init" \) -exec chown bitnami {} \; && find . \( -name "*.sh" -o -name "Makefile" -o -name "init" \) -exec chgrp bitnami {} \;'
+          workingDirectory:
+            type: "String"
+            description: "Working directory"
+            default: "/home/bitnami"
+          executionTimeout:
+            type: "String"
+            description: "(Optional) The time in seconds for a command to complete before it is considered to have failed. Default is 3600 (1 hour). Maximum is 28800 (8 hours)."
+            default: "300"
+        mainSteps:
+          - action: "aws:downloadContent"
+            name: "downloadContent"
+            inputs:
+              sourceType: "{{ sourceType }}"
+              sourceInfo: "{{ sourceInfo }}"
+              destinationPath: "{{ workingDirectory }}"
+          - action: "aws:runShellScript"
+            name: "runShellScript"
+            inputs: 
+              runCommand:
+                - ""
+                - "directory=$(pwd)"
+                - "export PATH=$PATH:$directory"
+                - " {{ commandLine }} " 
+                - ""
+              workingDirectory: "{{ workingDirectory }}"
+              timeoutSeconds: "{{ executionTimeout }}"
+  DatabaseSyncScriptsDocumentNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DatabaseSyncScriptsDocumentName'
+      Description: "Name of SSM document for syncing shell scripts to the database"
+      Value: !Ref DatabaseSyncScriptsDocument
+      
