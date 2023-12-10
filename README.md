@@ -249,7 +249,7 @@ These list outline the basic steps for deployments. For more details please see 
 
 ## Application Environment
 
-###  AWS Credentials
+### AWS Credentials
 Valid AWS credentials must be available to AWS CLI and SAM CLI. The easiest way to do this is with the following steps.
 1. Run `aws configure` and follow the prompts, or copy/paste them into `~/.aws/credentials`:
 ```bash
@@ -622,6 +622,12 @@ pip install -U pip
 pip install -r requirements.txt
 ```
 
+You can specify a Python version when creating the virtual environment.
+```bash
+python3.8 -m venv .venv-dev
+# ... same steps as above
+```
+
 To use the virtual environment inside a Jupyter Notebook, first activate the virtual environment, then create a kernel for it.
 ```bash
 # Install ipykernal
@@ -635,6 +641,155 @@ jupyter kernelspec uninstall <environment name>
 ```
 
 <!-- TODO instructions for running the build job locally using both Python and Docker -->
+### Debugging Lambda Functions
+Lambda functions are found in the directory path `gfe-db/gfe-db/pipeline/functions/`. Each function directory contains the following files:
+```bash
+# Example function directory
+app.py              # Python logic
+requirements.txt    # Dependencies
+event.json          # Test event
+```
+
+Each function can be invoked as a Python script using the following logic.
+```bash
+if __name__ == "__main__":
+    from pathlib import Path
+    event_path = Path(__file__).resolve().parent / "event.json"
+
+    with open(event_path, "r") as file:
+        event = json.load(file)
+
+    lambda_handler(event,"")
+```
+
+This allows the logic to be tested with any debugger and breakpoints. Here is an example launch configuration for VS Code:
+```json
+// .vscode/launch.json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "python": "${workspaceFolder}/.venv/bin/python", // Path to the Python executable in the virtual environment
+            "env": {
+                // Environment variables for the function
+                ...
+            }
+        }
+    ]
+}
+```
+
+Keep in mind the following when debugging Lambda functions:
+* The `event.json` file must be in the same directory as the function and correctly defined in the logic. 
+* Make sure that you have created a valid virtual environment and that the Python executable is correctly defined in the launch configuration.
+* Environment variables used by the function must be correctly defined in the launch configuration.
+* Valid [AWS credentials](#aws-credentials) must be available to the debugger.
+
+Refer to [VS Code documentation](https://code.visualstudio.com/docs/python/debugging) for more information on debugging Python code.
+
+### Debugging Batch Jobs
+When the pipeline is triggered, a container application is deployed using AWS Batch which builds GFEs from the raw data available in the IMGT/HLA repository. The application is built using Docker and can be run locally for debugging purposes. The container application is defined in `gfe-db/gfe-db/pipeline/jobs/build` and contains the following files:
+```bash
+./gfe-db/pipeline/jobs/build
+├── Dockerfile              # Defines the Docker Image deployed to ECR
+├── requirements.txt        # Python dependencies
+├── run.sh                  # Entry point for the build job
+├── scripts                 # Auxiliary scripts
+│   └── get_alignments.sh
+└── src                     # Python logic and modules
+    ├── app.py
+    └── constants.py
+```
+
+There are two possible ways to test, run and debug the build job locally:
+1. [Running the Build job using Python](#running-the-build-job-using-python)
+2. [Running the Build job using Docker](#running-the-build-job-using-docker)
+
+Note that a `NoSuchBucket` error may be encountered when running the build job locally if the infrastructure layer is not deployed because the S3 bucket is not available.
+
+#### Running the Build job using Python
+Follow the steps below to debug the Build job using Python.
+1. Create a [Python virtual environment](#creating-a-python-virtual-environment) using Python 3.8, install the dependencies in `requirements.txt` and activate the virtual environment.
+2. Create a `.env` file in the `build` directory and add the following environment variables:
+```bash
+# .env
+RELEASES=<releases>
+GFE_BUCKET=<s3_bucket>
+AWS_REGION=<region>
+LIMIT=<limit>
+FEATURE_SERVICE_URL=<feature_service_url>
+```
+3. Export the variables to the shell environment.
+```bash
+set -a; source .env; set +a
+```
+4. Run the build job using the command. You can optionally specify a limit to the number of alleles to build.
+```bash
+cd gfe-db/pipeline/jobs/build
+bash run.sh
+```
+
+#### Running the Build job using Docker
+1. Navigate to the `build` directory.
+```bash
+cd gfe-db/pipeline/jobs/build
+```
+2. Create a `.env` file in the `build` directory and add the following environment variables:
+```bash
+# .env
+RELEASES=<releases>
+GFE_BUCKET=<s3_bucket>
+AWS_REGION=<region>
+LIMIT=<limit>
+FEATURE_SERVICE_URL=<feature_service_url>
+```
+3. Build the Docker image locally.
+```bash
+docker build --tag gfe-db-build-service --platform "linux/amd64" .
+```
+4. Run the container locally using the command. You can optionally specify a limit to the number of alleles to build.
+```bash
+docker run --env-file .env -v $(pwd)/data:/data gfe-db-build-service
+```
+
+<!-- #### Example VS Code configuration for debugging the Build job
+Use the following configuration as an example to debug the Python script using VS Code. Make sure to update the environment variables and paths as needed.
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "build",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "python": "${command:python.interpreterPath}",
+            "env": {
+                "FEATURE_SERVICE_URL": "https://feature.b12x.org",
+                "GFE_BUCKET": "",
+                "AWS_REGION": "us-east-1",
+            },
+            "args": [
+                "-o",
+                "gfe-db/pipeline/jobs/data/3350/csv",
+                "-r",
+                "3350",
+                "-v",
+                "-l",
+                "100"
+            ]
+        }
+    ]
+}
+``` -->
 
 ## Documentation
 It is not necessary to install Sphinx to view `gfe-db` documentation because it is already built and available in the `docs/` folder, but you will need it to edit them. To get the local `index.html` path run the command and navigate to the URL in a browser.
