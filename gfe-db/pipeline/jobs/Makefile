@@ -16,11 +16,11 @@ deploy.ecr.jobs.build:
 			--username AWS \
 			--password-stdin "$${ECR_BASE_URI}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
 	docker build \
-		-t "$${BUILD_REPOSITORY}" \
+		-t "$${BUILD_REPOSITORY_NAME}" \
 		--platform "linux/amd64" \
 		build/ && \
-	docker tag "$${BUILD_REPOSITORY}:latest" "$${ECR_BASE_URI}/$${BUILD_REPOSITORY}:latest" && \
-	docker push "$${ECR_BASE_URI}/$${BUILD_REPOSITORY}:latest" 2>&1 | tee -a $$CFN_LOG_PATH || true
+	docker tag "$${BUILD_REPOSITORY_NAME}:latest" "$${ECR_BASE_URI}/$${BUILD_REPOSITORY_NAME}:latest" && \
+	docker push "$${ECR_BASE_URI}/$${BUILD_REPOSITORY_NAME}:latest" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 delete:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH
@@ -30,15 +30,15 @@ delete.ecr.jobs.build:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting Build Service Docker images" 2>&1 | tee -a $$CFN_LOG_PATH
 	@ecr_images="$$(aws ecr list-images \
 		--region $${AWS_REGION} \
-		--repository-name $${BUILD_REPOSITORY} \
+		--repository-name $${BUILD_REPOSITORY_NAME} \
 		--query 'imageIds[*]' \
 		--output json || true)" && \
 	[ "$$ecr_images" = "[]" ] && \
-	echo "No images to delete in $${ECR_BASE_URI}/$${BUILD_REPOSITORY}" && exit 0 || \
-	echo "Deleting images in $${ECR_BASE_URI}/$${BUILD_REPOSITORY}" && \
+	echo "No images to delete in $${ECR_BASE_URI}/$${BUILD_REPOSITORY_NAME}" && exit 0 || \
+	echo "Deleting images in $${ECR_BASE_URI}/$${BUILD_REPOSITORY_NAME}" && \
 	aws ecr batch-delete-image \
 		--region "$${AWS_REGION}" \
-		--repository-name "$${BUILD_REPOSITORY}" \
+		--repository-name "$${BUILD_REPOSITORY_NAME}" \
 		--image-ids "$$ecr_images" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 #############

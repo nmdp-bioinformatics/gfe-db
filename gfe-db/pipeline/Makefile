@@ -46,7 +46,7 @@ service.deploy:
 			ValidateBuildOutputFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.ValidateBuildOutput.FunctionConfiguration.FunctionName')" \
 			DisableBackupFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.DisableBackup.FunctionConfiguration.FunctionName')" \
 			ECRBaseUri="${ECR_BASE_URI}" \
-			BuildServiceRepositoryName="${BUILD_REPOSITORY}" \
+			BuildServiceRepositoryName="${BUILD_REPOSITORY_NAME}" \
 			FeatureServiceUrl="${FEATURE_SERVICE_URL}" \
 			2>&1 | tee -a $$CFN_LOG_PATH || true
 

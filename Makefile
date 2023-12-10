@@ -9,20 +9,21 @@ export
 
 SPLASH_FONT := slant
 
-export AWS_ACCOUNT ?= $(shell aws sts get-caller-identity \
+export AWS_ACCOUNT = $(shell aws sts get-caller-identity \
 	--query Account \
 	--output text)
-export HAS_STAGE := $(shell aws ssm get-parameters \
+export HAS_STAGE = $(shell aws ssm get-parameters \
 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Stage" \
 		--output json \
 		| jq -r '.Parameters[0].Value')
 
-export ROOT_DIR := $(shell pwd)
-export DATABASE_DIR := ${ROOT_DIR}/${APP_NAME}/database
-export INFRA_DIR := ${ROOT_DIR}/${APP_NAME}/infrastructure
-export LOGS_DIR := $(shell echo "${ROOT_DIR}/logs")
-export CFN_LOG_PATH := $(shell echo "${LOGS_DIR}/cfn/logs.txt")
-export PURGE_LOGS := false
+export ROOT_DIR = $(shell pwd)
+export INFRA_DIR = ${ROOT_DIR}/${APP_NAME}/infrastructure
+export DATABASE_DIR = ${ROOT_DIR}/${APP_NAME}/database
+export PIPELINE_DIR = ${ROOT_DIR}/${APP_NAME}/pipeline
+export LOGS_DIR = $(shell echo "${ROOT_DIR}/logs")
+export CFN_LOG_PATH = $(shell echo "${LOGS_DIR}/cfn/logs.txt")
+export PURGE_LOGS ?= false
 
 # conditionally required variable defaults
 CREATE_VPC ?= false
@@ -52,17 +53,17 @@ export DATABASE_VOLUME_SIZE ?= 64
 # Resource identifiers
 export DATA_BUCKET_NAME ?= ${STAGE}-${APP_NAME}-${AWS_ACCOUNT}-${AWS_REGION}
 export ECR_BASE_URI := ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com
-export BUILD_REPOSITORY ?= ${STAGE}-${APP_NAME}-build-service
+export BUILD_REPOSITORY_NAME ?= ${STAGE}-${APP_NAME}-build-service
 export EC2_KEY_PAIR_NAME := $${STAGE}-$${APP_NAME}-$${AWS_REGION}-neo4j-key
-export INSTANCE_ID := $(shell aws ssm get-parameters \
+export INSTANCE_ID = $(shell aws ssm get-parameters \
 	--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseInstanceId" \
 	--output json \
 	| jq -r '.Parameters[0].Value')
 
 # S3 paths
-export PIPELINE_STATE_PATH := config/IMGTHLA-repository-state.json
-export PIPELINE_PARAMS_PATH := config/pipeline-input.json
-export FUNCTIONS_PATH := ${APP_NAME}/pipeline/functions
+export PIPELINE_STATE_PATH = config/IMGTHLA-repository-state.json
+export PIPELINE_PARAMS_PATH = config/pipeline-input.json
+export FUNCTIONS_PATH = ${PIPELINE_DIR}/functions
 
 # TODO validate data types
 # Required environment variables
@@ -106,9 +107,7 @@ target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
-test:
-	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/bastion-server/ service.authorize-security-group-ingress
-
+### Application Deployment Targets ###
 splash-screen:
 ifeq ($(SPLASH_FONT),slant)
 	@echo "\033[0;34m                                            "
@@ -406,16 +405,17 @@ env.validate: check.dependencies env.validate.vars env.validate.boolean-vars env
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 options-screen:
-	@echo "+-----------------------------------------------------------------------------------------+"
-	@echo "|                                         \033[34mSuccess!\033[0m                                        |"
-	@echo "+-----------------------------------------------------------------------------------------+"
-	@echo "| \033[33mAvailable Actions:\033[0m                                                                      |"
-	@echo "| * Run the pipeline: \`\033[96mSTAGE=<stage> make database.load.run releases=<releases>\033[0m\`          |"
-	@echo "| * Load the database from backup: \`\033[96mSTAGE=<stage> make database.restore from_date=<date>\033[0m\` |"
-	@echo "| * Log into the database: \`\033[96mSTAGE=<stage> make database.connect\033[0m\`                          |"
-	@echo "| * Remove access services: \`\033[96mSTAGE=<stage> make infrastructure.access-services.delete\033[0m\`    |"
-	@echo "+-----------------------------------------------------------------------------------------+"
+	@echo "+--------------------------------------------------------------------------------------------+"
+	@echo "|                                         \033[34mSuccess!\033[0m                                           |"
+	@echo "+--------------------------------------------------------------------------------------------+"
+	@echo "| \033[33mAvailable Actions:\033[0m                                                                         |"
+	@echo "| * Run the pipeline: \`\033[96mSTAGE=<stage> make database.load.run releases=<releases>\033[0m\`             |"
+	@echo "| * Load the database from backup: \`\033[96mSTAGE=<stage> make database.restore from_path=<s3_path>\033[0m\` |"
+	@echo "| * Log into the database: \`\033[96mSTAGE=<stage> make database.connect\033[0m\`                             |"
+	@echo "| * Remove access services: \`\033[96mSTAGE=<stage> make infrastructure.access-services.delete\033[0m\`       |"
+	@echo "+--------------------------------------------------------------------------------------------+"
 
+### Application Management Targets ###
 infrastructure.deploy: 
 	$(MAKE) -C ${APP_NAME}/infrastructure/ deploy
 
@@ -437,6 +437,12 @@ infrastructure.access-services.bastion-server.deploy:
 
 infrastructure.access-services.bastion-server.connect:
 	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/bastion-server/ service.connect
+
+monitoring.create-subscriptions:
+	$(MAKE) -C ${APP_NAME}/infrastructure service.monitoring.create-subscriptions
+
+monitoring.subscribe-email:
+	$(MAKE) -C ${APP_NAME}/infrastructure service.monitoring.subscribe-email
 
 database.deploy:
 	$(MAKE) -C ${APP_NAME}/database/ deploy
@@ -463,12 +469,6 @@ pipeline.jobs.deploy:
 config.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.config.deploy
 	$(MAKE) -C ${APP_NAME}/database/ service.config.deploy
-
-monitoring.create-subscriptions:
-	$(MAKE) -C ${APP_NAME}/infrastructure service.monitoring.create-subscriptions
-
-monitoring.subscribe-email:
-	$(MAKE) -C ${APP_NAME}/infrastructure service.monitoring.subscribe-email
 
 # TODO fix output & error handling
 database.load.run: # args: align, kir, limit, releases
@@ -611,7 +611,6 @@ delete: # data=true/false ##=> Delete services
 	$(MAKE) infrastructure.delete
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished deleting ${APP_NAME} in ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 
-
 # Delete specific stacks
 infrastructure.delete:
 	$(MAKE) -C ${APP_NAME}/infrastructure/ delete
@@ -657,45 +656,220 @@ docs.url:
 
 define HELP_MESSAGE
 
-	Environment variables:
+	************************
+	* Deployment Variables *
+	************************
 
 	STAGE: "${STAGE}"
-		Description: Feature branch name used as part of stacks name
+		Description: (string) Feature branch name used as part of stacks name
+
+	AWS_PROFILE: "${AWS_PROFILE}"
+		Description: (string) AWS profile to use for deployment
 
 	APP_NAME: "${APP_NAME}"
-		Description: Stack Name already deployed
+		Description: (string) Stack Name already deployed
+
+	AWS_REGION: "${AWS_REGION}":
+		Description: (string) AWS region for deployment
+
+	CREATE_VPC: "${CREATE_VPC}"
+		Description: (boolean) Create a new VPC or use an existing one
+
+	USE_PRIVATE_SUBNET: "${USE_PRIVATE_SUBNET}"
+		Description: (boolean) Use a private subnet for Neo4j
+
+	CREATE_SSM_VPC_ENDPOINT: "${CREATE_SSM_VPC_ENDPOINT}"
+		Description: (boolean) Create a new SSM VPC Endpoint or use an existing one
+
+	SSM_VPC_ENDPOINT_ID: "${SSM_VPC_ENDPOINT_ID}"
+		Description: (string) ID of an existing SSM VPC Endpoint, required when CREATE_SSM_VPC_ENDPOINT is false
+		and USE_PRIVATE_SUBNET is true
+
+	CREATE_SECRETSMANAGER_VPC_ENDPOINT: "${CREATE_SECRETSMANAGER_VPC_ENDPOINT}"
+		Description: (boolean) Create a new SecretsManager VPC Endpoint or use an existing one
+
+	SECRETSMANAGER_VPC_ENDPOINT_ID: "${SECRETSMANAGER_VPC_ENDPOINT_ID}"
+		Description: (string) ID of an existing SecretsManager VPC Endpoint, required when CREATE_SECRETSMANAGER_VPC_ENDPOINT is false
+		and USE_PRIVATE_SUBNET is true
+
+	CREATE_S3_VPC_ENDPOINT: "${CREATE_S3_VPC_ENDPOINT}"
+		Description: (boolean) Create a new S3 VPC Endpoint or use an existing one, required when USE_PRIVATE_SUBNET is true
+
+	S3_VPC_ENDPOINT_ID: "${S3_VPC_ENDPOINT_ID}"
+		Description: (string) ID of an existing S3 VPC Endpoint, required when CREATE_S3_VPC_ENDPOINT is false
+		and USE_PRIVATE_SUBNET is true
+
+	DEPLOY_NAT_GATEWAY: "${DEPLOY_NAT_GATEWAY}"
+		Description: (boolean) Deploy a NAT Gateway or use an existing one, required when USE_PRIVATE_SUBNET is true
+
+	EXTERNAL_NAT_GATEWAY_ID: "${EXTERNAL_NAT_GATEWAY_ID}"
+		Description: (string) ID of an existing NAT Gateway, required when DEPLOY_NAT_GATEWAY is false
+		and USE_PRIVATE_SUBNET is true
+
+	DEPLOY_BASTION_SERVER: "${DEPLOY_BASTION_SERVER}"
+		Description: (boolean) Deploy a Bastion Server or use an existing one, required when USE_PRIVATE_SUBNET is true
+		
+	ADMIN_IP: "${ADMIN_IP}"
+		Description: (string) IP address to allow SSH access to the Bastion Server, required when DEPLOY_BASTION_SERVER is true
+
+	ADMIN_EMAIL: "${ADMIN_EMAIL}"
+		Description: (string) Admin email address for Neo4j server SSL certificate management, required when USE_PRIVATE_SUBNET is false
+
+	SUBSCRIBE_EMAILS: "${SUBSCRIBE_EMAILS}"
+		Description: (string) Comma separated list of email addresses to subscribe to CloudWatch notifications
+
+	HOST_DOMAIN: "${HOST_DOMAIN}"
+		Description: (string) Domain name for the Neo4j server, required when USE_PRIVATE_SUBNET is false
+
+	SUBDOMAIN: "${SUBDOMAIN}"
+		Description: (string) Subdomain name for the Neo4j server, required when USE_PRIVATE_SUBNET is false
+
+	HOSTED_ZONE_ID: "${HOSTED_ZONE_ID}"
+		Description: (string) Route53 hosted zone ID, required when USE_PRIVATE_SUBNET is false
+
+	VPC_ID: "${VPC_ID}"
+		Description: (string) ID of an existing VPC, required when CREATE_VPC is false
+
+	PUBLIC_SUBNET_ID: "${PUBLIC_SUBNET_ID}"
+		Description: (string) ID of an existing public subnet, required when CREATE_VPC is false
+
+	PRIVATE_SUBNET_ID: "${PRIVATE_SUBNET_ID}"
+		Description: (string) ID of an existing private subnet, required when CREATE_VPC is false
+		and USE_PRIVATE_SUBNET is true
+
+	NEO4J_AMI_ID: "${NEO4J_AMI_ID}"
+		Description: (string) ID of an existing Neo4j AMI from Bitnami
+
+	APOC_VERSION: "${APOC_VERSION}"
+		Description: (string) Version of APOC to install
+
+	GDS_VERSION: "${GDS_VERSION}"
+		Description: (string) Version of Neo4j Graph Data Science plugin to install
+
+	GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+		Description: (string) GitHub personal access token for downloading releases
+
+	GITHUB_REPOSITORY_OWNER: "${GITHUB_REPOSITORY_OWNER}"
+		Description: (string) GitHub repository owner for downloading releases
+
+	GITHUB_REPOSITORY_NAME: "${GITHUB_REPOSITORY_NAME}"
+		Description: (string) GitHub repository name for downloading releases
+
+	FEATURE_SERVICE_URL: "${FEATURE_SERVICE_URL}"
+		Description: (string) URL of the Feature Service API
 
 	AWS_ACCOUNT: "${AWS_ACCOUNT}":
 		Description: AWS account ID for deployment
 
-	AWS_REGION: "${AWS_REGION}":
-		Description: AWS region for deployment
+	*************************
+	* Application variables *
+	*************************
 
-	DATA_BUCKET_NAME "$${DATA_BUCKET_NAME}"
-		Description: Name of the S3 bucket for data, config and logs
+	AWS_ACCOUNT: "${AWS_ACCOUNT}"
+		Description: AWS account ID for deployment
 
-	Common usage:
+	HAS_STAGE: "${HAS_STAGE}"
+		Description: (boolean) Whether or not the stack has a stage already deployed
+
+	ROOT_DIR: "${ROOT_DIR}"
+		Description: Root directory of the project
+
+	INFRA_DIR: "${INFRA_DIR}"
+		Description: Path to the infrastructure directory
+
+	DATABASE_DIR: "${DATABASE_DIR}"
+		Description: Path to the database directory
+
+	PIPELINE_DIR: "${PIPELINE_DIR}"
+		Description: Path to the pipeline directory
+
+	DATA_BUCKET_NAME "${DATA_BUCKET_NAME}"
+		Description: Name of the S3 bucket for data, config, logs and backups
+
+	ECR_BASE_URI: "${ECR_BASE_URI}"
+		Description: Base URI of the ECR repository for the build job Application
+
+	BUILD_REPOSITORY_NAME: "${BUILD_REPOSITORY_NAME}"
+		Description: Name of the ECR repository for the build job Application
+
+	EC2_KEY_PAIR_NAME: "${EC2_KEY_PAIR_NAME}"
+		Description: Name of the EC2 key pair for the Bastion and Neo4j servers
+
+	INSTANCE_ID: "${INSTANCE_ID}"
+		Description: ID of the Neo4j EC2 instance
+
+	PIPELINE_STATE_PATH: "${PIPELINE_STATE_PATH}"
+		Description: S3 path to the pipeline state file
+
+	PIPELINE_PARAMS_PATH: "${PIPELINE_PARAMS_PATH}"
+		Description: S3 path to the pipeline parameters file
+
+	FUNCTIONS_PATH: "${FUNCTIONS_PATH}"
+		Description: Path to the Lambda functions directory
+
+	****************
+	* Common Usage *
+	****************
 
 	...::: Deploy all CloudFormation based services :::...
 	$ make deploy
 
-	...::: Deploy the infrastructure :::...
+	...::: Delete all CloudFormation based services including data :::...
+	$ make delete data=true
+
+	...::: Deploy the infrastructure layer :::...
 	$ make infrastructure.deploy
 
-	...::: Deploy the database :::...
+	...::: Delete the infrastructure layer :::...
+	$ make infrastructure.delete
+
+	...::: Update only the infrastructure CloudFormation :::...
+	$ make infrastructure.service.deploy
+
+	...::: Create an endpoint :::...
+	$ make infrastructure.create-endpoint service=<ssm|secretmanager|s3>
+
+	...::: Delete an endpoint :::...
+	$ make infrastructure.delete-endpoint service=<ssm|secretmanager|s3>
+
+	...::: Deploy all access services :::...
+	$ make infrastructure.access-services.deploy
+
+	...::: Delete all access services :::...
+	$ make infrastructure.access-services.delete
+
+	...::: Deploy the NAT Gateway access service :::...
+	$ make infrastructure.access-services.nat-gateway.deploy
+
+	...::: Delete the NAT Gateway access service :::...
+	$ make infrastructure.access-services.nat-gateway.delete
+
+	...::: Deploy the Bastion Server access service :::...
+	$ make infrastructure.access-services.bastion-server.deploy
+
+	...::: Delete the Bastion Server access service :::...
+	$ make infrastructure.access-services.bastion-server.delete
+
+	...::: Create CloudWatch subscriptions :::...
+	$ make monitoring.create-subscriptions
+
+	...::: Subscribe an email to CloudWatch notifications :::...
+	$ make monitoring.subscribe-email
+
+	...::: Connect to the Bastion Server :::...
+	$ make infrastructure.access-services.bastion-server.connect
+
+	...::: Deploy the database layer :::...
 	$ make database.deploy
 
-	...::: Deploy the pipeline :::...
-	$ make pipeline.deploy
+	...::: Delete the database layer :::...
+	$ make database.delete
 
-	...::: Deploy the pipeline functions :::...
-	$ make pipeline.service.deploy
+	...::: Update only the database CloudFormation :::...
+	$ make database.service.deploy
 
-	...::: Deploy the pipeline jobs :::...
-	$ make pipeline.jobs.deploy
-
-	...::: Deploy config files and scripts to S3 :::...
-	$ make config.deploy
+	...::: Connect to the database instance :::...
+	$ make database.connect
 
 	...::: Run the StepFunctions State Machine to load Neo4j :::...
 	$ make database.load releases=<version> align=<boolean> kir=<boolean> limit=<int>
@@ -706,16 +880,76 @@ define HELP_MESSAGE
 	...::: Get Neo4j Endpoint :::...
 	$ make database.get.endpoint
 
-	...::: Connect to the database server :::...
-	$ make database.connect
+	...::: Get Neo4j Private IP :::...
+	$ make database.get.private-ip
+
+	...::: Get Neo4j Instance ID :::...
+	$ make database.get.instance-id
+
+	...::: Stop the database instance :::...
+	$ make database.stop
+
+	...::: Start the database instance :::...
+	$ make database.start
+
+	...::: Reboot the database instance :::...
+	$ make database.reboot
+
+	...::: Sync bash scripts to the database instance :::...
+	$ make database.sync-scripts
+
+	...::: Update the Neo4j configuration :::...
+	$ make database.config.update
+
+	...::: Renew the Neo4j SSL certificate :::...
+	$ make database.ssl.renew-cert
+
+	...::: Backup the database :::...
+	$ make database.backup
+
+	...::: List database backups :::...
+	$ make database.backup.list
+
+	...::: Restore the database from a backup :::...
+	$ make database.restore from_path=<s3_path>
+
+	...::: Describe the database status :::...
+	$ make database.status
+
+	...::: Deploy the pipeline :::...
+	$ make pipeline.deploy
+
+	...::: Delete the pipeline :::...
+	$ make pipeline.delete
+
+	...::: Update only the pipeline CloudFormation including Lambda functions :::...
+	$ make pipeline.service.deploy
+
+	...::: Delete only the pipeline CloudFormation including Lambda functions :::...
+	$ make pipeline.service.delete
+
+	...::: Deploy the pipeline jobs as Docker images to ECR:::...
+	$ make pipeline.jobs.deploy
+
+	...::: Delete the pipeline jobs :::...
+	$ make pipeline.jobs.delete
+
+	...::: Deploy all config files and scripts to S3 :::...
+	$ make config.deploy
+
+	...::: Deploy only the database config files and scripts to S3 :::...
+	$ make database.config.deploy
 
 	...::: Download CSV data from S3 :::...
 	$ make get.data
 
-	...::: Download logs from EC2 :::...
+	...::: Download server logs from the Neo4j instance :::...
 	$ make get.logs
 
-	...::: Delete all CloudFormation based services and data :::...
-	$ make delete
+	...::: Build the documentation :::...
+	$ make docs.build
+
+	...::: Get the documentation URL :::...
+	$ make docs.url
 
 endef
