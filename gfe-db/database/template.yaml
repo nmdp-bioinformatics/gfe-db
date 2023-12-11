@@ -78,9 +78,9 @@ Resources:
       Value: !Ref Neo4jCredentialsSecret
   Neo4jDatabaseInstance:
     Type: AWS::EC2::Instance
-    CreationPolicy:
-      ResourceSignal:
-        Timeout: PT10M
+    # CreationPolicy:
+    #   ResourceSignal:
+    #     Timeout: PT10M
     Properties:
       KeyName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}'
       DisableApiTermination: false
@@ -103,7 +103,8 @@ Resources:
       UserData: !Base64
         Fn::Sub: |
           #!/bin/bash -x
-          echo "INFO: Running user data for ${AWS::StackName}-database instance"
+          echo "INFO: Running user data for ${AWS::StackName} instance"
+          sed -i "/#\$nrconf{restart} = 'i';/s/.*/\$nrconf{restart} = 'a';/" /etc/needrestart/needrestart.conf
           apt-get update -y
           DEBIAN_FRONTEND=noninteractive apt-get upgrade -yq
           apt-get install -y \
@@ -124,20 +125,24 @@ Resources:
           python3-venv \
           openjdk-17-jdk \
           openjdk-17-jre
+          # Install AWS CLI v2
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
           # Update system Java for Neo4j cypher-shell
           update-java-alternatives --set /usr/lib/jvm/java-1.17.0-openjdk-amd64
           /usr/bin/java -version
-          export BITNAMI_HOME=/home/bitnami
+          export UBUNTU_HOME=/home/ubuntu
           export INSTANCE_ID=$(curl -sS http://169.254.169.254/latest/meta-data/instance-id)
           export NEO4J_HOME=/opt/bitnami/neo4j
           mkdir -p /tmp/logs/system /tmp/logs/neo4j
-          copy_logs_to_s3() {
-            # copy logs to S3
-            journalctl -b > /tmp/logs/bootstrap.log
-            cp -r /var/log/* /tmp/logs/system/
-            cp -r $NEO4J_HOME/logs/* /tmp/logs/neo4j/
-            aws s3 cp --quiet --recursive /tmp/logs/ s3://${DataBucketName}/logs/database/$INSTANCE_ID/$(date +'%Y/%m/%d/%H')/
-          }
+          # copy_logs_to_s3() {
+          #   # copy logs to S3
+          #   journalctl -b > /tmp/logs/bootstrap.log
+          #   cp -r /var/log/* /tmp/logs/system/
+          #   cp -r $NEO4J_HOME/logs/* /tmp/logs/neo4j/
+          #   aws s3 cp --quiet --recursive /tmp/logs/ s3://${DataBucketName}/logs/database/$INSTANCE_ID/$(date +'%Y/%m/%d/%H')/
+          # }
           echo "INFO: Installing CloudFormation Helpers"
           mkdir -p /tmp/cfn
           wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.zip -P /tmp/cfn/
@@ -150,7 +155,7 @@ Resources:
             local exit_code=$1
             local reason=$2
             echo "INFO: Sending CloudFormation signal with exit code $exit_code and reason: '$reason'"
-            copy_logs_to_s3
+            # copy_logs_to_s3
             $(which cfn-signal) \
               --region us-east-1 \
               --exit-code $exit_code \
@@ -160,48 +165,38 @@ Resources:
           }
           echo "INFO: Installing CloudWatch Logs Agent"
           mkdir -p /tmp/amazon-cloudwatch-agent
-          wget -q -O /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb https://s3.amazonaws.com/amazoncloudwatch-agent/debian/amd64/latest/amazon-cloudwatch-agent.deb
+          wget -q -O /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb https://amazoncloudwatch-agent.s3.amazonaws.com/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
           dpkg -i -E /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb
           aws s3 cp --quiet s3://${DataBucketName}/config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
-          systemctl enable amazon-cloudwatch-agent.service
-          service amazon-cloudwatch-agent start
-          sleep 5
+          /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
           [ $(amazon-cloudwatch-agent-ctl -a status | jq -r '.status') = running ] && echo "INFO: CloudWatch Logs Agent is running" || \
             (msg="ERROR: CloudWatch Logs Agent did not initialize correctly" && echo $msg && cfn_signal 1 "$msg" && exit 1)
-          echo "INFO: Installing SSM Agent"
-          mkdir -p /tmp/ssm
-          wget -q -O /tmp/ssm/amazon-ssm-agent.deb https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb
-          dpkg -i /tmp/ssm/amazon-ssm-agent.deb
-          systemctl enable amazon-ssm-agent
-          systemctl start amazon-ssm-agent
-          [ $((which amazon-ssm-agent | grep -q amazon-ssm-agent && echo 0) || echo 1) -eq 0 ] && echo "INFO: SSM Agent is running" || \
-            (msg="ERROR: SSM Agent did not initialize correctly" && echo $msg && cfn_signal 1 "$msg" && exit 1)
           # Permanently set application environment variables (these should never change for the duration of the deployment) # TODO: Move to Makefile target
           echo "INFO: Setting application environment variables"
-          echo "INSTANCE_ID=$INSTANCE_ID" > $BITNAMI_HOME/env.sh
-          echo "BITNAMI_HOME=$BITNAMI_HOME" >> $BITNAMI_HOME/env.sh
-          echo "NEO4J_HOME=$NEO4J_HOME" >> $BITNAMI_HOME/env.sh
-          echo "BITNAMI_NEO4J=/bitnami/neo4j" >> $BITNAMI_HOME/env.sh
-          echo "STAGE=${Stage}" >> $BITNAMI_HOME/env.sh
-          echo "APP_NAME=${AppName}" >> $BITNAMI_HOME/env.sh
-          echo "USE_PRIVATE_SUBNET=${usePrivateSubnet}" >> $BITNAMI_HOME/env.sh
-          echo "AWS_REGION=us-east-1" >> $BITNAMI_HOME/env.sh
-          echo "DATA_BUCKET_NAME=${DataBucketName}" >> $BITNAMI_HOME/env.sh
-          echo "HOST_DOMAIN=${HostDomain}" >> $BITNAMI_HOME/env.sh
-          echo "SUBDOMAIN=${Subdomain}" >> $BITNAMI_HOME/env.sh
-          echo "ADMIN_EMAIL=${AdminEmail}" >> $BITNAMI_HOME/env.sh
-          echo "APOC_VERSION=${APOCVersion}" >> $BITNAMI_HOME/env.sh
-          echo "GDS_VERSION=${GDSVersion}" >> $BITNAMI_HOME/env.sh
-          echo "PRIVATE_IP=$(curl -sS http://169.254.169.254/latest/meta-data/local-ipv4)" >> $BITNAMI_HOME/env.sh
-          echo "# Make application variables available" >> $BITNAMI_HOME/.bashrc
-          echo "set -a && source /home/bitnami/env.sh && set +a" >> $BITNAMI_HOME/.bashrc
+          echo "INSTANCE_ID=$INSTANCE_ID" > $UBUNTU_HOME/env.sh
+          echo "UBUNTU_HOME=$UBUNTU_HOME" >> $UBUNTU_HOME/env.sh
+          echo "NEO4J_HOME=$NEO4J_HOME" >> $UBUNTU_HOME/env.sh
+          echo "BITNAMI_NEO4J=/bitnami/neo4j" >> $UBUNTU_HOME/env.sh
+          echo "STAGE=${Stage}" >> $UBUNTU_HOME/env.sh
+          echo "APP_NAME=${AppName}" >> $UBUNTU_HOME/env.sh
+          echo "USE_PRIVATE_SUBNET=${usePrivateSubnet}" >> $UBUNTU_HOME/env.sh
+          echo "AWS_REGION=us-east-1" >> $UBUNTU_HOME/env.sh
+          echo "DATA_BUCKET_NAME=${DataBucketName}" >> $UBUNTU_HOME/env.sh
+          echo "HOST_DOMAIN=${HostDomain}" >> $UBUNTU_HOME/env.sh
+          echo "SUBDOMAIN=${Subdomain}" >> $UBUNTU_HOME/env.sh
+          echo "ADMIN_EMAIL=${AdminEmail}" >> $UBUNTU_HOME/env.sh
+          echo "APOC_VERSION=${APOCVersion}" >> $UBUNTU_HOME/env.sh
+          echo "GDS_VERSION=${GDSVersion}" >> $UBUNTU_HOME/env.sh
+          echo "PRIVATE_IP=$(curl -sS http://169.254.169.254/latest/meta-data/local-ipv4)" >> $UBUNTU_HOME/env.sh
+          echo "# Make application variables available" >> $UBUNTU_HOME/.bashrc
+          echo "set -a && source $UBUNTU_HOME/env.sh && set +a" >> $UBUNTU_HOME/.bashrc
           # disable disruptive autoescaping in shells
-          echo "shopt -s direxpand" >> $BITNAMI_HOME/.bashrc
-          source $BITNAMI_HOME/.bashrc
+          echo "shopt -s direxpand" >> $UBUNTU_HOME/.bashrc
+          source $UBUNTU_HOME/.bashrc
           # echo "INFO: Validating environment variables"
           # exit_code=0
           # msg="The following variables failed to be set: "
-          # for var in BITNAMI_HOME STAGE APP_NAME USE_PRIVATE_SUBNET AWS_REGION DATA_BUCKET_NAME HOST_DOMAIN SUBDOMAIN ADMIN_EMAIL APOC_VERSION GDS_VERSION; do
+          # for var in UBUNTU_HOME STAGE APP_NAME USE_PRIVATE_SUBNET AWS_REGION DATA_BUCKET_NAME HOST_DOMAIN SUBDOMAIN ADMIN_EMAIL APOC_VERSION GDS_VERSION; do
           #     if [ -z "${!var}" ]; then
           #         echo "$var is not set"
           #         msg="$msg $var"
@@ -212,23 +207,23 @@ Resources:
           # done
           # [ $exit_code -eq 0 ] && echo "INFO: Environment variables set" || (echo $msg && cfn_signal 1 "$msg" && exit 1)
           echo "INFO: Downloading scripts"
-          aws s3 cp --quiet --recursive s3://${DataBucketName}/config/scripts/ $BITNAMI_HOME/
-          echo "INFO: Initiliazing Neo4j database"
-          # TODO add cfn-signal handling to Makefile
-          cd $BITNAMI_HOME && make neo4j
-          exit_code=$?
-          [ $exit_code -eq 0 ] && echo "INFO: Neo4j initialized successfully" || (msg="ERROR: Neo4j failed to initialize" && echo $msg && cfn_signal 1 "$msg" && exit 1)
-          cypher_constraints=$(sudo make neo4j.query.show-constraints | awk -F, 'NR>1 {print $2}')
-          [[ $(echo "$cypher_constraints" | grep -c "gfe_constraint") -gt 0 && \
-            $(echo "$cypher_constraints" | grep -c "ipd_acc_constraint") -gt 0 && \
-            $(echo "$cypher_constraints" | grep -c "ipd_allele_constraint") -gt 0 \
-            && $(echo "$cypher_constraints" | grep -c "submitter_constraint") -gt 0 ]] && \
-          echo "INFO: Found Cypher constraints: $cypher_constraints" | tr '\n' ' ' | sed 's/  / /g' || (msg="ERROR: No Cypher constraints were found" && echo $msg && cfn_signal 1 "$msg" && exit 1)
-          mkdir logs
-          sudo journalctl -b > logs/boot.log
-          cat /opt/bitnami/neo4j/logs/neo4j.log > logs/neo4j.log
-          cat /opt/bitnami/neo4j/logs/debug.log > logs/debug.log
-          cfn_signal 0 "INFO: Finished running user data for ${AWS::StackName}-database instance"
+          aws s3 cp --quiet --recursive s3://${DataBucketName}/config/scripts/ $UBUNTU_HOME/
+          # echo "INFO: Initiliazing Neo4j database"
+          # # TODO add cfn-signal handling to Makefile
+          # cd $UBUNTU_HOME && make neo4j
+          # exit_code=$?
+          # [ $exit_code -eq 0 ] && echo "INFO: Neo4j initialized successfully" || (msg="ERROR: Neo4j failed to initialize" && echo $msg && cfn_signal 1 "$msg" && exit 1)
+          # cypher_constraints=$(sudo make neo4j.query.show-constraints | awk -F, 'NR>1 {print $2}')
+          # [[ $(echo "$cypher_constraints" | grep -c "gfe_constraint") -gt 0 && \
+          #   $(echo "$cypher_constraints" | grep -c "ipd_acc_constraint") -gt 0 && \
+          #   $(echo "$cypher_constraints" | grep -c "ipd_allele_constraint") -gt 0 \
+          #   && $(echo "$cypher_constraints" | grep -c "submitter_constraint") -gt 0 ]] && \
+          # echo "INFO: Found Cypher constraints: $cypher_constraints" | tr '\n' ' ' | sed 's/  / /g' || (msg="ERROR: No Cypher constraints were found" && echo $msg && cfn_signal 1 "$msg" && exit 1)
+          # mkdir logs
+          # sudo journalctl -b > logs/boot.log
+          # cat /opt/bitnami/neo4j/logs/neo4j.log > logs/neo4j.log
+          # cat /opt/bitnami/neo4j/logs/debug.log > logs/debug.log
+          # cfn_signal 0 "INFO: Finished running user data for ${AWS::StackName}-database instance"
       Tags:
         - Key: Name
           Value: !Sub ${AppName}-${Stage}
@@ -338,6 +333,13 @@ Resources:
       Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jPrivateIp
       Description: Private IP for Neo4j
       Value: !Sub ${Neo4jDatabaseInstance.PrivateIp}
+  Neo4jPublicIpParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jPublicIp
+      Description: Public IP for Neo4j
+      Value: !Sub ${Neo4jDatabaseInstance.PublicIp}
   Neo4jBackupDocument:
     Type: AWS::SSM::Document
     Properties:
