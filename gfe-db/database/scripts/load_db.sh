@@ -1,4 +1,4 @@
-# #!/bin/bash -x
+#!/bin/bash -x
 
 export BITNAMI_HOME=/home/bitnami
 

@@ -5,15 +5,15 @@
 include env.sh
 export
 
-# export BITNAMI_HOME ?= /home/bitnami
+# export UBUNTU_HOME ?= /home/bitnami
 export LOGS_DIR := /tmp/logs
-export REPORTS_DIR := ${BITNAMI_HOME}/reports
-export NEO4J_HOME := /opt/bitnami/neo4j
-export NEO4J_USERNAME=$(shell awk -F"'" '/The default username and password is/ {print $$2}' bitnami_credentials)
-export NEO4J_PASSWORD=$(shell awk -F"'" '/The default username and password is/ {print $$4}' bitnami_credentials)
+export REPORTS_DIR := ${UBUNTU_HOME}/reports
+# export NEO4J_HOME := /var/lib/neo4j
+export NEO4J_USERNAME=neo4j
+export NEO4J_PASSWORD=gfedb2023
 # export INSTANCE_ID := $(shell curl -sS http://169.254.169.254/latest/meta-data/instance-id)
 
-REQUIRED_VARS := BITNAMI_HOME NEO4J_HOME INSTANCE_ID DATA_BUCKET_NAME NEO4J_USERNAME NEO4J_PASSWORD ADMIN_EMAIL GDS_VERSION
+REQUIRED_VARS := UBUNTU_HOME NEO4J_HOME INSTANCE_ID DATA_BUCKET_NAME NEO4J_USERNAME NEO4J_PASSWORD ADMIN_EMAIL GDS_VERSION
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -80,7 +80,7 @@ neo4j: bootstrap
 
 # eip
 eip.waiter:
-	@bash ${BITNAMI_HOME}/init/eip_assoc_waiter.sh
+	@bash ${UBUNTU_HOME}/init/eip_assoc_waiter.sh
 
 # neo4j
 neo4j.update-credentials:
@@ -144,7 +144,7 @@ neo4j.config.reset-auth.ssl:
 	$(MAKE) neo4j.stop
 	@sed -i 's/#dbms.security.auth_enabled=false/dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
 	$(MAKE) neo4j.start
-	@-echo "ALTER USER neo4j SET PASSWORD '${NEO4J_PASSWORD}'" | /opt/bitnami/neo4j/bin/cypher-shell -u neo4j -p neo4j -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687 -d system
+	@-echo "ALTER USER neo4j SET PASSWORD '${NEO4J_PASSWORD}'" | cypher-shell -u neo4j -p neo4j -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687 -d system
 	$(MAKE) neo4j.stop
 	@sed -i 's/dbms.security.auth_enabled=false/#dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
 	$(MAKE) neo4j.start
@@ -155,7 +155,7 @@ neo4j.config.reset-auth.no-ssl:
 	$(MAKE) neo4j.stop
 	@sed -i 's/#dbms.security.auth_enabled=false/dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
 	$(MAKE) neo4j.start
-	@-echo "ALTER USER neo4j SET PASSWORD '${NEO4J_PASSWORD}'" | /opt/bitnami/neo4j/bin/cypher-shell -u neo4j -p neo4j -a bolt://127.0.0.1:7687 --encryption false -d system
+	@-echo "ALTER USER neo4j SET PASSWORD '${NEO4J_PASSWORD}'" | cypher-shell -u neo4j -p neo4j -a bolt://127.0.0.1:7687 --encryption false -d system
 	$(MAKE) neo4j.stop
 	@sed -i 's/dbms.security.auth_enabled=false/#dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
 	$(MAKE) neo4j.start
@@ -203,24 +203,24 @@ endif
 
 neo4j.query.init.ssl:
 	@echo "Executing initialization queries..."
-	@cat ${NEO4J_HOME}/cypher/init.cyp | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
+	@cat ${NEO4J_HOME}/cypher/init.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 
 neo4j.query.show-constraints: # public: neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687; private: bolt://<private_ip>:7687
 ifeq ($(USE_PRIVATE_SUBNET),true)
-	@echo "SHOW CONSTRAINTS;" | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
+	@echo "SHOW CONSTRAINTS;" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
 else ifeq ($(USE_PRIVATE_SUBNET),false)
-	@echo "SHOW CONSTRAINTS;" | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
+	@echo "SHOW CONSTRAINTS;" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 endif
 
 neo4j.query.init.no-ssl:
 	@echo "Executing initialization queries..."
-	@cat ${NEO4J_HOME}/cypher/init.cyp | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
+	@cat ${NEO4J_HOME}/cypher/init.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
 
 neo4j.query: #=> query=<cypher string>
 ifeq ($(USE_PRIVATE_SUBNET),true)
-	@echo "$$query" | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
+	@echo "$$query" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
 else ifeq ($(USE_PRIVATE_SUBNET),false)
-	@echo "$$query" | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
+	@echo "$$query" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 endif
 
 neo4j.waiter:
@@ -256,10 +256,10 @@ neo4j.waiter.no-ssl:
 
 neo4j.backup:
 	$(MAKE) neo4j.stop
-	@cd ${BITNAMI_NEO4J}/ && zip -r ${BITNAMI_HOME}/gfedb.zip data
-	@result=$$(aws s3 cp ${BITNAMI_HOME}/gfedb.zip s3://${DATA_BUCKET_NAME}/backups/neo4j/$$(date +'%Y/%m/%d/%H')/gfedb.zip) && \
+	@cd ${BITNAMI_NEO4J}/ && zip -r ${UBUNTU_HOME}/gfedb.zip data
+	@result=$$(aws s3 cp ${UBUNTU_HOME}/gfedb.zip s3://${DATA_BUCKET_NAME}/backups/neo4j/$$(date +'%Y/%m/%d/%H')/gfedb.zip) && \
 		echo $$result
-	@rm ${BITNAMI_HOME}/gfedb.zip
+	@rm ${UBUNTU_HOME}/gfedb.zip
 	$(MAKE) neo4j.start
 
 # TODO update for Neo4j 5
@@ -270,12 +270,12 @@ neo4j.restore: #from_path=s3://<backup path>
 	@echo "$$from_path" | grep -E '^s3:\/\/[a-zA-Z0-9\.-]+\/([a-zA-Z0-9\.-]+\/)*[a-zA-Z0-9\.-]+\.zip$$' > /dev/null || (echo "\`from_path\` must be an S3 URI: 's3://<bucket>/path'" && exit 1)
 	@echo "Running restore for $$from_path"
 	$(MAKE) neo4j.stop
-	@aws s3 cp $$from_path ${BITNAMI_HOME}/gfedb.zip
-	@unzip -o ${BITNAMI_HOME}/gfedb.zip
+	@aws s3 cp $$from_path ${UBUNTU_HOME}/gfedb.zip
+	@unzip -o ${UBUNTU_HOME}/gfedb.zip
 	@cp -r data/* ${BITNAMI_NEO4J}/data/
 	@chown -R neo4j:neo4j ${BITNAMI_NEO4J}/data/
-	@rm ${BITNAMI_HOME}/gfedb.zip
-	@rm -r ${BITNAMI_HOME}/data/
+	@rm ${UBUNTU_HOME}/gfedb.zip
+	@rm -r ${UBUNTU_HOME}/data/
 ifeq ($(USE_PRIVATE_SUBNET),true)
 	$(MAKE) neo4j.config.reset-auth.no-ssl
 else ifeq ($(USE_PRIVATE_SUBNET),false)
@@ -335,7 +335,7 @@ define HELP_MESSAGE
 
 	Environment variables:
 
-	BITNAMI_HOME: "${BITNAMI_HOME}"
+	UBUNTU_HOME: "${UBUNTU_HOME}"
 		Description: Root directory where the Makefile resides
 	
 	NEO4J_HOME: "${NEO4J_HOME}"
