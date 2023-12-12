@@ -588,6 +588,13 @@ database.get.private-ip:
 		| jq -r '.Parameters[0].Value') && \
 	echo "$${private_ip}"
 
+database.get.public-ip:
+	@public_ip=$$(aws ssm get-parameters \
+		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jPublicIp" \
+		--output json \
+		| jq -r '.Parameters[0].Value') && \
+	echo "$${public_ip}"
+
 # TODO remove
 # database.get.public-ip:
 # 	@public_ip=$$(aws ssm get-parameters \
