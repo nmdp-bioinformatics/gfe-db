@@ -191,19 +191,20 @@ Resources:
           echo "set -a && source $UBUNTU_HOME/env.sh && set +a" >> $UBUNTU_HOME/.bashrc
           # disable disruptive autoescaping in shells
           echo "shopt -s direxpand" >> $UBUNTU_HOME/.bashrc
-          source $UBUNTU_HOME/.bashrc
-          # echo "INFO: Validating environment variables"
-          # exit_code=0
-          # msg="The following variables failed to be set: "
-          # for var in UBUNTU_HOME STAGE APP_NAME USE_PRIVATE_SUBNET AWS_REGION DATA_BUCKET_NAME HOST_DOMAIN SUBDOMAIN ADMIN_EMAIL APOC_VERSION GDS_VERSION; do
-          #     if [ -z "${!var}" ]; then
-          #         echo "$var is not set"
-          #         msg="$msg $var"
-          #         exit_code=1
-          #     else
-          #         echo "$var is set to '${!var}'"
-          #     fi
-          # done
+          set -a && source $UBUNTU_HOME/env.sh && set +a
+          printenv
+          echo "INFO: Validating environment variables"
+          exit_code=0
+          msg="The following variables failed to be set: "
+          for var in UBUNTU_HOME STAGE APP_NAME USE_PRIVATE_SUBNET AWS_REGION DATA_BUCKET_NAME HOST_DOMAIN SUBDOMAIN ADMIN_EMAIL APOC_VERSION GDS_VERSION; do
+              if [ -z "${!var}" ]; then
+                  echo "$var is not set"
+                  msg="$msg $var"
+                  exit_code=1
+              else
+                  echo "$var is set"
+              fi
+          done
           # [ $exit_code -eq 0 ] && echo "INFO: Environment variables set" || (echo $msg && cfn_signal 1 "$msg" && exit 1)
           install_neo4j() {
             echo "INFO: Installing Neo4j"
@@ -214,7 +215,6 @@ Resources:
             add-apt-repository -y universe
             apt-get install -y neo4j=1:5.14.0
             systemctl enable neo4j
-
             # TODO add dynamic password generation
             neo4j-admin dbms set-initial-password gfedb2023
           }
@@ -224,14 +224,10 @@ Resources:
           }
           build_neo4j_public_config() {
             echo "INFO: Building Neo4j public config"
-
-            # TODO fix missing env vars
-            # check that SUBDOMAIN and HOST_DOMAIN are set
             if [ -z "$SUBDOMAIN" ] || [ -z "$HOST_DOMAIN" ]; then
               echo "ERROR: SUBDOMAIN and HOST_DOMAIN must be set"
               exit 1
             fi
-
             cp /etc/neo4j/neo4j.conf /etc/neo4j/neo4j.conf.bak
             sed -i 's/#server.default_listen_address=0.0.0.0/server.default_listen_address=0.0.0.0/g' /etc/neo4j/neo4j.conf
             sed -i "s/#server.default_advertised_address=localhost/server.default_advertised_address=$SUBDOMAIN.$HOST_DOMAIN/g" /etc/neo4j/neo4j.conf
@@ -263,12 +259,11 @@ Resources:
           echo "INFO: Initiliazing Neo4j database"
           install_neo4j
           install_apoc_plugin
+          # show environment
           build_neo4j_public_config
           echo "Current dir: $(pwd)"
           cd $UBUNTU_HOME && make bootstrap
           systemctl start neo4j
-          # # TODO add cfn-signal handling to Makefile
-          # cd $UBUNTU_HOME && make neo4j
           # exit_code=$?
           # [ $exit_code -eq 0 ] && echo "INFO: Neo4j initialized successfully" || (msg="ERROR: Neo4j failed to initialize" && echo $msg && cfn_signal 1 "$msg" && exit 1)
           # cypher_constraints=$(sudo make neo4j.query.show-constraints | awk -F, 'NR>1 {print $2}')
@@ -281,7 +276,7 @@ Resources:
           # sudo journalctl -b > logs/boot.log
           # cat /var/lib/neo4j/logs/neo4j.log > logs/neo4j.log
           # cat /var/lib/neo4j/logs/debug.log > logs/debug.log
-          # cfn_signal 0 "INFO: Finished running user data for ${AWS::StackName}-database instance"
+          # cfn_signal $exit_code "INFO: Finished running user data for ${AWS::StackName}-database instance"
       Tags:
         - Key: Name
           Value: !Sub ${AppName}-${Stage}

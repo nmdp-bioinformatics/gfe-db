@@ -8,7 +8,6 @@ export
 # export UBUNTU_HOME ?= /home/bitnami
 export LOGS_DIR := /tmp/logs
 export REPORTS_DIR := ${UBUNTU_HOME}/reports
-# export NEO4J_HOME := /var/lib/neo4j
 export NEO4J_USERNAME=neo4j
 export NEO4J_PASSWORD=gfedb2023
 # export INSTANCE_ID := $(shell curl -sS http://169.254.169.254/latest/meta-data/instance-id)
