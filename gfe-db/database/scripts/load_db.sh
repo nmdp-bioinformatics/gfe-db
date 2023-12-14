@@ -1,12 +1,12 @@
 #!/bin/bash -x
 
-export BITNAMI_HOME=/home/bitnami
-
-# Check for release argument
-RELEASE=$1
+source /home/ubuntu/env.sh
 
 # Get APP_NAME, AWS_REGION, STAGE setup on db install
-source $BITNAMI_HOME/env.sh
+if [ -z $UBUNTU_HOME ]; then
+    echo "ERROR: UBUNTU_HOME not set"
+    exit 1
+fi
 
 if [[ -z $NEO4J_HOME ]]; then
     echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Neo4j not found"
@@ -15,13 +15,14 @@ else
     echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Found Neo4j in $NEO4J_HOME"
 fi
 
+# Check for release argument
+RELEASE=$1
+
 # Set paths
 NEO4J_CYPHER_PATH=$NEO4J_HOME/cypher
-NEO4J_IMPORT_PATH=/bitnami/neo4j/import
+NEO4J_IMPORT_PATH=$NEO4J_HOME/import
 S3_NEO4J_CYPHER_PATH=config/neo4j/cypher
 S3_CSV_PATH=data/$RELEASE/csv
-
-# exit 1
 
 if [[ -z $AWS_REGION ]]; then
     export AWS_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')
@@ -78,7 +79,7 @@ if [[ "$USE_PRIVATE_SUBNET" = true ]]; then
 
     # # With SSL/TLS policy disabled for private instance
     cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp | \
-        /$NEO4J_HOME/bin/cypher-shell \
+        cypher-shell \
             --address bolt://127.0.0.1:7687 \
             --encryption false \
             --username $NEO4J_USERNAME \
@@ -90,7 +91,7 @@ else
 
     # With SSL/TLS policy enabled
     cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp | \
-        /$NEO4J_HOME/bin/cypher-shell \
+        cypher-shell \
             --address neo4j://$SUBDOMAIN.$HOST_DOMAIN:7687 \
             --encryption true \
             --username $NEO4J_USERNAME \
@@ -99,7 +100,6 @@ else
     LOAD_EXIT_STATUS=$?
 
 fi
-
 
 if [[ $LOAD_EXIT_STATUS -eq 0 ]]; then
     echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Load complete"
