@@ -5,12 +5,10 @@
 include env.sh
 export
 
-# export UBUNTU_HOME ?= /home/bitnami
 export LOGS_DIR := /tmp/logs
 export REPORTS_DIR := ${UBUNTU_HOME}/reports
 export NEO4J_USERNAME=neo4j
 export NEO4J_PASSWORD=gfedb2023
-# export INSTANCE_ID := $(shell curl -sS http://169.254.169.254/latest/meta-data/instance-id)
 
 REQUIRED_VARS := UBUNTU_HOME NEO4J_HOME INSTANCE_ID DATA_BUCKET_NAME NEO4J_USERNAME NEO4J_PASSWORD ADMIN_EMAIL GDS_VERSION
 
@@ -24,39 +22,11 @@ env:
 get.data: #=> Download the build data locally; get.data release=3470
 	# should be [[ -n "$$release" ]]
 	@[ -z "$$release" ] && aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/data/$$release/csv/ ${NEO4J_HOME}/import/ || echo "No release argument"
-# env.fetch:
 
 env.validate.vars:
 	$(foreach var,$(REQUIRED_VARS),\
 		$(if $(value $(var)),,$(error $(var) is not set. Please add $(var) to the environment variables.)))
 	@echo "$$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1
-
-# env.check:
-# ifndef DATA_BUCKET_NAME
-# $(error DATA_BUCKET_NAME is not set.)
-# endif
-# ifndef NEO4J_HOME
-# $(error NEO4J_HOME is not set.)
-# endif
-# ifndef NEO4J_USERNAME
-# $(error NEO4J_HOME is not set.)
-# endif
-# ifndef NEO4J_PASSWORD
-# $(error NEO4J_HOME is not set.)
-# endif
-# # ifndef HOST_DOMAIN
-# # $(error HOST_DOMAIN is not set.)
-# # endif
-# ifndef ADMIN_EMAIL
-# $(error ADMIN_EMAIL is not set.)
-# endif
-# ifndef APOC_VERSION
-# $(error APOC_VERSION is not set.)
-# endif
-# ifndef GDS_VERSION
-# $(error GDS_VERSION is not set.)
-# endif
-# 	@echo "$$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1
 
 bootstrap: env.validate.vars
 	# $(MAKE) cfn-helpers.install
@@ -70,11 +40,9 @@ endif
 
 neo4j: bootstrap
 	$(MAKE) neo4j.update-credentials
-	$(MAKE) neo4j.config.update
 	$(MAKE) neo4j.plugins.install-gds
-	$(MAKE) neo4j.restart
+	$(MAKE) neo4j.start
 	$(MAKE) neo4j.init
-	$(MAKE) neo4j.restart
 	$(MAKE) copy-logs
 
 # eip
@@ -92,72 +60,70 @@ neo4j.credentials.show:
 	@echo "Password: ${NEO4J_PASSWORD}"
 
 neo4j.status:
-	@/opt/bitnami/ctlscript.sh status
+	@systemctl status neo4j
 
 neo4j.stop:
-	@/opt/bitnami/ctlscript.sh stop
+	@systemctl stop neo4j
 
 neo4j.start:
-	$(MAKE) neo4j.update-permissions
-	@/opt/bitnami/ctlscript.sh start
+	@systemctl start neo4j
 	$(MAKE) neo4j.waiter
 
 neo4j.restart:
-	$(MAKE) neo4j.update-permissions
-	@/opt/bitnami/ctlscript.sh restart
+	@systemctl restart neo4j
 	$(MAKE) neo4j.waiter
 
-neo4j.config.update:
-	$(MAKE) neo4j.config.download
-	$(MAKE) neo4j.config.update-dns
+# neo4j.config.update:
+# 	# $(MAKE) neo4j.config.download
+# 	$(MAKE) neo4j.config.update-dns
 
-# TODO test init scripts for public and private deployment
-neo4j.config.download: neo4j.config.backup
-	@echo "Downloading Neo4j configuration from ${DATA_BUCKET_NAME}"
-	@aws s3 cp s3://${DATA_BUCKET_NAME}/config/neo4j/neo4j.conf ${NEO4J_HOME}/conf/neo4j.template
+# # TODO test init scripts for public and private deployment
+# neo4j.config.download: neo4j.config.backup
+# 	@echo "Downloading Neo4j configuration from ${DATA_BUCKET_NAME}"
+# 	@aws s3 cp s3://${DATA_BUCKET_NAME}/config/neo4j/neo4j.conf ${NEO4J_HOME}/conf/neo4j.template
 
-# TODO test init scripts for public and private deployment
-neo4j.config.update-dns:
-ifeq ($(USE_PRIVATE_SUBNET),true)
-	$(info Updating Neo4j config to use private DNS)
-	$(MAKE) neo4j.config.update-dns.private
-else ifeq ($(USE_PRIVATE_SUBNET),false)
-	$(info Updating Neo4j config to use public DNS)
-	$(MAKE) neo4j.config.update-dns.public
-endif
+# # TODO test init scripts for public and private deployment
+# neo4j.config.update-dns:
+# ifeq ($(USE_PRIVATE_SUBNET),true)
+# 	$(info Updating Neo4j config to use private DNS)
+# 	$(MAKE) neo4j.config.update-dns.private
+# else ifeq ($(USE_PRIVATE_SUBNET),false)
+# 	$(info Updating Neo4j config to use public DNS)
+# 	$(MAKE) neo4j.config.update-dns.public
+# endif
 
-# This target will configure the database to use the correct DNS name using env vars
-neo4j.config.update-dns.private:
-	@cat ${NEO4J_HOME}/conf/neo4j.template | \
-	sed "s|# server.default_advertised_address=127\.0\.0\.1|server.default_advertised_address=${PRIVATE_IP}|" > ${NEO4J_HOME}/conf/neo4j.conf
+# # This target will configure the database to use the correct DNS name using env vars
+# neo4j.config.update-dns.private:
+# 	@cat ${NEO4J_HOME}/conf/neo4j.template | \
+# 	sed "s|# server.default_advertised_address=127\.0\.0\.1|server.default_advertised_address=${PRIVATE_IP}|" > ${NEO4J_HOME}/conf/neo4j.conf
 
-# This target will configure the database to use the correct DNS name using env vars
-neo4j.config.update-dns.public:
-	@[ "${HOST_DOMAIN}" != "" ] && \
-	cat ${NEO4J_HOME}/conf/neo4j.template | \
-	sed s"|# server.default_advertised_address=127\.0\.0\.1|server.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}|" > ${NEO4J_HOME}/conf/neo4j.conf
+# # This target will configure the database to use the correct DNS name using env vars
+# neo4j.config.update-dns.public:
+# 	@[ "${HOST_DOMAIN}" != "" ] && \
+# 	cat ${NEO4J_HOME}/conf/neo4j.template | \
+# 	sed s"|# server.default_advertised_address=127\.0\.0\.1|server.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}|" > ${NEO4J_HOME}/conf/neo4j.conf
 
-# TODO update for Neo4j 5
-neo4j.config.reset-auth.ssl:
-	@echo "Resetting Neo4j authentication"
-	$(MAKE) neo4j.stop
-	@sed -i 's/#dbms.security.auth_enabled=false/dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
-	$(MAKE) neo4j.start
-	@-echo "ALTER USER neo4j SET PASSWORD '${NEO4J_PASSWORD}'" | cypher-shell -u neo4j -p neo4j -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687 -d system
-	$(MAKE) neo4j.stop
-	@sed -i 's/dbms.security.auth_enabled=false/#dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
-	$(MAKE) neo4j.start
+# # TODO update for Neo4j 5
+# neo4j.config.reset-auth.ssl:
+# 	@echo "Resetting Neo4j authentication"
+# 	$(MAKE) neo4j.stop
+# 	@sed -i 's/#dbms.security.auth_enabled=false/dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
+# 	$(MAKE) neo4j.start
+# 	@-echo "ALTER USER neo4j SET PASSWORD '${NEO4J_PASSWORD}'" | cypher-shell -u neo4j -p neo4j -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687 -d system
+# 	$(MAKE) neo4j.stop
+# 	@sed -i 's/dbms.security.auth_enabled=false/#dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
+# 	$(MAKE) neo4j.start
 
-# TODO update for Neo4j 5
-neo4j.config.reset-auth.no-ssl:
-	@echo "Resetting Neo4j authentication"
-	$(MAKE) neo4j.stop
-	@sed -i 's/#dbms.security.auth_enabled=false/dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
-	$(MAKE) neo4j.start
-	@-echo "ALTER USER neo4j SET PASSWORD '${NEO4J_PASSWORD}'" | cypher-shell -u neo4j -p neo4j -a bolt://127.0.0.1:7687 --encryption false -d system
-	$(MAKE) neo4j.stop
-	@sed -i 's/dbms.security.auth_enabled=false/#dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
-	$(MAKE) neo4j.start
+# # TODO update for Neo4j 5
+# neo4j.config.reset-auth.no-ssl:
+# 	@echo "Resetting Neo4j authentication"
+# 	$(MAKE) neo4j.stop
+# 	@sed -i 's/#dbms.security.auth_enabled=false/dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
+# 	$(MAKE) neo4j.start
+# 	@-echo "ALTER USER neo4j SET PASSWORD '${NEO4J_PASSWORD}'" | cypher-shell -u neo4j -p neo4j -a bolt://127.0.0.1:7687 --encryption false -d system
+# 	$(MAKE) neo4j.stop
+# 	@sed -i 's/dbms.security.auth_enabled=false/#dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
+# 	$(MAKE) neo4j.start
 
 neo4j.config.backup:
 	@echo "Backing up Neo4j configuration to ${NEO4J_HOME}/conf/$$(date -u +'%Y-%m-%d-%H-%M')-neo4j.conf.bkp"
@@ -204,13 +170,6 @@ neo4j.query.init.ssl:
 	@echo "Executing initialization queries..."
 	@cat ${NEO4J_HOME}/cypher/init.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 
-neo4j.query.show-constraints: # public: neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687; private: bolt://<private_ip>:7687
-ifeq ($(USE_PRIVATE_SUBNET),true)
-	@echo "SHOW CONSTRAINTS;" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
-else ifeq ($(USE_PRIVATE_SUBNET),false)
-	@echo "SHOW CONSTRAINTS;" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
-endif
-
 neo4j.query.init.no-ssl:
 	@echo "Executing initialization queries..."
 	@cat ${NEO4J_HOME}/cypher/init.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
@@ -222,10 +181,21 @@ else ifeq ($(USE_PRIVATE_SUBNET),false)
 	@echo "$$query" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 endif
 
+neo4j.query.show-constraints: # public: neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687; private: bolt://<private_ip>:7687
+ifeq ($(USE_PRIVATE_SUBNET),true)
+	@echo "SHOW CONSTRAINTS;" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
+else ifeq ($(USE_PRIVATE_SUBNET),false)
+	@echo "SHOW CONSTRAINTS;" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
+endif
+
 neo4j.waiter:
 ifeq ($(USE_PRIVATE_SUBNET),true)
 	$(MAKE) neo4j.waiter.no-ssl
 else ifeq ($(USE_PRIVATE_SUBNET),false)
+	$(MAKE) neo4j.waiter.ssl
+endif
+
+neo4j.waiter.ssl:
 	@timeout=120 && \
 	counter=0 && \
 	echo "Waiting for response from Neo4j at https://${SUBDOMAIN}.${HOST_DOMAIN}:7473..." && \
@@ -237,7 +207,6 @@ else ifeq ($(USE_PRIVATE_SUBNET),false)
 	done && \
 	printf "%s\n" " " && \
 	[ $$counter -eq $$timeout ] && echo "Operation timed out!" || echo "Neo4j is ready"
-endif
 
 neo4j.waiter.no-ssl:
 	@timeout=120 && \
@@ -253,33 +222,34 @@ neo4j.waiter.no-ssl:
 	printf "%s\n" " " && \
 	[ $$counter -eq $$timeout ] && echo "Operation timed out!" || echo "Neo4j is ready"
 
-neo4j.backup:
-	$(MAKE) neo4j.stop
-	@cd ${BITNAMI_NEO4J}/ && zip -r ${UBUNTU_HOME}/gfedb.zip data
-	@result=$$(aws s3 cp ${UBUNTU_HOME}/gfedb.zip s3://${DATA_BUCKET_NAME}/backups/neo4j/$$(date +'%Y/%m/%d/%H')/gfedb.zip) && \
-		echo $$result
-	@rm ${UBUNTU_HOME}/gfedb.zip
-	$(MAKE) neo4j.start
+# # TODO update for Neo4j 5
+# neo4j.backup:
+# 	$(MAKE) neo4j.stop
+# 	@cd ${BITNAMI_NEO4J}/ && zip -r ${UBUNTU_HOME}/gfedb.zip data
+# 	@result=$$(aws s3 cp ${UBUNTU_HOME}/gfedb.zip s3://${DATA_BUCKET_NAME}/backups/neo4j/$$(date +'%Y/%m/%d/%H')/gfedb.zip) && \
+# 		echo $$result
+# 	@rm ${UBUNTU_HOME}/gfedb.zip
+# 	$(MAKE) neo4j.start
 
-# TODO update for Neo4j 5
-# TODO testing s3://prod-gfe-db-531868584498-us-east-1/backups/neo4j/2023/09/14/05
-neo4j.restore: #from_path=s3://<backup path>
-	@echo "Received data restore request for backup $$from_path"
-	@[ "$$from_path" != "" ] || (echo "from_path is required" && exit 1)
-	@echo "$$from_path" | grep -E '^s3:\/\/[a-zA-Z0-9\.-]+\/([a-zA-Z0-9\.-]+\/)*[a-zA-Z0-9\.-]+\.zip$$' > /dev/null || (echo "\`from_path\` must be an S3 URI: 's3://<bucket>/path'" && exit 1)
-	@echo "Running restore for $$from_path"
-	$(MAKE) neo4j.stop
-	@aws s3 cp $$from_path ${UBUNTU_HOME}/gfedb.zip
-	@unzip -o ${UBUNTU_HOME}/gfedb.zip
-	@cp -r data/* ${BITNAMI_NEO4J}/data/
-	@chown -R neo4j:neo4j ${BITNAMI_NEO4J}/data/
-	@rm ${UBUNTU_HOME}/gfedb.zip
-	@rm -r ${UBUNTU_HOME}/data/
-ifeq ($(USE_PRIVATE_SUBNET),true)
-	$(MAKE) neo4j.config.reset-auth.no-ssl
-else ifeq ($(USE_PRIVATE_SUBNET),false)
-	$(MAKE) neo4j.config.reset-auth.ssl
-endif
+# # TODO update for Neo4j 5
+# # TODO testing s3://prod-gfe-db-531868584498-us-east-1/backups/neo4j/2023/09/14/05
+# neo4j.restore: #from_path=s3://<backup path>
+# 	@echo "Received data restore request for backup $$from_path"
+# 	@[ "$$from_path" != "" ] || (echo "from_path is required" && exit 1)
+# 	@echo "$$from_path" | grep -E '^s3:\/\/[a-zA-Z0-9\.-]+\/([a-zA-Z0-9\.-]+\/)*[a-zA-Z0-9\.-]+\.zip$$' > /dev/null || (echo "\`from_path\` must be an S3 URI: 's3://<bucket>/path'" && exit 1)
+# 	@echo "Running restore for $$from_path"
+# 	$(MAKE) neo4j.stop
+# 	@aws s3 cp $$from_path ${UBUNTU_HOME}/gfedb.zip
+# 	@unzip -o ${UBUNTU_HOME}/gfedb.zip
+# 	@cp -r data/* ${BITNAMI_NEO4J}/data/
+# 	@chown -R neo4j:neo4j ${BITNAMI_NEO4J}/data/
+# 	@rm ${UBUNTU_HOME}/gfedb.zip
+# 	@rm -r ${UBUNTU_HOME}/data/
+# ifeq ($(USE_PRIVATE_SUBNET),true)
+# 	$(MAKE) neo4j.config.reset-auth.no-ssl
+# else ifeq ($(USE_PRIVATE_SUBNET),false)
+# 	$(MAKE) neo4j.config.reset-auth.ssl
+# endif
 
 neo4j.query.create-constraints:
 	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
@@ -305,21 +275,17 @@ ssl.renew-cert:
 	@bash init/renew_cert.sh "${SUBDOMAIN}.${HOST_DOMAIN}"
 
 copy-logs:
-	@mkdir -p ${LOGS_DIR}/neo4j ${LOGS_DIR}/system
+	@mkdir -p ${LOGS_DIR}/var/logs
 	$(MAKE) logs.bootstrap
 	$(MAKE) logs.system
-	$(MAKE) logs.neo4j
 	@echo "Copying logs to S3..." && \
 	aws s3 cp --recursive /tmp/logs/ s3://${DATA_BUCKET_NAME}/logs/database/${INSTANCE_ID}/$$(date +'%Y/%m/%d/%H')/
 
 logs.bootstrap:
-	@journalctl -b > ${LOGS_DIR}/bootstrap.log
+	@journalctl -b > ${LOGS_DIR}/journalctl.log
 
 logs.system:
-	@cp -r /var/log/* ${LOGS_DIR}/system/
-
-logs.neo4j:
-	@cp -r ${NEO4J_HOME}/logs/* ${LOGS_DIR}/neo4j/
+	@cp -r /var/log ${LOGS_DIR}/var/log
 
 logs.bootstrap.show:
 	@journalctl -b | less

@@ -192,7 +192,6 @@ Resources:
           # disable disruptive autoescaping in shells
           echo "shopt -s direxpand" >> $UBUNTU_HOME/.bashrc
           set -a && source $UBUNTU_HOME/env.sh && set +a
-          printenv
           echo "INFO: Validating environment variables"
           exit_code=0
           msg="The following variables failed to be set: "
@@ -205,6 +204,13 @@ Resources:
                   echo "$var is set"
               fi
           done
+          if [ -z "$USE_PRIVATE_SUBNET" ]; then
+            msg="ERROR: USE_PRIVATE_SUBNET must be set"
+            cfn_signal 1 "$msg"
+            exit 1
+          else
+            echo "Found USE_PRIVATE_SUBNET=$USE_PRIVATE_SUBNET"
+          fi
           # [ $exit_code -eq 0 ] && echo "INFO: Environment variables set" || (echo $msg && cfn_signal 1 "$msg" && exit 1)
           install_neo4j() {
             echo "INFO: Installing Neo4j"
@@ -259,24 +265,22 @@ Resources:
           echo "INFO: Initiliazing Neo4j database"
           install_neo4j
           install_apoc_plugin
-          # show environment
           build_neo4j_public_config
           echo "Current dir: $(pwd)"
-          cd $UBUNTU_HOME && make bootstrap
-          systemctl start neo4j
-          # exit_code=$?
-          # [ $exit_code -eq 0 ] && echo "INFO: Neo4j initialized successfully" || (msg="ERROR: Neo4j failed to initialize" && echo $msg && cfn_signal 1 "$msg" && exit 1)
-          # cypher_constraints=$(sudo make neo4j.query.show-constraints | awk -F, 'NR>1 {print $2}')
-          # [[ $(echo "$cypher_constraints" | grep -c "gfe_constraint") -gt 0 && \
-          #   $(echo "$cypher_constraints" | grep -c "ipd_acc_constraint") -gt 0 && \
-          #   $(echo "$cypher_constraints" | grep -c "ipd_allele_constraint") -gt 0 \
-          #   && $(echo "$cypher_constraints" | grep -c "submitter_constraint") -gt 0 ]] && \
-          # echo "INFO: Found Cypher constraints: $cypher_constraints" | tr '\n' ' ' | sed 's/  / /g' || (msg="ERROR: No Cypher constraints were found" && echo $msg && cfn_signal 1 "$msg" && exit 1)
-          # mkdir logs
-          # sudo journalctl -b > logs/boot.log
-          # cat /var/lib/neo4j/logs/neo4j.log > logs/neo4j.log
-          # cat /var/lib/neo4j/logs/debug.log > logs/debug.log
-          # cfn_signal $exit_code "INFO: Finished running user data for ${AWS::StackName}-database instance"
+          cd $UBUNTU_HOME && make neo4j
+          exit_code=$?
+          [ $exit_code -eq 0 ] && echo "INFO: Neo4j initialized successfully" || (msg="ERROR: Neo4j failed to initialize" && echo $msg && cfn_signal 1 "$msg" && exit 1)
+          cypher_constraints=$(sudo make neo4j.query.show-constraints | awk -F, 'NR>1 {print $2}')
+          [[ $(echo "$cypher_constraints" | grep -c "gfe_constraint") -gt 0 && \
+            $(echo "$cypher_constraints" | grep -c "ipd_acc_constraint") -gt 0 && \
+            $(echo "$cypher_constraints" | grep -c "ipd_allele_constraint") -gt 0 \
+            && $(echo "$cypher_constraints" | grep -c "submitter_constraint") -gt 0 ]] && \
+          echo "INFO: Found Cypher constraints: $cypher_constraints" | tr '\n' ' ' | sed 's/  / /g' || (msg="ERROR: No Cypher constraints were found" && echo $msg && cfn_signal 1 "$msg" && exit 1)
+          mkdir logs
+          sudo journalctl -b > logs/boot.log
+          cat /var/lib/neo4j/logs/neo4j.log > logs/neo4j.log
+          cat /var/lib/neo4j/logs/debug.log > logs/debug.log
+          cfn_signal $exit_code "INFO: Finished running user data for ${AWS::StackName}-database instance"
       Tags:
         - Key: Name
           Value: !Sub ${AppName}-${Stage}
