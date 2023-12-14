@@ -160,6 +160,7 @@ neo4j.init.download-scripts:
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
 
 neo4j.query.init: # public: neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687; private: bolt://<private_ip>:7687
+	@echo "Executing initialization queries"
 ifeq ($(USE_PRIVATE_SUBNET),true)
 	$(MAKE) neo4j.query.init.no-ssl
 else ifeq ($(USE_PRIVATE_SUBNET),false)
@@ -167,11 +168,9 @@ else ifeq ($(USE_PRIVATE_SUBNET),false)
 endif
 
 neo4j.query.init.ssl:
-	@echo "Executing initialization queries..."
 	@cat ${NEO4J_HOME}/cypher/init.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 
 neo4j.query.init.no-ssl:
-	@echo "Executing initialization queries..."
 	@cat ${NEO4J_HOME}/cypher/init.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
 
 neo4j.query: #=> query=<cypher string>
