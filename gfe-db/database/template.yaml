@@ -195,7 +195,15 @@ Resources:
           echo "INFO: Validating environment variables"
           exit_code=0
           msg="The following variables failed to be set: "
-          for var in UBUNTU_HOME STAGE APP_NAME USE_PRIVATE_SUBNET AWS_REGION DATA_BUCKET_NAME HOST_DOMAIN SUBDOMAIN ADMIN_EMAIL APOC_VERSION GDS_VERSION; do
+          if [ $USE_PRIVATE_SUBNET = "true" ]; then
+            vars="UBUNTU_HOME STAGE APP_NAME USE_PRIVATE_SUBNET AWS_REGION DATA_BUCKET_NAME PRIVATE_IP ADMIN_EMAIL APOC_VERSION GDS_VERSION"
+          elif [ $USE_PRIVATE_SUBNET = "false" ]; then
+            vars="UBUNTU_HOME STAGE APP_NAME USE_PRIVATE_SUBNET AWS_REGION DATA_BUCKET_NAME HOST_DOMAIN SUBDOMAIN ADMIN_EMAIL APOC_VERSION GDS_VERSION"
+          else
+            echo "ERROR: USE_PRIVATE_SUBNET must be set to 'true' or 'false'"
+            exit 1
+          fi
+          for var in $vars; do
               if [ -z "${!var}" ]; then
                   echo "$var is not set"
                   msg="$msg $var"

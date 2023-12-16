@@ -265,6 +265,7 @@ ifeq ($(SSM_VPC_ENDPOINT_ID),)
 	$(call red, "\`SSM_VPC_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`true\` and \`CREATE_SSM_VPC_ENDPOINT\` is \`false\`")
 	@exit 1
 else
+	# TODO BOOKMARK validate SSM_VPC_ENDPOINT_ID matches existing
 	$(call green, "Found SSM_VPC_ENDPOINT_ID: ${SSM_VPC_ENDPOINT_ID}")
 endif
 endif
@@ -273,6 +274,7 @@ ifeq ($(SECRETSMANAGER_VPC_ENDPOINT_ID),)
 	$(call red, "\`SECRETSMANAGER_VPC_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`true\` and \`CREATE_SSM_VPC_ENDPOINT\` is \`false\`")
 	@exit 1
 else
+	# TODO BOOKMARK validate SECRETSMANAGER_VPC_ENDPOINT_ID matches existing
 	$(call green, "Found SECRETSMANAGER_VPC_ENDPOINT_ID: ${SECRETSMANAGER_VPC_ENDPOINT_ID}")
 endif
 endif
@@ -281,6 +283,7 @@ ifeq ($(S3_VPC_ENDPOINT_ID),)
 	$(call red, "\`S3_VPC_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`true\` and \`CREATE_SSM_VPC_ENDPOINT\` is \`false\`")
 	@exit 1
 else
+	# TODO BOOKMARK validate S3_VPC_ENDPOINT_ID matches existing
 	$(call green, "Found S3_VPC_ENDPOINT_ID: ${S3_VPC_ENDPOINT_ID}")
 endif
 endif
@@ -570,7 +573,7 @@ database.restore: #from_path=s3://<backup path>
 
 database.status:
 	@aws ec2 describe-instances | \
-		jq --arg iid "${INSTANCE_ID}" '.Reservations[].Instances[] | select(.InstanceId == $$iid) | {InstanceId, InstanceType, "Status": .State.Name, StateTransitionReason, ImageId}'
+		jq --arg iid "${INSTANCE_ID}" '.Reservations[].Instances[] | (.InstanceId == $$iid) | {InstanceId, InstanceType, "Status": .State.Name, StateTransitionReason, ImageId}'
 
 # TODO account for http or https and whether or not EIP or DNS is being used
 database.get.endpoint:

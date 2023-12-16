@@ -108,3 +108,5 @@ gfedb.zip
 gfe-db/pipeline/jobs/build/event.json
 gfe-db/pipeline/statemachines/test*
 reports/
+neo4j.*template
+neo4j.conf*
