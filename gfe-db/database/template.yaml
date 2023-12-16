@@ -229,7 +229,6 @@ Resources:
             mv /var/lib/neo4j/labs/apoc-*-core.jar /var/lib/neo4j/plugins
           }
           build_neo4j_public_config() {
-            echo "INFO: Building Neo4j public config"
             if [ -z "$SUBDOMAIN" ] || [ -z "$HOST_DOMAIN" ]; then
               echo "ERROR: SUBDOMAIN and HOST_DOMAIN must be set"
               exit 1
@@ -260,13 +259,38 @@ Resources:
             sed -i 's/#dbms.security.procedures.allowlist=apoc.coll.*,apoc.load.*,gds.*/dbms.security.procedures.allowlist=apoc.*,gds.*/g' /etc/neo4j/neo4j.conf
             neo4j-admin server memory-recommendation | grep -v ^# >> /etc/neo4j/neo4j.conf
           }
+          build_neo4j_private_config() {
+            cp /etc/neo4j/neo4j.conf /etc/neo4j/neo4j.conf.bak
+            sed -i 's/#server.default_listen_address=0.0.0.0/server.default_listen_address=0.0.0.0/g' /etc/neo4j/neo4j.conf
+            sed -i "s/#server.default_advertised_address=localhost/server.default_advertised_address=localhost/g" /etc/neo4j/neo4j.conf
+            sed -i 's/#server.bolt.tls_level=DISABLED/server.bolt.tls_level=DISABLED/g' /etc/neo4j/neo4j.conf
+            sed -i 's/#server.bolt.listen_address=:7687/server.bolt.listen_address=:7687/g' /etc/neo4j/neo4j.conf
+            sed -i 's/#server.bolt.advertised_address=:7687/server.bolt.advertised_address=:7687/g' /etc/neo4j/neo4j.conf
+            sed -i 's/#server.http.listen_address=:7474/server.http.listen_address=:7474/g' /etc/neo4j/neo4j.conf
+            sed -i 's/#server.http.advertised_address=:7474/server.http.advertised_address=:7474/g' /etc/neo4j/neo4j.conf
+            sed -i 's/server.https.enabled=false/#server.https.enabled=false/g' /etc/neo4j/neo4j.conf
+            sed -i 's/#dbms.ssl.policy.bolt.enabled=true/dbms.ssl.policy.bolt.enabled=false/g' /etc/neo4j/neo4j.conf
+            sed -i 's/#dbms.logs.http.enabled=true/dbms.logs.http.enabled=true/g' /etc/neo4j/neo4j.conf
+            sed -i 's/#dbms.security.allow_csv_import_from_file_urls=true/dbms.security.allow_csv_import_from_file_urls=true/g' /etc/neo4j/neo4j.conf
+            sed -i 's/#dbms.security.procedures.unrestricted=my.extensions.example,my.procedures.*/dbms.security.procedures.unrestricted=apoc.*,gds.*/g' /etc/neo4j/neo4j.conf
+            sed -i 's/#dbms.security.procedures.allowlist=apoc.coll.*,apoc.load.*,gds.*/dbms.security.procedures.allowlist=apoc.*,gds.*/g' /etc/neo4j/neo4j.conf
+            neo4j-admin server memory-recommendation | grep -v ^# >> /etc/neo4j/neo4j.conf
+          }
           echo "INFO: Downloading scripts"
           aws s3 cp --quiet --recursive s3://${DataBucketName}/config/scripts/ $UBUNTU_HOME/
           echo "INFO: Initiliazing Neo4j database"
           install_neo4j
           install_apoc_plugin
-          build_neo4j_public_config
-          echo "Current dir: $(pwd)"
+          if [ "$USE_PRIVATE_SUBNET" = "false" ]; then
+            echo "INFO: Building public subnet configuration for Neo4j"
+            build_neo4j_public_config;
+          elif [ "$USE_PRIVATE_SUBNET" = "true" ]; then
+            echo "INFO: Building private subnet configuration for Neo4j"
+            build_neo4j_private_config;
+          else
+            echo "ERROR: USE_PRIVATE_SUBNET must be set to 'true' or 'false'"
+            exit 1
+          fi
           cd $UBUNTU_HOME && make neo4j
           exit_code=$?
           [ $exit_code -eq 0 ] && echo "INFO: Neo4j initialized successfully" || (msg="ERROR: Neo4j failed to initialize" && echo $msg && cfn_signal 1 "$msg" && exit 1)
