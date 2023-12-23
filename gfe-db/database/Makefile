@@ -41,13 +41,13 @@ service.config.cloudwatch-agent.deploy:
 	@rm -rf amazon-cloudwatch-agent/tmp/
 
 service.config.neo4j.deploy:
-ifeq ($(USE_PRIVATE_SUBNET),true)
-	@echo "\033[0;34mDeploying Neo4j config for private subnet\033[0m"
-	@aws s3 cp neo4j/neo4j.private.template s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
-else ifeq ($(USE_PRIVATE_SUBNET),false)
-	@echo "\033[0;34mDeploying Neo4j config for public subnet\033[0m"
-	@aws s3 cp neo4j/neo4j.template s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
-endif
+# ifeq ($(USE_PRIVATE_SUBNET),true)
+# 	@echo "\033[0;34mDeploying Neo4j config for private subnet\033[0m"
+# 	@aws s3 cp neo4j/neo4j.private.template s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
+# else ifeq ($(USE_PRIVATE_SUBNET),false)
+# 	@echo "\033[0;34mDeploying Neo4j config for public subnet\033[0m"
+# 	@aws s3 cp neo4j/neo4j.template s3://$$DATA_BUCKET_NAME/config/neo4j/neo4j.conf 2>&1 | tee -a $$CFN_LOG_PATH
+# endif
 	@aws s3 cp --recursive neo4j/cypher/ s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
 
 service.config.deploy: service.config.scripts.deploy service.config.cloudwatch-agent.deploy service.config.neo4j.deploy
@@ -55,7 +55,7 @@ service.config.deploy: service.config.scripts.deploy service.config.cloudwatch-a
 service.ssl.renew-cert:
 	@res=$$(aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
-		--parameters "commands=[cd /home/bitnami && sudo make ssl.renew-cert]" \
+		--parameters "commands=[cd /home/ubuntu && sudo make ssl.renew-cert]" \
 		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
 		--comment "${STAGE}-${APP_NAME} SSL certificate renewal utility") && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
@@ -89,25 +89,25 @@ service.deploy:
 			APOCVersion="$${APOC_VERSION}" \
 			GDSVersion="$${GDS_VERSION}" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
-# TODO repurpose for updating neo4j.conf
-service.config.neo4j.update: service.config.neo4j.deploy
-	@res=$$(aws ssm send-command \
-		--document-name "AWS-RunShellScript" \
-		--parameters "commands=[cd /home/bitnami && sudo make neo4j.config.update && sudo make neo4j.restart]" \
-		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
-		--comment "${STAGE}=${APP_NAME} backup service") && \
-	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
-	aws ssm wait command-executed \
-		--command-id "$$command_id" \
-		--instance-id "$${INSTANCE_ID}" && \
-	aws ssm get-command-invocation \
-		--command-id "$$command_id" \
-		--instance-id "$${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
+# # TODO neo4j.conf is built on the server, so this target should be updated or removed
+# service.config.neo4j.update: service.config.neo4j.deploy
+# 	@res=$$(aws ssm send-command \
+# 		--document-name "AWS-RunShellScript" \
+# 		--parameters "commands=[cd /home/ubuntu && sudo make neo4j.config.update && sudo make neo4j.restart]" \
+# 		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
+# 		--comment "${STAGE}=${APP_NAME} backup service") && \
+# 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
+# 	aws ssm wait command-executed \
+# 		--command-id "$$command_id" \
+# 		--instance-id "$${INSTANCE_ID}" && \
+# 	aws ssm get-command-invocation \
+# 		--command-id "$$command_id" \
+# 		--instance-id "$${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
 
 service.backup:
 	@res=$$(aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
-		--parameters "commands=[cd /home/bitnami && sudo make neo4j.backup]" \
+		--parameters "commands=[cd /home/ubuntu && sudo make neo4j.backup]" \
 		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
 		--comment "${STAGE}=${APP_NAME} backup service") && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
@@ -128,7 +128,7 @@ service.restore: #from_path=s3://<backup path>
 	$(MAKE) service.restore.pre-validate from_path=$$from_path
 	@res=$$(aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
-		--parameters "commands=[cd /home/bitnami && sudo make neo4j.restore from_path=$$from_path]" \
+		--parameters "commands=[cd /home/ubuntu && sudo make neo4j.restore from_path=$$from_path]" \
 		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
 		--comment "${STAGE}=${APP_NAME} restore service") && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
