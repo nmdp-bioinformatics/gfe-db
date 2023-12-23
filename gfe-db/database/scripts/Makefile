@@ -103,28 +103,6 @@ neo4j.restart:
 # 	cat ${NEO4J_HOME}/conf/neo4j.template | \
 # 	sed s"|# server.default_advertised_address=127\.0\.0\.1|server.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}|" > ${NEO4J_HOME}/conf/neo4j.conf
 
-# # TODO update for Neo4j 5
-# neo4j.config.reset-auth.ssl:
-# 	@echo "Resetting Neo4j authentication"
-# 	$(MAKE) neo4j.stop
-# 	@sed -i 's/#dbms.security.auth_enabled=false/dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
-# 	$(MAKE) neo4j.start
-# 	@-echo "ALTER USER neo4j SET PASSWORD '${NEO4J_PASSWORD}'" | cypher-shell -u neo4j -p neo4j -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687 -d system
-# 	$(MAKE) neo4j.stop
-# 	@sed -i 's/dbms.security.auth_enabled=false/#dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
-# 	$(MAKE) neo4j.start
-
-# # TODO update for Neo4j 5
-# neo4j.config.reset-auth.no-ssl:
-# 	@echo "Resetting Neo4j authentication"
-# 	$(MAKE) neo4j.stop
-# 	@sed -i 's/#dbms.security.auth_enabled=false/dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
-# 	$(MAKE) neo4j.start
-# 	@-echo "ALTER USER neo4j SET PASSWORD '${NEO4J_PASSWORD}'" | cypher-shell -u neo4j -p neo4j -a bolt://127.0.0.1:7687 --encryption false -d system
-# 	$(MAKE) neo4j.stop
-# 	@sed -i 's/dbms.security.auth_enabled=false/#dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
-# 	$(MAKE) neo4j.start
-
 neo4j.config.backup:
 	@echo "Backing up Neo4j configuration to ${NEO4J_HOME}/conf/$$(date -u +'%Y-%m-%d-%H-%M')-neo4j.conf.bkp"
 	@cp "${NEO4J_HOME}/conf/neo4j.conf" "${NEO4J_HOME}/conf/$$(date -u +'%Y-%m-%d-%H-%M')-neo4j.conf.bkp"
@@ -221,7 +199,6 @@ neo4j.waiter.no-ssl:
 	printf "%s\n" " " && \
 	[ $$counter -eq $$timeout ] && echo "Operation timed out!" || echo "Neo4j is ready"
 
-# TODO update for Neo4j 5
 neo4j.backup:
 	$(MAKE) neo4j.stop
 	@cd ${NEO4J_HOME} && \
@@ -232,25 +209,19 @@ neo4j.backup:
 	sudo -u neo4j zip -r - backups | aws s3 cp - s3://${DATA_BUCKET_NAME}/backups/neo4j/$$archive_path
 	$(MAKE) neo4j.start
 
-# # TODO update for Neo4j 5
-# # TODO testing s3://prod-gfe-db-531868584498-us-east-1/backups/neo4j/2023/09/14/05
-# neo4j.restore: #from_path=s3://<backup path>
-# 	@echo "Received data restore request for backup $$from_path"
-# 	@[ "$$from_path" != "" ] || (echo "from_path is required" && exit 1)
-# 	@echo "$$from_path" | grep -E '^s3:\/\/[a-zA-Z0-9\.-]+\/([a-zA-Z0-9\.-]+\/)*[a-zA-Z0-9\.-]+\.zip$$' > /dev/null || (echo "\`from_path\` must be an S3 URI: 's3://<bucket>/path'" && exit 1)
-# 	@echo "Running restore for $$from_path"
-# 	$(MAKE) neo4j.stop
-# 	@aws s3 cp $$from_path ${UBUNTU_HOME}/gfedb.zip
-# 	@unzip -o ${UBUNTU_HOME}/gfedb.zip
-# 	@cp -r data/* ${BITNAMI_NEO4J}/data/
-# 	@chown -R neo4j:neo4j ${BITNAMI_NEO4J}/data/
-# 	@rm ${UBUNTU_HOME}/gfedb.zip
-# 	@rm -r ${UBUNTU_HOME}/data/
-# ifeq ($(USE_PRIVATE_SUBNET),true)
-# 	$(MAKE) neo4j.config.reset-auth.no-ssl
-# else ifeq ($(USE_PRIVATE_SUBNET),false)
-# 	$(MAKE) neo4j.config.reset-auth.ssl
-# endif
+neo4j.restore: #from_path=s3://<backup path>.zip
+	$(MAKE) neo4j.stop
+	@echo "Received data restore request for backup $$from_path"
+	@[ "$$from_path" != "" ] || (echo "from_path is required" && exit 1)
+	@echo "$$from_path" | grep -E '^s3:\/\/[a-zA-Z0-9\.-]+\/([a-zA-Z0-9\.-]+\/)*[a-zA-Z0-9\.-]+\.zip$$' > /dev/null || (echo "\`from_path\` must be an S3 URI: 's3://<bucket>/path'" && exit 1)
+	@echo "Running restore for $$from_path"
+	@mkdir -p /tmp/restore
+	@aws s3 cp $$from_path /tmp/restore/gfedb.zip && chown neo4j:neo4j /tmp/restore/gfedb.zip
+	@sudo -u neo4j unzip -of /tmp/restore/gfedb.zip -d /var/lib/neo4j/
+	@sudo -u neo4j neo4j-admin database load --from-path=/var/lib/neo4j/backups/system system --overwrite-destination=true
+	@sudo -u neo4j neo4j-admin database load --from-path=/var/lib/neo4j/backups/neo4j neo4j --overwrite-destination=true
+	@rm -r /tmp/restore
+	$(MAKE) neo4j.start
 
 # # TODO update for Neo4j 5
 # neo4j.query.create-constraints:
