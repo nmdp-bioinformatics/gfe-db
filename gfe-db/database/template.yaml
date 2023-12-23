@@ -231,6 +231,8 @@ Resources:
             systemctl enable neo4j
             # TODO add dynamic password generation
             neo4j-admin dbms set-initial-password gfedb2023
+            mkdir -p /var/lib/neo4j/backups/{system,neo4j}
+            chown -R neo4j:neo4j /var/lib/neo4j/backups
           }
           install_apoc_plugin() {
             echo "INFO: Installing APOC"

@@ -221,14 +221,16 @@ neo4j.waiter.no-ssl:
 	printf "%s\n" " " && \
 	[ $$counter -eq $$timeout ] && echo "Operation timed out!" || echo "Neo4j is ready"
 
-# # TODO update for Neo4j 5
-# neo4j.backup:
-# 	$(MAKE) neo4j.stop
-# 	@cd ${BITNAMI_NEO4J}/ && zip -r ${UBUNTU_HOME}/gfedb.zip data
-# 	@result=$$(aws s3 cp ${UBUNTU_HOME}/gfedb.zip s3://${DATA_BUCKET_NAME}/backups/neo4j/$$(date +'%Y/%m/%d/%H')/gfedb.zip) && \
-# 		echo $$result
-# 	@rm ${UBUNTU_HOME}/gfedb.zip
-# 	$(MAKE) neo4j.start
+# TODO update for Neo4j 5
+neo4j.backup:
+	$(MAKE) neo4j.stop
+	@cd ${NEO4J_HOME} && \
+	sudo -u neo4j neo4j-admin database dump system --to-path=/var/lib/neo4j/backups/system/ --overwrite-destination=true && \
+	sudo -u neo4j neo4j-admin database dump neo4j --to-path=/var/lib/neo4j/backups/neo4j/ --overwrite-destination=true && \
+	archive_path=$$(date +%Y/%m/%d/%H/%M)/gfedb.zip && \
+	echo "Uploading archive to S3: s3://${DATA_BUCKET_NAME}/backups/neo4j/$$archive_path" && \
+	sudo -u neo4j zip -r - backups | aws s3 cp - s3://${DATA_BUCKET_NAME}/backups/neo4j/$$archive_path
+	$(MAKE) neo4j.start
 
 # # TODO update for Neo4j 5
 # # TODO testing s3://prod-gfe-db-531868584498-us-east-1/backups/neo4j/2023/09/14/05
@@ -250,22 +252,24 @@ neo4j.waiter.no-ssl:
 # 	$(MAKE) neo4j.config.reset-auth.ssl
 # endif
 
-neo4j.query.create-constraints:
-	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
-	@echo "Fetching cypher scripts from S3..."
-	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
-	@cat ${NEO4J_HOME}/cypher/create_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
+# # TODO update for Neo4j 5
+# neo4j.query.create-constraints:
+# 	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
+# 	@echo "Fetching cypher scripts from S3..."
+# 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
+# 	@cat ${NEO4J_HOME}/cypher/create_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 
-neo4j.query.drop-constraints:
-	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
-	@echo "Fetching cypher scripts from S3..."
-	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
-	@cat ${NEO4J_HOME}/cypher/drop_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
+# # TODO update for Neo4j 5
+# neo4j.query.drop-constraints:
+# 	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
+# 	@echo "Fetching cypher scripts from S3..."
+# 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
+# 	@cat ${NEO4J_HOME}/cypher/drop_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 
-# TODO update for Neo4j 5
-neo4j.create-report:
-	@mkdir -p ${REPORTS_DIR}
-	@neo4j-admin check-consistency --database=neo4j --verbose=true --report-dir=reports > reports/consistency_check.txt
+# # TODO update for Neo4j 5
+# neo4j.create-report:
+# 	@mkdir -p ${REPORTS_DIR}
+# 	@neo4j-admin check-consistency --database=neo4j --verbose=true --report-dir=reports > reports/consistency_check.txt
 
 ssl.create-cert:
 	@bash init/create_cert.sh "${SUBDOMAIN}.${HOST_DOMAIN}" ${ADMIN_EMAIL}
