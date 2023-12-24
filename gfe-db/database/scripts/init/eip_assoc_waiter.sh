@@ -2,7 +2,7 @@
 
 # DIR=$(pwd)
 # PARENT_DIR="$(dirname "$DIR")"
-ROOT_DIR=/home/bitnami
+ROOT_DIR=/home/ubuntu
 PUBLIC_IPV4_ROUTE=http://169.254.169.254/latest/meta-data/public-ipv4
 
 # Load BOOTSTRAP_PUBLIC_IPV4 set in user data

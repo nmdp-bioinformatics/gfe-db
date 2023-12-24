@@ -151,7 +151,7 @@ service.connect:
 	@instance_ip=$$(aws ssm get-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseEndpoint" | jq -r '.Parameter.Value') && \
 	echo "Connecting to Neo4j EC2 instance at $$instance_ip" && \
-	ssh -o "IdentitiesOnly yes" -tt -i ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem bitnami@$$instance_ip
+	ssh -o "IdentitiesOnly yes" -tt -i ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem ubuntu@$$instance_ip
 
 
 delete: ##=> Delete resources

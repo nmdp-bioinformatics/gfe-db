@@ -175,7 +175,6 @@ Resources:
           echo "INSTANCE_ID=$INSTANCE_ID" > $UBUNTU_HOME/env.sh
           echo "UBUNTU_HOME=$UBUNTU_HOME" >> $UBUNTU_HOME/env.sh
           echo "NEO4J_HOME=$NEO4J_HOME" >> $UBUNTU_HOME/env.sh
-          # echo "BITNAMI_NEO4J=/bitnami/neo4j" >> $UBUNTU_HOME/env.sh
           echo "STAGE=${Stage}" >> $UBUNTU_HOME/env.sh
           echo "APP_NAME=${AppName}" >> $UBUNTU_HOME/env.sh
           echo "USE_PRIVATE_SUBNET=${usePrivateSubnet}" >> $UBUNTU_HOME/env.sh
@@ -528,7 +527,7 @@ Resources:
           commandLine:
             type: "String"
             description: "Deletes ETag files created by SSM Agent."
-            default: 'rm *.etag && find . \( -name "*.sh" -o -name "Makefile" -o -name "init" \) -exec chown bitnami {} \; && find . \( -name "*.sh" -o -name "Makefile" -o -name "init" \) -exec chgrp bitnami {} \;'
+            default: 'rm *.etag && find . \( -name "*.sh" -o -name "Makefile" -o -name "init" \) -exec chown ubuntu {} \; && find . \( -name "*.sh" -o -name "Makefile" -o -name "init" \) -exec chgrp ubuntu {} \;'
           workingDirectory:
             type: "String"
             description: "Working directory"
