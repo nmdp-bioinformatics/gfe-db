@@ -114,3 +114,4 @@ ssm-describe*.json
 gfe-db/pipeline/jobs/build/event.json
 gfe-db/pipeline/statemachines/test*
 reports/
+WORKLOG.md
