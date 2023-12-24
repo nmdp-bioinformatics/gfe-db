@@ -35,7 +35,17 @@ service.connect:
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jPrivateIp" | jq -r '.Parameter.Value')" && \
 	echo "\033[0;32mDatabase private IP: $$database_private_ip\033[0m" && \
 	ssh-add -K ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem && \
-	ssh -tt -o IdentitiesOnly=yes -i ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem -A ec2-user@"$$bastion_host_public_ip" ssh -o IdentitiesOnly=yes bitnami@"$$database_private_ip"
+	ssh -tt -o IdentitiesOnly=yes -i ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem -A ec2-user@"$$bastion_host_public_ip" ssh ubuntu@"$$database_private_ip"
+
+service.ui.connect:
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Setting up SSH tunnel to database instance using bastion host" 2>&1 | tee -a $$CFN_LOG_PATH
+	@bastion_host_public_ip="$$(aws ssm get-parameter \
+		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/BastionHostElasticIp" | jq -r '.Parameter.Value')" && \
+	echo "\033[0;32mBastion host public IP: $$bastion_host_public_ip\033[0m" && \
+	database_private_ip="$$(aws ssm get-parameter \
+		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jPrivateIp" | jq -r '.Parameter.Value')" && \
+	echo "\033[0;32mDatabase private IP: $$database_private_ip\033[0m" && \
+	ssh -L 7474:$$database_private_ip:7474 -L 7687:$$database_private_ip:7687 -N -J ec2-user@$$bastion_host_public_ip ubuntu@$$database_private_ip
 
 service.authorize-security-group-ingress:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Updating Neo4j database security group for bastion host" 2>&1 | tee -a $$CFN_LOG_PATH

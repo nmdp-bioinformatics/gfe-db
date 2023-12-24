@@ -460,6 +460,9 @@ else
 	$(MAKE) -C ${APP_NAME}/database/ service.connect
 endif
 
+database.ui.connect:
+	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/bastion-server/ service.ui.connect
+
 pipeline.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ deploy
 
@@ -748,7 +751,7 @@ define HELP_MESSAGE
 		and USE_PRIVATE_SUBNET is true
 
 	NEO4J_AMI_ID: "${NEO4J_AMI_ID}"
-		Description: (string) ID of an existing Neo4j AMI from Bitnami
+		Description: (string) ID of an existing AMI for Ubuntu 22.04
 
 	APOC_VERSION: "${APOC_VERSION}"
 		Description: (string) Version of APOC to install
