@@ -36,12 +36,6 @@ Parameters:
   PrivateSubnetId:
     Type: String
     Description: Required if createVpc is false
-  # ExternalNatGatewayId:
-  #   Type: String
-  #   Description: Required if createVpc is false and useExternalNatGateway is true
-  # ExternalPrivateRouteTableId:
-  #   Type: String
-  #   Description: Required if createVpc is false and useExternalNatGateway is true
   GitHubPersonalAccessToken:
     Type: String
     NoEcho: true
@@ -179,23 +173,6 @@ Resources:
       RouteTableId: !Ref CreateVpcConditionPublicRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref CreateVpcConditionInternetGateway
-  
-  # UseExternalNatGatewayPrivateRoute:
-  #   Type: AWS::EC2::Route
-  #   Condition: UseExternalNatGateway
-  #   Properties:
-  #     RouteTableId: !Ref UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable
-  #     DestinationCidrBlock: 0.0.0.0/0
-  #     NatGatewayId: !Ref ExternalNatGatewayId
-  
-  # # No default route is required because the private subnet is not connected to the internet
-  # # AWS automatically updates the route table for VPC endpoints for S3, SSM and SecretsManager
-  # CreateVpcPrivateConditionPrivateRoute:
-  #   Type: AWS::EC2::Route
-  #   Condition: CreateVpcPrivate
-  #   Properties:
-  #     RouteTableId: !Ref UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable
-  #     # DestinationCidrBlock: 0.0.0.0/0 # Not required for private subnet
   
   CreateVpcConditionPublicSubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation

@@ -1,5 +1,5 @@
 # This Makefile only orchestrates process that are run on the EC2 database instance, it is deployed and called on the server
-# Must be run as sudo
+# Must be run as root
 
 # Application specific environment variables
 include env.sh
@@ -48,12 +48,6 @@ neo4j: bootstrap
 eip.waiter:
 	@bash ${UBUNTU_HOME}/init/eip_assoc_waiter.sh
 
-# neo4j
-# neo4j.update-credentials:
-# 	@aws --region ${AWS_REGION} secretsmanager update-secret \
-# 		--secret-id "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jCredentials" \
-# 		--secret-string "{\"NEO4J_USERNAME\":\"${NEO4J_USERNAME}\",\"NEO4J_PASSWORD\":\"${NEO4J_PASSWORD}\"}"
-
 neo4j.credentials.show:
 	@echo "Username: ${NEO4J_USERNAME}"
 	@echo "Password: ${NEO4J_PASSWORD}"
@@ -71,36 +65,6 @@ neo4j.start:
 neo4j.restart:
 	@systemctl restart neo4j
 	$(MAKE) neo4j.waiter
-
-# neo4j.config.update:
-# 	# $(MAKE) neo4j.config.download
-# 	$(MAKE) neo4j.config.update-dns
-
-# # TODO test init scripts for public and private deployment
-# neo4j.config.download: neo4j.config.backup
-# 	@echo "Downloading Neo4j configuration from ${DATA_BUCKET_NAME}"
-# 	@aws s3 cp s3://${DATA_BUCKET_NAME}/config/neo4j/neo4j.conf ${NEO4J_HOME}/conf/neo4j.template
-
-# # TODO test init scripts for public and private deployment
-# neo4j.config.update-dns:
-# ifeq ($(USE_PRIVATE_SUBNET),true)
-# 	$(info Updating Neo4j config to use private DNS)
-# 	$(MAKE) neo4j.config.update-dns.private
-# else ifeq ($(USE_PRIVATE_SUBNET),false)
-# 	$(info Updating Neo4j config to use public DNS)
-# 	$(MAKE) neo4j.config.update-dns.public
-# endif
-
-# # This target will configure the database to use the correct DNS name using env vars
-# neo4j.config.update-dns.private:
-# 	@cat ${NEO4J_HOME}/conf/neo4j.template | \
-# 	sed "s|# server.default_advertised_address=127\.0\.0\.1|server.default_advertised_address=${PRIVATE_IP}|" > ${NEO4J_HOME}/conf/neo4j.conf
-
-# # This target will configure the database to use the correct DNS name using env vars
-# neo4j.config.update-dns.public:
-# 	@[ "${HOST_DOMAIN}" != "" ] && \
-# 	cat ${NEO4J_HOME}/conf/neo4j.template | \
-# 	sed s"|# server.default_advertised_address=127\.0\.0\.1|server.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}|" > ${NEO4J_HOME}/conf/neo4j.conf
 
 neo4j.config.backup:
 	@echo "Backing up Neo4j configuration to ${NEO4J_HOME}/conf/$$(date -u +'%Y-%m-%d-%H-%M')-neo4j.conf.bkp"
@@ -221,20 +185,6 @@ neo4j.restore: #from_path=s3://<backup path>.zip
 	@sudo -u neo4j neo4j-admin database load --from-path=/var/lib/neo4j/backups/neo4j neo4j --overwrite-destination=true
 	@rm -r /tmp/restore
 	$(MAKE) neo4j.start
-
-# # TODO update for Neo4j 5
-# neo4j.query.create-constraints:
-# 	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
-# 	@echo "Fetching cypher scripts from S3..."
-# 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
-# 	@cat ${NEO4J_HOME}/cypher/create_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
-
-# # TODO update for Neo4j 5
-# neo4j.query.drop-constraints:
-# 	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
-# 	@echo "Fetching cypher scripts from S3..."
-# 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
-# 	@cat ${NEO4J_HOME}/cypher/drop_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 
 # # TODO update for Neo4j 5
 # neo4j.create-report:

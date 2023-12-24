@@ -19,7 +19,7 @@ Parameters:
       - 'false'
   DataBucketName:
     Type: String
-  Neo4jAmiId:
+  UbuntuAmiId:
     Type: String
     Description: AMI ID for Neo4j Community edition from AWS Marketplace
   Neo4jPassword:
@@ -40,26 +40,6 @@ Parameters:
   GDSVersion:
     Type: String
 Conditions:
-  # CreateVpc: !Equals
-  #   - !Ref createVpc
-  #   - 'true'
-  # UseExternalVpc: !Equals
-  #   - !Ref createVpc
-  #   - 'false'
-  # UseExternalVpcPublic: !And
-  #   - !Equals
-  #     - !Ref createVpc
-  #     - 'false'
-  #   - !Equals
-  #     - !Ref usePrivateSubnet
-  #     - 'false'
-  # UseExternalVpcPrivate: !And
-  #   - !Equals
-  #     - !Ref createVpc
-  #     - 'false'
-  #   - !Equals
-  #     - !Ref usePrivateSubnet
-  #     - 'true'
   UsePrivateSubnet: !Equals
     - !Ref usePrivateSubnet
     - 'true'
@@ -88,7 +68,7 @@ Resources:
     Properties:
       KeyName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}'
       DisableApiTermination: false
-      ImageId: !Ref Neo4jAmiId
+      ImageId: !Ref UbuntuAmiId
       InstanceType: m5.large
       IamInstanceProfile: !Ref Neo4jDatabaseInstanceProfile
       Monitoring: true
@@ -139,13 +119,6 @@ Resources:
           export INSTANCE_ID=$(curl -sS http://169.254.169.254/latest/meta-data/instance-id)
           export NEO4J_HOME=/var/lib/neo4j
           mkdir -p /tmp/logs/system /tmp/logs/neo4j
-          # copy_logs_to_s3() {
-          #   # copy logs to S3
-          #   journalctl -b > /tmp/logs/bootstrap.log
-          #   cp -r /var/log/* /tmp/logs/system/
-          #   cp -r $NEO4J_HOME/logs/* /tmp/logs/neo4j/
-          #   aws s3 cp --quiet --recursive /tmp/logs/ s3://${DataBucketName}/logs/database/$INSTANCE_ID/$(date +'%Y/%m/%d/%H')/
-          # }
           echo "INFO: Installing CloudFormation Helpers"
           mkdir -p /tmp/cfn
           wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.zip -P /tmp/cfn/
@@ -174,7 +147,7 @@ Resources:
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
           [ $(amazon-cloudwatch-agent-ctl -a status | jq -r '.status') = running ] && echo "INFO: CloudWatch Logs Agent is running" || \
             (msg="ERROR: CloudWatch Logs Agent did not initialize correctly" && echo $msg && cfn_signal 1 "$msg" && exit 1)
-          # Permanently set application environment variables (these should never change for the duration of the deployment) # TODO: Move to Makefile target
+          # Permanently set application environment variables (these should never change for the duration of the deployment)
           echo "INFO: Setting application environment variables"
           echo "INSTANCE_ID=$INSTANCE_ID" > $UBUNTU_HOME/env.sh
           echo "UBUNTU_HOME=$UBUNTU_HOME" >> $UBUNTU_HOME/env.sh
@@ -222,7 +195,6 @@ Resources:
           else
             echo "Found USE_PRIVATE_SUBNET=$USE_PRIVATE_SUBNET"
           fi
-          # [ $exit_code -eq 0 ] && echo "INFO: Environment variables set" || (echo $msg && cfn_signal 1 "$msg" && exit 1)
           install_neo4j() {
             echo "INFO: Installing Neo4j"
             wget -O - https://debian.neo4j.com/neotechnology.gpg.key | sudo apt-key add -
@@ -314,10 +286,6 @@ Resources:
             $(echo "$cypher_constraints" | grep -c "ipd_allele_constraint") -gt 0 \
             && $(echo "$cypher_constraints" | grep -c "submitter_constraint") -gt 0 ]] && \
           echo "INFO: Found Cypher constraints: $cypher_constraints" | tr '\n' ' ' | sed 's/  / /g' || (msg="ERROR: No Cypher constraints were found" && echo $msg && cfn_signal 1 "$msg" && exit 1)
-          mkdir logs
-          sudo journalctl -b > logs/boot.log
-          cat /var/lib/neo4j/logs/neo4j.log > logs/neo4j.log
-          cat /var/lib/neo4j/logs/debug.log > logs/debug.log
           cfn_signal $exit_code "INFO: Finished running user data for ${AWS::StackName}-database instance"
       Tags:
         - Key: Name

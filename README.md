@@ -124,23 +124,23 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
 2) Database 
 3) Data pipeline
  
-This allows the database and pipeline layers to be decoupled from each other and deployed or destroyed independently without affecting the other. Common configuration parameters are shared between resources using environment variables, JSON files, AWS SSM Paramter Store and Secrets Manager.
+This allows the database and pipeline layers to be decoupled from each other and deployed or destroyed independently without affecting the other. Common configuration parameters are shared between resources using environment variables, JSON files, AWS SSM Parameter Store and Secrets Manager.
 
 ### Base Infrastructure
-The base infrastructure layer deploys a VPC and subnets, S3 bucket and common SSM parameters and secrets for the other services to use. For private deployments this layer manages VPC endpoints, NAT Gateway and a bastion server. For public deployments it manages Elastic IPs, DNS routing and SSL certificates for Neo4j browser.
+The base infrastructure layer deploys a VPC and subnets, S3 bucket and common SSM parameters and secrets for the other services to use. For private deployments this layer manages VPC endpoints, NAT Gateway and a bastion server. For public deployments it manages Elastic IPs and DNS routing for Neo4j.
 
 #### Access Services
-Optional resources for private deployments (`USE_PRIVATE_SUBNET=true`) include a bastion server and NAT Gateway. The bastion server is used to access the Neo4j server in a private subnet. The NAT Gateway is used to provide internet access to the private subnet for initializing Neo4j. These resources are deployed using CloudFormation and managed using Makefile targets. It is possible to remove these after deployment to save costs and re-deploy them later if needed.
+Optional resources for private deployments (`USE_PRIVATE_SUBNET=true`) include a NAT Gateway and bastion server. The NAT Gateway provides internet access to the private subnet for initializing Neo4j. The bastion server allows secure access to the Neo4j server and Neo4j Browser. These resources are deployed using CloudFormation and managed using Makefile targets. It is possible to remove them after deployment to save costs and re-deploy them later if needed.
 
 ### Database
-The database layer deploys an EC2 instance running the Bitnami Neo4j AMI (Ubuntu 18.04) into a public or private subnet. Public deployments update the existing A record of a Route53 domain and hosted zone so that SSL can be used to connect to Neo4j browser. During database deployment the SSL certificate is created (public deployments) and Cypher queries are run to create constraints and indexes, which help speed up loading and ensure data integrity. Neo4j is ready to be accessed through a browser once the instance has booted sucessfully.
+The database layer deploys Neo4j to an EC2 instance running the Ubuntu 20.04 LTS base image in a public or private subnet. Public deployments update the existing A record of a Route53 domain and hosted zone so that SSL can be used to connect to Neo4j browser. During database deployment the SSL certificate is created (public deployments) and Cypher queries are run to create constraints and indexes, which help speed up loading and ensure data integrity. Neo4j is ready to be accessed through a browser once the instance has booted sucessfully. For private deployments, the bastion server must be used to connect to Neo4j Browser.
 
 During loading, a Lambda function calls the SSM Run Command API to execute bash scripts on the database instance. These scripts communicate with the Step Functions API to retrieve the job parameters, fetch the CSVs from S3 and populate the graph in Neo4j.
 
-It is also possible to backup & restore to and from S3 by specific date checkpoints.
+It is also possible to backup & restore gfe-db to and from S3 using zip archives. The server backs itself up automatically once a day.
 
 ### Data Pipeline
-The data pipeline layer automates integration of newly released IMGT/HLA data into Neo4j using a scheduled Lambda which watches the source data repository and invokes the build and load processes when it detects a new IMGT/HLA version in the upstream repository. The pipeline consists of a Step Functions state machine which orchestrates backup, validation and the build and load stages. The build process employs a Batch jobs to generate an intermediate set of CSV files. The load process leverages SSM Run Command to copy the CSV files to the Neo4j server and execute Cypher statements directly on the server (server-side loading). When loading the full dataset of 35,000+ alleles, the build step will generally take around 15 minutes, however the load step can take an hour or more. It is possible to fully restore gfe-db from an existing backup.
+The data pipeline layer automates integration of newly released IMGT/HLA data into the gfe-db graph model using a scheduled Lambda which watches the source data repository and invokes the build and load processes when it detects a new IMGT/HLA version in the upstream repository. The pipeline consists of a Step Functions state machine which orchestrates backup, validation and the build and load stages. The build process employs a Batch job to generate an intermediate set of CSV files from IMGT/HLA data. The load process leverages SSM Run Command to copy the CSV files to the Neo4j server and execute Cypher statements directly on the server. When loading the full dataset of 35,000+ alleles, the build step will generally take around 15 minutes, however the load step can take an hour or more. It is possible to fully restore gfe-db from an existing backup if one is available.
 
 ## Prerequisites
 
@@ -156,10 +156,9 @@ Please refer to the respective documentation for specific installation instructi
 
 ### Resources
 The following resources are required to deploy the application depending on the chosen configuration.
-* Route53 domain, hosted zone, and A record
+* Route53 domain, hosted zone, and A record (for public deployments)
 * VPC & Public Subnet (if using external VPC)
 * VPC, Public Subnet & Private Subnet (if using external VPC and private subnet)
-* Bitnami Neo4j AMI subscription and AMI ID
 
 ## Quick Start
 These list outline the basic steps for deployments. For more details please see the following sections.
@@ -167,9 +166,8 @@ These list outline the basic steps for deployments. For more details please see 
 ### Using external VPC and public subnet
 1. Retrieve the VPC ID and public subnet ID from the AWS console or using the AWS CLI.
 2. Purchase or designate a domain in Route53 and create a hosted zone with an A record for the subdomain. You can use `0.0.0.0` for the A record because it will be updated later by the deployment script.
-3. Acquire a subscription for the Bitnami Neo4j AMI through [AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-v47qqrn2yy7ie?sr=0-4&ref_=beagle&applicationId=AWSMPContessa).
-4. [Install prerequisites](#Prerequisites).
-5. [Set environment variables](#environment) including the ones from the previous steps. You must store these in a file named `.env.<stage>`, for example `.env.dev` or `.env.prod`:
+3. [Install prerequisites](#Prerequisites).
+4. [Set environment variables](#environment) including the ones from the previous steps. You must store these in a file named `.env.<stage>`, for example `.env.dev` or `.env.prod`:
     - CREATE_VPC=false
     - USE_PRIVATE_SUBNET=false
     - VPC_ID=<vpc_id>
@@ -177,42 +175,40 @@ These list outline the basic steps for deployments. For more details please see 
     - HOSTED_ZONE_ID=<hosted_zone_id>
     - HOST_DOMAIN=<fully_qualified_domain_name>
     - SUBDOMAIN=<subdomain>
-    - NEO4J_AMI_ID=<ami_id>
-6. Check the [config JSONs](#data-pipeline-config) (parameters and state) and edit the values as desired.
-7. Run `STAGE=<stage> make deploy` to deploy the stacks to AWS.
-8. Run `STAGE=<stage> make database.load.run releases=<version>` to load Neo4j, or `STAGE=<stage> make database.load.run releases=<version> limit=<limit>` to run with a limited number of alleles.
-9. Run `STAGE=<stage> make database.get.credentials` to get the username and password for Neo4j.
-10. Run `STAGE=<stage> make database.get.endpoint` to get the URL for Neo4j and navigate to the Neo4j browser at the subdomain and host domain, for example `https://gfe-db.cloudftl.com:7473/browser/`.
+    - UBUNTU_AMI_ID=<ami_id>
+5. Check the [config JSONs](#data-pipeline-config) (parameters and state) and edit the values as desired.
+6. Run `STAGE=<stage> make deploy` to deploy the stacks to AWS.
+7. Run `STAGE=<stage> make database.load.run releases=<version>` to load Neo4j, or `STAGE=<stage> make database.load.run releases=<version> limit=<limit>` to run with a limited number of alleles.
+8. Run `STAGE=<stage> make database.get.credentials` to get the username and password for Neo4j.
+9. Run `STAGE=<stage> make database.get.endpoint` to get the URL for Neo4j and navigate to the Neo4j browser at the subdomain and host domain, for example `https://gfe-db.cloudftl.com:7473/browser/`.
 
 ### Creating a new VPC and public subnet
 1. Purchase or designate a domain in Route53 and create a hosted zone with an A record for the subdomain. You can use `0.0.0.0` for the A record because it will be updated later by the deployment script.
-2. Acquire a subscription for the Bitnami Neo4j AMI through [AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-v47qqrn2yy7ie?sr=0-4&ref_=beagle&applicationId=AWSMPContessa).
-3. [Install prerequisites](#Prerequisites).
-4. [Set environment variables](#environment) including the ones from the previous steps. You must store these in a file named `.env.<stage>`, for example `.env.dev` or `.env.prod`:
+2. [Install prerequisites](#Prerequisites).
+3. [Set environment variables](#environment) including the ones from the previous steps. You must store these in a file named `.env.<stage>`, for example `.env.dev` or `.env.prod`:
     - CREATE_VPC=true
     - USE_PRIVATE_SUBNET=false
     - HOSTED_ZONE_ID=<hosted_zone_id>
     - HOST_DOMAIN=<fully_qualified_domain_name>
     - SUBDOMAIN=<subdomain>
-    - NEO4J_AMI_ID=<ami_id>
-5. Check the [config JSONs](#data-pipeline-config) (parameters and state) and edit the values as desired.
-6. Run `STAGE=<stage> make deploy` to deploy the stacks to AWS.
-7. Run `STAGE=<stage> make database.load.run releases=<version>` to load Neo4j, or `STAGE=<stage> make database.load.run releases=<version> limit=<limit>` to run with a limited number of alleles.
-8. Run `STAGE=<stage> make database.get-credentials` to get the username and password for Neo4j.
-9. Run `STAGE=<stage> make database.get.endpoint` to get the URL for Neo4j and navigate to the Neo4j browser at the subdomain and host domain, for example `https://gfe-db.cloudftl.com:7473/browser/`.
+    - UBUNTU_AMI_ID=<ami_id>
+4. Check the [config JSONs](#data-pipeline-config) (parameters and state) and edit the values as desired.
+5. Run `STAGE=<stage> make deploy` to deploy the stacks to AWS.
+6. Run `STAGE=<stage> make database.load.run releases=<version>` to load Neo4j, or `STAGE=<stage> make database.load.run releases=<version> limit=<limit>` to run with a limited number of alleles.
+7. Run `STAGE=<stage> make database.get-credentials` to get the username and password for Neo4j.
+8. Run `STAGE=<stage> make database.get.endpoint` to get the URL for Neo4j and navigate to the Neo4j browser at the subdomain and host domain, for example `https://gfe-db.cloudftl.com:7473/browser/`.
 
 ### Using external VPC and private subnet
 1. Retrieve the VPC ID and public and private subnet IDs from the AWS console or using the AWS CLI.
-2. Acquire a subscription for the Bitnami Neo4j AMI through [AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-v47qqrn2yy7ie?sr=0-4&ref_=beagle&applicationId=AWSMPContessa).
-3. [Install prerequisites](#Prerequisites).
-4. [Set environment variables](#environment) including the ones from the previous steps. You must store these in a file named `.env.<stage>`, for example `.env.dev` or `.env.prod`:
+2. [Install prerequisites](#Prerequisites).
+3. [Set environment variables](#environment) including the ones from the previous steps. You must store these in a file named `.env.<stage>`, for example `.env.dev` or `.env.prod`:
     - CREATE_VPC=false
     - USE_PRIVATE_SUBNET=true
     - VPC_ID=<vpc_id>
     - PUBLIC_SUBNET_ID=<public_subnet_id>
     - PRIVATE_SUBNET_ID=<private_subnet_id>
-    - NEO4J_AMI_ID=<ami_id>
-5. Set the following environment variables to specify access services configuration:
+    - UBUNTU_AMI_ID=<ami_id>
+4. Set the following environment variables to specify access services configuration:
     - DEPLOY_NAT_GATEWAY=true/false
     - EXTERNAL_NAT_GATEWAY_ID=<nat_gateway_id> (if DEPLOY_NAT_GATEWAY=false)
     - DEPLOY_BASTION_SERVER=true/false
@@ -223,29 +219,28 @@ These list outline the basic steps for deployments. For more details please see 
     - SECRETSMANAGER_VPC_ENDPOINT_ID=<secretsmanager_vpc_endpoint_id> (if CREATE_SECRETSMANAGER_VPC_ENDPOINT=false)
     - CREATE_S3_VPC_ENDPOINT=true/false
     - S3_VPC_ENDPOINT_ID=<s3_vpc_endpoint_id> (if CREATE_S3_VPC_ENDPOINT=false)
-6. Check the [config JSONs](#data-pipeline-config) (parameters and state) and edit the values as desired.
-7. Run `STAGE=<stage> make deploy` to deploy the stacks to AWS.
-8. Run `STAGE=<stage> make database.load.run releases=<version>` to load Neo4j, or `STAGE=<stage> make database.load.run releases=<version> limit=<limit>` to run with a limited number of alleles.
-9. To access Neo4j running in a private subnet you will need to use the bastion server.
+5. Check the [config JSONs](#data-pipeline-config) (parameters and state) and edit the values as desired.
+6. Run `STAGE=<stage> make deploy` to deploy the stacks to AWS.
+7. Run `STAGE=<stage> make database.load.run releases=<version>` to load Neo4j, or `STAGE=<stage> make database.load.run releases=<version> limit=<limit>` to run with a limited number of alleles.
+8. To access Neo4j running in a private subnet you will need to use the bastion server.
 
 ### Creating a new VPC and private subnet
-1. Acquire a subscription for the Bitnami Neo4j AMI through [AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-v47qqrn2yy7ie?sr=0-4&ref_=beagle&applicationId=AWSMPContessa).
-2. [Install prerequisites](#Prerequisites).
-3. [Set environment variables](#environment) including the ones from the previous steps. You must store these in a file named `.env.<stage>`, for example `.env.dev` or `.env.prod`:
+1. [Install prerequisites](#Prerequisites).
+2. [Set environment variables](#environment) including the ones from the previous steps. You must store these in a file named `.env.<stage>`, for example `.env.dev` or `.env.prod`:
     - CREATE_VPC=true
     - USE_PRIVATE_SUBNET=true
-    - NEO4J_AMI_ID=<ami_id>
-4. Set the following environment variables to specify access services configuration:
+    - UBUNTU_AMI_ID=<ami_id>
+3. Set the following environment variables to specify access services configuration:
     - DEPLOY_NAT_GATEWAY=true
     - DEPLOY_BASTION_SERVER=true/false
     - ADMIN_IP=0.0.0.0/0 (if DEPLOY_BASTION_SERVER=true)
     - CREATE_SSM_VPC_ENDPOINT=true
     - CREATE_SECRETSMANAGER_VPC_ENDPOINT=true
     - CREATE_S3_VPC_ENDPOINT=true
-5. Check the [config JSONs](#data-pipeline-config) (parameters and state) and edit the values as desired.
-6. Run `STAGE=<stage> make deploy` to deploy the stacks to AWS.
-7. Run `STAGE=<stage> make database.load.run releases=<version>` to load Neo4j, or `STAGE=<stage> make database.load.run releases=<version> limit=<limit>` to run with a limited number of alleles.
-8. To access Neo4j running in a private subnet you will need to use the bastion server.
+4. Check the [config JSONs](#data-pipeline-config) (parameters and state) and edit the values as desired.
+5. Run `STAGE=<stage> make deploy` to deploy the stacks to AWS.
+6. Run `STAGE=<stage> make database.load.run releases=<version>` to load Neo4j, or `STAGE=<stage> make database.load.run releases=<version> limit=<limit>` to run with a limited number of alleles.
+7. To access Neo4j running in a private subnet you will need to use the bastion server.
 
 ## Application Environment
 
@@ -277,7 +272,7 @@ For more information visit the documentation page:
 [Configuration and credential file settings](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)
 
 ### Deployment Configurations
-It is possible to deploy gfe-db within it's own VPC, or to connect it to an external VPC by specifying `CREATE_VPC=true/false`. Public or private deployments are specified using `USE_PRIVATE_SUBNET=true/false`. If deploying to an external VPC, you must specify the VPC ID and public subnet ID using `VPC_ID` and `PUBLIC_SUBNET_ID`. If deploying to a new VPC, you must specify the hosted zone ID, domain and subdomain using `HOSTED_ZONE_ID`, `HOST_DOMAIN` and `SUBDOMAIN`. You must also specify the Neo4j AMI ID using `NEO4J_AMI_ID`.
+It is possible to deploy gfe-db within it's own VPC, or to connect it to an external VPC by specifying `CREATE_VPC=true/false`. Public or private deployments are specified using `USE_PRIVATE_SUBNET=true/false`. If deploying to an external VPC, you must specify the VPC ID and public subnet ID using `VPC_ID` and `PUBLIC_SUBNET_ID`. If deploying to a new VPC, you must specify the hosted zone ID, domain and subdomain using `HOSTED_ZONE_ID`, `HOST_DOMAIN` and `SUBDOMAIN`. You must also specify the Neo4j AMI ID using `UBUNTU_AMI_ID`.
 
 Private deployments require a NAT Gateway which can be deployed along with the stack or specified using `EXTERNAL_NAT_GATEWAY_ID`. VPC endpoints are required for access to AWS services. These can also be deployed along with the stack or specified using `CREATE_SSM_VPC_ENDPOINT`, `SSM_VPC_ENDPOINT_ID`, `CREATE_SECRETSMANAGER_VPC_ENDPOINT`, `SECRETSMANAGER_VPC_ENDPOINT_ID`, `CREATE_S3_VPC_ENDPOINT` and `S3_VPC_ENDPOINT_ID`. If deploying a bastion server, you must specify the admin IP address using `ADMIN_IP`.
 
@@ -297,9 +292,10 @@ These variables must be defined before running Make. The best way to set these v
 | SUBSCRIBE_EMAILS                   | string    | notify@example.com      | Yes         | Emails for subscription                                  |
 | GITHUB_REPOSITORY_OWNER            | string    | ANHIG                   | Yes         | Owner of the GitHub repository                           |
 | GITHUB_REPOSITORY_NAME             | string    | IMGTHLA                 | Yes         | Name of the GitHub repository                            |
-| NEO4J_AMI_ID                       | string    | ami-xxxxxxx             | Yes         | AMI ID for Neo4j                                         |
-| APOC_VERSION                       | string    | 4.4.0.3                 | Yes         | Version of APOC                                          |
-| GDS_VERSION                        | string    | 2.0.1                   | Yes         | Version of GDS                                           |
+| UBUNTU_AMI_ID                       | string    | ami-xxxxxxx             | Yes         | AMI ID for Neo4j                                         |
+| NEO4J_PASSWORD                     | string    | **********              | Yes         | Password for Neo4j                                       |
+| APOC_VERSION                       | string    | 5.13.0                  | Yes         | Version of APOC                                          |
+| GDS_VERSION                        | string    | 2.5.5                   | Yes         | Version of GDS                                           |
 | GITHUB_PERSONAL_ACCESS_TOKEN       | string    | ghp_xxxxxxxxxxxxxx      | Yes         | GitHub personal access token                             |
 | FEATURE_SERVICE_URL                | string    | https://api.example.com | Yes         | URL of the Feature service                               |
 | HOST_DOMAIN                        | string    | example.com             | Conditional | Required if USE_PRIVATE_SUBNET=false                     |
@@ -348,6 +344,9 @@ STAGE=<stage> make database.restore from_path=<s3_path>
 
 # Log into the database
 STAGE=<stage> make database.connect
+
+# Access Neo4j Browser
+STAGE=<stage> make database.ui.connect
 
 # Remove access services
 STAGE=<stage> make infrastructure.access-services.delete

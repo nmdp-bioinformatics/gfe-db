@@ -1,7 +1,3 @@
-##########################
-# Bootstrapping variables
-##########################
-
 # Environment variables
 # include .env # Optional, include STAGE and AWS_PROFILE
 include .env.${STAGE}
@@ -25,30 +21,25 @@ export LOGS_DIR = $(shell echo "${ROOT_DIR}/logs")
 export CFN_LOG_PATH = $(shell echo "${LOGS_DIR}/cfn/logs.txt")
 export PURGE_LOGS ?= false
 
-# conditionally required variable defaults
-CREATE_VPC ?= false
-USE_PRIVATE_SUBNET ?= false
-DEPLOY_NAT_GATEWAY ?=
-# EXTERNAL_NAT_GATEWAY_ID ?=
-# EXTERNAL_PRIVATE_ROUTE_TABLE_ID ?=
-DEPLOY_BASTION_SERVER ?=
-CREATE_SSM_VPC_ENDPOINT ?=
-CREATE_SECRETSMANAGER_VPC_ENDPOINT ?=
-CREATE_S3_VPC_ENDPOINT ?=
-SSM_VPC_ENDPOINT_ID ?=
-SECRETSMANAGER_VPC_ENDPOINT_ID ?=
-S3_VPC_ENDPOINT_ID ?=
-VPC_ID ?=
-PUBLIC_SUBNET_ID ?=
-HOST_DOMAIN ?=
-SUBDOMAIN ?=
-PRIVATE_SUBNET_ID ?=
-ADMIN_IP ?=
+# Conditionally required variable defaults
+export CREATE_VPC ?= false
+export USE_PRIVATE_SUBNET ?= false
+export DEPLOY_NAT_GATEWAY ?=
+export DEPLOY_BASTION_SERVER ?=
+export CREATE_SSM_VPC_ENDPOINT ?=
+export CREATE_SECRETSMANAGER_VPC_ENDPOINT ?=
+export CREATE_S3_VPC_ENDPOINT ?=
+export SSM_VPC_ENDPOINT_ID ?=
+export SECRETSMANAGER_VPC_ENDPOINT_ID ?=
+export S3_VPC_ENDPOINT_ID ?=
+export VPC_ID ?=
+export PUBLIC_SUBNET_ID ?=
+export HOST_DOMAIN ?=
+export SUBDOMAIN ?=
+export PRIVATE_SUBNET_ID ?=
+export ADMIN_IP ?=
+export UBUNTU_AMI_ID ?= ami-0fc5d935ebf8bc3bc
 export DATABASE_VOLUME_SIZE ?= 64
-
-# TODO move these to a config file
-# TODO: Add TRIGGER_SCHEDULE variable
-# TODO: Add BACKUP_SCHEDULE variable
 
 # Resource identifiers
 export DATA_BUCKET_NAME ?= ${STAGE}-${APP_NAME}-${AWS_ACCOUNT}-${AWS_REGION}
@@ -65,11 +56,10 @@ export PIPELINE_STATE_PATH = config/IMGTHLA-repository-state.json
 export PIPELINE_PARAMS_PATH = config/pipeline-input.json
 export FUNCTIONS_PATH = ${PIPELINE_DIR}/functions
 
-# TODO validate data types
 # Required environment variables
 REQUIRED_VARS := STAGE APP_NAME AWS_ACCOUNT AWS_REGION AWS_PROFILE SUBSCRIBE_EMAILS \
 	GITHUB_REPOSITORY_OWNER GITHUB_REPOSITORY_NAME GITHUB_PERSONAL_ACCESS_TOKEN \
-	ADMIN_EMAIL NEO4J_AMI_ID GDS_VERSION
+	ADMIN_EMAIL UBUNTU_AMI_ID NEO4J_PASSWORD GDS_VERSION
 
 BOOLEAN_VARS := CREATE_VPC USE_PRIVATE_SUBNET CREATE_SSM_VPC_ENDPOINT CREATE_SECRETSMANAGER_VPC_ENDPOINT \
 	DEPLOY_NAT_GATEWAY DEPLOY_BASTION_SERVER
@@ -246,26 +236,11 @@ ifeq ($(DEPLOY_NAT_GATEWAY),)
 else ifneq ($(DEPLOY_NAT_GATEWAY),)
 	$(MAKE) env.validate.external-nat-gateway
 endif
-# ifeq ($(DEPLOY_NAT_GATEWAY),false)
-# ifeq ($(EXTERNAL_NAT_GATEWAY_ID),)
-# 	$(call red, "\`EXTERNAL_NAT_GATEWAY_ID\` must be set as an environment variable when \`DEPLOY_NAT_GATEWAY\` is \`false\`")
-# 	@exit 1
-# else
-# 	$(call green, "Found EXTERNAL_NAT_GATEWAY_ID: ${EXTERNAL_NAT_GATEWAY_ID}")
-# endif
-# ifeq ($(EXTERNAL_PRIVATE_ROUTE_TABLE_ID),)
-# 	$(call red, "\`EXTERNAL_PRIVATE_ROUTE_TABLE_ID\` must be set as an environment variable when \`DEPLOY_NAT_GATEWAY\` is \`false\`")
-# 	@exit 1
-# else
-# 	$(call green, "Found EXTERNAL_PRIVATE_ROUTE_TABLE_ID: ${EXTERNAL_PRIVATE_ROUTE_TABLE_ID}")
-# endif
-# endif
 ifeq ($(CREATE_SSM_VPC_ENDPOINT),false)
 ifeq ($(SSM_VPC_ENDPOINT_ID),)
 	$(call red, "\`SSM_VPC_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`true\` and \`CREATE_SSM_VPC_ENDPOINT\` is \`false\`")
 	@exit 1
 else
-	# TODO BOOKMARK validate SSM_VPC_ENDPOINT_ID matches existing
 	$(call green, "Found SSM_VPC_ENDPOINT_ID: ${SSM_VPC_ENDPOINT_ID}")
 endif
 endif
@@ -274,7 +249,6 @@ ifeq ($(SECRETSMANAGER_VPC_ENDPOINT_ID),)
 	$(call red, "\`SECRETSMANAGER_VPC_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`true\` and \`CREATE_SSM_VPC_ENDPOINT\` is \`false\`")
 	@exit 1
 else
-	# TODO BOOKMARK validate SECRETSMANAGER_VPC_ENDPOINT_ID matches existing
 	$(call green, "Found SECRETSMANAGER_VPC_ENDPOINT_ID: ${SECRETSMANAGER_VPC_ENDPOINT_ID}")
 endif
 endif
@@ -283,7 +257,6 @@ ifeq ($(S3_VPC_ENDPOINT_ID),)
 	$(call red, "\`S3_VPC_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`true\` and \`CREATE_SSM_VPC_ENDPOINT\` is \`false\`")
 	@exit 1
 else
-	# TODO BOOKMARK validate S3_VPC_ENDPOINT_ID matches existing
 	$(call green, "Found S3_VPC_ENDPOINT_ID: ${S3_VPC_ENDPOINT_ID}")
 endif
 endif
@@ -415,6 +388,7 @@ options-screen:
 	@echo "| * Run the pipeline: \`\033[96mSTAGE=<stage> make database.load.run releases=<releases>\033[0m\`             |"
 	@echo "| * Load the database from backup: \`\033[96mSTAGE=<stage> make database.restore from_path=<s3_path>\033[0m\` |"
 	@echo "| * Log into the database: \`\033[96mSTAGE=<stage> make database.connect\033[0m\`                             |"
+	@echo "| * Log into the Neo4j Browser: \`\033[96mSTAGE=<stage> make database.ui.connect\033[0m\`                     |"
 	@echo "| * Remove access services: \`\033[96mSTAGE=<stage> make infrastructure.access-services.delete\033[0m\`       |"
 	@echo "+--------------------------------------------------------------------------------------------+"
 
@@ -480,7 +454,6 @@ config.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.config.deploy
 	$(MAKE) -C ${APP_NAME}/database/ service.config.deploy
 
-# TODO fix output & error handling
 database.load.run: # args: align, kir, limit, releases
 	@echo "Confirm payload:" && \
 	[ "$$align" ] && align="$$align" || align=false && \
@@ -551,13 +524,8 @@ database.config.deploy:
 	@echo "Deploying \`neo4j.conf\` to $${APP_NAME} server..."
 	$(MAKE) -C ${APP_NAME}/database/ service.config.neo4j.deploy
 
-# TODO make sure database is running before syncing
 database.sync-scripts:
 	$(MAKE) -C ${APP_NAME}/database/ service.config.scripts.sync
-
-# # TODO get expiration date, automate renewal
-# database.ssl.get-expiration:
-# 	$(MAKE) -C ${APP_NAME}/database/ service.ssl.get-expiration
 
 database.config.update:
 	@echo "Updating \`neo4j.conf\` up $${APP_NAME} server..."
@@ -573,7 +541,6 @@ database.backup:
 database.backup.list:
 	$(MAKE) -C ${APP_NAME}/database/ service.backup.list
 
-# TODO call database.get.backups to list the available backups and prompt the user to select one
 database.restore: #from_path=s3://<backup path>
 	@echo "Restoring $${APP_NAME} data to server..."
 	$(MAKE) -C ${APP_NAME}/database/ service.restore from_path=$$from_path
@@ -604,14 +571,6 @@ database.get.public-ip:
 		--output json \
 		| jq -r '.Parameters[0].Value') && \
 	echo "$${public_ip}"
-
-# TODO remove
-# database.get.public-ip:
-# 	@public_ip=$$(aws ssm get-parameters \
-# 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jPublicIp" \
-# 		--output json \
-# 		| jq -r '.Parameters[0].Value') && \
-# 	echo "$${public_ip}"
 
 database.get.instance-id:
 	@echo "${INSTANCE_ID}"
@@ -754,7 +713,7 @@ define HELP_MESSAGE
 		Description: (string) ID of an existing private subnet, required when CREATE_VPC is false
 		and USE_PRIVATE_SUBNET is true
 
-	NEO4J_AMI_ID: "${NEO4J_AMI_ID}"
+	UBUNTU_AMI_ID: "${UBUNTU_AMI_ID}"
 		Description: (string) ID of an existing AMI for Ubuntu 22.04
 
 	APOC_VERSION: "${APOC_VERSION}"
@@ -887,6 +846,9 @@ define HELP_MESSAGE
 
 	...::: Connect to the database instance :::...
 	$ make database.connect
+
+	...::: Connect to the Neo4j Browser :::...
+	$ make database.ui.connect
 
 	...::: Run the StepFunctions State Machine to load Neo4j :::...
 	$ make database.load releases=<version> align=<boolean> kir=<boolean> limit=<int>
