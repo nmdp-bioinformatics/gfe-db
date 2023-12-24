@@ -461,7 +461,11 @@ else
 endif
 
 database.ui.connect:
+ifeq ($(USE_PRIVATE_SUBNET),true)
 	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/bastion-server/ service.ui.connect
+else ifeq ($(USE_PRIVATE_SUBNET),false)
+	$(MAKE) database.get.endpoint
+endif
 
 pipeline.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ deploy
