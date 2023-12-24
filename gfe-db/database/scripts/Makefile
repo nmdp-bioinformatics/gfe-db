@@ -7,8 +7,8 @@ export
 
 export LOGS_DIR := /tmp/logs
 export REPORTS_DIR := ${UBUNTU_HOME}/reports
-export NEO4J_USERNAME=neo4j
-export NEO4J_PASSWORD=gfedb2023
+export NEO4J_USERNAME=$(shell aws secretsmanager get-secret-value --secret-id "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials" | jq -r '.SecretString' | jq -r '.NEO4J_USERNAME')
+export NEO4J_PASSWORD=$(shell aws secretsmanager get-secret-value --secret-id "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials" | jq -r '.SecretString' | jq -r '.NEO4J_PASSWORD')
 
 REQUIRED_VARS := UBUNTU_HOME NEO4J_HOME INSTANCE_ID DATA_BUCKET_NAME NEO4J_USERNAME NEO4J_PASSWORD ADMIN_EMAIL GDS_VERSION
 
@@ -39,7 +39,6 @@ ifeq ($(USE_PRIVATE_SUBNET),false)
 endif
 
 neo4j: bootstrap
-	$(MAKE) neo4j.update-credentials
 	$(MAKE) neo4j.plugins.install-gds
 	$(MAKE) neo4j.start
 	$(MAKE) neo4j.init
@@ -50,10 +49,10 @@ eip.waiter:
 	@bash ${UBUNTU_HOME}/init/eip_assoc_waiter.sh
 
 # neo4j
-neo4j.update-credentials:
-	@aws --region ${AWS_REGION} secretsmanager update-secret \
-		--secret-id "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jCredentials" \
-		--secret-string "{\"NEO4J_USERNAME\":\"${NEO4J_USERNAME}\",\"NEO4J_PASSWORD\":\"${NEO4J_PASSWORD}\"}"
+# neo4j.update-credentials:
+# 	@aws --region ${AWS_REGION} secretsmanager update-secret \
+# 		--secret-id "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jCredentials" \
+# 		--secret-string "{\"NEO4J_USERNAME\":\"${NEO4J_USERNAME}\",\"NEO4J_PASSWORD\":\"${NEO4J_PASSWORD}\"}"
 
 neo4j.credentials.show:
 	@echo "Username: ${NEO4J_USERNAME}"
@@ -217,7 +216,7 @@ neo4j.restore: #from_path=s3://<backup path>.zip
 	@echo "Running restore for $$from_path"
 	@mkdir -p /tmp/restore
 	@aws s3 cp $$from_path /tmp/restore/gfedb.zip && chown neo4j:neo4j /tmp/restore/gfedb.zip
-	@sudo -u neo4j unzip -of /tmp/restore/gfedb.zip -d /var/lib/neo4j/
+	@sudo -u neo4j unzip -o /tmp/restore/gfedb.zip -d /var/lib/neo4j/
 	@sudo -u neo4j neo4j-admin database load --from-path=/var/lib/neo4j/backups/system system --overwrite-destination=true
 	@sudo -u neo4j neo4j-admin database load --from-path=/var/lib/neo4j/backups/neo4j neo4j --overwrite-destination=true
 	@rm -r /tmp/restore

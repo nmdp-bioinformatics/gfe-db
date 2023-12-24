@@ -22,6 +22,10 @@ Parameters:
   Neo4jAmiId:
     Type: String
     Description: AMI ID for Neo4j Community edition from AWS Marketplace
+  Neo4jPassword:
+    Type: String
+    Description: Password for Neo4j database
+    NoEcho: true
   DatabaseVolumeSize:
     Type: String
   HostDomain:
@@ -67,8 +71,8 @@ Resources:
     Type: AWS::SecretsManager::Secret
     Properties:
       Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jCredentials
-      Description: Must match the username/password specified in the Neo4j Dockerfile. Empty until the database is created.
-      SecretString: '{"NEO4J_USERNAME":"","NEO4J_PASSWORD":""}'
+      Description: Specified in the deployment environment.
+      SecretString: !Sub '{"NEO4J_USERNAME":"neo4j","NEO4J_PASSWORD":"${Neo4jPassword}"}'
   Neo4jCredentialsSecretArnParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -228,8 +232,7 @@ Resources:
             add-apt-repository -y universe
             apt-get install -y neo4j=1:5.14.0
             systemctl enable neo4j
-            # TODO add dynamic password generation
-            neo4j-admin dbms set-initial-password gfedb2023
+            neo4j-admin dbms set-initial-password ${Neo4jPassword}
             mkdir -p /var/lib/neo4j/backups/{system,neo4j}
             chown -R neo4j:neo4j /var/lib/neo4j/backups
           }
@@ -243,6 +246,7 @@ Resources:
               exit 1
             fi
             cp /etc/neo4j/neo4j.conf /etc/neo4j/neo4j.conf.bak
+            # sed -i 's/#initial.dbms.default_database=neo4j/initial.dbms.default_database=gfedb/g' /etc/neo4j/neo4j.conf
             sed -i 's/#server.default_listen_address=0.0.0.0/server.default_listen_address=0.0.0.0/g' /etc/neo4j/neo4j.conf
             sed -i "s/#server.default_advertised_address=localhost/server.default_advertised_address=$SUBDOMAIN.$HOST_DOMAIN/g" /etc/neo4j/neo4j.conf
             sed -i 's/#server.bolt.tls_level=DISABLED/server.bolt.tls_level=REQUIRED/g' /etc/neo4j/neo4j.conf
@@ -270,6 +274,7 @@ Resources:
           }
           build_neo4j_private_config() {
             cp /etc/neo4j/neo4j.conf /etc/neo4j/neo4j.conf.bak
+            # sed -i 's/#initial.dbms.default_database=neo4j/initial.dbms.default_database=gfedb/g' /etc/neo4j/neo4j.conf
             sed -i 's/#server.default_listen_address=0.0.0.0/server.default_listen_address=0.0.0.0/g' /etc/neo4j/neo4j.conf
             sed -i "s/#server.default_advertised_address=localhost/server.default_advertised_address=localhost/g" /etc/neo4j/neo4j.conf
             sed -i 's/#server.bolt.tls_level=DISABLED/server.bolt.tls_level=DISABLED/g' /etc/neo4j/neo4j.conf
