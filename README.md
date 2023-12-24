@@ -180,7 +180,7 @@ These list outline the basic steps for deployments. For more details please see 
 6. Run `STAGE=<stage> make deploy` to deploy the stacks to AWS.
 7. Run `STAGE=<stage> make database.load.run releases=<version>` to load Neo4j, or `STAGE=<stage> make database.load.run releases=<version> limit=<limit>` to run with a limited number of alleles.
 8. Run `STAGE=<stage> make database.get.credentials` to get the username and password for Neo4j.
-9. Run `STAGE=<stage> make database.get.endpoint` to get the URL for Neo4j and navigate to the Neo4j browser at the subdomain and host domain, for example `https://gfe-db.cloudftl.com:7473/browser/`.
+9. Run `STAGE=<stage> make database.ui.connect` to get the URL for Neo4j and navigate to the Neo4j browser at the subdomain and host domain, for example `https://<SUBDOMAIN>.<HOST_DOMAIN>:7473/browser/` for public deployments or `http://localhost:7474/browser/` for private deployments.
 
 ### Creating a new VPC and public subnet
 1. Purchase or designate a domain in Route53 and create a hosted zone with an A record for the subdomain. You can use `0.0.0.0` for the A record because it will be updated later by the deployment script.
@@ -196,7 +196,7 @@ These list outline the basic steps for deployments. For more details please see 
 5. Run `STAGE=<stage> make deploy` to deploy the stacks to AWS.
 6. Run `STAGE=<stage> make database.load.run releases=<version>` to load Neo4j, or `STAGE=<stage> make database.load.run releases=<version> limit=<limit>` to run with a limited number of alleles.
 7. Run `STAGE=<stage> make database.get-credentials` to get the username and password for Neo4j.
-8. Run `STAGE=<stage> make database.get.endpoint` to get the URL for Neo4j and navigate to the Neo4j browser at the subdomain and host domain, for example `https://gfe-db.cloudftl.com:7473/browser/`.
+8. Run `STAGE=<stage> make database.ui.connect` to get the URL for Neo4j and navigate to the Neo4j browser at the subdomain and host domain, for example `https://<SUBDOMAIN>.<HOST_DOMAIN>:7473/browser/` for public deployments or `http://localhost:7474/browser/` for private deployments.
 
 ### Using external VPC and private subnet
 1. Retrieve the VPC ID and public and private subnet IDs from the AWS console or using the AWS CLI.
@@ -222,7 +222,7 @@ These list outline the basic steps for deployments. For more details please see 
 5. Check the [config JSONs](#data-pipeline-config) (parameters and state) and edit the values as desired.
 6. Run `STAGE=<stage> make deploy` to deploy the stacks to AWS.
 7. Run `STAGE=<stage> make database.load.run releases=<version>` to load Neo4j, or `STAGE=<stage> make database.load.run releases=<version> limit=<limit>` to run with a limited number of alleles.
-8. To access Neo4j running in a private subnet you will need to use the bastion server.
+8. Run `STAGE=<stage> make database.ui.connect` to get the URL for Neo4j and navigate to the Neo4j browser at the subdomain and host domain, for example `https://<SUBDOMAIN>.<HOST_DOMAIN>:7473/browser/` for public deployments or `http://localhost:7474/browser/` for private deployments.
 
 ### Creating a new VPC and private subnet
 1. [Install prerequisites](#Prerequisites).
@@ -240,7 +240,7 @@ These list outline the basic steps for deployments. For more details please see 
 4. Check the [config JSONs](#data-pipeline-config) (parameters and state) and edit the values as desired.
 5. Run `STAGE=<stage> make deploy` to deploy the stacks to AWS.
 6. Run `STAGE=<stage> make database.load.run releases=<version>` to load Neo4j, or `STAGE=<stage> make database.load.run releases=<version> limit=<limit>` to run with a limited number of alleles.
-7. To access Neo4j running in a private subnet you will need to use the bastion server.
+7. Run `STAGE=<stage> make database.ui.connect` to get the URL for Neo4j and navigate to the Neo4j browser at the subdomain and host domain, for example `https://<SUBDOMAIN>.<HOST_DOMAIN>:7473/browser/` for public deployments or `http://localhost:7474/browser/` for private deployments.
 
 ## Application Environment
 
