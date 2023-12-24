@@ -549,9 +549,12 @@ database.status:
 	@aws ec2 describe-instances | \
 		jq --arg iid "${INSTANCE_ID}" '.Reservations[].Instances[] | (.InstanceId == $$iid) | {InstanceId, InstanceType, "Status": .State.Name, StateTransitionReason, ImageId}'
 
-# TODO account for http or https and whether or not EIP or DNS is being used
 database.get.endpoint:
+ifeq ($(USE_PRIVATE_SUBNET),true)
+	@echo "http://localhost:7474/browser/"
+else ifeq ($(USE_PRIVATE_SUBNET),false)
 	@echo "https://${SUBDOMAIN}.${HOST_DOMAIN}:7473/browser/"
+endif
 
 database.get.credentials:
 	@secret_string=$$(aws secretsmanager get-secret-value --secret-id /${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials | jq -r '.SecretString') && \

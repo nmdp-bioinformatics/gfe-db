@@ -97,7 +97,7 @@ service.backup:
 		--instance-id "$${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
 
 service.backup.list:
-	@aws s3 ls --recursive s3://${DATA_BUCKET_NAME}/backups/neo4j/ | cut -d' ' -f7 | cut -d'/' -f3-6
+	@aws s3 ls --recursive s3://${DATA_BUCKET_NAME}/backups/neo4j/ 
 
 service.restore: #from_path=s3://<backup path>
 	@[ "$$from_path" != "" ] || (echo "from_path is required" && exit 1) && \
