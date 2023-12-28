@@ -61,14 +61,15 @@ if __name__ == "__main__":
     # TODO FIX not returning all commits from repo, integrate pygethub
     # Fetch all commits from repo using GitHub API, will be cached
     logger.info("Fetching all commits from repo using GitHub API")
-    # all_commits = paginate_commits(GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY_NAME, token=GITHUB_PERSONAL_ACCESS_TOKEN)
-    owner = "ANHIG"
-    repo = "IMGTHLA"
 
     # COMMITS
     # TODO add requests session for user-agent tracking
     paginator = GitHubPaginator(GITHUB_PERSONAL_ACCESS_TOKEN)
-    pages = paginator.get_paginator(list_commits, owner=owner, repo=repo, user_agent="nmdp-bioinformatics-gfe-db-state-builder/1.0")
+    pages = paginator.get_paginator(
+        list_commits, 
+        owner=GITHUB_REPOSITORY_OWNER, 
+        repo=GITHUB_REPOSITORY_NAME, 
+        user_agent="nmdp-bioinformatics-gfe-db-state-builder/1.0")
     all_commits = list(pages)
 
     # filter by chosen commit keys
@@ -94,9 +95,11 @@ if __name__ == "__main__":
     target_metadata_config = source_config.repositories[
         GITHUB_REPOSITORY_OWNER + "/" + GITHUB_REPOSITORY_NAME
     ].target_metadata_config
+
     excluded_commit_shas = source_config.repositories[
         GITHUB_REPOSITORY_OWNER + "/" + GITHUB_REPOSITORY_NAME
     ].excluded_commit_shas.values
+
     commits = [
         commit for commit in commits if commit["sha"] not in excluded_commit_shas
     ]
@@ -117,7 +120,7 @@ if __name__ == "__main__":
         ),
         target_metadata_config=target_metadata_config,  # Infers release version from file contents
         token=GITHUB_PERSONAL_ACCESS_TOKEN,
-        parallel=False,
+        parallel=True,
     )
 
     # Package records as ExecutionState object to seed table
