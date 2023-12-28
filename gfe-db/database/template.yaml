@@ -7,25 +7,25 @@ Parameters:
   AppName:
     Type: String
     Description: Application name
-  createVpc:
+  ServiceName:
     Type: String
-    AllowedValues:
-      - 'true'
-      - 'false'
+    Description: Service name
+  # createVpc:
+  #   Type: String
+  #   AllowedValues:
+  #     - 'true'
+  #     - 'false'
   usePrivateSubnet:
     Type: String
     AllowedValues:
       - 'true'
       - 'false'
-  ServiceName:
-    Type: String
-    Description: Service name
   DataBucketName:
     Type: String
   ConfigS3Path:
     Type: String
   UbuntuAmiId:
-    Type: String
+    Type: AWS::EC2::Image::Id
     Description: AMI ID for Neo4j Community edition from AWS Marketplace
   Neo4jPassword:
     Type: String
@@ -67,9 +67,9 @@ Resources:
       Value: !Ref Neo4jCredentialsSecret
   Neo4jDatabaseInstance:
     Type: AWS::EC2::Instance
-    CreationPolicy:
-      ResourceSignal:
-        Timeout: PT10M
+    # CreationPolicy:
+    #   ResourceSignal:
+    #     Timeout: PT10M
     Properties:
       KeyName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}'
       DisableApiTermination: false
@@ -268,7 +268,7 @@ Resources:
             neo4j-admin server memory-recommendation | grep -v ^# >> /etc/neo4j/neo4j.conf
           }
           echo "INFO: Downloading scripts"
-          aws s3 cp --quiet --recursive s3://${DataBucketName}/config/scripts/ $UBUNTU_HOME/
+          aws s3 cp --quiet --recursive s3://${DataBucketName}/${ConfigS3Path}/${ServiceName}/scripts/ $UBUNTU_HOME/
           echo "INFO: Initiliazing Neo4j database"
           install_neo4j
           install_apoc_plugin

@@ -10,14 +10,31 @@ deploy:
 	$(MAKE) service.deploy
 
 service.config.scripts.deploy:
-	@script_s3_path=s3://$$DATA_BUCKET_NAME/config/scripts/ && \
-	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying server scripts to $$script_s3_path" 2>&1 \
+	@config_s3_path=s3://${DATA_BUCKET_NAME}/${CONFIG_S3_PATH}/${SERVICE}/scripts/ && \
+	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying server scripts to $$config_s3_path" 2>&1 \
 		| tee -a $$CFN_LOG_PATH && \
-	aws s3 cp --recursive --quiet scripts/ $$script_s3_path
+	aws s3 cp --recursive --quiet scripts/ $$config_s3_path
+
+service.config.cloudwatch-agent.deploy:
+	@mkdir -p amazon-cloudwatch-agent/tmp/ 
+	@cat amazon-cloudwatch-agent/amazon-cloudwatch-agent.json | sed "s/STAGE/$${STAGE}/g" | sed "s/APP_NAME/$${APP_NAME}/g" > amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json
+	@config_s3_path=s3://${DATA_BUCKET_NAME}/${CONFIG_S3_PATH}/${SERVICE}/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json && \
+	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying CloudWatch Logs Agent config to $$config_s3_path" 2>&1 \
+		| tee -a $$CFN_LOG_PATH && \
+	aws s3 cp --quiet amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json $$config_s3_path
+	@rm -rf amazon-cloudwatch-agent/tmp/
+
+service.config.neo4j.deploy:
+	@config_s3_path=s3://$$DATA_BUCKET_NAME/${CONFIG_S3_PATH}/${SERVICE}/neo4j/cypher/ && \
+	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Neo4j cypher scripts to $$config_s3_path" 2>&1 \
+		| tee -a $$CFN_LOG_PATH && \
+	aws s3 cp --recursive --quiet neo4j/cypher/ $$config_s3_path
+
+service.config.deploy: service.config.scripts.deploy service.config.cloudwatch-agent.deploy service.config.neo4j.deploy
 
 service.config.scripts.sync: service.config.scripts.deploy
 	@document_name="$$(aws ssm get-parameter \
-		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/DatabaseSyncScriptsDocumentName" | jq -r '.Parameter.Value')" && \
+		--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/DatabaseSyncScriptsDocumentName" | jq -r '.Parameter.Value')" && \
 	res=$$(aws ssm send-command \
 		--document-name "$$document_name" \
 		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
@@ -26,29 +43,10 @@ service.config.scripts.sync: service.config.scripts.deploy
 	echo "\033[0;34mWaiting for command $$command_id to complete on server $${INSTANCE_ID}\033[0m" && \
 	aws ssm wait command-executed \
 		--command-id "$$command_id" \
-		--instance-id "$${INSTANCE_ID}" && \
+		--instance-id "${INSTANCE_ID}" && \
 	aws ssm get-command-invocation \
 		--command-id "$$command_id" \
-		--instance-id "$${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
-
-service.config.cloudwatch-agent.deploy:
-	@mkdir -p config/amazon-cloudwatch-agent/tmp/ 
-	@cat config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json | sed "s/STAGE/$${STAGE}/g" | sed "s/APP_NAME/$${APP_NAME}/g" > config/amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json
-	@config_s3_path=s3://$$DATA_BUCKET_NAME/$${CONFIG_S3_PATH}/${SERVICE}/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json && \
-	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying amazon-cloudwatch-agent config to $$config_s3_path" 2>&1 \
-		| tee -a $$CFN_LOG_PATH && \
-	aws s3 cp config/amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json $$config_s3_path
-	@rm -rf config/amazon-cloudwatch-agent/tmp/
-
-service.config.neo4j.update-dns:
-	@[ "${HOST_DOMAIN}" != "" ] && \
-	cat config/neo4j/neo4j.template | \
-	sed s"/# dbms.default_advertised_address=.*/dbms.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > config/neo4j/neo4j.conf
-
-service.config.neo4j.deploy:
-	@aws s3 cp --recursive neo4j/cypher/ s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
-
-service.config.deploy: service.config.scripts.deploy service.config.cloudwatch-agent.deploy service.config.neo4j.deploy
+		--instance-id "${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
 
 service.ssl.renew-cert:
 	@res=$$(aws ssm send-command \
@@ -103,7 +101,6 @@ service.backup:
 		--command-id "$$command_id" \
 		--instance-id "$${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
 
-# @aws s3 ls --recursive s3://${DATA_BUCKET_NAME}/backups/neo4j/ | cut -d' ' -f7 | cut -d'/' -f3-6
 service.backup.list:
 	@aws s3 ls --recursive --human-readable s3://${DATA_BUCKET_NAME}/backups/neo4j/
 

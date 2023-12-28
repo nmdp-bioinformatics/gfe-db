@@ -439,6 +439,9 @@ database.deploy:
 database.service.deploy:
 	$(MAKE) -C ${APP_NAME}/database/ service.deploy
 
+database.config.deploy:
+	$(MAKE) -C ${APP_NAME}/database/ service.config.deploy
+
 database.connect:
 ifeq ($(USE_PRIVATE_SUBNET),true)
 	$(MAKE) infrastructure.access-services.bastion-server.connect
@@ -462,6 +465,9 @@ pipeline.service.deploy:
 pipeline.jobs.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.jobs.deploy
 
+pipeline.config.deploy:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.config.deploy
+
 pipeline.state.build:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.state.build
 
@@ -469,8 +475,8 @@ pipeline.state.load:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.state.load
 
 config.deploy:
-	$(MAKE) -C ${APP_NAME}/pipeline/ service.config.deploy
-	$(MAKE) -C ${APP_NAME}/database/ service.config.deploy
+	$(MAKE) database.config.deploy
+	$(MAKE) pipeline.config.deploy
 
 database.load.run: # args: align, kir, limit, releases
 	@echo "Confirm payload:" && \
@@ -537,10 +543,6 @@ database.reboot:
 	@echo Instance ID: ${INSTANCE_ID}
 	@response=$$(aws ec2 reboot-instances --instance-ids ${INSTANCE_ID}) && echo "$$response"
 	$(MAKE) database.status
-
-database.config.deploy:
-	@echo "Deploying \`neo4j.conf\` to $${APP_NAME} server..."
-	$(MAKE) -C ${APP_NAME}/database/ service.config.neo4j.deploy
 
 database.sync-scripts:
 	$(MAKE) -C ${APP_NAME}/database/ service.config.scripts.sync
