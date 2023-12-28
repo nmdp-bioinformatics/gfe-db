@@ -1,4 +1,5 @@
 SERVICE := pipeline
+SCRIPTS_DIR := ${ROOT_DIR}/${APP_NAME}/${SERVICE}/scripts
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -65,7 +66,10 @@ service.state.load:
 # TODO parameterize S3 config path and export as environment variable to recall in database shell scripts
 # TODO integrate and automate the build/load process for source config and execution state
 service.config.deploy:
-	@config_s3_path=s3://$${DATA_BUCKET_NAME}/$${CONFIG_S3_PATH}/${SERVICE} && \
+	$(MAKE) service.config.pipeline-params.deploy
+	
+service.config.pipeline-params.deploy:
+	@config_s3_path=s3://${DATA_BUCKET_NAME}/${CONFIG_S3_PATH}/${SERVICE} && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying config to $$config_s3_path" 2>&1 | tee -a $$CFN_LOG_PATH && \
 	aws s3 cp --recursive config/ $$config_s3_path 2>&1 | tee -a $$CFN_LOG_PATH
 

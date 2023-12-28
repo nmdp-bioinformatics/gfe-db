@@ -62,12 +62,6 @@ Parameters:
     Type: Number
   GetExecutionStateFunctionMemorySize:
     Type: Number
-  # ValidateBuildOutputFunctionName:
-  #   Type: String
-  # ValidateBuildOutputFunctionMemorySize:
-  #   Type: Number
-  # ValidateBuildOutputFunctionTimeout:
-  #   Type: Number
   ExecuteValidationQueriesFunctionName:
     Type: String
     AllowedPattern: ^[a-z-]+$
@@ -596,6 +590,7 @@ Resources:
                 - "states:StartExecution"
               Resource: !GetAtt UpdatePipelineStateMachine.Arn
 
+  # TODO Update alarm reference to function
   InvokePipelineFunctionAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -637,8 +632,6 @@ Resources:
           SecurityGroupIds:
             - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
         - !Ref AWS::NoValue
-      # TODO fix conditional policy assignment using If operator
-      # If UsePrivateSubnet is true, attach AWSLambdaVPCAccessExecutionRole, otherwise attach AWSLambdaBasicExecutionRole
       Policies:
         - Version: "2012-10-17"
           Statement:
@@ -888,7 +881,6 @@ Resources:
         BuildJobQueue: !Ref BuildJobQueue
         ExecuteValidationQueriesFunctionArn: !GetAtt ExecuteValidationQueriesFunction.Arn
         LoadReleaseActivityArn: !Ref LoadReleaseActivity
-        ValidateBuildOutputFunctionArn: !GetAtt ValidateBuildOutputFunction.Arn
         InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
         # LoadNeo4jActivityArn: !Ref LoadNeo4jActivity
       Policies:
@@ -983,23 +975,23 @@ Resources:
               Resource:
                 - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*'
 
-  InvokeLoadScriptFunctionAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmDescription: !Sub "Alarm for ${InvokeLoadScriptFunction} function errors"
-      ActionsEnabled: true
-      AlarmActions:
-        - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}"
-      MetricName: Errors
-      Namespace: AWS/Lambda
-      Statistic: Sum
-      Period: 86400
-      EvaluationPeriods: 1
-      Threshold: 1
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      Dimensions:
-        - Name: FunctionName
-          Value: !Ref InvokeLoadScriptFunctionName
+  # InvokeLoadScriptFunctionAlarm:
+  #   Type: AWS::CloudWatch::Alarm
+  #   Properties:
+  #     AlarmDescription: !Sub "Alarm for ${InvokeLoadScriptFunction} function errors"
+  #     ActionsEnabled: true
+  #     AlarmActions:
+  #       - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}"
+  #     MetricName: Errors
+  #     Namespace: AWS/Lambda
+  #     Statistic: Sum
+  #     Period: 86400
+  #     EvaluationPeriods: 1
+  #     Threshold: 1
+  #     ComparisonOperator: GreaterThanOrEqualToThreshold
+  #     Dimensions:
+  #       - Name: FunctionName
+  #         Value: !Ref InvokeLoadScriptFunctionName
 
   GfeDbExecutionResultTopic:
     Type: AWS::SNS::Topic
