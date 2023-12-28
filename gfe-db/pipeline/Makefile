@@ -5,17 +5,19 @@ target:
 	@exit 0
 
 # TODO: Don't deploy jobs if pipeline stack fails to create (exit Make)
-deploy:
+service.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
 	$(MAKE) service.config.deploy
 	$(MAKE) service.deploy
 	$(MAKE) service.jobs.deploy
 
-service.deploy:
+service.functions.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} - functions" 2>&1 | tee -a $$CFN_LOG_PATH
 	@sam build \
+		--region "$${AWS_REGION}" \
 		--template-file template.yaml  2>&1 | tee -a $$CFN_LOG_PATH || true && \
 	sam package \
+		--region "$${AWS_REGION}" \
 		--resolve-s3 \
 		--output-template-file packaged.yaml  2>&1 | tee -a $$CFN_LOG_PATH || true && \
 	sam deploy \
@@ -53,11 +55,17 @@ service.deploy:
 service.jobs.deploy:
 	$(MAKE) -C jobs/ deploy
 
-service.config.deploy:
-	$(MAKE) service.config.pipeline-params.deploy
+# TODO handle virtual environment creation and activation
+service.state.build:
+	@${PYTHON} ${SCRIPTS_DIR}/state/build.py ${ROOT_DIR}/${APP_NAME}/${SERVICE}/config/
 
-service.config.pipeline-params.deploy:
-	@config_s3_path=s3://$$DATA_BUCKET_NAME/config/pipeline/ && \
+service.state.load:
+	@${PYTHON} ${SCRIPTS_DIR}/state/load.py ${ROOT_DIR}/${APP_NAME}/${SERVICE}/config/
+
+# TODO parameterize S3 config path and export as environment variable to recall in database shell scripts
+# TODO integrate and automate the build/load process for source config and execution state
+service.config.deploy:
+	@config_s3_path=s3://$${DATA_BUCKET_NAME}/$${CONFIG_S3_PATH}/${SERVICE} && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying config to $$config_s3_path" 2>&1 | tee -a $$CFN_LOG_PATH && \
 	aws s3 cp --recursive config/ $$config_s3_path 2>&1 | tee -a $$CFN_LOG_PATH
 

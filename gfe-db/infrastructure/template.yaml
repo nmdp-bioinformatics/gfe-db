@@ -43,11 +43,11 @@ Parameters:
 Conditions:
   # Important: All stacks (infra, database, pipeline) should use the same conditions
   CreateVpc: !Equals [!Ref createVpc, 'true']
-  CreateVpcPublic: !And [!Equals [!Ref createVpc, 'true'], !Equals [!Ref usePrivateSubnet, 'false']]
+  # CreateVpcPublic: !And [!Equals [!Ref createVpc, 'true'], !Equals [!Ref usePrivateSubnet, 'false']]
   CreateVpcPrivate: !And [!Equals [!Ref createVpc, 'true'], !Equals [!Ref usePrivateSubnet, 'true']]
-  UseExternalVpc: !Equals [!Ref createVpc, 'false']
-  UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
-  UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
+  # UseExternalVpc: !Equals [!Ref createVpc, 'false']
+  # UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
+  # UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
   UsePrivateSubnet: !Equals [!Ref usePrivateSubnet, 'true']
   UsePrivateSubnetDeployNatGateway: !And [!Equals [!Ref usePrivateSubnet, 'true'], !Equals [!Ref deployNatGateway, 'true']]
   UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
@@ -90,12 +90,11 @@ Resources:
       Value: !Ref AppName
 
   CreateVpcParameter:
-  CreateVpcParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/CreateVpc'
-      Description: !Sub "True if stack creates a VPC, false if stack uses an existing VPC"
+      Description: "True if stack creates a VPC, false if stack uses an existing VPC"
       Value: !Ref createVpc
 
   CreateVpcConditionVpc:
@@ -252,15 +251,15 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataBucketName'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/DataBucketName"
       Description: "Name of gfe-db data bucket"
       Value: !Ref DataBucket
-  
+
   DataBucketArnParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataBucketArn'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/DataBucketArn"
       Description: "ARN of gfe-db data bucket"
       Value: !GetAtt DataBucket.Arn
   
@@ -387,10 +386,31 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn'
-      Description: !Sub 'ARN for ${AppName} Data Pipeline Errors SNS topic'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn"
+      Description: !Sub "ARN for ${AppName} Data Pipeline Errors SNS topic"
       Value: !Ref DataPipelineErrorsTopic
 
+  GfedbInfrastructureParamMappingsParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/GfedbInfrastructureParamMappings"
+      Description: !Sub "SSM Parameter and SecretsManager parameter paths for ${AppName} infrastructure layer"
+      Tier: Standard
+      Value: !Sub |
+        {
+          "ssm": [
+            "/${AppName}/${Stage}/${AWS::Region}/VpcID",
+            "/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID",
+            "/${AppName}/${Stage}/${AWS::Region}/DataBucketName",
+            "/${AppName}/${Stage}/${AWS::Region}/DataBucketArn",
+            "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint",
+            "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId",
+            "/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn",
+            "/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicArn"
+          ]
+        }
+        
   DataPipelineExecutionTopicPolicy:
     Type: AWS::SNS::TopicPolicy
     Properties:

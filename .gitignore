@@ -101,6 +101,12 @@ WORKLOG.md
 payload.json
 ___*
 gfedb.zip
+reports/
+source-config-v*.json
+test.asl.json
+_cache*/
+ssm-describe*.json
 gfe-db/pipeline/jobs/build/event.json
 gfe-db/pipeline/statemachines/test*
 reports/
+WORKLOG.md

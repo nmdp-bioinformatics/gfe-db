@@ -1,17 +1,17 @@
 {
     "Functions": {
-        "InvokePipeline": {
-            "InvokePipelineFunctionSchedule": "cron(0\\ 12\\ *\\ *\\ ?\\ *)",
+        "CheckSourceUpdate": {
+            "CheckSourceUpdateFunctionSchedule": "cron(0\\ 12\\ *\\ *\\ ?\\ *)",
             "FunctionConfiguration": {
-                "FunctionName": "invoke-pipeline",
-                "MemorySize": 256,
+                "FunctionName": "check-source-update",
+                "Timeout": 300,
+                "MemorySize": 256
+            }
+        },
+        "GetExecutionState": {
+            "FunctionConfiguration": {
                 "Timeout": 60,
-                "Environment": {
-                    "Variables": {
-                        "PIPELINE_STATE_PATH": "config/pipeline/IMGTHLA-repository-state.json",
-                        "PIPELINE_PARAMS_PATH": "config/pipeline/pipeline-input.json"
-                    }
-                }
+                "MemorySize": 256
             }
         },
         "ExecuteValidationQueries": {

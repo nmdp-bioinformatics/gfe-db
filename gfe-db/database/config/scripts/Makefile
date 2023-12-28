@@ -1,5 +1,6 @@
 # This Makefile only orchestrates process that are run on the EC2 database instance, it is deployed and called on the server
 # Must be run as root
+SERVICE := database
 
 # Application specific environment variables
 include env.sh
@@ -88,6 +89,7 @@ neo4j.plugins.install-gds:
 	@echo "Cleaning up"
 	@rm neo4j-graph-data-science-${GDS_VERSION}.zip
 
+# TODO separate copy action from cypher-shell action
 neo4j.init:
 	$(MAKE) neo4j.init.download-scripts
 	$(MAKE) neo4j.query.init

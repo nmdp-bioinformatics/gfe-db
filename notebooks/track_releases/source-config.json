@@ -1,0 +1,491 @@
+{
+    "created_at_utc": "2023-04-25T02:35:07Z",
+    "updated_at_utc": "2023-04-25T02:35:07Z",
+    "repositories": {
+        "ANHIG/IMGTHLA": {
+            "owner": "ANHIG",
+            "name": "IMGTHLA",
+            "url": "https://github.com/ANHIG/IMGTHLA",
+            "tracked_assets": [
+                "hla.dat",
+                "msf/"
+            ],
+            "default_input_parameters": {
+                "align": false,
+                "kir": false,
+                "mem_profile": false,
+                "limit": "1000"
+            },
+            "execution_history": [
+                {
+                    "version": 3520,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "38398a75e9762ff070d8e9bd714d074332646cd7",
+                        "date_utc": "2023-04-17T16:03:52Z",
+                        "message": "Merge pull request #334 from ANHIG/3520\n\nIPD-IMGT/HLA Release 3.52.0",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/38398a75e9762ff070d8e9bd714d074332646cd7"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3520,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "def376dc6955b339b17f0a4b840e80eb6b9c744b",
+                        "date_utc": "2023-04-17T16:01:01Z",
+                        "message": "IPD-IMGT/HLA Release 3.52.0",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/def376dc6955b339b17f0a4b840e80eb6b9c744b"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3510,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "5f2c562056f8ffa89aeea0631f2a52300ee0de17",
+                        "date_utc": "2023-01-13T10:04:48Z",
+                        "message": "Merge pull request #325 from ANHIG/3510\n\n3510",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/5f2c562056f8ffa89aeea0631f2a52300ee0de17"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3510,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "4b8432c7d56121c84d6ef1d75a1c7185c628c13d",
+                        "date_utc": "2023-01-12T14:47:00Z",
+                        "message": "IPD-IMGT/HLA Database Release 3.51.0\n\nUpdated the ihiw folder for 3.51.0",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/4b8432c7d56121c84d6ef1d75a1c7185c628c13d"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3510,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "4486f5c623705c6a14d9eeaba7d155cff30cdb43",
+                        "date_utc": "2023-01-12T14:36:43Z",
+                        "message": "IPD-IMGT/HLA Release 3.51.0\n\nUpdates for 3.51.0",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/4486f5c623705c6a14d9eeaba7d155cff30cdb43"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3500,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "50b790037030d958b662085c3f4cf34ba72a32ec",
+                        "date_utc": "2022-12-14T10:02:54Z",
+                        "message": "Merge pull request #323 from ANHIG/3500\n\nCorrected missing date and version field in Allelelist_history.txt",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/50b790037030d958b662085c3f4cf34ba72a32ec"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3500,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "36220a1c5c2d6954f4873a552544cc0e55b61d0a",
+                        "date_utc": "2022-12-14T10:02:28Z",
+                        "message": "Corrected missing date and version field in Allelelist_history.txt",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/36220a1c5c2d6954f4873a552544cc0e55b61d0a"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3500,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "e941759874365cb152a3562c22d10847d10db326",
+                        "date_utc": "2022-10-14T08:47:37Z",
+                        "message": "Merge pull request #318 from ANHIG/3500\n\nhla.dat file for IPD-IMGT/HLA Release 3.50.0",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/e941759874365cb152a3562c22d10847d10db326"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3500,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "2d38d3313229fdc5f8aa00052a2db21b35be3d2d",
+                        "date_utc": "2022-10-14T08:46:01Z",
+                        "message": "hla.dat file for IPD-IMGT/HLA Release 3.50.0",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/2d38d3313229fdc5f8aa00052a2db21b35be3d2d"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3500,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "1ce31fc9e2805034578eff60a269c02176f03252",
+                        "date_utc": "2022-10-13T13:06:12Z",
+                        "message": "Merge pull request #317 from ANHIG/3500\n\nIPD-IMGT/HLA Release 3.50.0",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/1ce31fc9e2805034578eff60a269c02176f03252"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3500,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "2c631a4b61d529ff1c0635750888f6f6d79c2703",
+                        "date_utc": "2022-10-13T12:58:37Z",
+                        "message": "IPD-IMGT/HLA Release 3.50.0",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/2c631a4b61d529ff1c0635750888f6f6d79c2703"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3490,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "12b4b94bb49b4640fa48a1182cc9b1e1fbf7e816",
+                        "date_utc": "2022-08-25T15:44:07Z",
+                        "message": "Merge pull request #315 from ANHIG/3490\n\nRemoval of duplicate \"KW   Human MHC;\" in hla.dat; Removal of empty 3\u2026",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/12b4b94bb49b4640fa48a1182cc9b1e1fbf7e816"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3490,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "8f80f24d49797595d8a18b8d4d1f59846fbf3fe1",
+                        "date_utc": "2022-08-25T15:43:12Z",
+                        "message": "Removal of duplicate \"KW   Human MHC;\" in hla.dat; Removal of empty 3'UTR in DQB1*03:480Q",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/8f80f24d49797595d8a18b8d4d1f59846fbf3fe1"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3490,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "a9680a9e80e2c119d4aa41f90e5f40cef6e7df02",
+                        "date_utc": "2022-08-21T09:31:21Z",
+                        "message": "Merge pull request #314 from ANHIG/3490\n\nCorrected DRA*01:01:01:01 P group (DRA*01:01P)",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/a9680a9e80e2c119d4aa41f90e5f40cef6e7df02"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3490,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "1fd937e6c0ff8452f64152aec9632f0586f981d1",
+                        "date_utc": "2022-08-21T09:29:01Z",
+                        "message": "Corrected DRA*01:01:01:01 P group (DRA*01:01P)",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/1fd937e6c0ff8452f64152aec9632f0586f981d1"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3490,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "50e92c677f4cd547c32bb9305269a762a9595074",
+                        "date_utc": "2022-07-23T12:54:16Z",
+                        "message": "Merge pull request #310 from ANHIG/3490\n\nAdded additional space in DRB_prot.txt, DRB_nuc.txt and DRB1_gen.txt \u2026",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/50e92c677f4cd547c32bb9305269a762a9595074"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3490,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "8732e7d4739a911e01f69d2c5bda82ca15ca68a9",
+                        "date_utc": "2022-07-23T12:53:45Z",
+                        "message": "Added additional space in DRB_prot.txt, DRB_nuc.txt and DRB1_gen.txt due to DRB1*15:200:01:01N and DRB1*15:200:01:02N",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/8732e7d4739a911e01f69d2c5bda82ca15ca68a9"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3490,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "536e8833f3be4bbcffbfba43cd0b3043c5bf4068",
+                        "date_utc": "2022-07-15T08:21:31Z",
+                        "message": "Merge pull request #308 from ANHIG/3490\n\n3490",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/536e8833f3be4bbcffbfba43cd0b3043c5bf4068"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3490,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "c90cc62006b35061c8db4b6f8da1b86de7650b23",
+                        "date_utc": "2022-07-15T08:20:46Z",
+                        "message": "Merge branch 'Latest' into 3490",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/c90cc62006b35061c8db4b6f8da1b86de7650b23"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3490,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "1a3be9a5d01a414854ff3bfacd5257c14adeefa2",
+                        "date_utc": "2022-07-14T13:40:17Z",
+                        "message": "IPD-IMGT/HLA Release 3.49.0",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/1a3be9a5d01a414854ff3bfacd5257c14adeefa2"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3490,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "4863b8f0a070d70836dfbdc00bdf70aa7bb66345",
+                        "date_utc": "2022-07-14T12:31:36Z",
+                        "message": "IPD-IMGT/HLA Release 3.49.0",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/4863b8f0a070d70836dfbdc00bdf70aa7bb66345"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3480,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "72a9e28a52c9629dd63dfad5f215cdc562e2fd7e",
+                        "date_utc": "2022-07-14T12:28:41Z",
+                        "message": "IPD-IMGT/HLA Release 3.49.0",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/72a9e28a52c9629dd63dfad5f215cdc562e2fd7e"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3480,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "dddc6afc29de895f4131693e17b3cc856ff23f8d",
+                        "date_utc": "2022-07-14T12:27:25Z",
+                        "message": "IPD-IMGT/HLA Release 3.49.0",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/dddc6afc29de895f4131693e17b3cc856ff23f8d"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3480,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "d1dd2ac5e2b6a8abef9e33ed397807ece52a22fe",
+                        "date_utc": "2022-04-20T08:39:00Z",
+                        "message": "Merge pull request #305 from ANHIG/3480\n\nUpload of Allelelist_history.txt for IPD-IMGT/HLA Release 3.48.0",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/d1dd2ac5e2b6a8abef9e33ed397807ece52a22fe"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3480,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "4d33035dd296826bbde200e17e5281910ac8be13",
+                        "date_utc": "2022-04-20T08:37:44Z",
+                        "message": "Upload of Allelelist_history.txt for IPD-IMGT/HLA Release 3.48.0",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/4d33035dd296826bbde200e17e5281910ac8be13"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3480,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "4a13df461c42f970a099de77377f309995e7995c",
+                        "date_utc": "2022-04-19T08:30:24Z",
+                        "message": "Merge branch '3480' into Latest",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/4a13df461c42f970a099de77377f309995e7995c"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3480,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "5e1d9764c8e96749bc11d52807eea1f7cc38ce5c",
+                        "date_utc": "2022-04-14T11:01:59Z",
+                        "message": "Updated md5checksums",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/5e1d9764c8e96749bc11d52807eea1f7cc38ce5c"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3480,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "ecd63776c6225af0cf8bcc9fa9c6998d3129fb14",
+                        "date_utc": "2022-04-14T11:00:42Z",
+                        "message": "IPD-IMGT/HLA Release 3.48.0",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/ecd63776c6225af0cf8bcc9fa9c6998d3129fb14"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3470,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "cada41a6bfac5a8bf88ed2107a0b856b9b9785a0",
+                        "date_utc": "2022-03-15T14:27:59Z",
+                        "message": "Merge pull request #299 from ANHIG/3470\n\nUpdate to xml/hla.xml.zip correcting meta data",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/cada41a6bfac5a8bf88ed2107a0b856b9b9785a0"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3470,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "db33aee5dc0b44251b64ff4c2e2f05d59e4e3a2d",
+                        "date_utc": "2022-03-15T14:27:31Z",
+                        "message": "Update to xml/hla.xml.zip correcting meta data",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/db33aee5dc0b44251b64ff4c2e2f05d59e4e3a2d"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3470,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "207cdce7fef5dae54fdad4cc4f933ebd1ab13c5e",
+                        "date_utc": "2022-02-10T15:36:59Z",
+                        "message": "Merge pull request #296 from ANHIG/3470\n\nCorrection of HLA P Groups in hla.xml",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/207cdce7fef5dae54fdad4cc4f933ebd1ab13c5e"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3470,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "8ab272288e81fa9a49fd4765579b066c2c03cc10",
+                        "date_utc": "2022-02-10T15:26:19Z",
+                        "message": "Correction of HLA P Groups in hla.xml",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/8ab272288e81fa9a49fd4765579b066c2c03cc10"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3470,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "d4c410cd91618a8a74a7763598e499f6a8aa168b",
+                        "date_utc": "2022-01-14T15:25:23Z",
+                        "message": "Merge pull request #292 from ANHIG/3470\n\n3470",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/d4c410cd91618a8a74a7763598e499f6a8aa168b"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3470,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "db46d2a0209720c5fa0ab8b03403f7009f69d2d6",
+                        "date_utc": "2022-01-14T12:27:52Z",
+                        "message": "Merge branch '3470' of github.com:ANHIG/IMGTHLA into 3470",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/db46d2a0209720c5fa0ab8b03403f7009f69d2d6"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3470,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "ebb3d8c6aa383567bb7794cacf745b1c82efbb7f",
+                        "date_utc": "2022-01-14T12:27:35Z",
+                        "message": "IPD-IMGT/HLA Release 3.47.0",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/ebb3d8c6aa383567bb7794cacf745b1c82efbb7f"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3470,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "fc712c5a4dd00f534e845982a29f46a14e22b292",
+                        "date_utc": "2022-01-14T08:05:58Z",
+                        "message": "Update README.md\n\nUpdate sponsorship contact and malformed section header",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/fc712c5a4dd00f534e845982a29f46a14e22b292"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3470,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "239bf68f403bbdbabb43fa0277040f4dda2b2aff",
+                        "date_utc": "2022-01-13T20:33:38Z",
+                        "message": "Merge pull request #291 from ANHIG/3470\n\n3470",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/239bf68f403bbdbabb43fa0277040f4dda2b2aff"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3470,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "d86bdd9983424c792691269fa10e6f022ccf2191",
+                        "date_utc": "2022-01-13T16:53:03Z",
+                        "message": "IPD-IMGT/HLA Release 3.47.0",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/d86bdd9983424c792691269fa10e6f022ccf2191"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                },
+                {
+                    "version": 3470,
+                    "execution_date_utc": null,
+                    "commit": {
+                        "sha": "06ceff14b2db920d458dc337b1100dced992e627",
+                        "date_utc": "2022-01-13T16:52:15Z",
+                        "message": "IPD-IMGT/HLA Release 3.47.0",
+                        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/06ceff14b2db920d458dc337b1100dced992e627"
+                    },
+                    "input_parameters": null,
+                    "status": null
+                }
+            ]
+        }
+    }
+}

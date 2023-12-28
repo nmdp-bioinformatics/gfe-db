@@ -1,0 +1,61 @@
+{
+    "created_utc": "2023-09-10T23:31:31.334Z",
+    "updated_utc": "2023-09-10T23:31:31.334Z",
+    "repositories": {
+        "ANHIG/IMGTHLA": {
+            "owner": "ANHIG",
+            "name": "IMGTHLA",
+            "description": "Github for files currently published in the IPD-IMGT/HLA FTP Directory hosted at the European Bioinformatics Institute",
+            "url": "https://github.com/ANHIG/IMGTHLA",
+            "tracked_assets": {
+                "description": "Changes to these files trigger processing",
+                "values": [
+                    "hla.dat",
+                    "msf/"
+                ]
+            },
+            "target_metadata_config": {
+                "description": "Regex patterns to extract the release version metadata from the text content of the asset",
+                "items": [
+                    {
+                        "description": "Extract release version metadata for commits from 3a71348 to current",
+                        "asset_path": "alignments/V_nuc.txt",
+                        "metadata_regex": "[1-9]\\d{0,1}\\.[1-9]\\d{0,2}\\.0(?:\\.\\d{1,2})?(?=\\s|$)"
+                    },
+                    {
+                        "description": "Extract release version metadata for commits from 8632b0d to 3645f26",
+                        "asset_path": "aligments/V_nuc.txt",
+                        "metadata_regex": "[1-9]\\d{0,1}\\.[1-9]\\d{0,2}\\.0(?:\\.\\d{1,2})?(?=\\s|$)"
+                    },
+                    {
+                        "description": "Extract release version metadata for commits from af54d28 to 9d8f585",
+                        "asset_path": "Alignments/V_nuc.txt",
+                        "metadata_regex": "[1-9]\\d{0,1}\\.[1-9]\\d{0,2}\\.0(?:\\.\\d{1,2})?(?=\\s|$)"
+                    },
+                    {
+                        "description": "Extract release version metadata for all commits before 08e0ef9",
+                        "asset_path": "V_nuc.txt",
+                        "metadata_regex": "[1-9]\\d{0,1}\\.[1-9]\\d{0,2}\\.0(?:\\.\\d{1,2})?(?=\\s|$)"
+                    }
+                ]
+            },
+            "excluded_commit_shas": {
+                "description": "Commits to exclude from processing",
+                "values": [
+                    "08e0ef9f5c6aade40df681821a0b9caef439fe3a",
+                    "6ad21b61dee3689c5ae68370d635c5ede483c851",
+                    "79d13ceb388eb9dacc9e166be18cce9373f7fd1d",
+                    "9f35f8fe8a2e25bb076e588e65389cac16a8ed2f",
+                    "785c913f2d42abd68bcdf630ce2f58ee9b9c2579",
+                    "efc06e88b56d1e6e44661ec45f192dc1186a30ad"
+                ]
+            },
+            "default_input_parameters": {
+                "align": false,
+                "kir": false,
+                "mem_profile": false,
+                "limit": -1
+            }
+        }
+    }
+}

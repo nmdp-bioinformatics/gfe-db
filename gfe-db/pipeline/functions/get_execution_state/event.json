@@ -1,0 +1,12 @@
+{
+    "version": 3530,
+    "commit_sha": "257023f6884c7be64f80212d5b7e5b5090074675",
+    "input_parameters": {
+        "align": false,
+        "kir": false,
+        "mem_profile": false,
+        "limit": -1
+    },
+    "s3_path": "s3://dev-gfe-db-531868584498-us-east-1/data/3530",
+    "receipt_handle": "AQEBkRdT2cx82fj2O8radepmhsBw2i4NuF3Ip9sMBOHjAC4IUs+Hg1d0uElM/mznzyP97Zb2m60bYlk0ggt5IogKrxSnvLgT3ZbOZAXnF5Zqyy5t7vVOavXD1A3OC89KtcZO+3vCtpoQ1NgQgxGvOod6ruMf68JP+xMjLMFvikSIG42f7eVLy6C3yswenjd4KrDrCWNfSmEBk5iNf1CxfVbVdbonGKVZmmVU6AsZxJiGrMBWoSVOyQveMKcPJYuUm1wN1eWAcPe5rgXujqU2k+1fCeonK1h/wgm0HDX62Y5g8PShzt5rxGBOAphDresUr3k0JrN/0u1nw4MR1WTy3y3SH+wPtCMKsR4x70QXspB9Ic2WZ09ATXIfsC8OqpFqX4IGu2IcM2pC7IdMn5YgFuiDig95fTjBTjeiLqG/fvU6tXF/nmK2TVnzVE9NlaFhXtnJ"
+}

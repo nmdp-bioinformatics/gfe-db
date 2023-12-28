@@ -32,13 +32,18 @@ service.config.scripts.sync: service.config.scripts.deploy
 		--instance-id "$${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
 
 service.config.cloudwatch-agent.deploy:
-	@mkdir -p amazon-cloudwatch-agent/tmp/ 
-	@cat amazon-cloudwatch-agent/amazon-cloudwatch-agent.json | sed "s/STAGE/$${STAGE}/g" | sed "s/APP_NAME/$${APP_NAME}/g" > amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json
-	@config_s3_path=s3://$$DATA_BUCKET_NAME/config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json && \
+	@mkdir -p config/amazon-cloudwatch-agent/tmp/ 
+	@cat config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json | sed "s/STAGE/$${STAGE}/g" | sed "s/APP_NAME/$${APP_NAME}/g" > config/amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json
+	@config_s3_path=s3://$$DATA_BUCKET_NAME/$${CONFIG_S3_PATH}/${SERVICE}/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying amazon-cloudwatch-agent config to $$config_s3_path" 2>&1 \
 		| tee -a $$CFN_LOG_PATH && \
-	aws s3 cp amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json $$config_s3_path
-	@rm -rf amazon-cloudwatch-agent/tmp/
+	aws s3 cp config/amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json $$config_s3_path
+	@rm -rf config/amazon-cloudwatch-agent/tmp/
+
+service.config.neo4j.update-dns:
+	@[ "${HOST_DOMAIN}" != "" ] && \
+	cat config/neo4j/neo4j.template | \
+	sed s"/# dbms.default_advertised_address=.*/dbms.default_advertised_address=${SUBDOMAIN}.${HOST_DOMAIN}/" > config/neo4j/neo4j.conf
 
 service.config.neo4j.deploy:
 	@aws s3 cp --recursive neo4j/cypher/ s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
@@ -75,6 +80,8 @@ service.deploy:
 			DataBucketName="$${DATA_BUCKET_NAME}" \
 			UbuntuAmiId="$${UBUNTU_AMI_ID}" \
 			Neo4jPassword="$${NEO4J_PASSWORD}" \
+			ServiceName="${SERVICE}" \
+			ConfigS3Path="$${CONFIG_S3_PATH}" \
 			DatabaseVolumeSize="$${DATABASE_VOLUME_SIZE}" \
 			HostDomain="$${HOST_DOMAIN}" \
 			Subdomain="$${SUBDOMAIN}" \
@@ -96,8 +103,9 @@ service.backup:
 		--command-id "$$command_id" \
 		--instance-id "$${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
 
+# @aws s3 ls --recursive s3://${DATA_BUCKET_NAME}/backups/neo4j/ | cut -d' ' -f7 | cut -d'/' -f3-6
 service.backup.list:
-	@aws s3 ls --recursive s3://${DATA_BUCKET_NAME}/backups/neo4j/ 
+	@aws s3 ls --recursive --human-readable s3://${DATA_BUCKET_NAME}/backups/neo4j/
 
 service.restore: #from_path=s3://<backup path>
 	@[ "$$from_path" != "" ] || (echo "from_path is required" && exit 1) && \

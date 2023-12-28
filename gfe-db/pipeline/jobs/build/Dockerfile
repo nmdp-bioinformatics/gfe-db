@@ -5,6 +5,7 @@ RUN apt update && \
         bc \
         curl \
         git \
+        jq \
     && pip3 install --upgrade pip \
     && apt-get clean
 

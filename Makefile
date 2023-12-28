@@ -43,6 +43,7 @@ export DATABASE_VOLUME_SIZE ?= 64
 
 # Resource identifiers
 export DATA_BUCKET_NAME ?= ${STAGE}-${APP_NAME}-${AWS_ACCOUNT}-${AWS_REGION}
+export CONFIG_S3_PATH := config
 export ECR_BASE_URI := ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com
 export BUILD_REPOSITORY_NAME ?= ${STAGE}-${APP_NAME}-build-service
 export EC2_KEY_PAIR_NAME := $${STAGE}-$${APP_NAME}-$${AWS_REGION}-neo4j-key
@@ -112,10 +113,11 @@ ifeq ($(SPLASH_FONT),slant)
 	@echo "\033[0;34m                                            \033[0m"
 endif
 
+
 env.print:
 	@echo "\033[0;33mReview the contents of the .env file:\033[0m"
 	@echo "+---------------------------------------------------------------------------------+"
-	@awk '{ if (substr($$0, 1, 1) != "#") { line = substr($$0, 1, 76); if (length($$0) > 76) line = line "..."; printf "| %-79s |\n", line }}' .env.${STAGE}
+	@awk 'NF && substr($$0, 1, 1) != "#" { line = substr($$0, 1, 76); if (length($$0) > 76) line = line "..."; printf "| %-79s |\n", line }' .env.${STAGE}
 	@echo "+---------------------------------------------------------------------------------+"
 	@echo "\033[0;33mPlease confirm the above values are correct.\033[0m"
 
@@ -126,8 +128,18 @@ deploy: splash-screen logs.purge env.validate ##=> Deploy all services
 	$(MAKE) infrastructure.deploy 
 	$(MAKE) database.deploy
 	$(MAKE) pipeline.deploy
+	@sh -c '$(MAKE) pipeline.state.build && $(MAKE) pipeline.state.load || echo "Pipeline state build failed"'
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished deploying ${APP_NAME}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) options-screen
+
+update: env.validate.stage env.validate
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Updating ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
+	$(MAKE) env.print
+	@echo "Update stack in the \`${STAGE}\` environment? [y/N] \c " && read ans && [ $${ans:-N} = y ]
+	$(MAKE) infrastructure.deploy
+	$(MAKE) database.deploy
+	$(MAKE) pipeline.deploy
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished updating ${APP_NAME}" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 logs.purge: logs.dirs
 ifeq ($(PURGE_LOGS),true)
@@ -442,13 +454,19 @@ else ifeq ($(USE_PRIVATE_SUBNET),false)
 endif
 
 pipeline.deploy:
-	$(MAKE) -C ${APP_NAME}/pipeline/ deploy
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.deploy
 
 pipeline.service.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.deploy
 
 pipeline.jobs.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.jobs.deploy
+
+pipeline.state.build:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.state.build
+
+pipeline.state.load: 
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.state.load
 
 config.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.config.deploy
@@ -458,7 +476,7 @@ database.load.run: # args: align, kir, limit, releases
 	@echo "Confirm payload:" && \
 	[ "$$align" ] && align="$$align" || align=false && \
 	[ "$$kir" ] && kir="$$kir" || kir=false && \
-	[ "$$limit" ] && limit="$$limit" || limit="" && \
+	[ "$$limit" ] && limit="$$limit" || limit=-1 && \
 	[ "$$releases" ] && releases="$$releases" || releases="" && \
 	[ "$$use_existing_build" ] && use_existing_build="$$use_existing_build" || use_existing_build=false && \
 	[ "$$skip_load" ] && skip_load="$$skip_load" || skip_load=false && \
@@ -466,7 +484,7 @@ database.load.run: # args: align, kir, limit, releases
 	echo "$$payload" | jq -r && \
 	echo "$$payload" | jq > payload.json
 	@echo "Run pipeline with this payload? [y/N] \c " && read ans && [ $${ans:-N} = y ]
-	@function_name="${STAGE}"-"${APP_NAME}"-"$$(cat ${FUNCTIONS_PATH}/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.FunctionName')" && \
+	@function_name="${STAGE}"-"${APP_NAME}"-"$$(cat ${APP_NAME}/pipeline/functions/environment.json | jq -r '.Functions.CheckSourceUpdate.FunctionConfiguration.FunctionName')" && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Invoking $$function_name..." 2>&1 | tee -a ${CFN_LOG_PATH} && \
 	echo "Payload:" >> ${CFN_LOG_PATH} && \
 	cat payload.json >> ${CFN_LOG_PATH} && \
@@ -556,6 +574,7 @@ else ifeq ($(USE_PRIVATE_SUBNET),false)
 	@echo "https://${SUBDOMAIN}.${HOST_DOMAIN}:7473/browser/"
 endif
 
+# TODO update path to use "/${AppName}/${Stage}/${AWS::Region}/
 database.get.credentials:
 	@secret_string=$$(aws secretsmanager get-secret-value --secret-id /${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials | jq -r '.SecretString') && \
 	echo "Username: $$(echo $$secret_string | jq -r '.NEO4J_USERNAME')" && \

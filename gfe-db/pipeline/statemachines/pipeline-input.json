@@ -1,0 +1,14 @@
+{
+    "input": {
+      "version": 3450,
+      "commit_sha": "7dc4672795eaea35bd8c7e1fa2ec40cf948fc2fd",
+      "input_parameters": {
+        "align": false,
+        "kir": false,
+        "mem_profile": false,
+        "limit": 100
+      },
+      "s3_path": "s3://dev-gfe-db-810526023897-us-east-1/data/3450",
+      "receipt_handle": "AQEBKx2iFmUmIw6N+VAB44IWSkAD+m0H+YBFuLPdX5gKj7xuoa4uu5O5gaaQkFJypv730xfaKVF9mvy2WxPxIRgyMyk24ru+zjAF9ueOblMEwpuzrB5BOMDTzlCAS7qP159CAggWr3Y9/BtrNbPqT4A/00qnT6vgSJnbI5+fxqZBUvmvSMZpL1zPYlKmVhmraYXrAXb4fWOMSojPv3E1AyWOGvgbLOt3ckLupWp0jNvJwQGyifD58at3BSyCBZQWMgOJIfMb2/4NjI72QDHY9zsyyplKgLbGPcMJUgOjC0QXlT5N61d/kXW4NlseCc0Tpt/HQ/iUPSfGZlZhECXyWmo407ne/qp2CBB7FtHJfCRmsJZ7+ENVnwKTTSgBGUjksES/Rt0MUlOJsewYh9ly8+7xh3wPelX3e4NuYJHZipLbW6hiYeuQJM9UOE9iK1VtCP7h"
+    }
+  }
