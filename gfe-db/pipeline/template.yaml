@@ -9,90 +9,29 @@ Parameters:
   AppName:
     Type: String
     Description: Application name
-  createVpc:
+  ServiceName:
     Type: String
-    AllowedValues:
-      - "true"
-      - "false"
+    Description: Service name
+  # createVpc:
+  #   Type: String
+  #   AllowedValues:
+  #     - "true"
+  #     - "false"
   usePrivateSubnet:
     Type: String
     AllowedValues:
       - "true"
       - "false"
+  ConfigS3Path:
+    Type: String
+    Description: S3 path to config file
   GitHubRepositoryOwner: 
     Type: String
   GitHubRepositoryName:
     Type: String
-  # InvokePipelineFunctionName:
-  #   Type: String
-  #   AllowedPattern: ^[a-z-]+$
-  # # InvokePipelineFunctionSchedule:
-  # #   Type: String
-  # #   AllowedPattern: ^cron\(.*\)$
-  # InvokePipelineFunctionMemorySize:
-  #   Type: Number
-  #   Default: 256
-  #   AllowedValues:
-  #     - 128
-  #     - 256
-  #     - 512
-  # InvokePipelineFunctionTimeout:
-  #   Type: Number
-  #   Default: 60
-  ServiceName:
-    Type: String
-    Description: Service name
   GitHubPersonalAccessToken:
     Type: String
     NoEcho: true
-  ConfigS3Path:
-    Type: String
-    Description: S3 path to config file
-  CheckSourceUpdateFunctionName:
-    Type: String
-  CheckSourceUpdateFunctionMemorySize:
-    Type: Number
-    MinValue: 128
-    MaxValue: 512
-  CheckSourceUpdateFunctionTimeout:
-    Type: Number
-  CheckSourceUpdateFunctionSchedule:
-    Type: String
-  GetExecutionStateFunctionTimeout:
-    Type: Number
-  GetExecutionStateFunctionMemorySize:
-    Type: Number
-    MinValue: 128
-    MaxValue: 512
-  ExecuteValidationQueriesFunctionName:
-    Type: String
-    AllowedPattern: ^[a-z-]+$
-    MaxLength: 140
-  ExecuteValidationQueriesFunctionMemorySize:
-    Type: Number
-    Default: 256
-    AllowedValues:
-      - 128
-      - 256
-      - 512
-  ExecuteValidationQueriesFunctionTimeout:
-    Type: Number
-  InvokeBackupScriptFunctionName:
-    Type: String
-    AllowedPattern: ^[a-z-]+$
-    MaxLength: 140
-  ValidateBuildOutputFunctionName:
-    Type: String
-    AllowedPattern: ^[a-z-]+$
-    MaxLength: 140
-  InvokeLoadScriptFunctionName:
-    Type: String
-    AllowedPattern: ^[a-z-]+$
-    MaxLength: 140
-  DisableBackupFunctionName:
-    Type: String
-    AllowedPattern: ^[a-z-]+$
-    MaxLength: 140
   ECRBaseUri:
     Type: String
   BuildServiceRepositoryName:
@@ -102,12 +41,12 @@ Parameters:
 
 Conditions:
   # Important: All stacks (infra, database, pipeline) should use the same conditions
-  CreateVpc: !Equals [!Ref createVpc, 'true']
-  UseExternalVpc: !Equals [!Ref createVpc, 'false']
-  UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
-  UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
+  # CreateVpc: !Equals [!Ref createVpc, 'true']
+  # UseExternalVpc: !Equals [!Ref createVpc, 'false']
+  # UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
+  # UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
   UsePrivateSubnet: !Equals [!Ref usePrivateSubnet, 'true']
-  UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
+  # UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
 
 Resources:
   GitHubPersonalAccessTokenSecret:
@@ -515,15 +454,15 @@ Resources:
   CheckSourceUpdateFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Ref CheckSourceUpdateFunctionName
+      FunctionName: !Sub "${Stage}-${AppName}-check-source-update"
       Description: !Sub "${AppName} update pipeline trigger: checks for new IMGT/HLA releases and starts the loading process"
       CodeUri: functions/check_source_update/
       Handler: app.lambda_handler
       Runtime: python3.10
       Layers:
         - !Ref GfeDbModelsLayer
-      MemorySize: !Ref CheckSourceUpdateFunctionMemorySize
-      Timeout: !Ref CheckSourceUpdateFunctionTimeout
+      MemorySize: 256
+      Timeout: 300
       Architectures:
         - x86_64
       Environment:
@@ -535,7 +474,7 @@ Resources:
         Trigger:
           Type: Schedule
           Properties:
-            Schedule: !Ref CheckSourceUpdateFunctionSchedule
+            Schedule: "cron(0\\ 12\\ *\\ *\\ ?\\ *)"
       Policies:
         - AWSLambdaBasicExecutionRole
         - Version: "2012-10-17"
@@ -612,13 +551,13 @@ Resources:
   ExecuteValidationQueriesFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Ref ExecuteValidationQueriesFunctionName
+      FunctionName: !Sub "${Stage}-${AppName}-execute-validation-queries"
       Description: !Sub "Execute validation a queries on Neo4j for ${AppName}"
       CodeUri: functions/execute_validation_queries/
       Handler: app.lambda_handler
       Runtime: python3.10
-      MemorySize: !Ref ExecuteValidationQueriesFunctionMemorySize
-      Timeout: !Ref ExecuteValidationQueriesFunctionTimeout
+      MemorySize: 256
+      Timeout: 60
       Architectures:
         - x86_64
       Environment:
@@ -671,7 +610,7 @@ Resources:
   InvokeBackupScriptFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Ref InvokeBackupScriptFunctionName
+      FunctionName: !Sub "${Stage}-${AppName}-invoke-backup-script"
       Description: !Sub "Invoke backup for Neo4j for ${AppName}"
       CodeUri: functions/invoke_backup_script/
       Handler: app.lambda_handler
@@ -705,7 +644,7 @@ Resources:
               Action: 
                 - "ssm:GetCommandInvocation"
               Resource: 
-                - !Sub '*'
+                - '*'
 
   GetExecutionStateFunction:
     Type: AWS::Serverless::Function
@@ -716,8 +655,8 @@ Resources:
       Runtime: python3.10
       Layers:
         - !Ref GfeDbModelsLayer
-      MemorySize: !Ref GetExecutionStateFunctionMemorySize
-      Timeout: !Ref GetExecutionStateFunctionTimeout
+      MemorySize: 256
+      Timeout: 60
       Architectures:
         - x86_64
       Environment:
@@ -771,7 +710,7 @@ Resources:
       Runtime: python3.10
       Layers:
         - !Ref GfeDbModelsLayer
-      MemorySize: 128
+      MemorySize: 256
       Timeout: 60
       Architectures:
         - x86_64
@@ -824,12 +763,12 @@ Resources:
       ComparisonOperator: GreaterThanOrEqualToThreshold
       Dimensions:
         - Name: FunctionName
-          Value: !Ref InvokeLoadScriptFunctionName
+          Value: !Ref InvokeLoadScriptFunction
 
   ValidateBuildOutputFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Ref ValidateBuildOutputFunctionName
+      FunctionName: !Sub "${Stage}-${AppName}-validate-build-output"
       Description: !Sub "Validate build output for ${AppName}"
       CodeUri: functions/validate_build_output/
       Handler: app.lambda_handler
@@ -942,7 +881,7 @@ Resources:
   InvokeLoadScriptFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Ref InvokeLoadScriptFunctionName
+      FunctionName: !Sub "${Stage}-${AppName}-invoke-load-script"
       Description: !Sub "Invoke server-side loading on Neo4j for ${AppName}"
       CodeUri: functions/invoke_load_script/
       Handler: app.lambda_handler
@@ -1100,7 +1039,7 @@ Resources:
   DisableBackupFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Ref DisableBackupFunctionName
+      FunctionName: !Sub "${Stage}-${AppName}-disable-backup"
       CodeUri: functions/disable_backup/
       Handler: app.lambda_handler
       Runtime: python3.10
