@@ -55,7 +55,7 @@ send_result () {
     fi
 }
 
-# TODO this will send task failure if any error is encountered, but sometimes errors can occur that do not affect that actual loading process
+# This will send task failure if any error is encountered, but sometimes errors can occur that do not affect that actual loading process
 trap 'cause="Error on line $LINENO: $ERR_MSG" && error=$? && send_result && kill 0' ERR
 
 # start_time=$(date +%s)
@@ -123,20 +123,6 @@ while true; do
             kill $send_heartbeat_pid
         fi
     fi
-
-    # current_time=$(date +%s)
-    # elapsed_time=$((current_time - start_time))
-
-    # if [ $elapsed_time -ge $timeout ]; then
-    #     ERR_MSG="Timeout reached after $timeout seconds"
-    #     echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - $ERR_MSG" >&2
-    #     status="FAILED"
-    #     error="1"
-    #     cause="$ERR_MSG"
-    #     send_result
-    #     kill 0
-    # fi
-
 done
 
 exit 0

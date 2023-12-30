@@ -115,6 +115,7 @@ else
 	echo "Logs directory: $LOGS_DIR"
 fi
 
+# TODO test memory profiling for build job
 # Memory profiling
 if [ "$mem_profile" == "true" ]; then
 	echo "Memory profiling is set to $mem_profile."

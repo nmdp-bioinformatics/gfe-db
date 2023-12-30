@@ -25,7 +25,7 @@ NEO4J_CYPHER_PATH=$NEO4J_HOME/cypher
 NEO4J_IMPORT_PATH=$NEO4J_HOME/import
 S3_NEO4J_CYPHER_PATH=config/database/neo4j/cypher # TODO use SERVICE variable (database)
 
-# TODO redundant, also available in state machine execution
+# TODO Get from state payload
 S3_CSV_PATH=data/$RELEASE/csv
 
 if [[ -z $AWS_REGION ]]; then
@@ -71,6 +71,7 @@ echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Downloading CSV data for release $RE
 aws s3 cp --recursive s3://$DATA_BUCKET_NAME/$S3_CSV_PATH/ $NEO4J_IMPORT_PATH/ --quiet
 
 # Update Cypher load query for correct release
+# TODO Change load.cyp to load.cyp.template
 mkdir -p $NEO4J_CYPHER_PATH/tmp/$RELEASE/
 cat $NEO4J_CYPHER_PATH/load.cyp | sed "s/RELEASE/$RELEASE/g" > $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp
 
