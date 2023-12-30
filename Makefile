@@ -52,11 +52,6 @@ export INSTANCE_ID = $(shell aws ssm get-parameters \
 	--output json \
 	| jq -r '.Parameters[0].Value')
 
-# S3 paths
-export PIPELINE_STATE_PATH = config/IMGTHLA-repository-state.json
-export PIPELINE_PARAMS_PATH = config/pipeline-input.json
-export FUNCTIONS_PATH = ${PIPELINE_DIR}/functions
-
 # Required environment variables
 REQUIRED_VARS := STAGE APP_NAME AWS_ACCOUNT AWS_REGION AWS_PROFILE SUBSCRIBE_EMAILS \
 	GITHUB_REPOSITORY_OWNER GITHUB_REPOSITORY_NAME GITHUB_PERSONAL_ACCESS_TOKEN \
@@ -507,7 +502,7 @@ database.load.run: # args: align, kir, limit, releases
 	rm payload.json response.json
 
 pipeline.invoke.validation-queries:
-	@function_name="${STAGE}"-"${APP_NAME}"-"$$(cat ${FUNCTIONS_PATH}/environment.json | jq -r '.Functions.ExecuteValidationQueries.FunctionConfiguration.FunctionName')" && \
+	@function_name="${STAGE}"-"${APP_NAME}"-"$$(cat ${PIPELINE_DIR}/functions/environment.json | jq -r '.Functions.ExecuteValidationQueries.FunctionConfiguration.FunctionName')" && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Invoking $$function_name..." 2>&1 | tee -a ${CFN_LOG_PATH} && \
 	aws lambda invoke \
 		--cli-binary-format raw-in-base64-out \
@@ -800,9 +795,6 @@ define HELP_MESSAGE
 
 	PIPELINE_STATE_PATH: "${PIPELINE_STATE_PATH}"
 		Description: S3 path to the pipeline state file
-
-	PIPELINE_PARAMS_PATH: "${PIPELINE_PARAMS_PATH}"
-		Description: S3 path to the pipeline parameters file
 
 	FUNCTIONS_PATH: "${FUNCTIONS_PATH}"
 		Description: Path to the Lambda functions directory

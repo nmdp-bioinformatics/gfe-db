@@ -38,12 +38,10 @@ service.functions.deploy:
 			GitHubRepositoryOwner="${GITHUB_REPOSITORY_OWNER}" \
 			GitHubRepositoryName="${GITHUB_REPOSITORY_NAME}" \
 			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN" \
-			PipelineStatePath="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Environment.Variables.PIPELINE_STATE_PATH')" \
-			PipelineParamsPath="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Environment.Variables.PIPELINE_PARAMS_PATH')" \
 			CheckSourceUpdateFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.CheckSourceUpdate.FunctionConfiguration.FunctionName')" \
 			CheckSourceUpdateFunctionMemorySize="$$(cat functions/environment.json | jq -r '.Functions.CheckSourceUpdate.FunctionConfiguration.MemorySize')" \
 			CheckSourceUpdateFunctionTimeout="$$(cat functions/environment.json | jq -r '.Functions.CheckSourceUpdate.FunctionConfiguration.Timeout')" \
-			CheckSourceUpdateFunctionSchedule="$$(cat functions/environment.json | jq -r '.Functions.CheckSourceUpdate.FunctionConfiguration.ScheduleExpression')" \
+			CheckSourceUpdateFunctionSchedule="$$(cat functions/environment.json | jq -r '.Functions.CheckSourceUpdate.CheckSourceUpdateFunctionSchedule')" \
 			GetExecutionStateFunctionTimeout="$$(cat functions/environment.json | jq -r '.Functions.GetExecutionState.FunctionConfiguration.Timeout')" \
 			GetExecutionStateFunctionMemorySize="$$(cat functions/environment.json | jq -r '.Functions.GetExecutionState.FunctionConfiguration.MemorySize')" \
 			ExecuteValidationQueriesFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.ExecuteValidationQueries.FunctionConfiguration.FunctionName')" \
@@ -52,10 +50,7 @@ service.functions.deploy:
 			InvokeBackupScriptFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokeBackupScript.FunctionConfiguration.FunctionName')" \
 			InvokeLoadScriptFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokeLoadScript.FunctionConfiguration.FunctionName')" \
 			ValidateBuildOutputFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.ValidateBuildOutput.FunctionConfiguration.FunctionName')" \
-			ValidateBuildOutputFunctionMemorySize="$$(cat functions/environment.json | jq -r '.Functions.ValidateBuildOutput.FunctionConfiguration.MemorySize')" \
-			ValidateBuildOutputFunctionTimeout="$$(cat functions/environment.json | jq -r '.Functions.ValidateBuildOutput.FunctionConfiguration.Timeout')" \
 			DisableBackupFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.DisableBackup.FunctionConfiguration.FunctionName')" \
-			InvokeUpdatePipelineFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokeUpdatePipeline.FunctionConfiguration.FunctionName')" \
 			ECRBaseUri="${ECR_BASE_URI}" \
 			BuildServiceRepositoryName="${BUILD_REPOSITORY_NAME}" \
 			FeatureServiceUrl="${FEATURE_SERVICE_URL}" \
