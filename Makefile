@@ -455,7 +455,7 @@ pipeline.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.deploy
 
 pipeline.service.deploy:
-	$(MAKE) -C ${APP_NAME}/pipeline/ service.deploy
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.functions.deploy
 
 pipeline.jobs.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.jobs.deploy

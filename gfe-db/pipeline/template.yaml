@@ -51,6 +51,8 @@ Conditions:
 Resources:
   GitHubPersonalAccessTokenSecret:
     Type: AWS::SecretsManager::Secret
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
     Properties:
       Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/GitHubPersonalAccessToken"
       Description: GitHub Personal Access Token for repository access
@@ -85,6 +87,8 @@ Resources:
 
   GfeDbExecutionStateTable:
     Type: AWS::DynamoDB::Table
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Delete
     Properties:
       AttributeDefinitions:
         - AttributeName: "commit__sha"
@@ -428,6 +432,8 @@ Resources:
 
   GfeDbProcessingQueue:
     Type: AWS::SQS::Queue
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
     Properties:
       VisibilityTimeout: 300
       MessageRetentionPeriod: 43200
@@ -438,6 +444,8 @@ Resources:
 
   GfeDbProcessingDeadLetterQueue:
     Type: AWS::SQS::Queue
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
     Properties:
       VisibilityTimeout: 43200
       MessageRetentionPeriod: 1209600
@@ -958,6 +966,8 @@ Resources:
 
   UpdatePipelineLogGroup:
     Type: AWS::Logs::LogGroup
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
     Properties:
       LogGroupName: !Sub "${Stage}-${AppName}-pipeline-execution-logs"
 
