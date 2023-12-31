@@ -87,6 +87,7 @@ service.revoke-security-group-ingress:
 		--source-group "$$bastion_host_security_group_id") && \
 	echo $$res | jq -r && \
 	echo "\033[0;34mBastion host security group is no longer associated with Neo4j database security group\033[0m" || \
+	echo "\033[0;31mFailed to remove bastion host security group from Neo4j database security group\033[0m"
 
 service.delete: service.revoke-security-group-ingress
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting Bastion EC2 instance" 2>&1 | tee -a $$CFN_LOG_PATH

@@ -186,7 +186,8 @@ python3 "$SRC_DIR"/app.py \
 	$ALIGNFLAG \
 	$MEM_PROFILE_FLAG \
 	-v \
-	-l $limit
+	-l $limit \
+    -u $FEATURE_SERVICE_URL
     
 build_exit_status=$?
 echo "Build exit status (1:CRITICAL, 2:WARNING): $build_exit_status"

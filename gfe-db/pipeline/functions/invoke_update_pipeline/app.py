@@ -33,6 +33,7 @@ update_pipeline_state_machine_arn = pipeline.params.UpdatePipelineStateMachineAr
 gfe_db_processing_queue_url = pipeline.params.GfeDbProcessingQueueUrl
 
 # Check that database is running, abort if not
+# TODO State table should be updated to FAILED if database is not running, however this block needs to run inside the handler
 response = ec2.describe_instance_status(InstanceIds=[neo4j_database_instance_id])
 if len(response["InstanceStatuses"]) > 0:
     if response["InstanceStatuses"][0]["InstanceState"]["Name"] != "running":

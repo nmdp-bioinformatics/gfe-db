@@ -258,7 +258,7 @@ Resources:
         LaunchTemplate:
           LaunchTemplateId: !Ref BuildLaunchTemplate
       Tags:
-        Name: gfe-db-build-worker
+        Name: !Sub '${Stage}-${AppName}-build-worker'
       ServiceRole: !GetAtt BatchServiceRole.Arn
   BuildLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
@@ -274,28 +274,32 @@ Resources:
           Enabled: true
         SecurityGroupIds:
           - !Ref BuildServerSG
-        UserData: !Base64 |
-          MIME-Version: 1.0
-          Content-Type: multipart/mixed; boundary="==MYBOUNDARY=="
-          --==MYBOUNDARY==
-          Content-Type: text/x-shellscript; charset="us-ascii"
-          #!/bin/bash -x
-          IDX=1
-          for DEV in /dev/disk/by-id/nvme-Amazon_EC2_NVMe_Instance_Storage_*-ns-1; do
-            mkfs.xfs ${DEV}
-            mkdir -p /local${IDX}
-            echo ${DEV} /local${IDX} xfs defaults,noatime 1 2 >> /etc/fstab
-            IDX=$((${IDX} + 1))
-          done
-          mount -a
-          sudo yum update -y
-          sudo yum install amazon-cloudwatch-agent -y
-          --==MYBOUNDARY==
+        UserData:
+          Fn::Base64: |
+            MIME-Version: 1.0
+            Content-Type: multipart/mixed; boundary="==MYBOUNDARY=="
+
+            --==MYBOUNDARY==
+            Content-Type: text/x-shellscript; charset="us-ascii"
+
+            #!/bin/bash -x
+            IDX=1
+            for DEV in /dev/disk/by-id/nvme-Amazon_EC2_NVMe_Instance_Storage_*-ns-1; do
+              mkfs.xfs ${DEV}
+              mkdir -p /local${IDX}
+              echo ${DEV} /local${IDX} xfs defaults,noatime 1 2 >> /etc/fstab
+              IDX=$((${IDX} + 1))
+            done
+            mount -a
+            sudo yum update -y
+            sudo yum install amazon-cloudwatch-agent -y
+
+            --==MYBOUNDARY==
       TagSpecifications:
         - ResourceType: launch-template
           Tags:
             - Key: Name
-              Value: gfe-db-build-worker
+              Value: !Sub '${Stage}-${AppName}-build-worker'
   BatchTaskExecutionRole:
     Type: AWS::IAM::Role
     Properties:
