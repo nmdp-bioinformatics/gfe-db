@@ -1,27 +1,52 @@
 {
-    "StartAt": "Pre-Execution Validation Query",
+    "StartAt": "Run Pre-Execution Validation Query",
     "States": {
-        "Pre-Execution Validation Query": {
+        "Run Pre-Execution Validation Query": {
             "Type": "Task",
             "Resource": "${ExecuteValidationQueriesFunctionArn}",
             "ResultPath": "$.validations.queries.pre",
-            "Next": "Pre-Execution Backup"
+            "Next": "Run Pre-Execution Backup",
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "Next": "Report Failure"
+                }
+            ]
         },
-        "Pre-Execution Backup": {
+        "Run Pre-Execution Backup": {
             "Type": "Task",
             "Resource": "${InvokeBackupScriptFunctionArn}",
             "ResultPath": "$.backups.pre",
-            "Next": "Build Stage"
+            "Next": "Get Execution State",
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "Next": "Report Failure"
+                }
+            ]
+        },
+        "Get Execution State": {
+            "Type": "Task",
+            "Resource": "${GetExecutionStateFunctionArn}",
+            "ResultPath": "$.state",
+            "Next": "Build Stage",
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "Next": "Report Failure"
+                }
+            ]
         },
         "Build Stage": {
-            "Type": "Map",
+            "Type": "Parallel",
+            "ResultPath": null,
             "Next": "Load Stage",
-            "MaxConcurrency": 0,
-            "ItemsPath": "$.input",
-            "ItemSelector": {
-                "input.$": "$$.Map.Item.Value"
-            },
-            "ResultPath": "$.validations.build",
             "Catch": [
                 {
                     "ErrorEquals": [
@@ -30,142 +55,108 @@
                     "Next": "Report Failure"
                 }
             ],
-            "ItemProcessor": {
-                "StartAt": "Update Execution State - IN_PROGRESS",
-                "States": {
-                    "Update Execution State - IN_PROGRESS": {
-                        "Type": "Task",
-                        "Resource": "arn:aws:states:::dynamodb:updateItem",
-                        "ResultPath": "$.state",
-                        "Next": "Check Existing Build",
-                        "Parameters": {
-                            "TableName": "${GfeDbExecutionStateTable}",
-                            "Key": {
-                                "commit__sha": {
-                                    "S.$": "$.input.commit_sha"
-                                },
-                                "execution__version": {
-                                    "N.$": "States.Format('{}', $.input.version)"
-                                }
-                            },
-                            "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
-                            "ExpressionAttributeValues": {
-                                ":execution_date_utc": {
-                                    "S.$": "$$.Execution.StartTime"
-                                },
-                                ":status": {
-                                    "S": "IN_PROGRESS"
-                                },
-                                ":align": {
-                                    "BOOL.$": "$.input.input_parameters.align"
-                                },
-                                ":kir": {
-                                    "BOOL.$": "$.input.input_parameters.kir"
-                                },
-                                ":mem_profile": {
-                                    "BOOL.$": "$.input.input_parameters.mem_profile"
-                                },
-                                ":limit": {
-                                    "N.$": "States.Format('{}', $.input.input_parameters.limit)"
-                                },
-                                ":updated_utc": {
-                                    "S.$": "$$.State.EnteredTime"
-                                }
-                            }
-                        }
-                    },
-                    "Check Existing Build": {
-                        "Type": "Task",
-                        "Resource": "arn:aws:states:::aws-sdk:s3:listObjects",
-                        "Parameters": {
-                            "Bucket": "${DataBucketName}",
-                            "Prefix.$": "States.Format('data/{}/csv/', $.input.RELEASES)"
-                        },
-                        "ResultPath": "$.check_existing_build",
-                        "Next": "Files Exist?"
-                    },
-                    "Files Exist?": {
-                        "Type": "Choice",
-                        "Choices": [
-                            {
-                                "Variable": "$.check_existing_build.Contents",
-                                "IsPresent": false,
-                                "Next": "Generate CSV files"
-                            }
-                        ],
-                        "Default": "Use Existing Build?"
-                    },
-                    "Use Existing Build?": {
-                        "Type": "Choice",
-                        "Choices": [
-                            {
-                                "Variable": "$.input.USE_EXISTING_BUILD",
-                                "StringEquals": "False",
-                                "Next": "Generate CSV files"
-                            }
-                        ],
-                        "Default": "Validate Build"
-                    },
-                    "Generate CSV files": {
-                        "Type": "Task",
-                        "Resource": "arn:aws:states:::batch:submitJob.sync",
-                        "ResultPath": null,
-                        "Next": "Validate Build",
-                        "Catch": [
-                            {
-                                "ErrorEquals": [
-                                    "States.ALL"
-                                ],
-                                "Next": "Build Failed"
-                            }
-                        ],
-                        "Parameters": {
-                            "JobDefinition": "${BuildJobDefinition}",
-                            "JobName": "${BuildJobName}",
-                            "JobQueue": "${BuildJobQueue}",
-                            "ContainerOverrides": {
-                                "Environment": [
-                                    {
-                                        "Name": "EVENT",
-                                        "Value.$": "States.JsonToString($)"
+            "Branches": [
+                {
+                    "StartAt": "Update Execution State - IN_PROGRESS",
+                    "States": {
+                        "Update Execution State - IN_PROGRESS": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::dynamodb:updateItem",
+                            "ResultPath": null,
+                            "End": true,
+                            "Parameters": {
+                                "TableName": "${GfeDbExecutionStateTable}",
+                                "Key": {
+                                    "commit__sha": {
+                                        "S.$": "$.input.commit_sha"
+                                    },
+                                    "execution__version": {
+                                        "N.$": "States.Format('{}', $.input.version)"
                                     }
-                                ]
+                                },
+                                "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
+                                "ExpressionAttributeValues": {
+                                    ":execution_date_utc": {
+                                        "S.$": "$$.Execution.StartTime"
+                                    },
+                                    ":status": {
+                                        "S": "IN_PROGRESS"
+                                    },
+                                    ":align": {
+                                        "BOOL.$": "$.input.input_parameters.align"
+                                    },
+                                    ":kir": {
+                                        "BOOL.$": "$.input.input_parameters.kir"
+                                    },
+                                    ":mem_profile": {
+                                        "BOOL.$": "$.input.input_parameters.mem_profile"
+                                    },
+                                    ":limit": {
+                                        "N.$": "States.Format('{}', $.input.input_parameters.limit)"
+                                    },
+                                    ":updated_utc": {
+                                        "S.$": "$$.State.EnteredTime"
+                                    }
+                                }
                             }
                         }
-                    },
-                    "Validate Build": {
-                        "Type": "Task",
-                        "Resource": "${ValidateBuildOutputFunctionArn}",
-                        "Parameters": {
-                            "execution_id.$": "$$.Execution.Id",
-                            "execution_start_time.$": "$$.Execution.StartTime",
-                            "input.$": "$.input"
-                        },
-                        "Next": "Is Build Valid?"
-                    },
-                    "Is Build Valid?": {
-                        "Type": "Choice",
-                        "Choices": [
-                            {
-                                "Variable": "$.is_valid_build",
-                                "BooleanEquals": true,
-                                "Next": "Build Succeeded"
+                    }
+                },
+                {
+                    "StartAt": "Build IMGT Release",
+                    "States": {
+                        "Build IMGT Release": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::batch:submitJob.sync",
+                            "ResultPath": null,
+                            "Next": "Validate Build",
+                            "Parameters": {
+                                "JobDefinition": "${BuildJobDefinition}",
+                                "JobName": "${BuildJobName}",
+                                "JobQueue": "${BuildJobQueue}",
+                                "ContainerOverrides": {
+                                    "Environment": [
+                                        {
+                                            "Name": "EVENT",
+                                            "Value.$": "States.JsonToString($)"
+                                        }
+                                    ]
+                                }
                             }
-                        ],
-                        "Default": "Build Failed"
-                    },
-                    "Build Failed": {
-                        "Type": "Fail",
-                        "Error": "BuildFailed",
-                        "Cause": "No valid build was generated"
-                    },
-                    "Build Succeeded": {
-                        "Type": "Pass",
-                        "ResultPath": null,
-                        "End": true
+                        },
+                        "Validate Build": {
+                            "Type": "Task",
+                            "Resource": "${ValidateBuildOutputFunctionArn}",
+                            "Parameters": {
+                                "execution_context.$": "$$"
+                            },
+                            "ResultPath": "$.validations.build",
+                            "Next": "Is Build Valid?"
+                        },
+                        "Is Build Valid?": {
+                            "Type": "Choice",
+                            "Choices": [
+                                {
+                                    "Variable": "$.validations.build.has_valid_payload",
+                                    "BooleanEquals": true,
+                                    "Next": "Build Succeeded"
+                                }
+                            ],
+                            "Default": "Build Failed"
+                        },
+                        "Build Succeeded": {
+                            "Type": "Pass",
+                            "ResultPath": null,
+                            "End": true
+                        },
+                        "Build Failed": {
+                            "Type": "Fail",
+                            "Error": "BuildFailed",
+                            "Cause": "No valid build was generated"
+                        }
                     }
                 }
-            }
+            ]
         },
         "Report Failure": {
             "Type": "Parallel",
@@ -227,8 +218,9 @@
             "Error": "ExecutionFailed"
         },
         "Load Stage": {
-            "Type": "Map",
-            "Next": "Post-Execution Validation Query",
+            "Type": "Parallel",
+            "OutputPath": "$.[1]",
+            "Next": "Run Post-Execution Backup",
             "Catch": [
                 {
                     "ErrorEquals": [
@@ -237,87 +229,76 @@
                     "Next": "Report Failure"
                 }
             ],
-            "MaxConcurrency": 1,
-            "ItemsPath": "$.validations.build",
-            "ResultPath": null,
-            "Iterator": {
-                "StartAt": "Skip Load?",
-                "States": {
-                    "Skip Load?": {
-                        "Type": "Choice",
-                        "Choices": [
-                            {
-                                "Variable": "$.input.SKIP_LOAD",
-                                "StringEquals": "True",
-                                "Next": "Skipped"
-                            }
-                        ],
-                        "Default": "Load Data"
-                    },
-                    "Skipped": {
-                        "Type": "Pass",
-                        "ResultPath": null,
-                        "End": true
-                    },
-                    "Load Data": {
-                        "Type": "Parallel",
-                        "ResultPath": null,
-                        "End": true,
-                        "Branches": [
-                            {
-                                "StartAt": "Invoke Load Script",
-                                "States": {
-                                    "Invoke Load Script": {
-                                        "Type": "Task",
-                                        "Resource": "${InvokeLoadScriptFunctionArn}",
-                                        "InputPath": "$.input",
-                                        "ResultPath": null,
-                                        "End": true
-                                    }
+            "Branches": [
+                {
+                    "StartAt": "Run Load Script",
+                    "States": {
+                        "Run Load Script": {
+                            "Type": "Task",
+                            "Resource": "${InvokeLoadScriptFunctionArn}",
+                            "End": true
+                        }
+                    }
+                },
+                {
+                    "StartAt": "Load Release Activity",
+                    "States": {
+                        "Load Release Activity": {
+                            "Type": "Task",
+                            "Resource": "${LoadReleaseActivityArn}",
+                            "HeartbeatSeconds": 60,
+                            "ResultPath": null,
+                            "Next": "Run Post-Execution Validation Query"
+                        },
+                        "Run Post-Execution Validation Query": {
+                            "Type": "Task",
+                            "Resource": "${ExecuteValidationQueriesFunctionArn}",
+                            "ResultPath": "$.validations.queries.post",
+                            "Next": "Validate Results (placeholder)"
+                        },
+                        "Validate Results (placeholder)": {
+                            "Type": "Pass",
+                            "ResultPath": null,
+                            "Next": "Is Load Successful? (placeholder)"
+                        },
+                        "Is Load Successful? (placeholder)": {
+                            "Type": "Choice",
+                            "Choices": [
+                                {
+                                    "Variable": "$.validations.queries.post",
+                                    "IsPresent": true,
+                                    "Next": "Load Succeeded"
                                 }
-                            },
-                            {
-                                "StartAt": "Load GFEs",
-                                "States": {
-                                    "Load GFEs": {
-                                        "Type": "Task",
-                                        "Resource": "${LoadReleaseActivityArn}",
-                                        "HeartbeatSeconds": 60,
-                                        "InputPath": "$.input",
-                                        "ResultPath": null,
-                                        "End": true,
-                                        "Catch": [
-                                            {
-                                                "ErrorEquals": [
-                                                    "States.ALL"
-                                                ],
-                                                "Next": "Fail Load"
-                                            }
-                                        ]
-                                    },
-                                    "Fail Load": {
-                                        "Type": "Pass",
-                                        "ResultPath": null,
-                                        "End": true
-                                    }
-                                }
-                            }
-                        ]
+                            ],
+                            "Default": "Load Failed"
+                        },
+                        "Load Succeeded": {
+                            "Type": "Pass",
+                            "ResultPath": null,
+                            "End": true
+                        },
+                        "Load Failed": {
+                            "Type": "Fail",
+                            "Error": "LoadFailed",
+                            "Cause": "Post-execution validation queries do not match expected values"
+                        }
                     }
                 }
-            }
+            ]
         },
-        "Post-Execution Validation Query": {
-            "Type": "Task",
-            "Resource": "${ExecuteValidationQueriesFunctionArn}",
-            "ResultPath": "$.validations.queries.post",
-            "Next": "Post-Execution Backup"
-        },
-        "Post-Execution Backup": {
+        "Run Post-Execution Backup": {
             "Type": "Task",
             "Resource": "${InvokeBackupScriptFunctionArn}",
             "ResultPath": "$.backups.post",
-            "Next": "Report Success"
+            "Next": "Report Success",
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "Next": "Report Failure"
+                }
+            ]
         },
         "Report Success": {
             "Type": "Parallel",

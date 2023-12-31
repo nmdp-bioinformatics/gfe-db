@@ -710,6 +710,8 @@ Resources:
         InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
       Policies:
         - LambdaInvokePolicy:
+            FunctionName: !Ref GetExecutionStateFunction
+        - LambdaInvokePolicy:
             FunctionName: !Ref InvokeLoadScriptFunction
         - DynamoDBReadPolicy:
             TableName: !Ref GfeDbExecutionStateTable

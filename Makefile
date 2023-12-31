@@ -485,7 +485,7 @@ database.load.run: # args: align, kir, limit, releases
 	echo "$$payload" | jq -r && \
 	echo "$$payload" | jq > payload.json
 	@echo "Run pipeline with this payload? [y/N] \c " && read ans && [ $${ans:-N} = y ]
-	@function_name="${STAGE}"-"${APP_NAME}"-"$$(cat ${APP_NAME}/pipeline/functions/environment.json | jq -r '.Functions.CheckSourceUpdate.FunctionConfiguration.FunctionName')" && \
+	@function_name="${STAGE}"-"${APP_NAME}"-"check-source-update" && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Invoking $$function_name..." 2>&1 | tee -a ${CFN_LOG_PATH} && \
 	echo "Payload:" >> ${CFN_LOG_PATH} && \
 	cat payload.json >> ${CFN_LOG_PATH} && \
