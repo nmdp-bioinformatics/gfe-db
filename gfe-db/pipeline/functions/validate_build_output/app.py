@@ -40,7 +40,7 @@ def lambda_handler(event, context):
 
     # expected input is the execution input
     # execution_input = event['execution_context']['Execution']['Input']['input']
-    release = event['input']['RELEASES']
+    release = event['input']['version']
 
     # errors for all release builds used only for logging, not used for validation logic
     errors = []
@@ -87,6 +87,7 @@ def lambda_handler(event, context):
         obj["details"] = {}
 
         # # Note: the state machine can now use existing CSV files as input, so the timestamp validation is no longer needed
+        # TODO perform conditionally only if use_existing_csv is False
         # # Validate the file's timestamp is after the execution start time
         # obj["details"]["is_valid_csv_timestamp"] = obj['created_utc'] > execution_start_time
         # if not obj["details"]["is_valid_csv_timestamp"]:
@@ -229,7 +230,7 @@ class DatetimeEncoder(json.JSONEncoder):
 if __name__ == "__main__":
     from pathlib import Path
 
-    event_path = Path(__file__).parent / "error-event.json"
+    event_path = Path(__file__).parent / "event.json"
 
     with open(event_path, "r") as file:
         event = json.load(file)

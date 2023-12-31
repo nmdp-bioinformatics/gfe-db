@@ -1,11 +1,18 @@
 {
+    "execution_id": "arn:aws:states:us-east-1:810526023897:execution:UpdatePipelineStateMachine-tUzIfvDy3rJu:3540_901b1b788a2ec2b4722c9672910ad880b29b368b_231231_195204",
     "input": {
-        "ALIGN": "False",
-        "KIR": "False",
-        "LIMIT": "100",
-        "MEM_PROFILE": "False",
-        "RELEASES": "320"
+      "version": 3540,
+      "commit_sha": "901b1b788a2ec2b4722c9672910ad880b29b368b",
+      "input_parameters": {
+        "align": false,
+        "kir": false,
+        "mem_profile": false,
+        "limit": 1000,
+        "use_existing_build": false,
+        "skip_load": false
+      },
+      "s3_path": "s3://nmdpf-gfe-db-810526023897-us-east-1/data/3540",
+      "receipt_handle": "AQEBqmH+LQvILf6DcqebHTClmFCFIKKuihrduhptYBLOSSP4Ew7kvcmGOs1JVOL/OXNWF9a6BuxnS6IpL7D1x8KU+015eji4tdwCSPO3XmLfqge436u7MBvR2OSlxKXDf7wu6Pttsiz0itTbWkaNs/8fLHIKVNq5XybXjpuQfr+fGCMo8VPImno+XLL106UxFsZd+Mz9ImBb65Ps7Moe+jSVrvUJBHoibIE8nqI95ilGhmD4eeOoNpWjl10Z3dbArxeddLt9xmCxF7vJVvxFmORWc1VU8jolaRc8laaWpA1zB98rRL+4ZnTu7p10aug4DOvrNWBECrWZsz66OynWGSooqBsQQGyPP9kDbUjw84IryHAX6UXMSYYFHPHO4/5Ya1xBjtggM+fDtty9qZUhRWqVh9+pkb2sOwrXJ/9QpblC9LshI2UNZj+SQkqrXNWBH+dq"
     },
-    "execution_id": 1,
-    "execution_start_time": "2023-08-30T23:46:01.477Z"
-}
+    "execution_start_time": "2023-12-31T19:52:04.281Z"
+  }

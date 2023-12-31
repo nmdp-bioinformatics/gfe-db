@@ -131,7 +131,7 @@
                             "Choices": [
                                 {
                                     "Variable": "$.input.input_parameters.use_existing_build",
-                                    "StringEquals": "False",
+                                    "BooleanEquals": false,
                                     "Next": "Generate CSV files"
                                 }
                             ],
@@ -255,7 +255,7 @@
             "Choices": [
                 {
                     "Variable": "$.input.input_parameters.skip_load",
-                    "StringEquals": "True",
+                    "BooleanEquals": true,
                     "Next": "Skipped"
                 }
             ],
