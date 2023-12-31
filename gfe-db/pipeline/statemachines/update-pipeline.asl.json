@@ -46,7 +46,7 @@
         "Build Stage": {
             "Type": "Parallel",
             "ResultPath": null,
-            "Next": "Load Stage",
+            "Next": "Skip Load?",
             "Catch": [
                 {
                     "ErrorEquals": [
@@ -103,9 +103,41 @@
                     }
                 },
                 {
-                    "StartAt": "Build IMGT Release",
+                    "StartAt": "Check Existing Build",
                     "States": {
-                        "Build IMGT Release": {
+                        "Check Existing Build": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::aws-sdk:s3:listObjects",
+                            "Parameters": {
+                                "Bucket": "${DataBucketName}",
+                                "Prefix.$": "States.Format('data/{}/csv/', $.input.version)"
+                            },
+                            "ResultPath": "$.check_existing_build",
+                            "Next": "Files Exist?"
+                        },
+                        "Files Exist?": {
+                            "Type": "Choice",
+                            "Choices": [
+                                {
+                                    "Variable": "$.check_existing_build.Contents",
+                                    "IsPresent": false,
+                                    "Next": "Generate CSV files"
+                                }
+                            ],
+                            "Default": "Use Existing Build?"
+                        },
+                        "Use Existing Build?": {
+                            "Type": "Choice",
+                            "Choices": [
+                                {
+                                    "Variable": "$.input.input_parameters.use_existing_build",
+                                    "StringEquals": "False",
+                                    "Next": "Generate CSV files"
+                                }
+                            ],
+                            "Default": "Validate Build"
+                        },
+                        "Generate CSV files": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::batch:submitJob.sync",
                             "ResultPath": null,
@@ -128,28 +160,29 @@
                             "Type": "Task",
                             "Resource": "${ValidateBuildOutputFunctionArn}",
                             "Parameters": {
-                                "execution_context.$": "$$"
+                                "execution_id.$": "$$.Execution.Id",
+                                "execution_start_time.$": "$$.Execution.StartTime",
+                                "input.$": "$.input"
                             },
-                            "ResultPath": "$.validations.build",
-                            "Next": "Is Build Valid?"
+                            "Next": "Evaluate Payload"
                         },
-                        "Is Build Valid?": {
+                        "Evaluate Payload": {
                             "Type": "Choice",
                             "Choices": [
                                 {
-                                    "Variable": "$.validations.build.has_valid_payload",
+                                    "Variable": "$.is_valid_build",
                                     "BooleanEquals": true,
-                                    "Next": "Build Succeeded"
+                                    "Next": "Pass Build"
                                 }
                             ],
-                            "Default": "Build Failed"
+                            "Default": "Fail Build"
                         },
-                        "Build Succeeded": {
+                        "Pass Build": {
                             "Type": "Pass",
                             "ResultPath": null,
                             "End": true
                         },
-                        "Build Failed": {
+                        "Fail Build": {
                             "Type": "Fail",
                             "Error": "BuildFailed",
                             "Cause": "No valid build was generated"
@@ -217,6 +250,22 @@
             "Type": "Fail",
             "Error": "ExecutionFailed"
         },
+        "Skip Load?": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.input.input_parameters.skip_load",
+                    "StringEquals": "True",
+                    "Next": "Skipped"
+                }
+            ],
+            "Default": "Load Stage"
+        },
+        "Skipped": {
+            "Type": "Pass",
+            "ResultPath": null,
+            "End": true
+        },
         "Load Stage": {
             "Type": "Parallel",
             "OutputPath": "$.[1]",
@@ -267,17 +316,17 @@
                                 {
                                     "Variable": "$.validations.queries.post",
                                     "IsPresent": true,
-                                    "Next": "Load Succeeded"
+                                    "Next": "Pass Load"
                                 }
                             ],
-                            "Default": "Load Failed"
+                            "Default": "Fail Load"
                         },
-                        "Load Succeeded": {
+                        "Pass Load": {
                             "Type": "Pass",
                             "ResultPath": null,
                             "End": true
                         },
-                        "Load Failed": {
+                        "Fail Load": {
                             "Type": "Fail",
                             "Error": "LoadFailed",
                             "Cause": "Post-execution validation queries do not match expected values"

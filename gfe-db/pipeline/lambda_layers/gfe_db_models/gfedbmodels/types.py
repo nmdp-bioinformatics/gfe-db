@@ -113,6 +113,8 @@ class InputParameters(BaseModel):
     kir: bool
     mem_profile: bool
     limit: Optional[int] = -1
+    use_existing_build: Optional[bool] = False
+    skip_load: Optional[bool] = False
 
     # validate that limit is an integer equalt to -1 or greater than 0 but not equal to 0
     @validator("limit")
