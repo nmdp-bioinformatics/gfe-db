@@ -80,11 +80,13 @@ service.revoke-security-group-ingress:
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/BastionHostSecurityGroupId" | jq -r '.Parameter.Value')" && \
 	neo4j_database_security_group_id="$$(aws ssm get-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseSecurityGroupId" | jq -r '.Parameter.Value')" && \
-	aws ec2 revoke-security-group-ingress \
+	res=$$(aws ec2 revoke-security-group-ingress \
 		--group-id "$$neo4j_database_security_group_id" \
 		--protocol tcp \
 		--port 22 \
-		--source-group "$$bastion_host_security_group_id" 2>&1 | tee -a $$CFN_LOG_PATH || true
+		--source-group "$$bastion_host_security_group_id") && \
+	echo $$res | jq -r && \
+	echo "\033[0;34mBastion host security group is no longer associated with Neo4j database security group\033[0m" || \
 
 service.delete: service.revoke-security-group-ingress
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting Bastion EC2 instance" 2>&1 | tee -a $$CFN_LOG_PATH

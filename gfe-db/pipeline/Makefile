@@ -69,7 +69,7 @@ service.delete:
 	$(MAKE) service.functions.delete
 
 service.functions.delete:
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting CloudFormation" 2>&1 | tee -a $$CFN_LOG_PATH
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} CloudFormation" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws cloudformation delete-stack \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
 	aws cloudformation wait stack-delete-complete \

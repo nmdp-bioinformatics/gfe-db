@@ -36,10 +36,13 @@ delete.ecr.jobs.build:
 	[ "$$ecr_images" = "[]" ] && \
 	echo "No images to delete in $${ECR_BASE_URI}/$${BUILD_REPOSITORY_NAME}" && exit 0 || \
 	echo "Deleting images in $${ECR_BASE_URI}/$${BUILD_REPOSITORY_NAME}" && \
-	aws ecr batch-delete-image \
+	res=$$(aws ecr batch-delete-image \
 		--region "$${AWS_REGION}" \
 		--repository-name "$${BUILD_REPOSITORY_NAME}" \
-		--image-ids "$$ecr_images" 2>&1 | tee -a $$CFN_LOG_PATH || true
+		--image-ids "$$ecr_images") && \
+	echo $$res | jq -r && \
+	echo "\033[0;34mSuccessfully deleted images in $${ECR_BASE_URI}/$${BUILD_REPOSITORY_NAME}\033[0m" || \
+	echo "\033[0;31mFailed to delete images in $${ECR_BASE_URI}/$${BUILD_REPOSITORY_NAME}\033[0m"
 
 #############
 #  Helpers  #

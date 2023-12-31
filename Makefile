@@ -599,7 +599,7 @@ delete: # data=true/false ##=> Delete services
 	@[[ $$data != true ]] && echo "Data will not be deleted. To delete pass \`data=true\`" || true
 	@echo "Delete all stacks from the \`${STAGE}\` environment? [y/N] \c " && read ans && [ $${ans:-N} = y ] && \
 	if [ "${data}" = "true" ]; then \
-		aws s3 rm --recursive s3://${DATA_BUCKET_NAME}; \
+		aws s3 rm --recursive --quiet s3://${DATA_BUCKET_NAME}; \
 	fi
 	$(MAKE) pipeline.delete
 	$(MAKE) database.delete

@@ -352,20 +352,27 @@ service.delete.modify-endpoint: #=> service=<service>
 	echo "Successfully removed Neo4j security group from $${service} VPC endpoint"
 
 service.delete:
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting CloudFormation" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} CloudFormation" 2>&1 | tee -a $${CFN_LOG_PATH}
 	@aws cloudformation delete-stack \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $${CFN_LOG_PATH} || true && \
-	aws cloudformation wait stack-delete-complete \
-		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $${CFN_LOG_PATH} || true
+	res=$$(aws cloudformation wait stack-delete-complete \
+		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}") && \
+	echo $$res | jq -r && \
+	echo "\033[0;34mSuccessfully deleted ${SERVICE} CloudFormation\033[0m" || \
+	echo "\033[0;31mFailed to delete ${SERVICE} CloudFormation\033[0m"
 
 service.key-pair.delete:
-	@aws ec2 delete-key-pair --key-name "${EC2_KEY_PAIR_NAME}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
+	@res=$$(aws ec2 delete-key-pair --key-name "${EC2_KEY_PAIR_NAME}") && \
+	echo $$res | jq -r && \
 	aws ssm delete-parameter --name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/EC2KeyPairName" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
 	mv ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem ${ROOT_DIR}/deprecated-key-$${INSTANCE_ID}-$$(gdate -u +'%Y-%m-%d-%H-%M').pem || true && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting key pair ${EC2_KEY_PAIR_NAME} in Secrets Manager" 2>&1 | tee -a $$CFN_LOG_PATH && \
-	aws secretsmanager delete-secret \
+	res=$$(aws secretsmanager delete-secret \
 		--secret-id "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/EC2KeyPair" \
-		--force-delete-without-recovery 2>&1 | tee -a $$CFN_LOG_PATH || true
+		--force-delete-without-recovery) && \
+	echo $$res | jq -r && \
+	echo "\033[0;34mSuccessfully deleted key pair ${EC2_KEY_PAIR_NAME}\033[0m" || \
+	echo "\033[0;31mFailed to delete key pair ${EC2_KEY_PAIR_NAME}\033[0m"
 
 service.parameters.delete:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting SSM parameters" 2>&1 | tee -a ${CFN_LOG_PATH}
