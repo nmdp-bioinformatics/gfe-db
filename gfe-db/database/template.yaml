@@ -67,9 +67,9 @@ Resources:
       Value: !Ref Neo4jCredentialsSecret
   Neo4jDatabaseInstance:
     Type: AWS::EC2::Instance
-    # CreationPolicy:
-    #   ResourceSignal:
-    #     Timeout: PT10M
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT10M
     Properties:
       KeyName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}'
       DisableApiTermination: false
@@ -148,7 +148,7 @@ Resources:
           mkdir -p /tmp/amazon-cloudwatch-agent
           wget -q -O /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb https://amazoncloudwatch-agent.s3.amazonaws.com/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
           dpkg -i -E /tmp/amazon-cloudwatch-agent/amazon-cloudwatch-agent.deb
-          aws s3 cp --quiet s3://${DataBucketName}/config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+          aws s3 cp --quiet s3://${DataBucketName}/${ConfigS3Path}/${ServiceName}/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
           [ $(amazon-cloudwatch-agent-ctl -a status | jq -r '.status') = running ] && echo "INFO: CloudWatch Logs Agent is running" || \
             (msg="ERROR: CloudWatch Logs Agent did not initialize correctly" && echo $msg && cfn_signal 1 "$msg" && exit 1)
@@ -162,6 +162,7 @@ Resources:
           echo "USE_PRIVATE_SUBNET=${usePrivateSubnet}" >> $UBUNTU_HOME/env.sh
           echo "AWS_REGION=us-east-1" >> $UBUNTU_HOME/env.sh
           echo "DATA_BUCKET_NAME=${DataBucketName}" >> $UBUNTU_HOME/env.sh
+          echo "CONFIG_S3_PATH=${ConfigS3Path}" >> $UBUNTU_HOME/env.sh
           echo "HOST_DOMAIN=${HostDomain}" >> $UBUNTU_HOME/env.sh
           echo "SUBDOMAIN=${Subdomain}" >> $UBUNTU_HOME/env.sh
           echo "ADMIN_EMAIL=${AdminEmail}" >> $UBUNTU_HOME/env.sh

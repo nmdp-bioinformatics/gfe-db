@@ -11,7 +11,7 @@ export REPORTS_DIR := ${UBUNTU_HOME}/reports
 export NEO4J_USERNAME=$(shell aws secretsmanager get-secret-value --secret-id "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials" | jq -r '.SecretString' | jq -r '.NEO4J_USERNAME')
 export NEO4J_PASSWORD=$(shell aws secretsmanager get-secret-value --secret-id "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials" | jq -r '.SecretString' | jq -r '.NEO4J_PASSWORD')
 
-REQUIRED_VARS := UBUNTU_HOME NEO4J_HOME INSTANCE_ID DATA_BUCKET_NAME NEO4J_USERNAME NEO4J_PASSWORD ADMIN_EMAIL GDS_VERSION
+REQUIRED_VARS := UBUNTU_HOME NEO4J_HOME INSTANCE_ID DATA_BUCKET_NAME CONFIG_S3_PATH NEO4J_USERNAME NEO4J_PASSWORD ADMIN_EMAIL GDS_VERSION
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -100,7 +100,7 @@ neo4j.update-permissions:
 neo4j.init.download-scripts:
 	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
 	@echo "Fetching Cypher scripts from S3..."
-	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
+	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/${CONFIG_S3_PATH}/${SERVICE}/neo4j/cypher/ ${NEO4J_HOME}/cypher/
 
 neo4j.query.init: # public: neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687; private: bolt://<private_ip>:7687
 	@echo "Executing initialization queries"
