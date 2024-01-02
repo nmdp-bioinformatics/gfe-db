@@ -45,7 +45,7 @@
         },
         "Build Stage": {
             "Type": "Parallel",
-            "ResultPath": null,
+            "OutputPath": "$.[1]",
             "Next": "Skip Load?",
             "Catch": [
                 {
@@ -112,14 +112,14 @@
                                 "Bucket": "${DataBucketName}",
                                 "Prefix.$": "States.Format('data/{}/csv/', $.input.version)"
                             },
-                            "ResultPath": "$.check_existing_build",
+                            "ResultPath": "$.validations.check_existing_build",
                             "Next": "Files Exist?"
                         },
                         "Files Exist?": {
                             "Type": "Choice",
                             "Choices": [
                                 {
-                                    "Variable": "$.check_existing_build.Contents",
+                                    "Variable": "$.validations.check_existing_build.Contents",
                                     "IsPresent": false,
                                     "Next": "Generate CSV files"
                                 }
@@ -164,13 +164,14 @@
                                 "execution_start_time.$": "$$.Execution.StartTime",
                                 "input.$": "$.input"
                             },
-                            "Next": "Evaluate Payload"
+                            "ResultPath": "$.validations.build_outputs",
+                            "Next": "Is Build Successful?"
                         },
-                        "Evaluate Payload": {
+                        "Is Build Successful?": {
                             "Type": "Choice",
                             "Choices": [
                                 {
-                                    "Variable": "$.is_valid_build",
+                                    "Variable": "$.validations.build_outputs.is_valid_build",
                                     "BooleanEquals": true,
                                     "Next": "Pass Build"
                                 }

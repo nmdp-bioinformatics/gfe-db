@@ -1,8 +1,8 @@
 {
-    "execution_id": "arn:aws:states:us-east-1:810526023897:execution:UpdatePipelineStateMachine-tUzIfvDy3rJu:3540_901b1b788a2ec2b4722c9672910ad880b29b368b_231231_195204",
+    "execution_id": "arn:aws:states:us-east-1:810526023897:execution:UpdatePipelineStateMachine-N2tfp1Efjryu:3500_50b790037030d958b662085c3f4cf34ba72a32ec_240102_230217",
     "input": {
-      "version": 3540,
-      "commit_sha": "901b1b788a2ec2b4722c9672910ad880b29b368b",
+      "version": 3500,
+      "commit_sha": "50b790037030d958b662085c3f4cf34ba72a32ec",
       "input_parameters": {
         "align": false,
         "kir": false,
@@ -11,8 +11,8 @@
         "use_existing_build": false,
         "skip_load": false
       },
-      "s3_path": "s3://nmdpf-gfe-db-810526023897-us-east-1/data/3540",
-      "receipt_handle": "AQEBqmH+LQvILf6DcqebHTClmFCFIKKuihrduhptYBLOSSP4Ew7kvcmGOs1JVOL/OXNWF9a6BuxnS6IpL7D1x8KU+015eji4tdwCSPO3XmLfqge436u7MBvR2OSlxKXDf7wu6Pttsiz0itTbWkaNs/8fLHIKVNq5XybXjpuQfr+fGCMo8VPImno+XLL106UxFsZd+Mz9ImBb65Ps7Moe+jSVrvUJBHoibIE8nqI95ilGhmD4eeOoNpWjl10Z3dbArxeddLt9xmCxF7vJVvxFmORWc1VU8jolaRc8laaWpA1zB98rRL+4ZnTu7p10aug4DOvrNWBECrWZsz66OynWGSooqBsQQGyPP9kDbUjw84IryHAX6UXMSYYFHPHO4/5Ya1xBjtggM+fDtty9qZUhRWqVh9+pkb2sOwrXJ/9QpblC9LshI2UNZj+SQkqrXNWBH+dq"
+      "s3_path": "s3://nmdpf-gfe-db-810526023897-us-east-1/data/3500",
+      "receipt_handle": "AQEBEtdJKEOIhBCO24mxSnC8Q7RP8bFbXbsUuwd9Ix3vgj2QwRnLOPtvIaBlKaZQFaUU9qj9VitZBZXv0wTHkleavmWo7WnhtfsKFyCmB8I/1wAise2Lzo0y6GisRyKSDMJd+tmtZUgX2tfPEQ8cx4N6hHvlWXW2XhoEH0h5fWtJj2pCKUcnqdJQcinSVoLrfGZpZpYnZ+fhiDqcnBsP3lv6XcUY+2MynHK1QkadxhM2JXipAj5qb7lVS0lCSiWfTaHcph1RExmO4k/QNZBJGr41JVmqPONqO9Dp8ryyXIpavPLvP/uK6OAkppXbQVM5VqNEEx7Njqd2e9C2NoYXKCrGToigN62rEOWzL72L/rFHHXMGXhiCJnd7J67g8Ni5ejDI6t6zkbMlvdLTnegLtVt91MwW4+Hfpwr2dtZJwpsu0zPa0qYF6CaliYanA8CJVzLI"
     },
-    "execution_start_time": "2023-12-31T19:52:04.281Z"
+    "execution_start_time": "2024-01-02T23:02:17.533Z"
   }

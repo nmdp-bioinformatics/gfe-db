@@ -30,8 +30,6 @@ def lambda_handler(event, context):
     """Validates the build output artifacts against the original execution input object."""
 
     logger.info(json.dumps(event))
-
-    execution_start_time = datetime.strptime(event['execution_start_time'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=tz.tzutc())
         
     # TODO get the expected input from execution context and validate against this
     # TODO Remove this and use the output of validation against the expected input
@@ -152,9 +150,6 @@ def lambda_handler(event, context):
         logger.error(error_msg)
 
     payload = {
-        "execution_id": event['execution_id'],
-        "execution_start_time": event['execution_start_time'],
-        "input": event['input'],
         **release_report
     }
 
