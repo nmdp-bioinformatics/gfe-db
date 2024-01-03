@@ -257,12 +257,12 @@
                 {
                     "Variable": "$.input.input_parameters.skip_load",
                     "BooleanEquals": true,
-                    "Next": "Skipped"
+                    "Next": "Load Skipped"
                 }
             ],
             "Default": "Load Stage"
         },
-        "Skipped": {
+        "Load Skipped": {
             "Type": "Pass",
             "ResultPath": null,
             "End": true
@@ -270,7 +270,7 @@
         "Load Stage": {
             "Type": "Parallel",
             "OutputPath": "$.[1]",
-            "Next": "Run Post-Execution Backup",
+            "Next": "Run Backup",
             "Catch": [
                 {
                     "ErrorEquals": [
@@ -281,9 +281,9 @@
             ],
             "Branches": [
                 {
-                    "StartAt": "Run Load Script",
+                    "StartAt": "Execute Load Query",
                     "States": {
-                        "Run Load Script": {
+                        "Execute Load Query": {
                             "Type": "Task",
                             "Resource": "${InvokeLoadScriptFunctionArn}",
                             "End": true
@@ -291,32 +291,33 @@
                     }
                 },
                 {
-                    "StartAt": "Load Release Activity",
+                    "StartAt": "Wait For Load",
                     "States": {
-                        "Load Release Activity": {
+                        "Wait For Load": {
                             "Type": "Task",
                             "Resource": "${LoadReleaseActivityArn}",
                             "HeartbeatSeconds": 60,
                             "ResultPath": null,
-                            "Next": "Run Post-Execution Validation Query"
+                            "Next": "Run Validation Query"
                         },
-                        "Run Post-Execution Validation Query": {
+                        "Run Validation Query": {
                             "Type": "Task",
                             "Resource": "${ExecuteValidationQueriesFunctionArn}",
                             "ResultPath": "$.validations.queries.post",
-                            "Next": "Validate Results (placeholder)"
+                            "Next": "Evaluate Query Results"
                         },
-                        "Validate Results (placeholder)": {
-                            "Type": "Pass",
-                            "ResultPath": null,
-                            "Next": "Is Load Successful? (placeholder)"
+                        "Evaluate Query Results": {
+                            "Type": "Task",
+                            "Resource": "${EvaluateQueryResultsFunctionArn}",
+                            "ResultPath": "$.validations.load_results",
+                            "Next": "Is Load Successful?"
                         },
-                        "Is Load Successful? (placeholder)": {
+                        "Is Load Successful?": {
                             "Type": "Choice",
                             "Choices": [
                                 {
-                                    "Variable": "$.validations.queries.post",
-                                    "IsPresent": true,
+                                    "Variable": "$.validations.load_results.is_load_successful.value",
+                                    "BooleanEquals": true,
                                     "Next": "Pass Load"
                                 }
                             ],
@@ -336,7 +337,7 @@
                 }
             ]
         },
-        "Run Post-Execution Backup": {
+        "Run Backup": {
             "Type": "Task",
             "Resource": "${InvokeBackupScriptFunctionArn}",
             "ResultPath": "$.backups.post",

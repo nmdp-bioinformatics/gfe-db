@@ -1,5 +1,5 @@
 """
-This function executes validation queries against the Neo4j database and returns the results.
+This function executes pre-load and post-load validation queries against the Neo4j database and returns the results.
 If USE_PRIVATE_SUBNET is true, this function will run inside a VPC and private subnet. 
 If USE_PRIVATE_SUBNET is false, this function will run outside a VPC and in a public subnet.
 """
@@ -49,6 +49,7 @@ def lambda_handler(event, context):
 
         # HAS_IPD_ALLELE relationship releases property release counts
         has_ipd_allele_release_counts = execute_query(driver, has_ipd_allele_release_counts_cql)
+        has_ipd_allele_release_counts = sorted(has_ipd_allele_release_counts, key=lambda k: k['release_version'])
 
         # IPD_Accession node release counts
         ipd_accession_release_counts = execute_query(driver, ipd_accession_release_counts_cql)
