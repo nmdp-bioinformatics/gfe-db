@@ -9,6 +9,20 @@ if [ -z $UBUNTU_HOME ]; then
     echo "ERROR: UBUNTU_HOME not set"
     exit 1
 fi
+if [ -z $APP_NAME ]; then
+    echo "ERROR:  APP_NAME not set"
+    exit 1
+fi
+
+if [ -z $STAGE ]; then
+    echo "ERROR:  STAGE not set"
+    exit 1
+fi
+
+if [ -z $SERVICE_NAME ]; then
+    echo "ERROR:  SERVICE_NAME not set"
+    exit 1
+fi
 
 if [[ -z $NEO4J_HOME ]]; then
     echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Neo4j not found"
@@ -23,7 +37,7 @@ RELEASE=$1
 # Set paths
 NEO4J_CYPHER_PATH=$NEO4J_HOME/cypher
 NEO4J_IMPORT_PATH=$NEO4J_HOME/import
-S3_NEO4J_CYPHER_PATH=config/database/neo4j/cypher # TODO use SERVICE variable (database)
+S3_NEO4J_CYPHER_PATH=config/$SERVICE_NAME/neo4j/cypher
 
 # TODO Get from state payload
 S3_CSV_PATH=data/$RELEASE/csv

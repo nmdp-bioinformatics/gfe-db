@@ -571,7 +571,6 @@ else ifeq ($(USE_PRIVATE_SUBNET),false)
 	@echo "https://${SUBDOMAIN}.${HOST_DOMAIN}:7473/browser/"
 endif
 
-# TODO update path to use "/${AppName}/${Stage}/${AWS::Region}/
 database.get.credentials:
 	@secret_string=$$(aws secretsmanager get-secret-value --secret-id /${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials | jq -r '.SecretString') && \
 	echo "Username: $$(echo $$secret_string | jq -r '.NEO4J_USERNAME')" && \

@@ -71,7 +71,6 @@ neo4j.config.backup:
 	@echo "Backing up Neo4j configuration to ${NEO4J_HOME}/conf/$$(date -u +'%Y-%m-%d-%H-%M')-neo4j.conf.bkp"
 	@cp "${NEO4J_HOME}/conf/neo4j.conf" "${NEO4J_HOME}/conf/$$(date -u +'%Y-%m-%d-%H-%M')-neo4j.conf.bkp"
 
-# TODO check if the APOC plugin is already installed for the version specified and skip if it is
 # https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/5.13.0/apoc-5.13.0-extended.jar
 neo4j.plugins.install-apoc-extended:
 	@rm -f ${NEO4J_HOME}/plugins/apoc-*.jar
@@ -79,7 +78,6 @@ neo4j.plugins.install-apoc-extended:
 	@curl -L https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/${APOC_VERSION}/apoc-${APOC_VERSION}-extended.jar -O
 	@mv apoc-${APOC_VERSION}-extended.jar ${NEO4J_HOME}/plugins/apoc-${APOC_VERSION}-extended.jar
 
-# TODO check if the GDS plugin is already installed for the version specified and skip if it is
 # https://graphdatascience.ninja/neo4j-graph-data-science-2.5.5.zip
 neo4j.plugins.install-gds:
 	@echo "Downloading Neo4j Graph Data Science plugin..."
@@ -89,7 +87,6 @@ neo4j.plugins.install-gds:
 	@echo "Cleaning up"
 	@rm neo4j-graph-data-science-${GDS_VERSION}.zip
 
-# TODO separate copy action from cypher-shell action
 neo4j.init:
 	$(MAKE) neo4j.init.download-scripts
 	$(MAKE) neo4j.query.init

@@ -30,7 +30,6 @@ logger = logging.getLogger(__name__)
 ssm = session.clients["ssm"]
 dynamodb = session.resource("dynamodb")
 
-# TODO
 execution_state_table_fields = pipeline.params.GfeDbExecutionStateTableFields
 execution_state_table_name = pipeline.params.GfeDbExecutionStateTableName
 

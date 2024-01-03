@@ -76,7 +76,6 @@ while true; do
 
     else
         echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Activity found"
-        # TODO debug jq parsing error (see CW Logs)
         echo "$ACTIVITY"
 
         export TASK_TOKEN=$(echo "$ACTIVITY" | jq -r '.taskToken')
@@ -98,7 +97,6 @@ while true; do
             echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Starting load process for $RELEASE"
         fi
 
-        # TODO: parameterize heartbeat and set interval / 2
         export HEARTBEAT_INTERVAL=30
         bash send_heartbeat.sh &
         send_heartbeat_pid=$!

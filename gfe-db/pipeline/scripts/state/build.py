@@ -14,11 +14,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 # from datetime import datetime
 import json
-print(json.dumps(sys.path, indent=4))
-# from gfedbmodels.constants import (
-#     infra,
-#     pipeline
-# )
 from pygethub import list_commits, GitHubPaginator
 from gfedbmodels.utils import (
     get_utc_now,

@@ -10,16 +10,11 @@ Parameters:
   ServiceName:
     Type: String
     Description: Service name
-  # createVpc:
-  #   Type: String
-  #   AllowedValues:
-  #     - 'true'
-  #     - 'false'
   usePrivateSubnet:
     Type: String
     AllowedValues:
-      - 'true'
-      - 'false'
+      - "true"
+      - "false"
   DataBucketName:
     Type: String
   ConfigS3Path:
@@ -47,13 +42,15 @@ Parameters:
 Conditions:
   UsePrivateSubnet: !Equals
     - !Ref usePrivateSubnet
-    - 'true'
+    - "true"
   UsePublicSubnet: !Equals
     - !Ref usePrivateSubnet
-    - 'false'
+    - "false"
 Resources:
   Neo4jCredentialsSecret:
     Type: AWS::SecretsManager::Secret
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
     Properties:
       Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jCredentials
       Description: Specified in the deployment environment.
@@ -71,7 +68,7 @@ Resources:
       ResourceSignal:
         Timeout: PT10M
     Properties:
-      KeyName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}'
+      KeyName: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}"
       DisableApiTermination: false
       ImageId: !Ref UbuntuAmiId
       InstanceType: m5.large
@@ -84,10 +81,10 @@ Resources:
             VolumeType: gp3
       NetworkInterfaces:
         - AssociatePublicIpAddress: true
-          DeviceIndex: '0'
+          DeviceIndex: "0"
           GroupSet:
-            - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
-          SubnetId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jSubnetId}}'
+            - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}"
+          SubnetId: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jSubnetId}}"
       UserData: !Base64
         Fn::Sub: |
           #!/bin/bash -x
@@ -159,6 +156,7 @@ Resources:
           echo "NEO4J_HOME=$NEO4J_HOME" >> $UBUNTU_HOME/env.sh
           echo "STAGE=${Stage}" >> $UBUNTU_HOME/env.sh
           echo "APP_NAME=${AppName}" >> $UBUNTU_HOME/env.sh
+          echo "SERVICE_NAME=${ServiceName}" >> $UBUNTU_HOME/env.sh
           echo "USE_PRIVATE_SUBNET=${usePrivateSubnet}" >> $UBUNTU_HOME/env.sh
           echo "AWS_REGION=us-east-1" >> $UBUNTU_HOME/env.sh
           echo "DATA_BUCKET_NAME=${DataBucketName}" >> $UBUNTU_HOME/env.sh
@@ -314,7 +312,7 @@ Resources:
       Policies:
         - PolicyName: !Sub ${Stage}-${AppName}-Neo4jDatabasePolicy
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
@@ -328,15 +326,15 @@ Resources:
                   - s3:PutObjectAcl
                   - s3:GetEncryptionConfiguration
                 Resource:
-                  - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}'
-                  - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*'
+                  - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}"
+                  - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*"
               - Effect: Allow
                 Action:
                   - secretsmanager:GetResourcePolicy
                   - secretsmanager:ListSecretVersionIds
                   - secretsmanager:ListSecrets
                 Resource:
-                  - '*'
+                  - "*"
               - Effect: Allow
                 Action:
                   - secretsmanager:UpdateSecret
@@ -351,33 +349,24 @@ Resources:
                   - states:SendTaskSuccess
                   - states:SendTaskFailure
                 Resource:
-                  - '*'
+                  - "*"
               - Effect: Allow
                 Action:
                   - ec2:AssociateAddress
                 Resource:
                   - "*"
               - Effect: "Allow"
-                Action: 
+                Action:
                   - "sqs:ReceiveMessage"
                   - "sqs:DeleteMessage"
                   - "sqs:ChangeMessageVisibility"
                 Resource:
                   - "*"
-  
   Neo4jDatabaseInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
         - !Ref Neo4jDatabaseInstanceRole
-
-  # # TODO move to database init script
-  # UsePublicSubnetConditionNeo4jDatabaseElasticIpAssociation:
-  #   Type: AWS::EC2::EIPAssociation
-  #   Condition: UsePublicSubnet
-  #   Properties:
-  #     InstanceId: !Ref Neo4jDatabaseInstance
-  #     AllocationId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId}}'
   Neo4jDatabaseInstanceIdParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -425,7 +414,7 @@ Resources:
       TargetType: /AWS::EC2::Instance
       UpdateMethod: Replace
       Content:
-        schemaVersion: '2.2'
+        schemaVersion: "2.2"
         description: Neo4j to S3 backup
         parameters:
           commandLine:
@@ -492,7 +481,7 @@ Resources:
           Values:
             - !Ref Neo4jDatabaseInstance
       WindowId: !Ref Neo4jBackupMaintenanceWindow
-  DatabaseSyncScriptsDocument: 
+  DatabaseSyncScriptsDocument:
     Type: AWS::SSM::Document
     Properties:
       DocumentType: "Command"
@@ -510,7 +499,7 @@ Resources:
             type: "StringMap"
             description: !Sub "Downloads all files under the ${AppName} scripts prefix"
             default:
-              path: !Sub 'https://{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}.s3.amazonaws.com/config/scripts/'
+              path: !Sub "https://{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}.s3.amazonaws.com/config/scripts/"
           commandLine:
             type: "String"
             description: "Deletes ETag files created by SSM Agent."
@@ -532,12 +521,12 @@ Resources:
               destinationPath: "{{ workingDirectory }}"
           - action: "aws:runShellScript"
             name: "runShellScript"
-            inputs: 
+            inputs:
               runCommand:
                 - ""
                 - "directory=$(pwd)"
                 - "export PATH=$PATH:$directory"
-                - " {{ commandLine }} " 
+                - " {{ commandLine }} "
                 - ""
               workingDirectory: "{{ workingDirectory }}"
               timeoutSeconds: "{{ executionTimeout }}"
@@ -545,16 +534,15 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DatabaseSyncScriptsDocumentName'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/DatabaseSyncScriptsDocumentName"
       Description: "Name of SSM document for syncing shell scripts to the database"
       Value: !Ref DatabaseSyncScriptsDocument
-      
   GfedbDatabaseParamMappingsParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/GfedbDatabaseParamMappings'
-      Description: !Sub 'SSM Parameter and SecretsManager parameter paths for ${AppName} database layer'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/GfedbDatabaseParamMappings"
+      Description: !Sub "SSM Parameter and SecretsManager parameter paths for ${AppName} database layer"
       Value: !Sub |
         {
           "ssm": [
