@@ -27,6 +27,7 @@ from gfedbmodels.types import (
     str_to_datetime,
     str_from_datetime,
     InputParameters,
+    ExecutionStatus,
     ExecutionStateItem,
     RepositoryConfig,
     Commit,
@@ -156,7 +157,7 @@ def lambda_handler(event, context):
 
                         # Build the execution object to be stored in the state table (`execution__*` fields)
                         execution_detail = ExecutionDetailsConfig(
-                            **{"version": release_version, "status": "NOT_PROCESSED"}
+                            **{"version": release_version, "status": ExecutionStatus.PENDING}
                         )
 
                         # Build the repository object to be stored in the state table (`repository__*` fields)
@@ -192,7 +193,7 @@ def lambda_handler(event, context):
         pending_commits = [
             update_execution_state_item(
                 execution_state_item=commit,
-                status="PENDING",
+                status=ExecutionStatus.PENDING,
                 timestamp=utc_now,
                 input_parameters=input_parameters,
             )
@@ -204,7 +205,7 @@ def lambda_handler(event, context):
         skipped_commits = [
             update_execution_state_item(
             execution_state_item=commit, 
-            status="SKIPPED",
+            status=ExecutionStatus.SKIPPED,
             timestamp=utc_now)
             for commit in commits_with_releases
             if commit not in pending_commits
@@ -332,7 +333,7 @@ def update_execution_state_item(
 ):
     execution_state_item.execution.status = status
 
-    if input_parameters is not None and status == "PENDING":
+    if input_parameters is not None and status == ExecutionStatus.PENDING:
         execution_state_item.execution.input_parameters = input_parameters
         # TODO Update format to s3://<data_bucket_name>/data/csv/<version>' for csv and s3://<data_bucket_name>/data/dat/<version>' for hla.dat for Glue Catalog
         execution_state_item.execution.s3_path = (
@@ -347,6 +348,6 @@ def update_execution_state_item(
 if __name__ == "__main__":
     from pathlib import Path
 
-    event = json.loads((Path(__file__).parent / "user-event.json").read_text())
+    event = json.loads((Path(__file__).parent / "error-event.json").read_text())
 
     lambda_handler(event, None)

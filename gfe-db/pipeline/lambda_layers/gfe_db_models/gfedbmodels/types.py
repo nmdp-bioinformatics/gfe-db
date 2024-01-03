@@ -1,27 +1,38 @@
 import re
 from datetime import datetime
 from typing import Optional
+from enum import Enum
 from pydantic import BaseModel, validator, root_validator
 import jmespath
 from .utils import restore_nested_json, filter_nested_nulls
 
-# ExecutionState is changed using Step Functions DynamoDB states
-# NOT_PROCESSED: never processed (set by CheckSourceUpdate) ✅
-# SKIPPED: never processed (set by CheckSourceUpdate) ✅
-# PENDING: state machine execution started (set by CheckSourceUpdate) ✅
-# IN_PROGRESS: batch build job triggered (set by state machine) ✅
-# SUCCESS: state machine execution succeeded (set by state machine) ✅
-# FAILED: state machine execution failed (set by state machine) ✅
+"""
+ExecutionState is synced using the Step Functions DynamoDB integration:
+NOT_PROCESSED: never processed (set by CheckSourceUpdate) ✅
+SKIPPED: never processed (set by CheckSourceUpdate) ✅
+PENDING: state machine execution started (set by CheckSourceUpdate) ✅
+BUILD_IN_PROGRESS: build started (set by State Machine) ✅
+BUILD_SUCCESS: build succeeded (set by State Machine) ✅
+LOAD_IN_PROGRESS: load started (set by State Machine) ✅
+LOAD_SUCCESS: load succeeded (set by State Machine) ✅
+LOAD_SKIPPED: load skipped (set by State Machine) ✅
+FAILED: build or load failed (set by State Machine) ✅
+"""
 
-# TODO remove None, default is NOT_PROCESSED
-valid_statuses = [
-    "NOT_PROCESSED",
-    "SKIPPED",
-    "PENDING",
-    "IN_PROGRESS",
-    "SUCCESS",
-    "FAILED"
-]
+class ExecutionStatus(str, Enum):
+    NOT_PROCESSED = "NOT_PROCESSED"
+    SKIPPED = "SKIPPED"
+    PENDING = "PENDING"
+    BUILD_IN_PROGRESS = "BUILD_IN_PROGRESS"
+    BUILD_SUCCESS = "BUILD_SUCCESS"
+    LOAD_IN_PROGRESS = "LOAD_IN_PROGRESS"
+    LOAD_SUCCESS = "LOAD_SUCCESS"
+    LOAD_SKIPPED = "LOAD_SKIPPED"
+    FAILED = "FAILED"
+
+    @classmethod
+    def __contains__(cls, item):
+        return item in cls.__members__
 
 
 def str_to_datetime(v, fmt="%Y-%m-%dT%H:%M:%S.%fZ"):
@@ -180,8 +191,8 @@ class ExecutionDetailsConfig(BaseModel):
 
     @validator("status")
     def status_is_valid(cls, v):
-        if v not in valid_statuses:
-            raise ValueError(f"Status must be one of {valid_statuses}")
+        if v not in ExecutionStatus.__members__:
+            raise ValueError(f"Status must be one of {[value.value for value in ExecutionStatus.__members__.values()]}")
         return v
 
     # validate that version is a 4 digit number, position 0 is a number between 1 and 9, and position 1:2 is a number between 0 and 99 and position 3 is 0
