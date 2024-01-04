@@ -1,47 +1,51 @@
 {
-    "StartAt": "Run Pre-Execution Validation Query",
+    "StartAt": "Pre-Execution Tasks",
     "States": {
-        "Run Pre-Execution Validation Query": {
-            "Type": "Task",
-            "Resource": "${ExecuteValidationQueriesFunctionArn}",
-            "ResultPath": "$.validations.queries.pre",
-            "Next": "Run Pre-Execution Backup",
+        "Pre-Execution Tasks": {
+            "Type": "Parallel",
+            "OutputPath": "$.[0]",
+            "Next": "Update Status -> BUILD_IN_PROGRESS",
             "Catch": [
                 {
                     "ErrorEquals": [
                         "States.ALL"
                     ],
-                    "Next": "Report Failure"
+                    "Next": "Handle Error"
+                }
+            ],
+            "Branches": [
+                {
+                    "StartAt": "Run Pre-Execution Validation Query",
+                    "States": {
+                        "Run Pre-Execution Validation Query": {
+                            "Type": "Task",
+                            "Resource": "${ExecuteValidationQueriesFunctionArn}",
+                            "ResultPath": "$.validations.queries.pre",
+                            "Next": "Run Pre-Execution Backup"
+                        },
+                        "Run Pre-Execution Backup": {
+                            "Type": "Task",
+                            "Resource": "${InvokeBackupScriptFunctionArn}",
+                            "ResultPath": "$.backups.pre",
+                            "Next": "Get Execution State"
+                        },
+                        "Get Execution State": {
+                            "Type": "Task",
+                            "Resource": "${GetExecutionStateFunctionArn}",
+                            "ResultPath": "$.state",
+                            "End": true
+                        }
+                    }
                 }
             ]
         },
-        "Run Pre-Execution Backup": {
-            "Type": "Task",
-            "Resource": "${InvokeBackupScriptFunctionArn}",
-            "ResultPath": "$.backups.pre",
-            "Next": "Get Execution State",
-            "Catch": [
-                {
-                    "ErrorEquals": [
-                        "States.ALL"
-                    ],
-                    "Next": "Report Failure"
-                }
-            ]
-        },
-        "Get Execution State": {
-            "Type": "Task",
-            "Resource": "${GetExecutionStateFunctionArn}",
-            "ResultPath": "$.state",
-            "Next": "Build Stage",
-            "Catch": [
-                {
-                    "ErrorEquals": [
-                        "States.ALL"
-                    ],
-                    "Next": "Report Failure"
-                }
-            ]
+        "Update Status -> BUILD_IN_PROGRESS": {
+            "Type": "Pass",
+            "Result": {
+                "status": "BUILD_IN_PROGRESS"
+            },
+            "ResultPath": "$.state.execution",
+            "Next": "Build Stage"
         },
         "Build Stage": {
             "Type": "Parallel",
@@ -52,14 +56,14 @@
                     "ErrorEquals": [
                         "States.ALL"
                     ],
-                    "Next": "Report Failure"
+                    "Next": "Handle Error"
                 }
             ],
             "Branches": [
                 {
-                    "StartAt": "Update Execution State - IN_PROGRESS",
+                    "StartAt": "Sync State -> BUILD_IN_PROGRESS",
                     "States": {
-                        "Update Execution State - IN_PROGRESS": {
+                        "Sync State -> BUILD_IN_PROGRESS": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
@@ -80,7 +84,7 @@
                                         "S.$": "$$.Execution.StartTime"
                                     },
                                     ":status": {
-                                        "S": "IN_PROGRESS"
+                                        "S": "$.state.execution.status"
                                     },
                                     ":align": {
                                         "BOOL.$": "$.input.input_parameters.align"
@@ -173,34 +177,20 @@
                                 {
                                     "Variable": "$.validations.build_outputs.is_valid_build",
                                     "BooleanEquals": true,
-                                    "Next": "Pass Build"
+                                    "Next": "Update Status -> BUILD_SUCCESS"
                                 }
                             ],
-                            "Default": "Fail Build"
+                            "Default": "Update Status -> BUILD_FAILURE"
                         },
-                        "Pass Build": {
+                        "Update Status -> BUILD_SUCCESS": {
                             "Type": "Pass",
-                            "ResultPath": null,
-                            "End": true
+                            "Result": {
+                                "status": "BUILD_SUCCESS"
+                            },
+                            "ResultPath": "$.state.execution",
+                            "Next": "Sync State -> BUILD_SUCCESS"
                         },
-                        "Fail Build": {
-                            "Type": "Fail",
-                            "Error": "BuildFailed",
-                            "Cause": "No valid build was generated"
-                        }
-                    }
-                }
-            ]
-        },
-        "Report Failure": {
-            "Type": "Parallel",
-            "Next": "Pipeline Failure",
-            "InputPath": "$$.Execution.Input",
-            "Branches": [
-                {
-                    "StartAt": "Update Execution State - FAILED",
-                    "States": {
-                        "Update Execution State - FAILED": {
+                        "Sync State -> BUILD_SUCCESS": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
@@ -215,10 +205,108 @@
                                         "N.$": "States.Format('{}', $.input.version)"
                                     }
                                 },
-                                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc",
+                                "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
                                 "ExpressionAttributeValues": {
+                                    ":execution_date_utc": {
+                                        "S.$": "$$.Execution.StartTime"
+                                    },
                                     ":status": {
-                                        "S": "FAILED"
+                                        "S": "$.state.execution.status"
+                                    },
+                                    ":align": {
+                                        "BOOL.$": "$.input.input_parameters.align"
+                                    },
+                                    ":kir": {
+                                        "BOOL.$": "$.input.input_parameters.kir"
+                                    },
+                                    ":mem_profile": {
+                                        "BOOL.$": "$.input.input_parameters.mem_profile"
+                                    },
+                                    ":limit": {
+                                        "N.$": "States.Format('{}', $.input.input_parameters.limit)"
+                                    },
+                                    ":updated_utc": {
+                                        "S.$": "$$.State.EnteredTime"
+                                    }
+                                }
+                            }
+                        },
+                        "Update Status -> BUILD_FAILURE": {
+                            "Type": "Pass",
+                            "Result": {
+                                "status": "BUILD_FAILURE"
+                            },
+                            "ResultPath": "$.state.execution",
+                            "Next": "Fail Build"
+                        },
+                        "Fail Build": {
+                            "Type": "Fail",
+                            "Error": "BuildFailed",
+                            "Cause": "No valid build was generated"
+                        }
+                    }
+                }
+            ]
+        },
+        "Skip Load?": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.input.input_parameters.skip_load",
+                    "BooleanEquals": true,
+                    "Next": "Handle Skipped Load"
+                }
+            ],
+            "Default": "Update Status -> LOAD_IN_PROGRESS"
+        },
+        "Handle Skipped Load": {
+            "Type": "Parallel",
+            "Branches": [
+                {
+                    "StartAt": "Update Status -> LOAD_SKIPPED",
+                    "States": {
+                        "Update Status -> LOAD_SKIPPED": {
+                            "Type": "Pass",
+                            "Result": {
+                                "status": "LOAD_SKIPPED"
+                            },
+                            "ResultPath": "$.state.execution",
+                            "Next": "Sync State -> LOAD_SKIPPED"
+                        },
+                        "Sync State -> LOAD_SKIPPED": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::dynamodb:updateItem",
+                            "ResultPath": null,
+                            "End": true,
+                            "Parameters": {
+                                "TableName": "${GfeDbExecutionStateTable}",
+                                "Key": {
+                                    "commit__sha": {
+                                        "S.$": "$.input.commit_sha"
+                                    },
+                                    "execution__version": {
+                                        "N.$": "States.Format('{}', $.input.version)"
+                                    }
+                                },
+                                "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
+                                "ExpressionAttributeValues": {
+                                    ":execution_date_utc": {
+                                        "S.$": "$$.Execution.StartTime"
+                                    },
+                                    ":status": {
+                                        "S": "$.state.execution.status"
+                                    },
+                                    ":align": {
+                                        "BOOL.$": "$.input.input_parameters.align"
+                                    },
+                                    ":kir": {
+                                        "BOOL.$": "$.input.input_parameters.kir"
+                                    },
+                                    ":mem_profile": {
+                                        "BOOL.$": "$.input.input_parameters.mem_profile"
+                                    },
+                                    ":limit": {
+                                        "N.$": "States.Format('{}', $.input.input_parameters.limit)"
                                     },
                                     ":updated_utc": {
                                         "S.$": "$$.State.EnteredTime"
@@ -227,45 +315,17 @@
                             }
                         }
                     }
-                },
-                {
-                    "StartAt": "Publish Failure",
-                    "States": {
-                        "Publish Failure": {
-                            "Type": "Task",
-                            "Resource": "arn:aws:states:::sns:publish",
-                            "Parameters": {
-                                "TopicArn": "${GfeDbExecutionResultTopicArn}",
-                                "Message": {
-                                    "result": "FAILED",
-                                    "input_parameters.$": "$"
-                                }
-                            },
-                            "End": true
-                        }
-                    }
-                }
-            ]
-        },
-        "Pipeline Failure": {
-            "Type": "Fail",
-            "Error": "ExecutionFailed"
-        },
-        "Skip Load?": {
-            "Type": "Choice",
-            "Choices": [
-                {
-                    "Variable": "$.input.input_parameters.skip_load",
-                    "BooleanEquals": true,
-                    "Next": "Load Skipped"
                 }
             ],
-            "Default": "Load Stage"
+            "Next": "Publish Result"
         },
-        "Load Skipped": {
+        "Update Status -> LOAD_IN_PROGRESS": {
             "Type": "Pass",
-            "ResultPath": null,
-            "End": true
+            "Result": {
+                "status": "LOAD_IN_PROGRESS"
+            },
+            "ResultPath": "$.state.execution",
+            "Next": "Load Stage"
         },
         "Load Stage": {
             "Type": "Parallel",
@@ -276,10 +336,56 @@
                     "ErrorEquals": [
                         "States.ALL"
                     ],
-                    "Next": "Report Failure"
+                    "Next": "Handle Error"
                 }
             ],
             "Branches": [
+                {
+                    "StartAt": "Sync State -> LOAD_IN_PROGRESS",
+                    "States": {
+                        "Sync State -> LOAD_IN_PROGRESS": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::dynamodb:updateItem",
+                            "ResultPath": null,
+                            "End": true,
+                            "Parameters": {
+                                "TableName": "${GfeDbExecutionStateTable}",
+                                "Key": {
+                                    "commit__sha": {
+                                        "S.$": "$.input.commit_sha"
+                                    },
+                                    "execution__version": {
+                                        "N.$": "States.Format('{}', $.input.version)"
+                                    }
+                                },
+                                "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
+                                "ExpressionAttributeValues": {
+                                    ":execution_date_utc": {
+                                        "S.$": "$$.Execution.StartTime"
+                                    },
+                                    ":status": {
+                                        "S": "$.state.execution.status"
+                                    },
+                                    ":align": {
+                                        "BOOL.$": "$.input.input_parameters.align"
+                                    },
+                                    ":kir": {
+                                        "BOOL.$": "$.input.input_parameters.kir"
+                                    },
+                                    ":mem_profile": {
+                                        "BOOL.$": "$.input.input_parameters.mem_profile"
+                                    },
+                                    ":limit": {
+                                        "N.$": "States.Format('{}', $.input.input_parameters.limit)"
+                                    },
+                                    ":updated_utc": {
+                                        "S.$": "$$.State.EnteredTime"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
                 {
                     "StartAt": "Execute Load Query",
                     "States": {
@@ -318,56 +424,20 @@
                                 {
                                     "Variable": "$.validations.load_results.is_load_successful.value",
                                     "BooleanEquals": true,
-                                    "Next": "Pass Load"
+                                    "Next": "Update Status -> LOAD_SUCCESS"
                                 }
                             ],
-                            "Default": "Fail Load"
+                            "Default": "Update Status -> LOAD_FAILED"
                         },
-                        "Pass Load": {
+                        "Update Status -> LOAD_SUCCESS": {
                             "Type": "Pass",
-                            "ResultPath": null,
-                            "End": true
+                            "Result": {
+                                "status": "LOAD_SUCCESS"
+                            },
+                            "ResultPath": "$.state.execution",
+                            "Next": "Sync State -> LOAD_SUCCESS"
                         },
-                        "Fail Load": {
-                            "Type": "Fail",
-                            "Error": "LoadFailed",
-                            "Cause": "Post-execution validation queries do not match expected values"
-                        }
-                    }
-                }
-            ]
-        },
-        "Run Backup": {
-            "Type": "Task",
-            "Resource": "${InvokeBackupScriptFunctionArn}",
-            "ResultPath": "$.backups.post",
-            "Next": "Report Success",
-            "Catch": [
-                {
-                    "ErrorEquals": [
-                        "States.ALL"
-                    ],
-                    "Next": "Report Failure"
-                }
-            ]
-        },
-        "Report Success": {
-            "Type": "Parallel",
-            "Next": "Pipeline Success",
-            "ResultPath": null,
-            "Catch": [
-                {
-                    "ErrorEquals": [
-                        "States.ALL"
-                    ],
-                    "Next": "Report Failure"
-                }
-            ],
-            "Branches": [
-                {
-                    "StartAt": "Update Execution State - SUCCESS",
-                    "States": {
-                        "Update Execution State - SUCCESS": {
+                        "Sync State -> LOAD_SUCCESS": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
@@ -382,38 +452,91 @@
                                         "N.$": "States.Format('{}', $.input.version)"
                                     }
                                 },
-                                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc",
+                                "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
                                 "ExpressionAttributeValues": {
+                                    ":execution_date_utc": {
+                                        "S.$": "$$.Execution.StartTime"
+                                    },
                                     ":status": {
-                                        "S": "SUCCESS"
+                                        "S": "$.state.execution.status"
+                                    },
+                                    ":align": {
+                                        "BOOL.$": "$.input.input_parameters.align"
+                                    },
+                                    ":kir": {
+                                        "BOOL.$": "$.input.input_parameters.kir"
+                                    },
+                                    ":mem_profile": {
+                                        "BOOL.$": "$.input.input_parameters.mem_profile"
+                                    },
+                                    ":limit": {
+                                        "N.$": "States.Format('{}', $.input.input_parameters.limit)"
                                     },
                                     ":updated_utc": {
                                         "S.$": "$$.State.EnteredTime"
                                     }
                                 }
                             }
-                        }
-                    }
-                },
-                {
-                    "StartAt": "Publish Success",
-                    "States": {
-                        "Publish Success": {
-                            "Type": "Task",
-                            "Resource": "arn:aws:states:::sns:publish",
-                            "ResultPath": null,
-                            "Parameters": {
-                                "TopicArn": "${GfeDbExecutionResultTopicArn}",
-                                "Message": {
-                                    "result": "SUCCESS",
-                                    "input_parameters.$": "$"
-                                }
+                        },
+                        "Update Status -> LOAD_FAILED": {
+                            "Type": "Pass",
+                            "Result": {
+                                "status": "LOAD_FAILED"
                             },
-                            "End": true
+                            "ResultPath": "$.state.execution",
+                            "Next": "Fail Load"
+                        },
+                        "Fail Load": {
+                            "Type": "Fail",
+                            "Error": "LoadFailed",
+                            "Cause": "Post-execution validation queries do not match expected values"
                         }
                     }
                 }
             ]
+        },
+        "Run Backup": {
+            "Type": "Task",
+            "Resource": "${InvokeBackupScriptFunctionArn}",
+            "ResultPath": "$.backups.post",
+            "Next": "Publish Result"
+        },
+        "Handle Error": {
+            "Type": "Pass",
+            "Next": "Publish Result"
+        },
+        "Publish Result": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::sns:publish",
+            "ResultPath": null,
+            "Parameters": {
+                "TopicArn": "${GfeDbExecutionResultTopicArn}",
+                "Message": {
+                    "result": "SUCCESS",
+                    "input_parameters.$": "$"
+                }
+            },
+            "Next": "Success or Failure?"
+        },
+        "Success or Failure?": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.state.execution.status",
+                    "StringEquals": "BUILD_SUCCESS",
+                    "Next": "Pipeline Success"
+                },
+                {
+                    "Variable": "$.state.execution.status",
+                    "StringEquals": "LOAD_SUCCESS",
+                    "Next": "Pipeline Success"
+                }
+            ],
+            "Default": "Pipeline Failure"
+        },
+        "Pipeline Failure": {
+            "Type": "Fail",
+            "Error": "ExecutionFailed"
         },
         "Pipeline Success": {
             "Type": "Succeed"
