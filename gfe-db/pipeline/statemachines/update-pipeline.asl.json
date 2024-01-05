@@ -41,10 +41,8 @@
         },
         "Update Status -> BUILD_IN_PROGRESS": {
             "Type": "Pass",
-            "Result": {
-                "status": "BUILD_IN_PROGRESS"
-            },
-            "ResultPath": "$.state.execution",
+            "Result": "BUILD_IN_PROGRESS",
+            "ResultPath": "$.state.execution.status",
             "Next": "Build Stage"
         },
         "Build Stage": {
@@ -84,7 +82,7 @@
                                         "S.$": "$$.Execution.StartTime"
                                     },
                                     ":status": {
-                                        "S": "$.state.execution.status"
+                                        "S.$": "$.state.execution.status"
                                     },
                                     ":align": {
                                         "BOOL.$": "$.input.input_parameters.align"
@@ -157,6 +155,10 @@
                                             "Value.$": "States.JsonToString($)"
                                         }
                                     ]
+                                },
+                                "Tags": {
+                                    "Key": "Name",
+                                    "Value.$": "States.Format('${Stage}-${AppName}-worker-{}', $.input.version)"
                                 }
                             }
                         },
@@ -184,10 +186,8 @@
                         },
                         "Update Status -> BUILD_SUCCESS": {
                             "Type": "Pass",
-                            "Result": {
-                                "status": "BUILD_SUCCESS"
-                            },
-                            "ResultPath": "$.state.execution",
+                            "Result": "BUILD_SUCCESS",
+                            "ResultPath": "$.state.execution.status",
                             "Next": "Sync State -> BUILD_SUCCESS"
                         },
                         "Sync State -> BUILD_SUCCESS": {
@@ -211,7 +211,7 @@
                                         "S.$": "$$.Execution.StartTime"
                                     },
                                     ":status": {
-                                        "S": "$.state.execution.status"
+                                        "S.$": "$.state.execution.status"
                                     },
                                     ":align": {
                                         "BOOL.$": "$.input.input_parameters.align"
@@ -233,10 +233,8 @@
                         },
                         "Update Status -> BUILD_FAILURE": {
                             "Type": "Pass",
-                            "Result": {
-                                "status": "BUILD_FAILURE"
-                            },
-                            "ResultPath": "$.state.execution",
+                            "Result": "BUILD_FAILURE",
+                            "ResultPath": "$.state.execution.status",
                             "Next": "Fail Build"
                         },
                         "Fail Build": {
@@ -267,10 +265,8 @@
                     "States": {
                         "Update Status -> LOAD_SKIPPED": {
                             "Type": "Pass",
-                            "Result": {
-                                "status": "LOAD_SKIPPED"
-                            },
-                            "ResultPath": "$.state.execution",
+                            "Result": "LOAD_SKIPPED",
+                            "ResultPath": "$.state.execution.status",
                             "Next": "Sync State -> LOAD_SKIPPED"
                         },
                         "Sync State -> LOAD_SKIPPED": {
@@ -294,7 +290,7 @@
                                         "S.$": "$$.Execution.StartTime"
                                     },
                                     ":status": {
-                                        "S": "$.state.execution.status"
+                                        "S.$": "$.state.execution.status"
                                     },
                                     ":align": {
                                         "BOOL.$": "$.input.input_parameters.align"
@@ -321,15 +317,13 @@
         },
         "Update Status -> LOAD_IN_PROGRESS": {
             "Type": "Pass",
-            "Result": {
-                "status": "LOAD_IN_PROGRESS"
-            },
-            "ResultPath": "$.state.execution",
+            "Result": "LOAD_IN_PROGRESS",
+            "ResultPath": "$.state.execution.status",
             "Next": "Load Stage"
         },
         "Load Stage": {
             "Type": "Parallel",
-            "OutputPath": "$.[1]",
+            "OutputPath": "$.[2]",
             "Next": "Run Backup",
             "Catch": [
                 {
@@ -364,7 +358,7 @@
                                         "S.$": "$$.Execution.StartTime"
                                     },
                                     ":status": {
-                                        "S": "$.state.execution.status"
+                                        "S.$": "$.state.execution.status"
                                     },
                                     ":align": {
                                         "BOOL.$": "$.input.input_parameters.align"
@@ -431,10 +425,8 @@
                         },
                         "Update Status -> LOAD_SUCCESS": {
                             "Type": "Pass",
-                            "Result": {
-                                "status": "LOAD_SUCCESS"
-                            },
-                            "ResultPath": "$.state.execution",
+                            "Result": "LOAD_SUCCESS",
+                            "ResultPath": "$.state.execution.status",
                             "Next": "Sync State -> LOAD_SUCCESS"
                         },
                         "Sync State -> LOAD_SUCCESS": {
@@ -458,7 +450,7 @@
                                         "S.$": "$$.Execution.StartTime"
                                     },
                                     ":status": {
-                                        "S": "$.state.execution.status"
+                                        "S.$": "$.state.execution.status"
                                     },
                                     ":align": {
                                         "BOOL.$": "$.input.input_parameters.align"
@@ -480,10 +472,8 @@
                         },
                         "Update Status -> LOAD_FAILED": {
                             "Type": "Pass",
-                            "Result": {
-                                "status": "LOAD_FAILED"
-                            },
-                            "ResultPath": "$.state.execution",
+                            "Result": "LOAD_FAILED",
+                            "ResultPath": "$.state.execution.status",
                             "Next": "Fail Load"
                         },
                         "Fail Load": {
@@ -511,10 +501,7 @@
             "ResultPath": null,
             "Parameters": {
                 "TopicArn": "${GfeDbExecutionResultTopicArn}",
-                "Message": {
-                    "result": "SUCCESS",
-                    "input_parameters.$": "$"
-                }
+                "Message.$": "$"
             },
             "Next": "Success or Failure?"
         },

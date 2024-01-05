@@ -717,6 +717,7 @@ Resources:
     Type: AWS::Serverless::StateMachine
     Properties:
       DefinitionSubstitutions:
+        Stage: !Ref Stage
         AppName: !Ref AppName
         InvokeBackupScriptFunctionArn: !GetAtt InvokeBackupScriptFunction.Arn
         GfeDbExecutionStateTable: !Ref GfeDbExecutionStateTable
@@ -773,6 +774,7 @@ Resources:
                 - batch:SubmitJob
                 - batch:DescribeJobs
                 - batch:TerminateJob
+                - batch:TagResource
               Resource: "*"
             - Effect: Allow
               Action:
