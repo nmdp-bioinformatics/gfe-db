@@ -239,8 +239,8 @@
                         },
                         "Fail Build": {
                             "Type": "Fail",
-                            "Error": "BuildFailed",
-                            "Cause": "No valid build was generated"
+                            "ErrorPath": "States.JsonToString($.validations.build_outputs.errors)",
+                            "CausePath": "States.JsonToString($)"
                         }
                     }
                 }
@@ -478,8 +478,8 @@
                         },
                         "Fail Load": {
                             "Type": "Fail",
-                            "Error": "LoadFailed",
-                            "Cause": "Post-execution validation queries do not match expected values"
+                            "ErrorPath": "States.JsonToString($.validations.load_results.errors)",
+                            "CausePath": "States.JsonToString($)"
                         }
                     }
                 }
@@ -509,17 +509,12 @@
             "Type": "Choice",
             "Choices": [
                 {
-                    "Variable": "$.state.execution.status",
-                    "StringEquals": "BUILD_SUCCESS",
-                    "Next": "Pipeline Success"
-                },
-                {
-                    "Variable": "$.state.execution.status",
-                    "StringEquals": "LOAD_SUCCESS",
-                    "Next": "Pipeline Success"
+                    "Variable": "$.Error",
+                    "IsPresent": true,
+                    "Next": "Pipeline Failure"
                 }
             ],
-            "Default": "Pipeline Failure"
+            "Default": "Pipeline Success"
         },
         "Pipeline Failure": {
             "Type": "Fail",

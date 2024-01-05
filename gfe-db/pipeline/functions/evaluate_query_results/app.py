@@ -23,20 +23,29 @@ def lambda_handler(event, context):
     release_version = event['input']['version']
     query_results = event['validations']['queries']
 
+    # Initialize errors array
+    errors = []
+
     # Release has been added to the database
     unique_releases_in_db_pre_load = sorted([ int(item['release_version']) for item in query_results['pre']['has_ipd_allele_release_counts'] ])
     unique_releases_in_db_post_load = sorted([ int(item['release_version']) for item in query_results['post']['has_ipd_allele_release_counts'] ])
     is_release_version_loaded = set(unique_releases_in_db_post_load) - set(unique_releases_in_db_pre_load) == set([int(release_version)])
+    if not is_release_version_loaded:
+        errors.append("Release version not loaded")
 
     # Number of nodes in the database has increased
     node_counts_pre_load = sum(sorted([ item['count'] for item in query_results['pre']['node_counts'] ]))
     node_counts_post_load = sum(sorted([ item['count'] for item in query_results['post']['node_counts'] ]))
     have_node_counts_increased = node_counts_post_load > node_counts_pre_load
+    if not have_node_counts_increased:
+        errors.append("Node count has not increased")
 
     # Number of unique release versions in the database has increased by one
     num_unique_releases_in_db_post_load = len(unique_releases_in_db_post_load)
     num_unique_releases_in_db_pre_load = len(unique_releases_in_db_pre_load)
     has_unique_release_count_increased_by_1 = num_unique_releases_in_db_post_load == num_unique_releases_in_db_pre_load + 1
+    if not has_unique_release_count_increased_by_1:
+        errors.append("Unique release count has not increased by 1")
 
     is_load_successful = (
         is_release_version_loaded
@@ -72,6 +81,9 @@ def lambda_handler(event, context):
             }
         }
     }
+
+    if errors:
+        payload["errors"] = errors
 
     logger.info(json.dumps(payload))
 
