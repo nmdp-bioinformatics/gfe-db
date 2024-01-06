@@ -36,6 +36,9 @@ def lambda_handler(event, context):
 
     logger.info(json.dumps(event))
 
+    # # TODO TESTING STATE MACHINE ERROR HANDLING
+    # raise Exception(f"Test Error from {context.function_name}")
+
     with graphdb as driver:
 
         # node counts

@@ -29,7 +29,8 @@ def lambda_handler(event, context):
     # Release has been added to the database
     unique_releases_in_db_pre_load = sorted([ int(item['release_version']) for item in query_results['pre']['has_ipd_allele_release_counts'] ])
     unique_releases_in_db_post_load = sorted([ int(item['release_version']) for item in query_results['post']['has_ipd_allele_release_counts'] ])
-    is_release_version_loaded = set(unique_releases_in_db_post_load) - set(unique_releases_in_db_pre_load) == set([int(release_version)])
+    # is_release_version_loaded = set(unique_releases_in_db_post_load) - set(unique_releases_in_db_pre_load) == set([int(release_version)]) or \
+    is_release_version_loaded = release_version in unique_releases_in_db_post_load
     if not is_release_version_loaded:
         errors.append("Release version not loaded")
 

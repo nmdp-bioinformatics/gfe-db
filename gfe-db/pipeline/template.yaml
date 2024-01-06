@@ -551,6 +551,7 @@ Resources:
               Action:
                 - ssm:SendCommand
                 - ssm:GetDocument
+              # TODO tighten permissions
               Resource:
                 - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${Stage}-${AppName}-database-Neo4jBackupDocument*
                 - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*

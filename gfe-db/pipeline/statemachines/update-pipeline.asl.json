@@ -259,6 +259,14 @@
         },
         "Handle Skipped Load": {
             "Type": "Parallel",
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "Next": "Handle Error"
+                }
+            ],
             "Branches": [
                 {
                     "StartAt": "Update Status -> LOAD_SKIPPED",
@@ -489,7 +497,15 @@
             "Type": "Task",
             "Resource": "${InvokeBackupScriptFunctionArn}",
             "ResultPath": "$.backups.post",
-            "Next": "Publish Result"
+            "Next": "Publish Result",
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "Next": "Handle Error"
+                }
+            ]
         },
         "Handle Error": {
             "Type": "Pass",
@@ -518,7 +534,8 @@
         },
         "Pipeline Failure": {
             "Type": "Fail",
-            "Error": "ExecutionFailed"
+            "ErrorPath": "$.Error",
+            "CausePath": "$.Cause"
         },
         "Pipeline Success": {
             "Type": "Succeed"
