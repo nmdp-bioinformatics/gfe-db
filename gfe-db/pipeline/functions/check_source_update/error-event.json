@@ -1,5 +1,9 @@
 {
-    "key1": "value1",
-    "key2": "value2",
-    "key3": "value3"
+    "align": false,
+    "kir": false,
+    "limit": "1000",
+    "releases": "3540",
+    "mem_profile": false,
+    "use_existing_build": true,
+    "skip_load": false
 }

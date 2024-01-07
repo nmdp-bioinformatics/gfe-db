@@ -1,15 +1,17 @@
 {
     "input": {
-        "version": 3460,
-        "commit_sha": "3fb27698fe4ebbd5ec4a0e565d97a53fe48c7cdd",
+        "version": 3530,
+        "commit_sha": "a549c5b255da7d988a70cf7f7a2bdb5b1ae5b00a",
         "input_parameters": {
             "align": false,
             "kir": false,
             "mem_profile": false,
-            "limit": 1000
+            "limit": 1000,
+            "use_existing_build": true,
+            "skip_load": false
         },
-        "s3_path": "s3://dev-gfe-db-810526023897-us-east-1/data/3460",
-        "receipt_handle": "AQEB17O74x6z25vq5Dc3dW9m9fbXY1MKeC3+qql2vNdrMLBdZ9VznY02YldgQF+xNKtBiuucTcE2B8PY/PkbKzkzW0c9K2njhBJcAlVTZE3BgFhtdItga8ey0E+1QuyelT2SS89q1msIqtghhlZrngNX8E22dNnXgTt7EPSRXtSi4iRnP8tb8oh0A35/8A6QDQU52yN/Sug7INbQP48Yn2k8phhN0dYmZemRELjPYZdWbHgwCfH1pcv0W1ua0LHMiGTxphIxC3+MkW9eal4YzbhOy2zxROGF2wENVYeIoeZNS9u2oFsbOlEqIUpG45jV3YS7Rw2D+iGjyflV29CnPG41KInKAGrqf7ktYDtyZYLyhzGallEGkp01OJA1UAGEr8qIqzVp2F3nYi1cPrQjJg49FfrSKDhtXsO60IVthJvUF2AzW6rqv2m0y/+UCVGopQWo"
+        "s3_path": "s3://nmdpf-gfe-db-810526023897-us-east-1/data/3530",
+        "receipt_handle": "AQEBze8gzWpZS33AFry1ZxWNhnwuN9jmk4jx/ifNTGVzUqwZJ1VbPpzGfuPjmGKmF4L2aONURoEGf4RbDiH6MaqkOpND+JfRcCw+FUyGPRlIaB8GqhMt+Sp/frQu51JhPQIDDwkNYztl3gdm3e59HoUEK6KweBthVnW0pog2Xw3rLy6qsF19zAMU0b1NyQlSzwa48K7OsllTbGEErUQBeGBIBLNYDffD9+TCgK6ihKhN5sKhn584OpVyc8/v1WWSccBLNujmRMM36k3LnEhMkuAlK/YddWhjQCxOr7v1ttKDX2qRVGJgcgxfjJYIuAgHdPhKKWK5Omq6cjdbYdIVvAtTGLL9WpRBgYB6N7tbANDme9UcYCCbZXd19ylE3xWP6NoY2JcLC2BHitp3GUl6mHyy3CnYuU5Fc3x2QPWmUv6RHuowdw778xGhGQRcE2gnPYWi"
     },
     "validations": {
         "queries": {
@@ -17,38 +19,48 @@
                 "node_counts": [
                     {
                         "node": "GFE",
-                        "count": 0
+                        "count": 1000
                     },
                     {
                         "node": "IPD_Accession",
-                        "count": 0
+                        "count": 1000
                     },
                     {
                         "node": "IPD_Allele",
-                        "count": 0
+                        "count": 1000
                     },
                     {
                         "node": "Sequence",
-                        "count": 0
+                        "count": 1000
                     },
                     {
                         "node": "Feature",
-                        "count": 0
+                        "count": 1093
                     },
                     {
                         "node": "Submitter",
-                        "count": 0
+                        "count": 1
                     }
                 ],
-                "has_ipd_allele_release_counts": [],
-                "ipd_accession_release_counts": []
+                "has_ipd_allele_release_counts": [
+                    {
+                        "release_version": "3540",
+                        "count": 1000
+                    }
+                ],
+                "ipd_accession_release_counts": [
+                    {
+                        "release_version": "3.54.0",
+                        "count": 1000
+                    }
+                ]
             }
         }
     },
     "backups": {
         "pre": {
-            "document_name": "dev-gfe-db-database-Neo4jBackupDocument-R2Z1VvGkCXtn",
-            "command_id": "8c88880c-17a7-4335-baa1-38e639a625c0"
+            "document_name": "nmdpf-gfe-db-database-Neo4jBackupDocument-dlK48Aa4AoxM",
+            "command_id": "741125dd-7a54-46a7-ab95-28b6bdbc4489"
         }
     }
 }
