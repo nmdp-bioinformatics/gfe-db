@@ -76,25 +76,13 @@
                                         "N.$": "States.Format('{}', $$.Execution.Input.input.version)"
                                     }
                                 },
-                                "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
+                                "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, updated_utc = :updated_utc",
                                 "ExpressionAttributeValues": {
                                     ":execution_date_utc": {
                                         "S.$": "$$.Execution.StartTime"
                                     },
                                     ":status": {
                                         "S.$": "$.state.execution.status"
-                                    },
-                                    ":align": {
-                                        "BOOL.$": "$.input.input_parameters.align"
-                                    },
-                                    ":kir": {
-                                        "BOOL.$": "$.input.input_parameters.kir"
-                                    },
-                                    ":mem_profile": {
-                                        "BOOL.$": "$.input.input_parameters.mem_profile"
-                                    },
-                                    ":limit": {
-                                        "N.$": "States.Format('{}', $.input.input_parameters.limit)"
                                     },
                                     ":updated_utc": {
                                         "S.$": "$$.State.EnteredTime"
@@ -205,25 +193,10 @@
                                         "N.$": "States.Format('{}', $$.Execution.Input.input.version)"
                                     }
                                 },
-                                "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
+                                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc",
                                 "ExpressionAttributeValues": {
-                                    ":execution_date_utc": {
-                                        "S.$": "$$.Execution.StartTime"
-                                    },
                                     ":status": {
                                         "S.$": "$.state.execution.status"
-                                    },
-                                    ":align": {
-                                        "BOOL.$": "$.input.input_parameters.align"
-                                    },
-                                    ":kir": {
-                                        "BOOL.$": "$.input.input_parameters.kir"
-                                    },
-                                    ":mem_profile": {
-                                        "BOOL.$": "$.input.input_parameters.mem_profile"
-                                    },
-                                    ":limit": {
-                                        "N.$": "States.Format('{}', $.input.input_parameters.limit)"
                                     },
                                     ":updated_utc": {
                                         "S.$": "$$.State.EnteredTime"
@@ -252,25 +225,10 @@
                                         "N.$": "States.Format('{}', $$.Execution.Input.input.version)"
                                     }
                                 },
-                                "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
+                                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc",
                                 "ExpressionAttributeValues": {
-                                    ":execution_date_utc": {
-                                        "S.$": "$$.Execution.StartTime"
-                                    },
                                     ":status": {
                                         "S.$": "$.state.execution.status"
-                                    },
-                                    ":align": {
-                                        "BOOL.$": "$.input.input_parameters.align"
-                                    },
-                                    ":kir": {
-                                        "BOOL.$": "$.input.input_parameters.kir"
-                                    },
-                                    ":mem_profile": {
-                                        "BOOL.$": "$.input.input_parameters.mem_profile"
-                                    },
-                                    ":limit": {
-                                        "N.$": "States.Format('{}', $.input.input_parameters.limit)"
                                     },
                                     ":updated_utc": {
                                         "S.$": "$$.State.EnteredTime"
@@ -333,25 +291,10 @@
                                         "N.$": "States.Format('{}', $$.Execution.Input.input.version)"
                                     }
                                 },
-                                "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
+                                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc",
                                 "ExpressionAttributeValues": {
-                                    ":execution_date_utc": {
-                                        "S.$": "$$.Execution.StartTime"
-                                    },
                                     ":status": {
                                         "S.$": "$.state.execution.status"
-                                    },
-                                    ":align": {
-                                        "BOOL.$": "$.input.input_parameters.align"
-                                    },
-                                    ":kir": {
-                                        "BOOL.$": "$.input.input_parameters.kir"
-                                    },
-                                    ":mem_profile": {
-                                        "BOOL.$": "$.input.input_parameters.mem_profile"
-                                    },
-                                    ":limit": {
-                                        "N.$": "States.Format('{}', $.input.input_parameters.limit)"
                                     },
                                     ":updated_utc": {
                                         "S.$": "$$.State.EnteredTime"
@@ -401,25 +344,10 @@
                                         "N.$": "States.Format('{}', $$.Execution.Input.input.version)"
                                     }
                                 },
-                                "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
+                                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc",
                                 "ExpressionAttributeValues": {
-                                    ":execution_date_utc": {
-                                        "S.$": "$$.Execution.StartTime"
-                                    },
                                     ":status": {
                                         "S.$": "$.state.execution.status"
-                                    },
-                                    ":align": {
-                                        "BOOL.$": "$.input.input_parameters.align"
-                                    },
-                                    ":kir": {
-                                        "BOOL.$": "$.input.input_parameters.kir"
-                                    },
-                                    ":mem_profile": {
-                                        "BOOL.$": "$.input.input_parameters.mem_profile"
-                                    },
-                                    ":limit": {
-                                        "N.$": "States.Format('{}', $.input.input_parameters.limit)"
                                     },
                                     ":updated_utc": {
                                         "S.$": "$$.State.EnteredTime"
@@ -493,25 +421,10 @@
                                         "N.$": "States.Format('{}', $$.Execution.Input.input.version)"
                                     }
                                 },
-                                "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
+                                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc",
                                 "ExpressionAttributeValues": {
-                                    ":execution_date_utc": {
-                                        "S.$": "$$.Execution.StartTime"
-                                    },
                                     ":status": {
                                         "S.$": "$.state.execution.status"
-                                    },
-                                    ":align": {
-                                        "BOOL.$": "$.input.input_parameters.align"
-                                    },
-                                    ":kir": {
-                                        "BOOL.$": "$.input.input_parameters.kir"
-                                    },
-                                    ":mem_profile": {
-                                        "BOOL.$": "$.input.input_parameters.mem_profile"
-                                    },
-                                    ":limit": {
-                                        "N.$": "States.Format('{}', $.input.input_parameters.limit)"
                                     },
                                     ":updated_utc": {
                                         "S.$": "$$.State.EnteredTime"
@@ -540,25 +453,10 @@
                                         "N.$": "States.Format('{}', $$.Execution.Input.input.version)"
                                     }
                                 },
-                                "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
+                                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc",
                                 "ExpressionAttributeValues": {
-                                    ":execution_date_utc": {
-                                        "S.$": "$$.Execution.StartTime"
-                                    },
                                     ":status": {
                                         "S.$": "$.state.execution.status"
-                                    },
-                                    ":align": {
-                                        "BOOL.$": "$.input.input_parameters.align"
-                                    },
-                                    ":kir": {
-                                        "BOOL.$": "$.input.input_parameters.kir"
-                                    },
-                                    ":mem_profile": {
-                                        "BOOL.$": "$.input.input_parameters.mem_profile"
-                                    },
-                                    ":limit": {
-                                        "N.$": "States.Format('{}', $.input.input_parameters.limit)"
                                     },
                                     ":updated_utc": {
                                         "S.$": "$$.State.EnteredTime"
