@@ -316,7 +316,7 @@
         "Load Stage": {
             "Type": "Parallel",
             "OutputPath": "$.[2]",
-            "Next": "Run Backup",
+            "Next": "Run Post-Execution Backup",
             "Catch": [
                 {
                     "ErrorEquals": [
@@ -473,7 +473,7 @@
                 }
             ]
         },
-        "Run Backup": {
+        "Run Post-Execution Backup": {
             "Type": "Task",
             "Resource": "${InvokeBackupScriptFunctionArn}",
             "ResultPath": "$.backups.post",
@@ -533,7 +533,7 @@
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
-                            "Next": "Parse Payload",
+                            "Next": "Parse Error Payload",
                             "Parameters": {
                                 "TableName": "${GfeDbExecutionStateTable}",
                                 "Key": {
@@ -561,7 +561,7 @@
                                 }
                             }
                         },
-                        "Parse Payload": {
+                        "Parse Error Payload": {
                             "Type": "Pass",
                             "Parameters": {
                                 "Error.$": "$.Error",

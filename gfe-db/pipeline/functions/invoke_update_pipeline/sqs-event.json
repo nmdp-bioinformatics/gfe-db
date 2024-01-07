@@ -1,37 +1,19 @@
 {
     "Records": [
         {
-            "messageId": "03ec152e-31ff-4383-824e-6913e9c3059f",
-            "receiptHandle": "AQEBZNnt1REvMT0hDKVmH6Z5Tsqk9rcrBOD0Bl0KwGTRaxwVW1pkn2Ox+LLdcs6OEflfcSf3xop5SdDrgCchY6nHgn4XHdG0PCLDXTXipmSSqwAQ7e93rrEPpCRXtfrDQeC4Be7QE0xDDnqFgYoIWn8ngqntCZPMQazeRiYvRXhc7bOZRCS36CoOjK4liC+mQf5q8yDGn8qYYWEFL5JDgiwdUNSI/6KpcWUba6WHrNdJ7RFPldvO3GTe7BfhWdjmvTWPS6glnCceK8lSw6rg/Iuuj7KCPFDjIFDwW8yitaOIRpBA98QrcyXBlZrLuUw0yHEOrrl/v+cedIVruNLUbGbMohM8FNk4UJF8x7kXFky4l0huDDuKcvtP0H9iGu6YA9wo0J3zLQiqyn8440X4OSNQsaJzAOBT/X4fpwZHwLg0OdMuWFu7Ri8UFIqpFuKoru1Q",
-            "body": "{\"version\": 3520, \"commit_sha\": \"70b3c643390b8a1e394b5d9cc9ee1f2c6eb1baca\", \"input_parameters\": {\"align\": false, \"kir\": false, \"mem_profile\": false, \"limit\": -1}, \"s3_path\": \"s3://dev-gfe-db-531868584498-us-east-1/data/3520/csv/\"}",
+            "messageId": "62eac214-84e3-4047-88a7-0a64a4cbed7b",
+            "receiptHandle": "AQEB44KYQWwCp5x0Q+OywMyKug9jAdoX5IRUa4fUKY+FMXgKtA9dMsjGzr06TndpXmrS/lra9WI40a+G/wc9zJ4dXij2BirX1xA7wiRYTg+QHGDkTY0QBOW13DecyEbifLqpBbeRLh6s2J+C2TdVjy1Gf8sGmlZUZg5TzrkQdQ/u2ezZNgDL/ALpsvPyejMzjqnASQSfJOhrjI68atyQdVZ5DZRwed/9CAcqHAvdS0Uv1j87OW9LEYt+ZINHYoYu4Sb18NBvIP2FQIcGql9q530HhjoYeUrP41glkRJqiL8HPrJhfvgdnVEzIzduvQkvjsX7V61C5VBSnQDa7vf/QS44LiqBhPkvkwuBDkI3yJ/qC20Vc02PQ5p1tpZctbNnliHKNl+jU01uinCH/SpC6SGHZipXB3hf+1vaFwG7YwgT/Pv1GVVu8uci8gCNbNiSRkV4",
+            "body": "{\"id\": \"3540_901b1b788a2ec2b4722c9672910ad880b29b368b_240107_194421\", \"version\": 3540, \"commit_sha\": \"901b1b788a2ec2b4722c9672910ad880b29b368b\", \"input_parameters\": {\"align\": false, \"kir\": false, \"mem_profile\": false, \"limit\": 1000, \"use_existing_build\": true, \"skip_load\": false}, \"s3_path\": \"s3://nmdpf-gfe-db-810526023897-us-east-1/data/3540\"}",
             "attributes": {
                 "ApproximateReceiveCount": "1",
-                "AWSTraceHeader": "Root=1-64891a77-62170d997803af9e062178e1;Parent=044727760dac0120;Sampled=0;Lineage=0495e7b8:0",
-                "SentTimestamp": "1686706809983",
-                "SenderId": "AROAXXVOWRIZDZBLBKWVH:dev-gfe-db-check-source-update",
-                "ApproximateFirstReceiveTimestamp": "1686706809985"
+                "SentTimestamp": "1704656711976",
+                "SenderId": "AROA3ZNY5UDMUNE5WAE5K:gregory",
+                "ApproximateFirstReceiveTimestamp": "1704656712000"
             },
             "messageAttributes": {},
-            "md5OfBody": "b155198870096819bb90bca0d987db97",
+            "md5OfBody": "1d53a934a4f027498387994f344b78dd",
             "eventSource": "aws:sqs",
-            "eventSourceARN": "arn:aws:sqs:us-east-1:531868584498:dev-gfe-db-pipeline-GfeDbProcessingQueue-qxhCzj6BaTDQ",
-            "awsRegion": "us-east-1"
-        },
-        {
-            "messageId": "def2c2de-7981-4751-9ee6-07ff2b9d3748",
-            "receiptHandle": "AQEBTEWN6BwQuiF9C8ZF+Kf5flh3GmQ6C00ouALHFdhq+1Fv89q+90BaWIryPIhKzWPMz3m5ijzqbTRgZnIr5nQ0CIFwx0KnqUL5KcuhwjBwZWBUc3ifHbQ/KnlB8BfTCl4YAVdAsL6343IyW+RvYoVIO0cNdpBwV9ZRodbrQB2OFmry7upocQOJWdEnNbJDyS2KTc6btKFjo3pzvy5tc0bweVgvDci/Ew69EX0fwCh7uAf9FdjE5DAsNMg9cI0HnEvtxkSfT2ue2piusNtCzQQ4hMJG6qsqTvekMJTahfJWPOJWjW9TAmVpzzgaUrGaPKACZo/s8sc38GJri068VbFHkq0Z1TWUfLa7UWVaic8kgDsDnJ5BNPfNimA3AMochAQ2pwTBtoQm2d3jyUM6cja2qA9NDMqPkELFqZARq5QE4HeIq4bTuMvC9qMzWBn9I88K",
-            "body": "{\"version\": 3510, \"commit_sha\": \"5f2c562056f8ffa89aeea0631f2a52300ee0de17\", \"input_parameters\": {\"align\": false, \"kir\": false, \"mem_profile\": false, \"limit\": -1}, \"s3_path\": \"s3://dev-gfe-db-531868584498-us-east-1/data/3510/csv/\"}",
-            "attributes": {
-                "ApproximateReceiveCount": "1",
-                "AWSTraceHeader": "Root=1-64891a77-62170d997803af9e062178e1;Parent=044727760dac0120;Sampled=0;Lineage=0495e7b8:0",
-                "SentTimestamp": "1686706809997",
-                "SenderId": "AROAXXVOWRIZDZBLBKWVH:dev-gfe-db-check-source-update",
-                "ApproximateFirstReceiveTimestamp": "1686706810006"
-            },
-            "messageAttributes": {},
-            "md5OfBody": "504e71255a62b7d42889209d7c2381cf",
-            "eventSource": "aws:sqs",
-            "eventSourceARN": "arn:aws:sqs:us-east-1:531868584498:dev-gfe-db-pipeline-GfeDbProcessingQueue-qxhCzj6BaTDQ",
+            "eventSourceARN": "arn:aws:sqs:us-east-1:810526023897:nmdpf-gfe-db-pipeline-GfeDbProcessingQueue-DQDFHzl2h1id",
             "awsRegion": "us-east-1"
         }
     ]

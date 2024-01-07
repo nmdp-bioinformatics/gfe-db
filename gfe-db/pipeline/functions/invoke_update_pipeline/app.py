@@ -65,7 +65,7 @@ def lambda_handler(event, context):
             }
             response = states.start_execution(
                 stateMachineArn=update_pipeline_state_machine_arn,
-                name=generate_execution_id(payload["input"]), # {version}_{commit_sha}_{YYYYMMDD_HHMMSS}
+                name=payload["input"]["id"], # {version}_{commit_sha}_{YYYYMMDD_HHMMSS}
                 input=json.dumps(payload),
             )
 
@@ -101,24 +101,24 @@ def lambda_handler(event, context):
             "body": json.dumps({"message": return_msg, "execution_arns": execution_arns}),
         }
 
+# # TODO move to CheckSourceUpdate
+# def generate_execution_id(message: dict) -> str:
+#     """Generate an execution id for the state machine execution with format:
+#     {version}_{commit_sha}_{YYYYMMDD_HHMMSS}
 
-def generate_execution_id(message: dict) -> str:
-    """Generate an execution id for the state machine execution with format:
-    {version}_{commit_sha}_{YYYYMMDD_HHMMSS}
+#     Args:
+#         message (dict): Message from SQS queue
 
-    Args:
-        message (dict): Message from SQS queue
-
-    Returns:
-        str: Execution id
-    """
-    return "_".join(
-        [
-            str(message["version"]),
-            message["commit_sha"],
-            datetime.utcnow().strftime("%y%m%d_%H%M%S"),
-        ]
-    )
+#     Returns:
+#         str: Execution id
+#     """
+#     return "_".join(
+#         [
+#             str(message["version"]),
+#             message["commit_sha"],
+#             datetime.utcnow().strftime("%y%m%d_%H%M%S"),
+#         ]
+#     )
 
 
 if __name__ == "__main__":

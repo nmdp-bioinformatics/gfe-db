@@ -38,14 +38,12 @@ class ExecutionStatus(str, Enum):
     def __contains__(cls, item):
         return item in cls.__members__
 
-
 def str_to_datetime(v, fmt="%Y-%m-%dT%H:%M:%S.%fZ"):
     return datetime.strptime(v, fmt)
 
 
 def str_from_datetime(v, fmt="%Y-%m-%dT%H:%M:%SZ"):
     return v.strftime(fmt)
-
 
 # validate that date field is ISO 8601 format with timezone
 def date_is_iso_8601_with_timezone(v):
@@ -187,6 +185,7 @@ class RepositoryConfig(BaseModel):
 
 # TODO add execution_id
 class ExecutionDetailsConfig(BaseModel):
+    id: str = None
     version: int
     status: str
     date_utc: Optional[str] = None
@@ -299,6 +298,7 @@ class ExecutionState(BaseModel):
 
 
 class ExecutionPayloadItem(BaseModel):
+    id: str
     version: int
     commit_sha: str
     input_parameters: InputParameters
@@ -316,6 +316,7 @@ class ExecutionPayloadItem(BaseModel):
     @classmethod
     def from_execution_state_item(cls, execution_state_item):
         return cls(
+            id=execution_state_item.execution.id,
             version=execution_state_item.execution.version,
             commit_sha=execution_state_item.commit.sha,
             input_parameters=execution_state_item.execution.input_parameters,

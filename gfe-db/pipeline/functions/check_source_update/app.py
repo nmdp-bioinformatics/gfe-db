@@ -20,7 +20,7 @@ if __name__ != "app":
     sys.path.append(os.environ["GFEDBMODELS_PATH"])
 import logging
 from decimal import Decimal
-from datetime import timedelta
+from datetime import datetime, timedelta
 import json
 from gfedbmodels.constants import session, pipeline
 from gfedbmodels.types import (
@@ -192,13 +192,14 @@ def lambda_handler(event, context):
         recent_commits_for_release = select_most_recent_commit_for_release(commits_with_releases)
         pending_commits = [
             update_execution_state_item(
-                execution_state_item=commit,
+                execution_state_item=execution_state_item,
                 status=ExecutionStatus.PENDING,
                 timestamp=utc_now,
                 input_parameters=input_parameters,
+                version=version,
             )
             for item in recent_commits_for_release
-            for commit in item.values()
+            for version, execution_state_item in item.items()
         ]
 
         # 1b) Mark the older commits for each release as SKIPPED
@@ -277,6 +278,24 @@ def lambda_handler(event, context):
         raise Exception(message)
 
 
+def generate_execution_id(sha: str, timestamp: str, version: int = None) -> str:
+    """Generate an execution id for the state machine execution with format:
+    {version}_{commit_sha}_{YYYYMMDD_HHMMSS}
+
+    Args:
+        message (dict): Message from SQS queue
+
+    Returns:
+        str: Execution id
+    """
+    return "_".join(
+        [
+            str(version),
+            sha, #execution_state_item.commit.sha,
+            str_to_datetime(timestamp).strftime("%Y%m%d_%H%M%S"),
+        ]
+    )
+
 # @cache_pickle
 def get_execution_state(table, sort_column="commit__date_utc", reverse_sort=True):
     # Retrieve execution state from table
@@ -331,10 +350,17 @@ def update_execution_state_item(
     status: str,
     timestamp: str,
     input_parameters: dict = None,
+    version: int = None
 ):
     execution_state_item.execution.status = status
+    execution_state_item.updated_utc = timestamp
 
     if input_parameters is not None and status == ExecutionStatus.PENDING:
+        execution_state_item.execution.id = generate_execution_id(
+            sha=execution_state_item.commit.sha,
+            timestamp=execution_state_item.updated_utc,
+            version=version
+        )
         execution_state_item.execution.input_parameters = input_parameters
         # TODO Update format to s3://<data_bucket_name>/data/csv/<version>' for csv and s3://<data_bucket_name>/data/dat/<version>' for hla.dat for Glue Catalog
         execution_state_item.execution.s3_path = (
@@ -350,13 +376,12 @@ def update_execution_state_item(
             execution_state_item.execution.date_utc = None
 
 
-    execution_state_item.updated_utc = timestamp
     return execution_state_item
 
 
 if __name__ == "__main__":
     from pathlib import Path
 
-    event = json.loads((Path(__file__).parent / "user-event.json").read_text())
+    event = json.loads((Path(__file__).parent / "error-event.json").read_text())
 
     lambda_handler(event, None)
