@@ -204,9 +204,10 @@ def lambda_handler(event, context):
         # 1b) Mark the older commits for each release as SKIPPED
         skipped_commits = [
             update_execution_state_item(
-            execution_state_item=commit, 
-            status=ExecutionStatus.SKIPPED,
-            timestamp=utc_now)
+                execution_state_item=commit, 
+                status=ExecutionStatus.SKIPPED,
+                timestamp=utc_now
+            )
             for commit in commits_with_releases
             if commit not in pending_commits
         ]
@@ -339,7 +340,15 @@ def update_execution_state_item(
         execution_state_item.execution.s3_path = (
             f"s3://{data_bucket_name}/data/{execution_state_item.execution.version}"
         )
-        execution_state_item.execution.date_utc = timestamp
+
+        # execution.date_utc is updated by the state machine. This is different from created_utc which is set by this function
+        # execution_state_item.execution.date_utc = timestamp
+
+        # Reset error if present from previous executions
+        if execution_state_item.error is not None or execution_state_item.execution.date_utc is not None:
+            execution_state_item.error = None
+            execution_state_item.execution.date_utc = None
+
 
     execution_state_item.updated_utc = timestamp
     return execution_state_item
@@ -348,6 +357,6 @@ def update_execution_state_item(
 if __name__ == "__main__":
     from pathlib import Path
 
-    event = json.loads((Path(__file__).parent / "error-event.json").read_text())
+    event = json.loads((Path(__file__).parent / "user-event.json").read_text())
 
     lambda_handler(event, None)
