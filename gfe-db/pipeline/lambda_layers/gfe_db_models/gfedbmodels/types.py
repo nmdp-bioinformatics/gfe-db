@@ -16,6 +16,8 @@ BUILD_SUCCESS: build succeeded (set by State Machine) ✅
 LOAD_IN_PROGRESS: load started (set by State Machine) ✅
 LOAD_SUCCESS: load succeeded (set by State Machine) ✅
 LOAD_SKIPPED: load skipped (set by State Machine) ✅
+LOAD_FAILED: load failed (set by State Machine) ✅
+BUILD_FAILED: build failed (set by State Machine) ✅
 FAILED: build or load failed (set by State Machine) ✅
 """
 
@@ -25,8 +27,10 @@ class ExecutionStatus(str, Enum):
     PENDING = "PENDING"
     BUILD_IN_PROGRESS = "BUILD_IN_PROGRESS"
     BUILD_SUCCESS = "BUILD_SUCCESS"
+    BUILD_FAILED = "BUILD_FAILED"
     LOAD_IN_PROGRESS = "LOAD_IN_PROGRESS"
     LOAD_SUCCESS = "LOAD_SUCCESS"
+    LOAD_FAILED = "LOAD_FAILED"
     LOAD_SKIPPED = "LOAD_SKIPPED"
     FAILED = "FAILED"
 
@@ -212,12 +216,19 @@ class SourceConfig(BaseModel):
         return date_is_iso_8601_with_timezone(v)
 
 
+# Uses similar schema from Step Functions Fail state
+class ExecutionError(BaseModel):
+    message: str
+    cause: str
+
+# One item in the ExecutionState table
 class ExecutionStateItem(BaseModel):
     created_utc: str
     updated_utc: Optional[str] = None  # TODO make required once fully implemented
     repository: RepositoryConfig
     commit: Commit
     execution: ExecutionDetailsConfig
+    error: Optional[ExecutionError] = None
     s3_path: Optional[str] = None
 
     @classmethod

@@ -115,6 +115,8 @@ Resources:
             "repository.name",
             "repository.owner",
             "repository.url",
+            "error.message",
+            "error.cause",
             "created_utc",
             "updated_utc"
         ]
