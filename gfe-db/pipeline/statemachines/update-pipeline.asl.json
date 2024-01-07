@@ -70,10 +70,10 @@
                                 "TableName": "${GfeDbExecutionStateTable}",
                                 "Key": {
                                     "commit__sha": {
-                                        "S.$": "$.input.commit_sha"
+                                        "S.$": "$$.Execution.Input.input.commit_sha"
                                     },
                                     "execution__version": {
-                                        "N.$": "States.Format('{}', $.input.version)"
+                                        "N.$": "States.Format('{}', $$.Execution.Input.input.version)"
                                     }
                                 },
                                 "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
@@ -199,10 +199,10 @@
                                 "TableName": "${GfeDbExecutionStateTable}",
                                 "Key": {
                                     "commit__sha": {
-                                        "S.$": "$.input.commit_sha"
+                                        "S.$": "$$.Execution.Input.input.commit_sha"
                                     },
                                     "execution__version": {
-                                        "N.$": "States.Format('{}', $.input.version)"
+                                        "N.$": "States.Format('{}', $$.Execution.Input.input.version)"
                                     }
                                 },
                                 "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
@@ -235,12 +235,53 @@
                             "Type": "Pass",
                             "Result": "BUILD_FAILURE",
                             "ResultPath": "$.state.execution.status",
-                            "Next": "Fail Build"
+                            "Next": "Sync State -> BUILD_FAILURE"
+                        },
+                        "Sync State -> BUILD_FAILURE": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::dynamodb:updateItem",
+                            "ResultPath": null,
+                            "Next": "Fail Build",
+                            "Parameters": {
+                                "TableName": "${GfeDbExecutionStateTable}",
+                                "Key": {
+                                    "commit__sha": {
+                                        "S.$": "$$.Execution.Input.input.commit_sha"
+                                    },
+                                    "execution__version": {
+                                        "N.$": "States.Format('{}', $$.Execution.Input.input.version)"
+                                    }
+                                },
+                                "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
+                                "ExpressionAttributeValues": {
+                                    ":execution_date_utc": {
+                                        "S.$": "$$.Execution.StartTime"
+                                    },
+                                    ":status": {
+                                        "S.$": "$.state.execution.status"
+                                    },
+                                    ":align": {
+                                        "BOOL.$": "$.input.input_parameters.align"
+                                    },
+                                    ":kir": {
+                                        "BOOL.$": "$.input.input_parameters.kir"
+                                    },
+                                    ":mem_profile": {
+                                        "BOOL.$": "$.input.input_parameters.mem_profile"
+                                    },
+                                    ":limit": {
+                                        "N.$": "States.Format('{}', $.input.input_parameters.limit)"
+                                    },
+                                    ":updated_utc": {
+                                        "S.$": "$$.State.EnteredTime"
+                                    }
+                                }
+                            }
                         },
                         "Fail Build": {
                             "Type": "Fail",
-                            "ErrorPath": "States.JsonToString($.validations.build_outputs.errors)",
-                            "CausePath": "States.JsonToString($)"
+                            "Error": "BuildFailed",
+                            "CausePath": "States.JsonToString($.validations.build_outputs.errors)"
                         }
                     }
                 }
@@ -286,10 +327,10 @@
                                 "TableName": "${GfeDbExecutionStateTable}",
                                 "Key": {
                                     "commit__sha": {
-                                        "S.$": "$.input.commit_sha"
+                                        "S.$": "$$.Execution.Input.input.commit_sha"
                                     },
                                     "execution__version": {
-                                        "N.$": "States.Format('{}', $.input.version)"
+                                        "N.$": "States.Format('{}', $$.Execution.Input.input.version)"
                                     }
                                 },
                                 "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
@@ -354,10 +395,10 @@
                                 "TableName": "${GfeDbExecutionStateTable}",
                                 "Key": {
                                     "commit__sha": {
-                                        "S.$": "$.input.commit_sha"
+                                        "S.$": "$$.Execution.Input.input.commit_sha"
                                     },
                                     "execution__version": {
-                                        "N.$": "States.Format('{}', $.input.version)"
+                                        "N.$": "States.Format('{}', $$.Execution.Input.input.version)"
                                     }
                                 },
                                 "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
@@ -446,10 +487,10 @@
                                 "TableName": "${GfeDbExecutionStateTable}",
                                 "Key": {
                                     "commit__sha": {
-                                        "S.$": "$.input.commit_sha"
+                                        "S.$": "$$.Execution.Input.input.commit_sha"
                                     },
                                     "execution__version": {
-                                        "N.$": "States.Format('{}', $.input.version)"
+                                        "N.$": "States.Format('{}', $$.Execution.Input.input.version)"
                                     }
                                 },
                                 "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
@@ -482,12 +523,53 @@
                             "Type": "Pass",
                             "Result": "LOAD_FAILED",
                             "ResultPath": "$.state.execution.status",
-                            "Next": "Fail Load"
+                            "Next": "Sync State -> LOAD_FAILED"
+                        },
+                        "Sync State -> LOAD_FAILED": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::dynamodb:updateItem",
+                            "ResultPath": null,
+                            "Next": "Fail Load",
+                            "Parameters": {
+                                "TableName": "${GfeDbExecutionStateTable}",
+                                "Key": {
+                                    "commit__sha": {
+                                        "S.$": "$$.Execution.Input.input.commit_sha"
+                                    },
+                                    "execution__version": {
+                                        "N.$": "States.Format('{}', $$.Execution.Input.input.version)"
+                                    }
+                                },
+                                "UpdateExpression": "SET execution__date_utc = :execution_date_utc, execution__status = :status, execution__input_parameters__align = :align, execution__input_parameters__kir = :kir, execution__input_parameters__mem_profile = :mem_profile, execution__input_parameters__limit = :limit, updated_utc = :updated_utc",
+                                "ExpressionAttributeValues": {
+                                    ":execution_date_utc": {
+                                        "S.$": "$$.Execution.StartTime"
+                                    },
+                                    ":status": {
+                                        "S.$": "$.state.execution.status"
+                                    },
+                                    ":align": {
+                                        "BOOL.$": "$.input.input_parameters.align"
+                                    },
+                                    ":kir": {
+                                        "BOOL.$": "$.input.input_parameters.kir"
+                                    },
+                                    ":mem_profile": {
+                                        "BOOL.$": "$.input.input_parameters.mem_profile"
+                                    },
+                                    ":limit": {
+                                        "N.$": "States.Format('{}', $.input.input_parameters.limit)"
+                                    },
+                                    ":updated_utc": {
+                                        "S.$": "$$.State.EnteredTime"
+                                    }
+                                }
+                            }
                         },
                         "Fail Load": {
                             "Type": "Fail",
-                            "ErrorPath": "States.JsonToString($.validations.load_results.errors)",
-                            "CausePath": "States.JsonToString($)"
+                            "Error": "LoadFailed",
+                            "CausePath": "States.JsonToString($.validations.load_results.errors)"
                         }
                     }
                 }
@@ -508,8 +590,91 @@
             ]
         },
         "Handle Error": {
-            "Type": "Pass",
-            "Next": "Publish Result"
+            "Type": "Parallel",
+            "OutputPath": "$.[0]",
+            "Next": "Publish Result",
+            "Branches": [
+                {
+                    "StartAt": "Get Current State",
+                    "States": {
+                        "Get Current State": {
+                            "Type": "Task",
+                            "Resource": "${GetExecutionStateFunctionArn}",
+                            "ResultPath": "$.state",
+                            "Parameters": {
+                                "input.$": "$$.Execution.Input.input"
+                            },
+                            "Next": "Is Status Current?"
+                        },
+                        "Is Status Current?": {
+                            "Type": "Choice",
+                            "Choices": [
+                                {
+                                    "Or": [
+                                        {
+                                            "Variable": "$.state.execution.status",
+                                            "StringEquals": "BUILD_FAILED"
+                                        },
+                                        {
+                                            "Variable": "$.state.execution.status",
+                                            "StringEquals": "LOAD_FAILED"
+                                        }
+                                    ],
+                                    "Next": "Sync Failed State"
+                                }
+                            ],
+                            "Default": "Update Status -> FAILED"
+                        },
+                        "Update Status -> FAILED": {
+                            "Type": "Pass",
+                            "Result": "FAILED",
+                            "ResultPath": "$.state.execution.status",
+                            "Next": "Sync Failed State"
+                        },
+                        "Sync Failed State": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::dynamodb:updateItem",
+                            "ResultPath": null,
+                            "Next": "Parse Payload",
+                            "Parameters": {
+                                "TableName": "${GfeDbExecutionStateTable}",
+                                "Key": {
+                                    "commit__sha": {
+                                        "S.$": "$$.Execution.Input.input.commit_sha"
+                                    },
+                                    "execution__version": {
+                                        "N.$": "States.Format('{}', $$.Execution.Input.input.version)"
+                                    }
+                                },
+                                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc, error__message = :error, error__cause = :cause",
+                                "ExpressionAttributeValues": {
+                                    ":status": {
+                                        "S.$": "$.state.execution.status"
+                                    },
+                                    ":updated_utc": {
+                                        "S.$": "$$.State.EnteredTime"
+                                    },
+                                    ":error": {
+                                        "S.$": "$.Error"
+                                    },
+                                    ":cause": {
+                                        "S.$": "$.Cause"
+                                    }
+                                }
+                            }
+                        },
+                        "Parse Payload": {
+                            "Type": "Pass",
+                            "Parameters": {
+                                "Error.$": "$.Error",
+                                "Cause.$": "$.Cause"
+                            },
+                            "OutputPath": "$",
+                            "End": true
+                        }
+                    }
+                }
+            ]
         },
         "Publish Result": {
             "Type": "Task",

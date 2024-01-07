@@ -454,7 +454,7 @@ endif
 pipeline.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.deploy
 
-pipeline.service.deploy:
+pipeline.service.update:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.functions.deploy
 
 pipeline.jobs.deploy:
@@ -627,9 +627,6 @@ database.delete:
 
 pipeline.delete:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.delete
-
-pipeline.service.delete:
-	$(MAKE) -C ${APP_NAME}/pipeline/ service.functions.delete
 
 pipeline.jobs.delete:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.jobs.delete
@@ -917,10 +914,7 @@ define HELP_MESSAGE
 	$ make pipeline.delete
 
 	...::: Update only the pipeline CloudFormation including Lambda functions :::...
-	$ make pipeline.service.deploy
-
-	...::: Delete only the pipeline CloudFormation including Lambda functions :::...
-	$ make pipeline.service.delete
+	$ make pipeline.service.update
 
 	...::: Deploy the pipeline jobs as Docker images to ECR:::...
 	$ make pipeline.jobs.deploy

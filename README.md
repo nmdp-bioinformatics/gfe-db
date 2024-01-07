@@ -364,7 +364,7 @@ STAGE=<stage> make database.deploy
 STAGE=<stage> make pipeline.deploy
 
 # Deploy or update only the pipeline serverless stack including the Lambda functions and state machine
-STAGE=<stage> make pipeline.service.deploy
+STAGE=<stage> make pipeline.service.update
 
 # Deploy or update only the Docker image for the build job
 STAGE=<stage> make pipeline.jobs.deploy
