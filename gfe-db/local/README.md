@@ -23,7 +23,7 @@ docker run --interactive --tty --rm \
     neo4j-admin database load --from-path=/backups/neo4j --overwrite-destination=true --verbose neo4j
 ```
 
-Basic run command.
+Basic run command for Neo4j base image with no data.
 ```bash
 docker run \
     --restart always \
@@ -34,13 +34,17 @@ docker run \
     neo4j:5.15
 ```
 
+Basic run command for gfe-db image with baked-in data.
+```bash
 docker run \
     --restart always \
     --publish=7474:7474 --publish=7687:7687 \
-    --env NEO4J_AUTH=neo4j/gfedb2023 \
-    --volume=$(pwd)/neo4j/data:/data \
-    --volume=$HOME/neo4j/logs:/logs \
-    neo4j:5.15
+    --volume=$(pwd)/neo4j/logs:/logs \
+    gfe-db:latest
+```
 
 ## Development Steps
-- 
+- Fetch backup from S3
+- Use neo4j-admin command to load the backup into the data directory
+- Copy the data directory to the image
+- Push the image to ECR
