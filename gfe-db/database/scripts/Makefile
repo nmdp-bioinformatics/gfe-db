@@ -169,7 +169,13 @@ neo4j.backup:
 	sudo -u neo4j neo4j-admin database dump neo4j --to-path=/var/lib/neo4j/backups/neo4j/ --overwrite-destination=true && \
 	archive_path=$$(date +%Y/%m/%d/%H/%M)/gfedb.zip && \
 	echo "Uploading archive to S3: s3://${DATA_BUCKET_NAME}/backups/neo4j/$$archive_path" && \
-	sudo -u neo4j zip -r - backups | aws s3 cp - s3://${DATA_BUCKET_NAME}/backups/neo4j/$$archive_path
+	sudo -u neo4j zip -r - backups | aws s3 cp - s3://${DATA_BUCKET_NAME}/backups/neo4j/$$archive_path && \
+	echo "Updating SSM Parameter for current backup S3 path" && \
+	res=$$(aws ssm put-parameter --name "/${APP_NAME}/${STAGE}/${AWS_REGION}/CurrentBackupS3Path" --value "s3://${DATA_BUCKET_NAME}/backups/neo4j/$$archive_path" --type String --overwrite) && \
+	echo $$res | jq -r && \
+	echo "Cleaning up" && \
+	rm -r /var/lib/neo4j/backups/system/* && \
+	rm -r /var/lib/neo4j/backups/neo4j/*
 	$(MAKE) neo4j.start
 
 neo4j.restore: #from_path=s3://<backup path>.zip

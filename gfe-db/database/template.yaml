@@ -351,6 +351,11 @@ Resources:
                   - ec2:AssociateAddress
                 Resource:
                   - '*'
+              - Effect: Allow
+                Action:
+                  - ssm:PutParameter
+                Resource:
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*
   Neo4jDatabaseInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
@@ -416,7 +421,7 @@ Resources:
         parameters:
           commandLine:
             type: String
-            description: '(Required) Specify the command line to be executed. The following formats of commands can be run: ''pythonMainFile.py argument1 argument2'', ''ansible-playbook -i "localhost," -c local example.yml'''
+            description: 'Run on the server to create a dump of Neo4j and store in S3'
             default: make neo4j.backup
           workingDirectory:
             type: String
@@ -437,6 +442,13 @@ Resources:
       Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jBackupDocumentName
       Description: Name of SSM document for backing up Neo4j
       Value: !Ref Neo4jBackupDocument
+  CurrentBackupS3PathParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/CurrentBackupS3Path
+      Description: !Sub 'S3 path to the most recent backup for ${Stage}-${AppName}'
+      Value: 'null'
   Neo4jBackupMaintenanceWindow:
     Type: AWS::SSM::MaintenanceWindow
     Properties:
