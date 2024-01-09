@@ -610,6 +610,33 @@ To restore from a backup, pass the date of the backup you wish to restore using 
 STAGE=<stage> make database.restore from_date=<YYYY/MM/DD/HH>
 ```
 
+## Run `gfe-db` Locally Using Docker
+Once the application has been deployed and the database is loaded, it is possible to build and run the latest version of gfe-db locally using Docker.
+
+### Build Environment
+Make sure you have added your Docker Hub credentials to your .env file.
+```bash
+# .env.<stage>
+DOCKER_USERNAME=<username>
+DOCKER_PASSWORD=<password>
+```
+
+### Usage
+Build and push the image to Docker Hub. The Makefile will automatically fetch the most recent backup data from S3 and use it to build the image. You can access the logs in `./gfe-db/local/neo4j/logs`.
+```bash
+STAGE=<stage> make local.build
+```
+
+Once the image is built and pushed to Docker Hub you can run the command to run the most recent version of gfe-db locally.
+```bash
+# Run from the root directory of gfe-db
+docker run \
+    --restart always \
+    --publish=7474:7474 --publish=7687:7687 \
+    --volume=$(pwd)/gfe-db/local/neo4j/logs:/logs \
+    $DOCKER_USERNAME/gfe-db:latest
+```
+
 ## Local Development
 
 ### Creating a Python Virtual Environment
