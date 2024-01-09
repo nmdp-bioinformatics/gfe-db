@@ -1,10 +1,29 @@
 #!/bin/bash -eu
 
-# TODO create a version tag from the data path for Docker, push both latest and versioned tags
+# TODO validate the data path using the same logic as in the Makefile restore target
 DATA_S3_PATH=$1
 TEMP_DIR=/tmp/$APP_NAME
 
-# TODO validate the path using the same logic as the Makefile
+format_s3_date() {
+    local s3_path="$1"
+
+    # Regular expression to extract date and time parts
+    if [[ $s3_path =~ ([0-9]{4})/([0-9]{2})/([0-9]{2})/([0-9]{2})/([0-9]{2}) ]]; then
+        local year=${BASH_REMATCH[1]}
+        local month=${BASH_REMATCH[2]}
+        local day=${BASH_REMATCH[3]}
+        local hour=${BASH_REMATCH[4]}
+        local minute=${BASH_REMATCH[5]}
+
+        # Combine the parts into the desired format
+        echo "${year}${month}${day}${hour}${minute}"
+    else
+        echo "Could not parse date from S3 path: $s3_path" >&2
+        exit 1
+    fi
+}
+
+echo "$(format_s3_date $DATA_S3_PATH)"
 
 # Create volumes to mount
 mkdir -p $TEMP_DIR neo4j/{data,logs,backups/{system,neo4j}}
@@ -29,10 +48,13 @@ docker run --interactive --tty --rm \
     neo4j-admin database load --from-path=/backups/neo4j --overwrite-destination=true --verbose neo4j
 
 # Build, tag and push image
+version_tag=$(format_s3_date $DATA_S3_PATH)
 docker build -t gfe-db .
-docker tag gfe-db:latest "$DOCKER_USERNAME/gfe-db:latest"
-docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
-docker push "$DOCKER_USERNAME/gfe-db:latest"
+docker tag gfe-db:latest $DOCKER_USERNAME/gfe-db:latest
+docker tag gfe-db:latest $DOCKER_USERNAME/gfe-db:$version_tag
+echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+docker push $DOCKER_USERNAME/gfe-db:latest
+docker push $DOCKER_USERNAME/gfe-db:$version_tag
 
 # Clean up
 rm -rf neo4j/{data,backups} /tmp/$APP_NAME
