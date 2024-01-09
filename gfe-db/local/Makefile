@@ -1,6 +1,14 @@
 SERVICE := local
 
-build:
+# Required environment variables
+REQUIRED_VARS := STAGE APP_NAME AWS_REGION AWS_PROFILE DOCKER_USERNAME DOCKER_PASSWORD
+
+
+env.validate.vars:
+	$(foreach var,$(REQUIRED_VARS),\
+		$(if $(value $(var)),,$(error $(var) is not set. Please add $(var) to the environment variables.)))
+
+build: env.validate.vars
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Building ${SERVICE} ${APP_NAME}" 2>&1 | tee -a $$CFN_LOG_PATH
 	$(MAKE) service.build
 
