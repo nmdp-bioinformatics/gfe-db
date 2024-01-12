@@ -100,6 +100,11 @@ service.backup:
 service.backup.list:
 	@aws s3 ls --recursive s3://${DATA_BUCKET_NAME}/backups/${SERVICE}/${NEO4J_DATABASE_NAME}/
 
+service.backup.get-current:
+	@res=$$(aws ssm get-parameter \
+		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/CurrentBackupS3Path" | jq -r '.Parameter.Value') && \
+	echo "$$res"
+
 service.restore: #from_path=s3://<backup path>
 	@[ "$$from_path" != "" ] || (echo "from_path is required" && exit 1) && \
 	echo "$$from_path" | grep -E '^s3:\/\/[a-zA-Z0-9\.-]+\/([a-zA-Z0-9\.-]+\/)*[a-zA-Z0-9\.-]+\.zip$$' > /dev/null || (echo "\`from_path\` must be an S3 URI: 's3://<bucket>/path'" && exit 1) && \

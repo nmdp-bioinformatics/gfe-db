@@ -551,6 +551,9 @@ database.backup:
 	@echo "Backing up $${APP_NAME} server..."
 	$(MAKE) -C ${APP_NAME}/database/ service.backup
 
+database.get.current-backup:
+	$(MAKE) -C ${APP_NAME}/database/ service.backup.get-current
+
 database.backup.list:
 	$(MAKE) -C ${APP_NAME}/database/ service.backup.list
 
