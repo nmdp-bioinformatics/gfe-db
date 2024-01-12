@@ -181,7 +181,7 @@ Resources:
                   - "secretsmanager:ListSecrets"
                 # TODO tighten permissions
                 Resource: 
-                  - "*"
+                  - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*'
         # - PolicyName: !Sub '${Stage}-${AppName}-SQSPolicy'
         #   PolicyDocument:
         #     Version: '2012-10-17' 
@@ -329,13 +329,17 @@ Resources:
               - Effect: "Allow"
                 Action: 
                   - "ssm:GetParameters"
+                Resource: 
+                  - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*'
+              - Effect: "Allow"
+                Action: 
                   - "secretsmanager:GetResourcePolicy"
                   - "secretsmanager:GetSecretValue"
                   - "secretsmanager:DescribeSecret"
                   - "secretsmanager:ListSecretVersionIds"
                   - "secretsmanager:ListSecrets"
                 Resource: 
-                  - "*"
+                  - !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${AppName}/${Stage}/${AWS::Region}/*'
                   
   BuildServiceRepository:
     Type: AWS::ECR::Repository
@@ -452,7 +456,6 @@ Resources:
           SecurityGroupIds:
             - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
         - !Ref AWS::NoValue
-      # TODO fix conditional policy assignment using If operator
       # If UsePrivateSubnet is true, attach AWSLambdaVPCAccessExecutionRole, otherwise attach AWSLambdaBasicExecutionRole
       Policies:
         - Version: "2012-10-17"
@@ -516,7 +519,7 @@ Resources:
                 - "ssm:GetDocument"
               Resource:
                 - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${Stage}-${AppName}-database-Neo4jBackupDocument*'
-                - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*'
+                - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId}}'
             - Effect: "Allow"
               Action: 
                 - "ssm:GetParameters"
@@ -527,7 +530,7 @@ Resources:
               Action: 
                 - "ssm:GetCommandInvocation"
               Resource: 
-                - !Sub '*'
+                - '*'
 
   InvokeLoadScriptFunction:
     Type: AWS::Serverless::Function
@@ -557,7 +560,7 @@ Resources:
                 - "ssm:GetDocument"
               Resource:
                 - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${Neo4jLoadQueryDocument}'
-                - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*'
+                - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId}}'
             - Effect: "Allow"
               Action: 
                 - "ssm:GetParameters"
@@ -667,7 +670,9 @@ Resources:
                 - "batch:SubmitJob"
                 - "batch:DescribeJobs"
                 - "batch:TerminateJob"
-              Resource: "*"
+              Resource: 
+                - !Sub 'arn:aws:batch:${AWS::Region}:${AWS::AccountId}:job-queue/${Stage}-${AppName}*'
+                - !Sub 'arn:aws:batch:${AWS::Region}:${AWS::AccountId}:job-definition/${Stage}-${AppName}-*'
             - Effect: "Allow"
               Action: 
                 - "events:PutTargets"
@@ -798,7 +803,7 @@ Resources:
               Action: 
                 - "ssm:UpdateMaintenanceWindow"
               Resource: 
-                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:maintenancewindow/*'
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:maintenancewindow/{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jBackupMaintenanceWindowId}}'
       Events:
         PipelineExecutionTopic:
           Type: SNS

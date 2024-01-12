@@ -334,7 +334,7 @@ Resources:
                   - secretsmanager:ListSecretVersionIds
                   - secretsmanager:ListSecrets
                 Resource:
-                  - '*'
+                  - !Sub arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${AppName}/${Stage}/${AWS::Region}/*
               - Effect: Allow
                 Action:
                   - secretsmanager:UpdateSecret
