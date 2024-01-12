@@ -32,6 +32,7 @@ logger.info(f'Found auth: {auth["NEO4J_USERNAME"]}')
 logger.info(f"Connecting to Neo4j at {uri}")
 graphdb = GraphDatabase.driver(uri, auth=(auth["NEO4J_USERNAME"], auth["NEO4J_PASSWORD"]))
 
+# TODO get database name from SSM Parameter Store
 def lambda_handler(event, context):
 
     logger.info(json.dumps(event))
@@ -41,7 +42,7 @@ def lambda_handler(event, context):
         # node counts
         node_counts = []
         for node in nodes:
-            records, _, _ = driver.execute_query(f'MATCH (n:{node}) RETURN count(n) as count;', database_="neo4j")
+            records, _, _ = driver.execute_query(f'MATCH (n:{node}) RETURN count(n) as count;', database_="gfedb")
             node_counts.append({
                 "node": node,
                 "count": records[0].data()['count']
@@ -92,8 +93,8 @@ ipd_accession_release_counts_cql = """MATCH ()-[r:HAS_IPD_ACCESSION]->() RETURN 
 #     count(f),
 #     count(sub);"""
 
-def execute_query(driver, query):
-    records, _, _ = driver.execute_query(query, database_="neo4j")
+def execute_query(driver, query, database="gfedb"):
+    records, _, _ = driver.execute_query(query, database_=database)
     return [record.data() for record in records]
 
 if __name__ == "__main__":

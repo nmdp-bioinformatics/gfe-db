@@ -22,6 +22,9 @@ Parameters:
   UbuntuAmiId:
     Type: String
     Description: AMI ID for Neo4j Community edition from AWS Marketplace
+  Neo4jDatabaseName:
+    Type: String
+    Description: Name of Neo4j database
   Neo4jPassword:
     Type: String
     Description: Password for Neo4j database
@@ -51,7 +54,7 @@ Resources:
     Type: AWS::SecretsManager::Secret
     Properties:
       Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jCredentials
-      Description: Specified in the deployment environment.
+      Description: Neo4j credentials for gfedb datase; Specified in the deployment environment.
       SecretString: !Sub '{"NEO4J_USERNAME":"neo4j","NEO4J_PASSWORD":"${Neo4jPassword}"}'
   Neo4jCredentialsSecretArnParameter:
     Type: AWS::SSM::Parameter
@@ -62,9 +65,9 @@ Resources:
       Value: !Ref Neo4jCredentialsSecret
   Neo4jDatabaseInstance:
     Type: AWS::EC2::Instance
-    CreationPolicy:
-      ResourceSignal:
-        Timeout: PT10M
+    # CreationPolicy:
+    #   ResourceSignal:
+    #     Timeout: PT10M
     Properties:
       KeyName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}'
       DisableApiTermination: false
@@ -160,6 +163,7 @@ Resources:
           echo "HOST_DOMAIN=${HostDomain}" >> $UBUNTU_HOME/env.sh
           echo "SUBDOMAIN=${Subdomain}" >> $UBUNTU_HOME/env.sh
           echo "ADMIN_EMAIL=${AdminEmail}" >> $UBUNTU_HOME/env.sh
+          echo "NEO4J_DATABASE_NAME=${Neo4jDatabaseName}" >> $UBUNTU_HOME/env.sh
           echo "APOC_VERSION=${APOCVersion}" >> $UBUNTU_HOME/env.sh
           echo "GDS_VERSION=${GDSVersion}" >> $UBUNTU_HOME/env.sh
           echo "PRIVATE_IP=$(curl -sS http://169.254.169.254/latest/meta-data/local-ipv4)" >> $UBUNTU_HOME/env.sh
@@ -205,7 +209,7 @@ Resources:
             apt-get install -y neo4j=1:5.14.0
             systemctl enable neo4j
             neo4j-admin dbms set-initial-password ${Neo4jPassword}
-            mkdir -p /var/lib/neo4j/backups/{system,neo4j}
+            mkdir -p /var/lib/neo4j/backups/{system,$NEO4J_DATABASE_NAME}
             chown -R neo4j:neo4j /var/lib/neo4j/backups
           }
           install_apoc_plugin() {
@@ -218,7 +222,7 @@ Resources:
               exit 1
             fi
             cp /etc/neo4j/neo4j.conf /etc/neo4j/neo4j.conf.bak
-            # sed -i 's/#initial.dbms.default_database=neo4j/initial.dbms.default_database=gfedb/g' /etc/neo4j/neo4j.conf
+            sed -i 's/#initial.dbms.default_database=neo4j/initial.dbms.default_database=${Neo4jDatabaseName}/g' /etc/neo4j/neo4j.conf
             sed -i 's/#server.default_listen_address=0.0.0.0/server.default_listen_address=0.0.0.0/g' /etc/neo4j/neo4j.conf
             sed -i "s/#server.default_advertised_address=localhost/server.default_advertised_address=$SUBDOMAIN.$HOST_DOMAIN/g" /etc/neo4j/neo4j.conf
             sed -i 's/#server.bolt.tls_level=DISABLED/server.bolt.tls_level=REQUIRED/g' /etc/neo4j/neo4j.conf
@@ -246,7 +250,7 @@ Resources:
           }
           build_neo4j_private_config() {
             cp /etc/neo4j/neo4j.conf /etc/neo4j/neo4j.conf.bak
-            # sed -i 's/#initial.dbms.default_database=neo4j/initial.dbms.default_database=gfedb/g' /etc/neo4j/neo4j.conf
+            sed -i 's/#initial.dbms.default_database=neo4j/initial.dbms.default_database=${Neo4jDatabaseName}/g' /etc/neo4j/neo4j.conf
             sed -i 's/#server.default_listen_address=0.0.0.0/server.default_listen_address=0.0.0.0/g' /etc/neo4j/neo4j.conf
             sed -i "s/#server.default_advertised_address=localhost/server.default_advertised_address=localhost/g" /etc/neo4j/neo4j.conf
             sed -i 's/#server.bolt.tls_level=DISABLED/server.bolt.tls_level=DISABLED/g' /etc/neo4j/neo4j.conf
