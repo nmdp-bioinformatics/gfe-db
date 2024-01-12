@@ -49,46 +49,34 @@ ifeq ($(CREATE_SSM_VPC_ENDPOINT),true)
 	$(call blue, Creating Systems Manager VPC endpoint...)
 	$(MAKE) service.deploy.create-endpoint service=ssm
 else 
-	$(call blue, Updating SSM Parameters for Systems Manager VPC endpoint...)
-	@service=ssm && \
-	res=$$(aws ssm put-parameter \
-		--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/$${service}EndpointId" \
-		--value "${SSM_VPC_ENDPOINT_ID}" \
-		--type String \
-		--overwrite) && \
-	echo $$res | jq -r
-	$(call blue, Adding Neo4j Security Group to existing SSM VPC endpoint...)
+	$(MAKE) service.deploy.create-endpoint-id-parameter service=ssm vpce_id=${SSM_VPC_ENDPOINT_ID}
+	$(eval vpce_type=$(shell aws ec2 describe-vpc-endpoints --query "VpcEndpoints[?VpcEndpointId=='${SSM_VPC_ENDPOINT_ID}'].VpcEndpointType" | jq -r '.[]'))
+ifeq ($(vpce_type),Interface)
+	$(call blue, Adding Neo4j Security Group to existing SSM VPC Interface endpoint...)
 	$(MAKE) service.deploy.modify-endpoint service=ssm
+endif
 endif
 ifeq ($(CREATE_SECRETSMANAGER_VPC_ENDPOINT),true)
 	$(call blue, Creating SecretsManager VPC endpoint...)
 	$(MAKE) service.deploy.create-endpoint service=secretsmanager
 else 
-	$(call blue, Updating SSM Parameters for SecretsManager VPC endpoint...)
-	@service=secretsmanager && \
-	res=$$(aws ssm put-parameter \
-		--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/$${service}EndpointId" \
-		--value "${SECRETSMANAGER_VPC_ENDPOINT_ID}" \
-		--type String \
-		--overwrite) && \
-	echo $$res | jq -r
-	$(call blue, Adding Neo4j Security Group to existing SecretsManager VPC endpoint...)
+	$(MAKE) service.deploy.create-endpoint-id-parameter service=secretsmanager vpce_id=${SECRETSMANAGER_VPC_ENDPOINT_ID}
+	$(eval vpce_type=$(shell aws ec2 describe-vpc-endpoints --query "VpcEndpoints[?VpcEndpointId=='${SECRETSMANAGER_VPC_ENDPOINT_ID}'].VpcEndpointType" | jq -r '.[]'))
+ifeq ($(vpce_type),Interface)
+	$(call blue, Adding Neo4j Security Group to existing SecretsManager VPC Interface endpoint...)
 	$(MAKE) service.deploy.modify-endpoint service=secretsmanager
+endif
 endif
 ifeq ($(CREATE_S3_VPC_ENDPOINT),true)
 	$(call blue, Creating S3 VPC endpoint...)
 	$(MAKE) service.deploy.create-endpoint service=s3
 else
-	$(call blue, Updating SSM Parameters for S3 VPC endpoint...)
-	@service=s3 && \
-	res=$$(aws ssm put-parameter \
-		--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/$${service}EndpointId" \
-		--value "${S3_VPC_ENDPOINT_ID}" \
-		--type String \
-		--overwrite) && \
-	echo $$res | jq -r
-	$(call blue, Adding Neo4j Security Group to existing S3 VPC endpoint...)
+	$(MAKE) service.deploy.create-endpoint-id-parameter service=s3 vpce_id=${S3_VPC_ENDPOINT_ID}
+	$(eval vpce_type=$(shell aws ec2 describe-vpc-endpoints --query "VpcEndpoints[?VpcEndpointId=='${S3_VPC_ENDPOINT_ID}'].VpcEndpointType" | jq -r '.[]'))
+ifeq ($(vpce_type),Interface)
+	$(call blue, Adding Neo4j Security Group to existing S3 VPC Interface endpoint...)
 	$(MAKE) service.deploy.modify-endpoint service=s3
+endif
 endif
 endif
 endif
@@ -162,6 +150,15 @@ service.deploy.create-endpoint: #=> service=<string>
 		--overwrite) && \
 	echo $$res | jq -r
 	$(call blue, Successfully created VPC endpoint for $$service)
+
+service.deploy.create-endpoint-id-parameter: #=> service=<service> vpce_id=<string>
+	$(call blue, Updating SSM Parameters for $$service VPC endpoint...)
+	@res=$$(aws ssm put-parameter \
+		--name /${APP_NAME}/${STAGE}/${AWS_REGION}/"$$service"EndpointId \
+		--value "$$vpce_id" \
+		--type String \
+		--overwrite) && \
+	echo $$res | jq -r
 
 service.deploy.modify-endpoint: #=> service=<service>
 	@if [ -z $$service ]; then \
