@@ -513,9 +513,13 @@ Resources:
             description: !Sub "Downloads all files under the ${AppName} scripts prefix"
             default:
               path: !Sub 'https://{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}.s3.amazonaws.com/config/scripts/'
-          commandLine:
+          copyCypherScripts:
             type: "String"
-            description: "Deletes ETag files created by SSM Agent."
+            description: "Copies Cypher scripts to the database"
+            default: 'make neo4j.init.download-scripts'
+          setUserPermissions:
+            type: "String"
+            description: "Deletes ETag files created by SSM Agent and set user permissions."
             default: 'rm *.etag && find . \( -name "*.sh" -o -name "Makefile" -o -name "init" \) -exec chown ubuntu {} \; && find . \( -name "*.sh" -o -name "Makefile" -o -name "init" \) -exec chgrp ubuntu {} \;'
           workingDirectory:
             type: "String"
@@ -539,7 +543,8 @@ Resources:
                 - ""
                 - "directory=$(pwd)"
                 - "export PATH=$PATH:$directory"
-                - " {{ commandLine }} " 
+                - "cd {{ workingDirectory }} && {{ copyCypherScripts }}"
+                - " {{ setUserPermissions }} " 
                 - ""
               workingDirectory: "{{ workingDirectory }}"
               timeoutSeconds: "{{ executionTimeout }}"
