@@ -119,7 +119,16 @@ endif
 env.print:
 	@echo "\033[0;33mReview the contents of the .env file:\033[0m"
 	@echo "+---------------------------------------------------------------------------------+"
-	@awk '{ if (substr($$0, 1, 1) != "#") { line = substr($$0, 1, 76); if (length($$0) > 76) line = line "..."; printf "| %-79s |\n", line }}' .env.${STAGE}
+	@awk -F'=' '{ \
+		key = $$1; value = $$2; \
+		if (key == "GITHUB_PERSONAL_ACCESS_TOKEN" || key == "DOCKER_PASSWORD" || key == "NEO4J_PASSWORD") value = "************"; \
+		if (substr($$0, 1, 1) != "#") { \
+			line = key "=" value; \
+			line = substr(line, 1, 76); \
+			if (length(line) > 76) line = line "..."; \
+			printf "| %-79s |\n", line \
+		} \
+	}' .env.${STAGE}
 	@echo "+---------------------------------------------------------------------------------+"
 	@echo "\033[0;33mPlease confirm the above values are correct.\033[0m"
 
