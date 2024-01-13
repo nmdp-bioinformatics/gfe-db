@@ -52,6 +52,8 @@ Conditions:
 Resources:
   Neo4jCredentialsSecret:
     Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
     Properties:
       Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jCredentials
       Description: Neo4j credentials for gfedb datase; Specified in the deployment environment.
@@ -65,9 +67,9 @@ Resources:
       Value: !Ref Neo4jCredentialsSecret
   Neo4jDatabaseInstance:
     Type: AWS::EC2::Instance
-    # CreationPolicy:
-    #   ResourceSignal:
-    #     Timeout: PT10M
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT10M
     Properties:
       KeyName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}'
       DisableApiTermination: false

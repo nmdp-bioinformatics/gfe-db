@@ -43,11 +43,11 @@ Parameters:
 Conditions:
   # Important: All stacks (infra, database, pipeline) should use the same conditions
   CreateVpc: !Equals [!Ref createVpc, 'true']
-  CreateVpcPublic: !And [!Equals [!Ref createVpc, 'true'], !Equals [!Ref usePrivateSubnet, 'false']]
+  # CreateVpcPublic: !And [!Equals [!Ref createVpc, 'true'], !Equals [!Ref usePrivateSubnet, 'false']]
   CreateVpcPrivate: !And [!Equals [!Ref createVpc, 'true'], !Equals [!Ref usePrivateSubnet, 'true']]
-  UseExternalVpc: !Equals [!Ref createVpc, 'false']
-  UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
-  UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
+  # UseExternalVpc: !Equals [!Ref createVpc, 'false']
+  # UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
+  # UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
   UsePrivateSubnet: !Equals [!Ref usePrivateSubnet, 'true']
   UsePrivateSubnetDeployNatGateway: !And [!Equals [!Ref usePrivateSubnet, 'true'], !Equals [!Ref deployNatGateway, 'true']]
   UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
@@ -90,12 +90,11 @@ Resources:
       Value: !Ref AppName
 
   CreateVpcParameter:
-  CreateVpcParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/CreateVpc'
-      Description: !Sub "True if stack creates a VPC, false if stack uses an existing VPC"
+      Description: "True if stack creates a VPC, false if stack uses an existing VPC"
       Value: !Ref createVpc
 
   CreateVpcConditionVpc:
@@ -167,7 +166,6 @@ Resources:
     Type: AWS::EC2::Route
     Condition: CreateVpc
     DependsOn:
-      - CreateVpcConditionInternetGateway
       - CreateVpcConditionVpcGatewayAttachment
     Properties:
       RouteTableId: !Ref CreateVpcConditionPublicRouteTable
@@ -326,6 +324,8 @@ Resources:
 
   GitHubPersonalAccessTokenSecret:
     Type: AWS::SecretsManager::Secret
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
     Properties:
       Name: !Sub "${AppName}-${Stage}-GitHubPersonalAccessToken"
       Description: GitHub Personal Access Token for repository access
