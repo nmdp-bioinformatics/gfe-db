@@ -115,6 +115,10 @@ neo4j.query.init.ssl:
 neo4j.query.init.no-ssl:
 	@cat ${NEO4J_HOME}/cypher/init.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
 
+neo4j.query.create-users: #=> users=<username:password,...>
+	@echo "Creating users"
+	@bash init/create_users.sh "$$users"
+
 neo4j.query: #=> query=<cypher string>
 ifeq ($(USE_PRIVATE_SUBNET),true)
 	@echo "$$query" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
