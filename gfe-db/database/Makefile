@@ -15,7 +15,7 @@ service.config.scripts.deploy:
 		| tee -a $$CFN_LOG_PATH && \
 	aws s3 cp --recursive --quiet scripts/ $$script_s3_path
 
-service.config.scripts.sync: service.config.scripts.deploy
+service.config.scripts.sync: service.config.scripts.deploy service.config.neo4j.deploy
 	@document_name="$$(aws ssm get-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/DatabaseSyncScriptsDocumentName" | jq -r '.Parameter.Value')" && \
 	res=$$(aws ssm send-command \
@@ -41,7 +41,7 @@ service.config.cloudwatch-agent.deploy:
 	@rm -rf amazon-cloudwatch-agent/tmp/
 
 service.config.neo4j.deploy:
-	@aws s3 cp --recursive neo4j/cypher/ s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
+	@aws s3 cp --recursive --quiet neo4j/cypher/ s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
 
 service.config.deploy: service.config.scripts.deploy service.config.cloudwatch-agent.deploy service.config.neo4j.deploy
 
@@ -76,6 +76,7 @@ service.deploy:
 			UbuntuAmiId="$${UBUNTU_AMI_ID}" \
 			Neo4jDatabaseName="$${NEO4J_DATABASE_NAME}" \
 			Neo4jPassword="$${NEO4J_PASSWORD}" \
+			CreateNeo4jUsers="$${CREATE_NEO4J_USERS}" \
 			DatabaseVolumeSize="$${DATABASE_VOLUME_SIZE}" \
 			HostDomain="$${HOST_DOMAIN}" \
 			Subdomain="$${SUBDOMAIN}" \
@@ -98,7 +99,7 @@ service.backup:
 		--instance-id "$${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
 
 service.backup.list:
-	@aws s3 ls --recursive s3://${DATA_BUCKET_NAME}/backups/${SERVICE}/${NEO4J_DATABASE_NAME}/
+	@aws s3 ls --recursive --human-readable s3://${DATA_BUCKET_NAME}/backups/${SERVICE}/${NEO4J_DATABASE_NAME}/
 
 service.backup.get-current:
 	@res=$$(aws ssm get-parameter \

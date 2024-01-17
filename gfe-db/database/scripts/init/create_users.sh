@@ -8,16 +8,22 @@ if [ -z "${USERS}" ]; then
     exit 1
 fi
 
-if [ "${USE_PRIVATE_SUBNET}" = true ]; then
-  NEO4J_URI=bolt://127.0.0.1:7687
-  ENCRYPTION=false
-else
-    NEO4J_URI=neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
-    ENCRYPTION=default
+if [ -z "${NEO4J_URI}" ]; then
+    echo "No NEO4J_URI specified, exiting"
+    exit 1
+fi
+
+if [ -z "${NEO4J_ENCRYPTION}" ]; then
+    echo "No NEO4J_ENCRYPTION specified, exiting"
+    exit 1
+fi
+if [ -z "${NEO4J_PASSWORD}" ]; then
+    echo "No NEO4J_PASSWORD specified, exiting"
+    exit 1
 fi
 
 echo "NEO4J_URI=${NEO4J_URI}"
-echo "ENCRYPTION=${ENCRYPTION}"
+echo "NEO4J_ENCRYPTION=${NEO4J_ENCRYPTION}"
 
 RETURN_CODES=0
 for user in $(echo $USERS | sed "s/,/ /g")
@@ -30,7 +36,7 @@ do
         -u neo4j \
         -p ${NEO4J_PASSWORD} \
         -a ${NEO4J_URI} \
-        --encryption ${ENCRYPTION} \
+        --encryption ${NEO4J_ENCRYPTION} \
         -P "username => \"${username}\"" \
         -P "password => \"${password}\""
     RETURN_CODES=$((RETURN_CODES + $?))

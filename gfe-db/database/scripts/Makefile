@@ -11,7 +11,7 @@ export REPORTS_DIR := ${UBUNTU_HOME}/reports
 export NEO4J_USERNAME=$(shell aws secretsmanager get-secret-value --secret-id "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials" | jq -r '.SecretString' | jq -r '.NEO4J_USERNAME')
 export NEO4J_PASSWORD=$(shell aws secretsmanager get-secret-value --secret-id "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials" | jq -r '.SecretString' | jq -r '.NEO4J_PASSWORD')
 
-REQUIRED_VARS := UBUNTU_HOME NEO4J_HOME INSTANCE_ID DATA_BUCKET_NAME NEO4J_USERNAME NEO4J_PASSWORD NEO4J_DATABASE_NAME ADMIN_EMAIL GDS_VERSION
+REQUIRED_VARS := UBUNTU_HOME NEO4J_HOME INSTANCE_ID DATA_BUCKET_NAME NEO4J_USERNAME NEO4J_PASSWORD NEO4J_DATABASE_NAME ADMIN_EMAIL GDS_VERSION NEO4J_URI NEO4J_ENCRYPTION
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -30,10 +30,6 @@ env.validate.vars:
 	@echo "$$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1
 
 bootstrap: env.validate.vars
-	# $(MAKE) cfn-helpers.install
-	# $(MAKE) ssm.install
-	# $(MAKE) cloudwatch.install
-	# $(MAKE) cfn-signal exitcode=0
 ifeq ($(USE_PRIVATE_SUBNET),false)
 	$(MAKE) eip.waiter
 	$(MAKE) ssl.create-cert

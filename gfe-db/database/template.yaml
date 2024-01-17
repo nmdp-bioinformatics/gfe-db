@@ -7,11 +7,11 @@ Parameters:
   AppName:
     Type: String
     Description: Application name
-  createVpc:
-    Type: String
-    AllowedValues:
-      - 'true'
-      - 'false'
+  # createVpc:
+  #   Type: String
+  #   AllowedValues:
+  #     - 'true'
+  #     - 'false'
   usePrivateSubnet:
     Type: String
     AllowedValues:
@@ -20,7 +20,7 @@ Parameters:
   DataBucketName:
     Type: String
   UbuntuAmiId:
-    Type: String
+    Type: AWS::EC2::Image::Id
     Description: AMI ID for Neo4j Community edition from AWS Marketplace
   Neo4jDatabaseName:
     Type: String
@@ -28,6 +28,10 @@ Parameters:
   Neo4jPassword:
     Type: String
     Description: Password for Neo4j database
+    NoEcho: true
+  CreateNeo4jUsers:
+    Type: String
+    Description: Comma-separated list of Neo4j users
     NoEcho: true
   DatabaseVolumeSize:
     Type: String
@@ -152,6 +156,18 @@ Resources:
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
           [ $(amazon-cloudwatch-agent-ctl -a status | jq -r '.status') = running ] && echo "INFO: CloudWatch Logs Agent is running" || \
             (msg="ERROR: CloudWatch Logs Agent did not initialize correctly" && echo $msg && cfn_signal 1 "$msg" && exit 1)
+          # Set NEO4J_URI
+          export USE_PRIVATE_SUBNET=${usePrivateSubnet}
+          if [ "$USE_PRIVATE_SUBNET" = true ]; then
+            export NEO4J_URI=bolt://127.0.0.1:7687
+            export NEO4J_ENCRYPTION=false
+          elif [ "$USE_PRIVATE_SUBNET" = false ]; then
+            export NEO4J_URI=neo4j+s://${Subdomain}.${HostDomain}:7687
+            export NEO4J_ENCRYPTION=default
+          else
+            echo "ERROR: USE_PRIVATE_SUBNET must be set to 'true' or 'false'"
+            exit 1
+          fi
           # Permanently set application environment variables (these should never change for the duration of the deployment)
           echo "INFO: Setting application environment variables"
           echo "INSTANCE_ID=$INSTANCE_ID" > $UBUNTU_HOME/env.sh
@@ -159,13 +175,15 @@ Resources:
           echo "NEO4J_HOME=$NEO4J_HOME" >> $UBUNTU_HOME/env.sh
           echo "STAGE=${Stage}" >> $UBUNTU_HOME/env.sh
           echo "APP_NAME=${AppName}" >> $UBUNTU_HOME/env.sh
-          echo "USE_PRIVATE_SUBNET=${usePrivateSubnet}" >> $UBUNTU_HOME/env.sh
+          echo "USE_PRIVATE_SUBNET=$USE_PRIVATE_SUBNET" >> $UBUNTU_HOME/env.sh
           echo "AWS_REGION=us-east-1" >> $UBUNTU_HOME/env.sh
           echo "DATA_BUCKET_NAME=${DataBucketName}" >> $UBUNTU_HOME/env.sh
           echo "HOST_DOMAIN=${HostDomain}" >> $UBUNTU_HOME/env.sh
           echo "SUBDOMAIN=${Subdomain}" >> $UBUNTU_HOME/env.sh
           echo "ADMIN_EMAIL=${AdminEmail}" >> $UBUNTU_HOME/env.sh
           echo "NEO4J_DATABASE_NAME=${Neo4jDatabaseName}" >> $UBUNTU_HOME/env.sh
+          echo "NEO4J_URI=$NEO4J_URI" >> $UBUNTU_HOME/env.sh
+          echo "NEO4J_ENCRYPTION=$NEO4J_ENCRYPTION" >> $UBUNTU_HOME/env.sh
           echo "APOC_VERSION=${APOCVersion}" >> $UBUNTU_HOME/env.sh
           echo "GDS_VERSION=${GDSVersion}" >> $UBUNTU_HOME/env.sh
           echo "PRIVATE_IP=$(curl -sS http://169.254.169.254/latest/meta-data/local-ipv4)" >> $UBUNTU_HOME/env.sh
@@ -178,9 +196,9 @@ Resources:
           exit_code=0
           msg="The following variables failed to be set: "
           if [ $USE_PRIVATE_SUBNET = "true" ]; then
-            vars="UBUNTU_HOME STAGE APP_NAME USE_PRIVATE_SUBNET AWS_REGION DATA_BUCKET_NAME PRIVATE_IP ADMIN_EMAIL APOC_VERSION GDS_VERSION"
+            vars="UBUNTU_HOME STAGE APP_NAME USE_PRIVATE_SUBNET AWS_REGION DATA_BUCKET_NAME PRIVATE_IP ADMIN_EMAIL APOC_VERSION GDS_VERSION NEO4J_URI NEO4J_ENCRYPTION"
           elif [ $USE_PRIVATE_SUBNET = "false" ]; then
-            vars="UBUNTU_HOME STAGE APP_NAME USE_PRIVATE_SUBNET AWS_REGION DATA_BUCKET_NAME HOST_DOMAIN SUBDOMAIN ADMIN_EMAIL APOC_VERSION GDS_VERSION"
+            vars="UBUNTU_HOME STAGE APP_NAME USE_PRIVATE_SUBNET AWS_REGION DATA_BUCKET_NAME HOST_DOMAIN SUBDOMAIN ADMIN_EMAIL APOC_VERSION GDS_VERSION NEO4J_URI NEO4J_ENCRYPTION"
           else
             echo "ERROR: USE_PRIVATE_SUBNET must be set to 'true' or 'false'"
             exit 1
@@ -284,6 +302,14 @@ Resources:
             exit 1
           fi
           cd $UBUNTU_HOME && make neo4j
+          CREATE_NEO4J_USERS=${CreateNeo4jUsers}
+          if [ ! -z "$CREATE_NEO4J_USERS" ]; then
+            echo "INFO: Creating Neo4j users"
+            cd $UBUNTU_HOME && make neo4j.query.create-users users="${CreateNeo4jUsers}"
+          else 
+            echo "INFO: No Neo4j users to create"
+          fi
+          unset CREATE_NEO4J_USERS
           exit_code=$?
           [ $exit_code -eq 0 ] && echo "INFO: Neo4j initialized successfully" || (msg="ERROR: Neo4j failed to initialize" && echo $msg && cfn_signal 1 "$msg" && exit 1)
           cypher_constraints=$(sudo make neo4j.query.show-constraints | awk -F, 'NR>1 {print $2}')
