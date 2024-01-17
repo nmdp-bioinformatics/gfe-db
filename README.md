@@ -279,6 +279,8 @@ Private deployments require a NAT Gateway which can be deployed along with the s
 #### Shell Variables
 These variables must be defined before running Make. The best way to set these variables is with a `.env.<stage>` file following this structure. For optional resources such as VPCs, subnets, VPC endpoints and NAT Gateways, an external resource ID is required if it is not deployed as part of the stack.
 
+***Important:*** Using `.env.<stage>` allows for multiple deployments to different environments. Make sure to update `.gitignore` with `.env*` to avoid pushing sensitive data to public repositories. For example, if your deployment stage is labeled `dev` your .env file should be named `.env.dev` and you would deploy by calling `STAGE=dev make deploy`.
+
 | Variable                           | Data Type | Example Value           | Required    | Notes                                                    |
 | ---------------------------------- | --------- | ----------------------- | ----------- | -------------------------------------------------------- |
 | AWS_PROFILE                        | string    | user_profile            | Yes         | AWS account profile name                                 |
@@ -611,7 +613,7 @@ STAGE=<stage> make database.restore from_date=<YYYY/MM/DD/HH>
 ```
 
 ## Run `gfe-db` Locally Using Docker
-Once the application has been deployed and the database is loaded, it is possible to build and run the latest version of gfe-db locally using Docker.
+Once the application has been deployed and the database is loaded, it is possible to build a Docker image and run the latest version of gfe-db locally.
 
 ### Build Environment
 Make sure you have added your Docker Hub credentials to your .env file.
@@ -628,6 +630,12 @@ STAGE=<stage> make local.build
 ```
 
 Once the image is built and pushed to Docker Hub you can run the command to run the most recent version of gfe-db locally.
+1. Make DOCKER_USERNAME is available in the `.env.<stage>` and export the variables to your shell.
+```bash
+# Export the environment variables
+set -a; source .env.<stage>; set +a
+```
+2. Run the command to run gfe-db locally.
 ```bash
 # Run from the root directory of gfe-db
 docker run \
