@@ -355,6 +355,23 @@ else
 endif
 endif
 
+env.validate.create-neo4j-users:
+	@if [ -n "${CREATE_NEO4J_USERS}" ]; then \
+	    valid_format=1; \
+	    IFS=',' read -ra ADDR <<< "${CREATE_NEO4J_USERS}"; \
+	    for user_pass in "$${ADDR[@]}"; do \
+	        if [[ ! $$user_pass =~ ^[^:]+:[^:]+$$ ]]; then \
+	            valid_format=0; \
+	            break; \
+	        fi; \
+	    done; \
+	    if [[ $$valid_format -eq 0 ]]; then \
+	        echo "\033[0;31mERROR: Invalid Neo4j user format. Please use the format \`username:password\`.\033[0m"; \
+	    fi; \
+	else \
+	    echo "\033[0;34mNo Neo4j users defined, skipping validation.\033[0m"; \
+	fi
+
 env.validate.boolean-vars:
 	@$(foreach var,$(BOOLEAN_VARS),\
 		if [ "$(value $(var))" != "" ] && [ "$(value $(var))" != "true" ] && [ "$(value $(var))" != "false" ]; then \
@@ -390,7 +407,7 @@ else ifeq ($(CREATE_VPC),true)
 	$(call blue, "**** This deployment includes a VPC ****")
 endif
 
-env.validate: check.dependencies env.validate.vars env.validate.boolean-vars env.validate.stage env.validate.create-vpc.vars env.validate.use-private-subnet.vars
+env.validate: check.dependencies env.validate.vars env.validate.boolean-vars env.validate.stage env.validate.create-vpc.vars env.validate.use-private-subnet.vars env.validate.create-neo4j-users
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 options-screen:
@@ -546,6 +563,9 @@ database.config.update:
 
 database.ssl.renew-cert:
 	$(MAKE) -C ${APP_NAME}/database/ service.ssl.renew-cert
+
+database.config.create-users:
+	$(MAKE) -C ${APP_NAME}/database/ service.config.neo4j.create-users
 
 database.backup:
 	@echo "Backing up $${APP_NAME} server..."
