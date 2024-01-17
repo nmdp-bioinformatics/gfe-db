@@ -128,7 +128,7 @@ service.restore: #from_path=s3://<backup path>
 service.restore.pre-validate:
 	@echo "Validating restore pre-conditions"
 	@echo "Checking if backup exists for $$from_path"
-	@backup_object=$$(aws s3 ls $$from_path | cut -d ' ' -f 6-) && \
+	@backup_object=$$(aws s3 ls $$from_path | cut -d ' ' -f 5-) && \
 	[ "$$backup_object" != "" ] || (echo "ERROR: Backup does not exist" && exit 1) && \
 	echo "Found backup target for $$backup_object"
 
