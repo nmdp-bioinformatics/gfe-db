@@ -72,7 +72,7 @@ nodes = [
 
 has_ipd_allele_release_counts_cql = """MATCH (:GFE)-[r:HAS_IPD_ALLELE]->(:IPD_Allele)
 WITH r, apoc.coll.toSet(r.releases) as releases
-UNWIND releases as release_version
+UNWIND toIntegerList(releases) as release_version
 RETURN DISTINCT release_version, count(release_version) as count
 ORDER BY release_version;"""
 
