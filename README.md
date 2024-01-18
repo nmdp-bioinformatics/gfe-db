@@ -43,9 +43,15 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
   * [Backup & Restore](#backup---restore)
     + [Backups](#backups)
     + [Restore](#restore)
+  * [Run `gfe-db` Locally Using Docker](#run--gfe-db--locally-using-docker)
+    + [Build Environment](#build-environment)
+    + [Usage](#usage)
   * [Local Development](#local-development)
     + [Creating a Python Virtual Environment](#creating-a-python-virtual-environment)
-  * [Documentation](#documentation)
+    + [Debugging Lambda Functions](#debugging-lambda-functions)
+    + [Debugging Batch Jobs](#debugging-batch-jobs)
+      - [Running the Build job using Python](#running-the-build-job-using-python)
+      - [Running the Build job using Docker](#running-the-build-job-using-docker)
     + [Editing and Building the Documentation](#editing-and-building-the-documentation)
   * [Troubleshooting](#troubleshooting)
   * [Authors](#authors)
@@ -87,6 +93,11 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
     │   │       └── template.yaml
     │   ├── change-batch.json
     │   └── template.yaml
+    # Docker layer
+    ├── local
+    │   ├── Dockerfile                              # Dockerfile for building the Neo4j Docker image
+    │   ├── Makefile
+    │   └── build-local.sh                          # Builds the Neo4j Docker image from backup and installs plugins
     # Data Pipeline layer
     └── pipeline                                     # Data pipeline including Batch job, Lambda functions & state machine
         ├── Makefile
