@@ -644,6 +644,7 @@ docker run \
     --volume=$(pwd)/gfe-db/local/neo4j/logs:/logs \
     $DOCKER_USERNAME/gfe-db:latest
 ```
+3. Navigate to `http://localhost:7474/browser/` to access the Neo4j browser. There is no authentication set so you can leave the username and password fields blank.
 
 ## Local Development
 
