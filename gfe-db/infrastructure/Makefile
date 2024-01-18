@@ -45,38 +45,43 @@ ifeq ($(USE_PRIVATE_SUBNET),false)
 	$(MAKE) service.deploy.update-dns
 else ifeq ($(USE_PRIVATE_SUBNET),true)
 ifeq ($(HAS_STAGE),null)
+
+
 ifeq ($(CREATE_SSM_VPC_ENDPOINT),true)
 	$(call blue, Creating Systems Manager VPC endpoint...)
 	$(MAKE) service.deploy.create-endpoint service=ssm
 else 
 	$(MAKE) service.deploy.create-endpoint-id-parameter service=ssm vpce_id=${SSM_VPC_ENDPOINT_ID}
-	$(eval vpce_type=$(shell aws ec2 describe-vpc-endpoints --query "VpcEndpoints[?VpcEndpointId=='${SSM_VPC_ENDPOINT_ID}'].VpcEndpointType" | jq -r '.[]'))
-ifeq ($(vpce_type),Interface)
-	$(call blue, Adding Neo4j Security Group to existing SSM VPC Interface endpoint...)
-	$(MAKE) service.deploy.modify-endpoint service=ssm
-endif
+	@vpce_type=$$(aws ec2 describe-vpc-endpoints --query "VpcEndpoints[?VpcEndpointId=='${SSM_VPC_ENDPOINT_ID}'].VpcEndpointType" | jq -r '.[]') && \
+	echo "vpce_type: $$vpce_type" && \
+	if [ "$$vpce_type" = "Interface" ]; then \
+		echo "\033[0;34mAdding Neo4j Security Group to existing Systems Manager VPC Interface endpoint...\033[0m" && \
+		$(MAKE) service.deploy.modify-endpoint service=ssm; \
+	fi
 endif
 ifeq ($(CREATE_SECRETSMANAGER_VPC_ENDPOINT),true)
 	$(call blue, Creating SecretsManager VPC endpoint...)
 	$(MAKE) service.deploy.create-endpoint service=secretsmanager
 else 
 	$(MAKE) service.deploy.create-endpoint-id-parameter service=secretsmanager vpce_id=${SECRETSMANAGER_VPC_ENDPOINT_ID}
-	$(eval vpce_type=$(shell aws ec2 describe-vpc-endpoints --query "VpcEndpoints[?VpcEndpointId=='${SECRETSMANAGER_VPC_ENDPOINT_ID}'].VpcEndpointType" | jq -r '.[]'))
-ifeq ($(vpce_type),Interface)
-	$(call blue, Adding Neo4j Security Group to existing SecretsManager VPC Interface endpoint...)
-	$(MAKE) service.deploy.modify-endpoint service=secretsmanager
-endif
+	@vpce_type=$$(aws ec2 describe-vpc-endpoints --query "VpcEndpoints[?VpcEndpointId=='${SECRETSMANAGER_VPC_ENDPOINT_ID}'].VpcEndpointType" | jq -r '.[]') && \
+	echo "vpce_type: $$vpce_type" && \
+	if [ "$$vpce_type" = "Interface" ]; then \
+		echo "\033[0;34mAdding Neo4j Security Group to existing SecretsManager VPC Interface endpoint...\033[0m" && \
+		$(MAKE) service.deploy.modify-endpoint service=secretsmanager; \
+	fi
 endif
 ifeq ($(CREATE_S3_VPC_ENDPOINT),true)
 	$(call blue, Creating S3 VPC endpoint...)
 	$(MAKE) service.deploy.create-endpoint service=s3
 else
 	$(MAKE) service.deploy.create-endpoint-id-parameter service=s3 vpce_id=${S3_VPC_ENDPOINT_ID}
-	$(eval vpce_type=$(shell aws ec2 describe-vpc-endpoints --query "VpcEndpoints[?VpcEndpointId=='${S3_VPC_ENDPOINT_ID}'].VpcEndpointType" | jq -r '.[]'))
-ifeq ($(vpce_type),Interface)
-	$(call blue, Adding Neo4j Security Group to existing S3 VPC Interface endpoint...)
-	$(MAKE) service.deploy.modify-endpoint service=s3
-endif
+	@vpce_type=$$(aws ec2 describe-vpc-endpoints --query "VpcEndpoints[?VpcEndpointId=='${S3_VPC_ENDPOINT_ID}'].VpcEndpointType" | jq -r '.[]') && \
+	echo "vpce_type: $$vpce_type" && \
+	if [ "$$vpce_type" = "Interface" ]; then \
+		echo "\033[0;34mAdding Neo4j Security Group to existing S3 VPC Interface endpoint...\033[0m" && \
+		$(MAKE) service.deploy.modify-endpoint service=s3; \
+	fi
 endif
 endif
 endif
