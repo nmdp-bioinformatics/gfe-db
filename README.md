@@ -43,7 +43,7 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
   * [Backup & Restore](#backup---restore)
     + [Backups](#backups)
     + [Restore](#restore)
-  * [Run `gfe-db` Locally Using Docker](#run--gfe-db--locally-using-docker)
+  * [Run `gfe-db` Locally Using Docker](#run-gfe-db-locally-using-docker)
     + [Build Environment](#build-environment)
     + [Usage](#usage)
   * [Local Development](#local-development)
