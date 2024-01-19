@@ -174,7 +174,6 @@ Resources:
     Type: AWS::EC2::Route
     Condition: CreateVpc
     DependsOn:
-      - CreateVpcConditionInternetGateway
       - CreateVpcConditionVpcGatewayAttachment
     Properties:
       RouteTableId: !Ref CreateVpcConditionPublicRouteTable
@@ -333,6 +332,8 @@ Resources:
 
   GitHubPersonalAccessTokenSecret:
     Type: AWS::SecretsManager::Secret
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
     Properties:
       Name: !Sub "${AppName}-${Stage}-GitHubPersonalAccessToken"
       Description: GitHub Personal Access Token for repository access

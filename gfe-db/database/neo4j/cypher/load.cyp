@@ -92,7 +92,7 @@ CALL apoc.periodic.iterate(
     MATCH (acc:IPD_Accession { name: row.acc_name})
     MERGE (gfe)-[rel:HAS_IPD_ALLELE]->(ipd)
     ON CREATE SET rel.releases = [replace(row.imgt_release, ".", "")]
-    ON MATCH SET rel.releases = rel.releases + [replace(row.imgt_release, ".", "")]
+    ON MATCH SET rel.releases = apoc.coll.sort(apoc.coll.toSet(rel.releases + [replace(row.imgt_release, ".", "")]))
     MERGE (gfe)-[acc_rel:HAS_IPD_ACCESSION]->(acc)
     ON CREATE SET acc_rel.release = row.imgt_release
     ',
