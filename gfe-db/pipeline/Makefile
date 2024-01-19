@@ -16,11 +16,11 @@ service.functions.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} - functions" 2>&1 | tee -a $$CFN_LOG_PATH
 	@sam build \
 		--region "$${AWS_REGION}" \
-		--template-file template.yaml  2>&1 | tee -a $$CFN_LOG_PATH || true && \
+		--template-file template.yaml && \
 	sam package \
 		--region "$${AWS_REGION}" \
 		--resolve-s3 \
-		--output-template-file packaged.yaml  2>&1 | tee -a $$CFN_LOG_PATH || true && \
+		--output-template-file packaged.yaml && \
 	sam deploy \
 		--no-fail-on-empty-changeset \
 		--region "$${AWS_REGION}" \
@@ -40,8 +40,7 @@ service.functions.deploy:
 			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN" \
 			ECRBaseUri="${ECR_BASE_URI}" \
 			BuildServiceRepositoryName="${BUILD_REPOSITORY_NAME}" \
-			FeatureServiceUrl="${FEATURE_SERVICE_URL}" \
-			2>&1 | tee -a $$CFN_LOG_PATH || true
+			FeatureServiceUrl="${FEATURE_SERVICE_URL}"
 
 service.jobs.deploy:
 	$(MAKE) -C jobs/ deploy
