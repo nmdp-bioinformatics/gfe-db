@@ -192,14 +192,18 @@ service.key-pair.create: ##=> Checks if the key pair already exists and creates 
 	echo "Creating EC2 key pair \"${EC2_KEY_PAIR_NAME}\"" && \
 	aws ec2 create-key-pair --key-name ${EC2_KEY_PAIR_NAME} | jq -r '.KeyMaterial' > ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Storing key pair ${EC2_KEY_PAIR_NAME} in Secrets Manager" 2>&1 | tee -a $$CFN_LOG_PATH && \
-	aws secretsmanager create-secret --name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/EC2KeyPair" \
+	res=$$(aws secretsmanager create-secret --name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/EC2KeyPair" \
 		--description "EC2 key pair for $${STAGE}-$${APP_NAME} database" \
-		--secret-string "$$(cat ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem)" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
-	aws ssm put-parameter \
+		--secret-string "$$(cat ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem)") && \
+	echo $$res | jq -r && \
+	res=$$(aws ssm put-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/EC2KeyPairName" \
 		--type "String" \
 		--value "${EC2_KEY_PAIR_NAME}" \
-		--overwrite 2>&1 | tee -a $$CFN_LOG_PATH || true
+		--overwrite) && \
+	echo $$res | jq -r && \
+	echo "\033[0;34mSuccessfully created EC2 key pair\033[0m" || \
+	echo "\033[0;31mFailed to create EC2 key pair\033[0m"
 
 service.deploy:
 	@aws cloudformation deploy \
@@ -255,7 +259,9 @@ service.monitoring.create-subscriptions:
 			--topic-arn "$$topic_arn" \
 			--protocol email \
 			--notification-endpoint "$$EMAIL") && \
-		echo $$res | jq -r 2>&1 | tee -a $${CFN_LOG_PATH} || true; \
+		echo $$res | jq -r && \
+		echo "\033[0;34mSuccessfully subscribed $$EMAIL to SNS topic\033[0m" || \
+		echo "\033[0;31mFailed to subscribe $$EMAIL to SNS topic\033[0m"; \
 	done
 
 service.monitoring.subscribe-email: #email=<string>
