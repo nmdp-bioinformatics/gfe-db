@@ -799,6 +799,7 @@ Resources:
                 - "batch:SubmitJob"
                 - "batch:DescribeJobs"
                 - "batch:TerminateJob"
+                - "batch:TagResource"
               Resource: 
                 - !Sub 'arn:aws:batch:${AWS::Region}:${AWS::AccountId}:job-queue/${Stage}-${AppName}*'
                 - !Sub 'arn:aws:batch:${AWS::Region}:${AWS::AccountId}:job-definition/${Stage}-${AppName}-*'
