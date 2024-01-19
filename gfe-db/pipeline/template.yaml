@@ -590,8 +590,7 @@ Resources:
                 - "ssm:GetCommandInvocation"
               Resource: 
                 - '*'
-
-  InvokeLoadScriptFunction:
+  GetExecutionStateFunction:
     Type: AWS::Serverless::Function
     Properties:
       Description: !Sub ${AppName} execution input validation and state retrieval
