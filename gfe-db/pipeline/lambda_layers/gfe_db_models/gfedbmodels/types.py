@@ -19,6 +19,7 @@ LOAD_SKIPPED: load skipped (set by State Machine) ✅
 LOAD_FAILED: load failed (set by State Machine) ✅
 BUILD_FAILED: build failed (set by State Machine) ✅
 FAILED: build or load failed (set by State Machine) ✅
+ABORTED: build or load aborted (set by UpdateExecutionState) ✅
 """
 
 class ExecutionStatus(str, Enum):
@@ -33,6 +34,7 @@ class ExecutionStatus(str, Enum):
     LOAD_FAILED = "LOAD_FAILED"
     LOAD_SKIPPED = "LOAD_SKIPPED"
     FAILED = "FAILED"
+    ABORTED = "ABORTED"
 
     @classmethod
     def __contains__(cls, item):
@@ -183,7 +185,6 @@ class RepositoryConfig(BaseModel):
         return url_is_valid(v)
 
 
-# TODO add execution_id
 class ExecutionDetailsConfig(BaseModel):
     id: str = None
     version: int
@@ -221,10 +222,11 @@ class ExecutionError(BaseModel):
     cause: str
 
 # One item in the ExecutionState table
+# The Primary Key is commit.sha, or commit__sha in the table
 class ExecutionStateItem(BaseModel):
-    created_utc: str
-    updated_utc: Optional[str] = None  # TODO make required once fully implemented
-    repository: RepositoryConfig
+    created_utc: Optional[str] = None  # Partial updates may not be able to include timestamps
+    updated_utc: Optional[str] = None  # Partial updates may not be able to include timestamps
+    repository: Optional[RepositoryConfig]
     commit: Commit
     execution: ExecutionDetailsConfig
     error: Optional[ExecutionError] = None
@@ -235,10 +237,6 @@ class ExecutionStateItem(BaseModel):
         # Items from table are separated by "__" because "." is not allowed in DynamoDB
         execution_state_item = restore_nested_json(execution_state_item, split_on="__")
         return cls(**execution_state_item)
-
-    # def model_dump(self, filter_nulls: bool = False):
-    #     if filter_nested_nulls:
-    #         return self.dict(exclude_none=True, by_alias=True)
 
     # validate s3 path uses s3://<bucket>/<key> format
     @validator("s3_path")
