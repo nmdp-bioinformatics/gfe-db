@@ -87,6 +87,8 @@ aws s3 cp --recursive s3://$DATA_BUCKET_NAME/$S3_CSV_PATH/ $NEO4J_IMPORT_PATH/ -
 # Update Cypher load query for correct release
 # TODO Change load.cyp to load.cyp.template
 mkdir -p $NEO4J_CYPHER_PATH/tmp/$RELEASE/
+
+# TODO Use Cypher params for RELEASE instead of sed
 cat $NEO4J_CYPHER_PATH/load.cyp | sed "s/RELEASE/$RELEASE/g" > $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp
 
 # check error status of sed and abort if not zero

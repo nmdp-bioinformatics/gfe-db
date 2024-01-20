@@ -23,13 +23,17 @@ def lambda_handler(event, context):
     release_version = event['input']['version']
     query_results = event['validations']['queries']
 
+    release_version = event['input']['version']
+
     # Initialize errors array
     errors = []
 
     # Release has been added to the database
-    unique_releases_in_db_pre_load = sorted([ int(item['release_version']) for item in query_results['pre']['has_ipd_allele_release_counts'] ])
-    unique_releases_in_db_post_load = sorted([ int(item['release_version']) for item in query_results['post']['has_ipd_allele_release_counts'] ])
+    unique_releases_in_db_pre_load = sorted([ item['release_version'] for item in query_results['pre']['has_ipd_allele_release_counts'] ])
+    unique_releases_in_db_post_load = sorted([ item['release_version'] for item in query_results['post']['has_ipd_allele_release_counts'] ])
     # is_release_version_loaded = set(unique_releases_in_db_post_load) - set(unique_releases_in_db_pre_load) == set([int(release_version)]) or \
+    
+    is_release_version_already_loaded = release_version in unique_releases_in_db_pre_load
     is_release_version_loaded = release_version in unique_releases_in_db_post_load
     if not is_release_version_loaded:
         errors.append("Release version not loaded")
@@ -38,50 +42,57 @@ def lambda_handler(event, context):
     node_counts_pre_load = sum(sorted([ item['count'] for item in query_results['pre']['node_counts'] ]))
     node_counts_post_load = sum(sorted([ item['count'] for item in query_results['post']['node_counts'] ]))
     have_node_counts_increased = node_counts_post_load > node_counts_pre_load
-    if not have_node_counts_increased:
+    if not have_node_counts_increased and not is_release_version_already_loaded:
         errors.append("Node count has not increased")
 
     # Number of unique release versions in the database has increased by one
     num_unique_releases_in_db_post_load = len(unique_releases_in_db_post_load)
     num_unique_releases_in_db_pre_load = len(unique_releases_in_db_pre_load)
     has_unique_release_count_increased_by_1 = num_unique_releases_in_db_post_load == num_unique_releases_in_db_pre_load + 1
-    if not has_unique_release_count_increased_by_1:
+    if not has_unique_release_count_increased_by_1 and not is_release_version_already_loaded:
         errors.append("Unique release count has not increased by 1")
 
-    is_load_successful = (
-        is_release_version_loaded
-        and have_node_counts_increased
-        and has_unique_release_count_increased_by_1
-    )
+    # TODO BOOKMARK 1/19/24 - Allow for the same release version to be loaded multiple times without failing the load validation
+    if is_release_version_already_loaded:
+        is_load_successful = (
+            is_release_version_loaded
+        )
+    else:
+        is_load_successful = (
+            is_release_version_loaded
+            and have_node_counts_increased
+            and has_unique_release_count_increased_by_1
+        )
 
     payload = {
         "is_load_successful": {
             "value": is_load_successful,
             "details": {
-                "is_release_version_loaded": {
-                    "value": is_release_version_loaded,
-                    "details": {
-                        "unique_releases_in_db_pre_load": unique_releases_in_db_pre_load,
-                        "unique_releases_in_db_post_load": unique_releases_in_db_post_load
-                    }
-                },
-                "have_node_counts_increased": {
-                    "value": have_node_counts_increased,
-                    "details": {
-                        "node_counts_pre_load": node_counts_pre_load,
-                        "node_counts_post_load": node_counts_post_load
-                    },
-                },
-                "has_unique_release_count_increased_by_1": {
-                    "value": has_unique_release_count_increased_by_1,
-                    "details": {
-                        "num_unique_releases_in_db_pre_load": num_unique_releases_in_db_pre_load,
-                        "num_unique_releases_in_db_post_load": num_unique_releases_in_db_post_load
-                    }
-                }
+                "unique_releases_in_db_pre_load": unique_releases_in_db_pre_load,
+                "unique_releases_in_db_post_load": unique_releases_in_db_post_load
+            }
+        },
+    }
+
+    # TODO Validate based on node metadata if is_release_version_already_loaded is True
+    # These validations will cause a failure if the release version has already been loaded
+    if not is_release_version_already_loaded:
+
+        payload["have_node_counts_increased"] = {
+            "value": have_node_counts_increased,
+            "details": {
+                "node_counts_pre_load": node_counts_pre_load,
+                "node_counts_post_load": node_counts_post_load
+            },
+        }
+
+        payload["has_unique_release_count_increased_by_1"] = {
+            "value": has_unique_release_count_increased_by_1,
+            "details": {
+                "num_unique_releases_in_db_pre_load": num_unique_releases_in_db_pre_load,
+                "num_unique_releases_in_db_post_load": num_unique_releases_in_db_post_load
             }
         }
-    }
 
     if errors:
         payload["errors"] = errors
@@ -93,7 +104,7 @@ def lambda_handler(event, context):
 if __name__ == "__main__":
     from pathlib import Path
 
-    event_path = Path(__file__).parent / "false-event.json"
+    event_path = Path(__file__).parent / "event.json"
 
     with open(event_path, "r") as file:
         event = json.load(file)
