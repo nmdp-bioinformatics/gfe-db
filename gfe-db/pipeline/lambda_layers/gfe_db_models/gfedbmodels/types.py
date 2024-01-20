@@ -158,8 +158,8 @@ class TrackedAssetsConfig(BaseModel):
 
 class TargetMetadataConfigItem(BaseModel):
     description: Optional[str] = None
-    asset_path: str
-    metadata_regex: str
+    asset_path: str # Path (in remote git repository, on GitHub) to the file to check for strings matching a release version
+    metadata_regex: str # Contextual metadata for the commit. This is the regex to match the release version string that might be found in the assets being checked
 
 
 class TargetMetadataConfig(BaseModel):

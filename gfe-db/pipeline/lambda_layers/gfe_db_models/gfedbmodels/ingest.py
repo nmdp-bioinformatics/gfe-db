@@ -1,3 +1,10 @@
+import os
+if __name__ != "app":
+    import sys
+    # for dev, local path to gfe-db modules
+    # ./gfe-db/pipeline/lambda_layers/gfe_db_models (use absolute path)
+    sys.path.append(os.environ["GFEDBMODELS_PATH"])
+
 import logging
 from typing import List, Dict, Union
 import multiprocessing
@@ -55,7 +62,7 @@ def process_execution_state_item(
                 repo=repository_config.name, 
                 token=token, 
                 asset_path=config.asset_path, 
-                release_version_regex=config.metadata_regex)
+                metadata_regex=config.metadata_regex)
             logger.info(f"Found release version {release_version} ({sha})")
 
             result = {
@@ -167,7 +174,8 @@ def process_execution_state_items(
         ]
     
 
-def get_release_version_for_commit(commit: Union[Commit, dict], owner, repo, token, asset_path, release_version_regex):
+def get_release_version_for_commit(commit: Union[Commit, dict], owner: str, repo: str, token: str, asset_path:str, metadata_regex: str) -> int:
+
     try:
         sha = commit["sha"]
     except:
@@ -176,13 +184,84 @@ def get_release_version_for_commit(commit: Union[Commit, dict], owner, repo, tok
         owner=owner,
         repo=repo,
         token=token,
-        path=asset_path, 
+        path=asset_path,
         commit_sha=sha
     )
 
-    release_version = find_text(release_version_regex, allele_list)
+    release_version = find_text(metadata_regex, allele_list)
     if release_version is None:
         raise Exception(f"Release version not found for commit {sha}")
     
     # TODO fix so that 3 digit release versions are returned correctly
     return int(release_version.replace(".", "")[:4])
+
+    ### debug ###
+if __name__ == "__main__":
+    from pathlib import Path
+    import json
+    import boto3
+    from datetime import datetime
+    from gfedbmodels.types import ExecutionStatus
+    from gfedbmodels.utils import get_utc_now
+
+    s3 = boto3.client("s3")
+
+    utc_now = get_utc_now()
+
+    GITHUB_REPOSITORY_OWNER = os.environ["GITHUB_REPOSITORY_OWNER"]
+    GITHUB_REPOSITORY_NAME = os.environ["GITHUB_REPOSITORY_NAME"]
+    GITHUB_PERSONAL_ACCESS_TOKEN = os.environ["GITHUB_PERSONAL_ACCESS_TOKEN"]
+
+    test_path = json.loads((Path(__file__).parent.parent.parent.parent / "functions" / "check_source_update" / "most-recent-commits.json").read_text())
+    commits_with_releases = []
+    for commit in test_path:
+
+        # Get data source configuration
+        source_repo_config = read_source_config(
+            s3_client=s3, 
+            bucket=os.environ["DATA_BUCKET_NAME"],
+            key=os.environ["PIPELINE_SOURCE_CONFIG_S3_PATH"]
+        ).repositories[f"{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}"]
+
+        # Loop through available file assets containing release version metadata
+        for asset_config in source_repo_config.target_metadata_config.items:
+
+            # Get the release version for the commit by examining file asset contents
+            release_version = get_release_version_for_commit(
+                commit=commit, 
+                owner=GITHUB_REPOSITORY_OWNER,
+                repo=GITHUB_REPOSITORY_NAME,
+                token=GITHUB_PERSONAL_ACCESS_TOKEN,
+                asset_path=asset_config.asset_path,
+                metadata_regex=asset_config.metadata_regex
+            )
+            # logger.info(
+            #     f"Found release version {release_version} for commit {sha}"
+            # )
+
+            # Build the execution object to be stored in the state table (`execution__*` fields)
+            execution_detail = ExecutionDetailsConfig(
+                **{"version": release_version, "status": ExecutionStatus.PENDING}
+            )
+
+            # Build the repository object to be stored in the state table (`repository__*` fields)
+            repository_config = RepositoryConfig(
+                **{
+                    "owner": GITHUB_REPOSITORY_OWNER,
+                    "name": GITHUB_REPOSITORY_NAME,
+                    "url": f"https://github.com/{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}",
+                    # TODO remove default params from state table, they are retrieved from source config file in S3
+                    # "default_input_parameters": source_repo_config.default_input_parameters,
+                }
+            )
+
+            # Assemble the execution state item for the new commit
+            execution_state_item = ExecutionStateItem(
+                created_utc=utc_now,
+                execution=execution_detail,
+                repository=repository_config,
+                commit=Commit.from_response_json(commit),
+            )
+            commits_with_releases.append(execution_state_item)
+            # break the loop if successful
+            break
