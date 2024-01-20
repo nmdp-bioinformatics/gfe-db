@@ -48,7 +48,7 @@
         "Build Stage": {
             "Type": "Parallel",
             "OutputPath": "$.[1]",
-            "Next": "Skip Load?",
+            "Next": "Skip Load❓",
             "Catch": [
                 {
                     "ErrorEquals": [
@@ -103,35 +103,35 @@
                                 "Prefix.$": "States.Format('data/{}/csv/', $.input.version)"
                             },
                             "ResultPath": "$.validations.check_existing_build",
-                            "Next": "Files Exist?"
+                            "Next": "Files Exist❓"
                         },
-                        "Files Exist?": {
+                        "Files Exist❓": {
                             "Type": "Choice",
                             "Choices": [
                                 {
                                     "Variable": "$.validations.check_existing_build.Contents",
                                     "IsPresent": false,
-                                    "Next": "Generate CSV files"
+                                    "Next": "Generate CSV Files"
                                 }
                             ],
-                            "Default": "Use Existing Build?"
+                            "Default": "Use Existing Build❓"
                         },
-                        "Use Existing Build?": {
+                        "Use Existing Build❓": {
                             "Type": "Choice",
                             "Choices": [
                                 {
                                     "Variable": "$.input.input_parameters.use_existing_build",
                                     "BooleanEquals": false,
-                                    "Next": "Generate CSV files"
+                                    "Next": "Generate CSV Files"
                                 }
                             ],
-                            "Default": "Validate Build"
+                            "Default": "Validate Build 🧐"
                         },
-                        "Generate CSV files": {
+                        "Generate CSV Files": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::batch:submitJob.sync",
                             "ResultPath": null,
-                            "Next": "Validate Build",
+                            "Next": "Validate Build 🧐",
                             "Parameters": {
                                 "JobDefinition": "${BuildJobDefinition}",
                                 "JobName": "${BuildJobName}",
@@ -150,7 +150,7 @@
                                 }
                             }
                         },
-                        "Validate Build": {
+                        "Validate Build 🧐": {
                             "Type": "Task",
                             "Resource": "${ValidateBuildOutputFunctionArn}",
                             "Parameters": {
@@ -159,9 +159,9 @@
                                 "input.$": "$.input"
                             },
                             "ResultPath": "$.validations.build_outputs",
-                            "Next": "Is Build Successful?"
+                            "Next": "Is Build Successful❓"
                         },
-                        "Is Build Successful?": {
+                        "Is Build Successful❓": {
                             "Type": "Choice",
                             "Choices": [
                                 {
@@ -245,7 +245,7 @@
                 }
             ]
         },
-        "Skip Load?": {
+        "Skip Load❓": {
             "Type": "Choice",
             "Choices": [
                 {
@@ -305,7 +305,7 @@
                     }
                 }
             ],
-            "Next": "Publish Result"
+            "Next": "Publish Result 📡"
         },
         "Update Status → LOAD_IN_PROGRESS": {
             "Type": "Pass",
@@ -368,9 +368,9 @@
                     }
                 },
                 {
-                    "StartAt": "Wait For Load",
+                    "StartAt": "Wait For Load 🕗",
                     "States": {
-                        "Wait For Load": {
+                        "Wait For Load 🕗": {
                             "Type": "Task",
                             "Resource": "${LoadReleaseActivityArn}",
                             "HeartbeatSeconds": 60,
@@ -387,9 +387,9 @@
                             "Type": "Task",
                             "Resource": "${EvaluateQueryResultsFunctionArn}",
                             "ResultPath": "$.validations.load_results",
-                            "Next": "Is Load Successful?"
+                            "Next": "Is Load Successful❓"
                         },
-                        "Is Load Successful?": {
+                        "Is Load Successful❓": {
                             "Type": "Choice",
                             "Choices": [
                                 {
@@ -477,7 +477,7 @@
             "Type": "Task",
             "Resource": "${InvokeBackupScriptFunctionArn}",
             "ResultPath": "$.backups.post",
-            "Next": "Publish Result",
+            "Next": "Publish Result 📡",
             "Catch": [
                 {
                     "ErrorEquals": [
@@ -490,7 +490,7 @@
         "Handle Error": {
             "Type": "Parallel",
             "OutputPath": "$.[0]",
-            "Next": "Publish Result",
+            "Next": "Publish Result 📡",
             "Branches": [
                 {
                     "StartAt": "Get Current State",
@@ -502,9 +502,9 @@
                             "Parameters": {
                                 "input.$": "$$.Execution.Input.input"
                             },
-                            "Next": "Is Status Current?"
+                            "Next": "Is Status Current❓"
                         },
-                        "Is Status Current?": {
+                        "Is Status Current❓": {
                             "Type": "Choice",
                             "Choices": [
                                 {
@@ -574,7 +574,7 @@
                 }
             ]
         },
-        "Publish Result": {
+        "Publish Result 📡": {
             "Type": "Task",
             "Resource": "arn:aws:states:::sns:publish",
             "ResultPath": null,
@@ -582,20 +582,20 @@
                 "TopicArn": "${GfeDbExecutionResultTopicArn}",
                 "Message.$": "$"
             },
-            "Next": "Success or Failure?"
+            "Next": "Success or Failure❓"
         },
-        "Success or Failure?": {
+        "Success or Failure❓": {
             "Type": "Choice",
             "Choices": [
                 {
                     "Variable": "$.Error",
                     "IsPresent": true,
-                    "Next": "Pipeline Failure 🙁"
+                    "Next": "Pipeline Failure 😖"
                 }
             ],
             "Default": "Pipeline Success 😁"
         },
-        "Pipeline Failure 🙁": {
+        "Pipeline Failure 😖": {
             "Type": "Fail",
             "ErrorPath": "$.Error",
             "CausePath": "$.Cause"
