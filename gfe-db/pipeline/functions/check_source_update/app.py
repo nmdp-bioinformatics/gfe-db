@@ -261,8 +261,7 @@ def lambda_handler(event, context):
             for version, execution_state_item in item.items()
         ]
 
-        # 1b) Mark the older commits for each release as SKIPPED
-        # TODO AVOID OVERWRITING STATUS IF STATUS != "NOT_PROCESSED"
+        # 1b) Mark the older commits for each release as SKIPPED *only* if they are marked as NOT_PROCESSED
         skipped_commits = [
             update_execution_state_item(
                 execution_state_item=commit, 
@@ -270,7 +269,7 @@ def lambda_handler(event, context):
                 timestamp=utc_now
             )
             for commit in commits_with_releases
-            if commit not in pending_commits
+            if (commit not in pending_commits and commit.execution.status == ExecutionStatus.NOT_PROCESSED)
         ]
 
         # 1c) Combine the pending and skipped commits
