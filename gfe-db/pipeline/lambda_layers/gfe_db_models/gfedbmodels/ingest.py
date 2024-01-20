@@ -1,17 +1,8 @@
 import os
-if __name__ != "app":
-    import sys
-    # for dev, local path to gfe-db modules
-    # ./gfe-db/pipeline/lambda_layers/gfe_db_models (use absolute path)
-    sys.path.append(os.environ["GFEDBMODELS_PATH"])
-
 import logging
 from typing import List, Dict, Union
 import multiprocessing
 from concurrent.futures import ThreadPoolExecutor, as_completed
-# from .constants import (
-#     pipeline
-# )
 from .types import (
     SourceConfig,
     RepositoryConfig,
@@ -36,9 +27,6 @@ logger.setLevel(logging.INFO)
 def read_source_config(s3_client, bucket, key):
     data = read_s3_json(s3_client, bucket, key)
     return SourceConfig(**data)
-
-# def write_source_config(bucket, key, source_config: SourceConfig):
-#     write_s3_json(bucket, key, source_config.model_dump())
 
 def process_execution_state_item(
     timestamp: str,
@@ -85,7 +73,7 @@ def process_execution_state_item(
 
             # Throw error if all possible asset paths have been tried
             if errors == len(target_metadata_config.items):
-                # logger.error(f"Max errors reached. Exiting loop.")
+                logger.error(f"Max errors reached. Exiting loop.")
                 raise e
             else:
                 continue
@@ -110,6 +98,7 @@ def parallel_process_execution_state_items(
 
     # Create a ThreadPoolExecutor with the specified number of threads
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
+
         # Submit the process_commit function for each commit to the executor
         futures = [
             executor.submit(
@@ -197,6 +186,8 @@ def get_release_version_for_commit(commit: Union[Commit, dict], owner: str, repo
 
     ### debug ###
 if __name__ == "__main__":
+    import sys
+    sys.path.append(os.environ["GFEDBMODELS_PATH"])
     from pathlib import Path
     import json
     import boto3
@@ -235,9 +226,9 @@ if __name__ == "__main__":
                 asset_path=asset_config.asset_path,
                 metadata_regex=asset_config.metadata_regex
             )
-            # logger.info(
-            #     f"Found release version {release_version} for commit {sha}"
-            # )
+            logger.info(
+                f'Found release version {release_version} for commit {commit["sha"]}'
+            )
 
             # Build the execution object to be stored in the state table (`execution__*` fields)
             execution_detail = ExecutionDetailsConfig(
@@ -249,9 +240,7 @@ if __name__ == "__main__":
                 **{
                     "owner": GITHUB_REPOSITORY_OWNER,
                     "name": GITHUB_REPOSITORY_NAME,
-                    "url": f"https://github.com/{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}",
-                    # TODO remove default params from state table, they are retrieved from source config file in S3
-                    # "default_input_parameters": source_repo_config.default_input_parameters,
+                    "url": f"https://github.com/{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}"
                 }
             )
 
@@ -263,5 +252,6 @@ if __name__ == "__main__":
                 commit=Commit.from_response_json(commit),
             )
             commits_with_releases.append(execution_state_item)
+
             # break the loop if successful
             break

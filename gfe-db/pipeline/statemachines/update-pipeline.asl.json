@@ -4,7 +4,7 @@
         "Pre-Execution Tasks": {
             "Type": "Parallel",
             "OutputPath": "$.[0]",
-            "Next": "Update Status -> BUILD_IN_PROGRESS",
+            "Next": "Update Status → BUILD_IN_PROGRESS",
             "Catch": [
                 {
                     "ErrorEquals": [
@@ -39,7 +39,7 @@
                 }
             ]
         },
-        "Update Status -> BUILD_IN_PROGRESS": {
+        "Update Status → BUILD_IN_PROGRESS": {
             "Type": "Pass",
             "Result": "BUILD_IN_PROGRESS",
             "ResultPath": "$.state.execution.status",
@@ -59,9 +59,9 @@
             ],
             "Branches": [
                 {
-                    "StartAt": "Sync State -> BUILD_IN_PROGRESS",
+                    "StartAt": "Sync State → BUILD_IN_PROGRESS",
                     "States": {
-                        "Sync State -> BUILD_IN_PROGRESS": {
+                        "Sync State → BUILD_IN_PROGRESS": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
@@ -167,18 +167,18 @@
                                 {
                                     "Variable": "$.validations.build_outputs.is_valid_build",
                                     "BooleanEquals": true,
-                                    "Next": "Update Status -> BUILD_SUCCESS"
+                                    "Next": "Update Status → BUILD_SUCCESS"
                                 }
                             ],
-                            "Default": "Update Status -> BUILD_FAILURE"
+                            "Default": "Update Status → BUILD_FAILURE"
                         },
-                        "Update Status -> BUILD_SUCCESS": {
+                        "Update Status → BUILD_SUCCESS": {
                             "Type": "Pass",
                             "Result": "BUILD_SUCCESS",
                             "ResultPath": "$.state.execution.status",
-                            "Next": "Sync State -> BUILD_SUCCESS"
+                            "Next": "Sync State → BUILD_SUCCESS"
                         },
-                        "Sync State -> BUILD_SUCCESS": {
+                        "Sync State → BUILD_SUCCESS": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
@@ -204,13 +204,13 @@
                                 }
                             }
                         },
-                        "Update Status -> BUILD_FAILURE": {
+                        "Update Status → BUILD_FAILURE": {
                             "Type": "Pass",
                             "Result": "BUILD_FAILURE",
                             "ResultPath": "$.state.execution.status",
-                            "Next": "Sync State -> BUILD_FAILURE"
+                            "Next": "Sync State → BUILD_FAILURE"
                         },
-                        "Sync State -> BUILD_FAILURE": {
+                        "Sync State → BUILD_FAILURE": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
@@ -254,7 +254,7 @@
                     "Next": "Handle Skipped Load"
                 }
             ],
-            "Default": "Update Status -> LOAD_IN_PROGRESS"
+            "Default": "Update Status → LOAD_IN_PROGRESS"
         },
         "Handle Skipped Load": {
             "Type": "Parallel",
@@ -268,15 +268,15 @@
             ],
             "Branches": [
                 {
-                    "StartAt": "Update Status -> LOAD_SKIPPED",
+                    "StartAt": "Update Status → LOAD_SKIPPED",
                     "States": {
-                        "Update Status -> LOAD_SKIPPED": {
+                        "Update Status → LOAD_SKIPPED": {
                             "Type": "Pass",
                             "Result": "LOAD_SKIPPED",
                             "ResultPath": "$.state.execution.status",
-                            "Next": "Sync State -> LOAD_SKIPPED"
+                            "Next": "Sync State → LOAD_SKIPPED"
                         },
-                        "Sync State -> LOAD_SKIPPED": {
+                        "Sync State → LOAD_SKIPPED": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
@@ -307,7 +307,7 @@
             ],
             "Next": "Publish Result"
         },
-        "Update Status -> LOAD_IN_PROGRESS": {
+        "Update Status → LOAD_IN_PROGRESS": {
             "Type": "Pass",
             "Result": "LOAD_IN_PROGRESS",
             "ResultPath": "$.state.execution.status",
@@ -327,9 +327,9 @@
             ],
             "Branches": [
                 {
-                    "StartAt": "Sync State -> LOAD_IN_PROGRESS",
+                    "StartAt": "Sync State → LOAD_IN_PROGRESS",
                     "States": {
-                        "Sync State -> LOAD_IN_PROGRESS": {
+                        "Sync State → LOAD_IN_PROGRESS": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
@@ -395,18 +395,18 @@
                                 {
                                     "Variable": "$.validations.load_results.is_load_successful.value",
                                     "BooleanEquals": true,
-                                    "Next": "Update Status -> LOAD_SUCCESS"
+                                    "Next": "Update Status → LOAD_SUCCESS"
                                 }
                             ],
-                            "Default": "Update Status -> LOAD_FAILED"
+                            "Default": "Update Status → LOAD_FAILED"
                         },
-                        "Update Status -> LOAD_SUCCESS": {
+                        "Update Status → LOAD_SUCCESS": {
                             "Type": "Pass",
                             "Result": "LOAD_SUCCESS",
                             "ResultPath": "$.state.execution.status",
-                            "Next": "Sync State -> LOAD_SUCCESS"
+                            "Next": "Sync State → LOAD_SUCCESS"
                         },
-                        "Sync State -> LOAD_SUCCESS": {
+                        "Sync State → LOAD_SUCCESS": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
@@ -432,13 +432,13 @@
                                 }
                             }
                         },
-                        "Update Status -> LOAD_FAILED": {
+                        "Update Status → LOAD_FAILED": {
                             "Type": "Pass",
                             "Result": "LOAD_FAILED",
                             "ResultPath": "$.state.execution.status",
-                            "Next": "Sync State -> LOAD_FAILED"
+                            "Next": "Sync State → LOAD_FAILED"
                         },
-                        "Sync State -> LOAD_FAILED": {
+                        "Sync State → LOAD_FAILED": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
@@ -521,9 +521,9 @@
                                     "Next": "Sync Failed State"
                                 }
                             ],
-                            "Default": "Update Status -> FAILED"
+                            "Default": "Update Status → FAILED"
                         },
-                        "Update Status -> FAILED": {
+                        "Update Status → FAILED": {
                             "Type": "Pass",
                             "Result": "FAILED",
                             "ResultPath": "$.state.execution.status",
@@ -590,17 +590,17 @@
                 {
                     "Variable": "$.Error",
                     "IsPresent": true,
-                    "Next": "Pipeline Failure"
+                    "Next": "Pipeline Failure 🙁"
                 }
             ],
-            "Default": "Pipeline Success"
+            "Default": "Pipeline Success 😁"
         },
-        "Pipeline Failure": {
+        "Pipeline Failure 🙁": {
             "Type": "Fail",
             "ErrorPath": "$.Error",
             "CausePath": "$.Cause"
         },
-        "Pipeline Success": {
+        "Pipeline Success 😁": {
             "Type": "Succeed"
         }
     }

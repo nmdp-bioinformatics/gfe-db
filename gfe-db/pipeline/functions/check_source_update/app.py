@@ -15,8 +15,6 @@ this function will not reprocess the deleted commits.
 import os
 if __name__ != "app":
     import sys
-    # for dev, local path to gfe-db modules
-    # ./gfe-db/pipeline/lambda_layers/gfe_db_models (use absolute path)
     sys.path.append(os.environ["GFEDBMODELS_PATH"])
 import logging
 from decimal import Decimal
@@ -95,50 +93,9 @@ def lambda_handler(event, context):
             logger.error(message)
             raise Exception(message)
 
-        # # Handle manually triggered pipeline execution
-        # if "releases" in event:
-
-        #     logger.info(f"Processing releases from user: {event['releases']}")
-
-        #     # extract the most recent record for the release value passed in the event
-        #     releases = event["releases"].split(",")
-        #     commits_with_releases = []
-        #     for release in releases:
-        #         commits_with_releases.extend(list(filter(
-        #             lambda record: record.execution.version == int(release),
-        #             execution_state
-        #         )))
-
-        #     # Set input parameters for manual pipeline execution from event
-        #     input_parameters = InputParameters(**event)
-
-        # Handle automated pipeline execution
         else:
-
-            # # Use default parameters for automated pipeline execution
-            # input_parameters = source_repo_config.default_input_parameters
-            # # 2) Get the most recent commits from github since the most recent commit date retrieved from DynamoDB
-            # commits = get_most_recent_commits(execution_state)
-
-            # # Return if no commits are found, otherwise process the new commits
-            # if not commits:
-            #     message = "No new commits found"
-            #     logger.info(message)
-            #     return {
-            #         "statusCode": 200,
-            #         "body": json.dumps({"message": message}),
-            #     }
-            
-            # logger.info(
-            #     f"Found {len(commits)} commit(s) not yet processed\n{json.dumps([commit['sha'] for commit in commits], indent=2)}"
-            # )
-
-            # Get the release version for each new commit and create a new state record
-
-            # commits = get_most_recent_commits(execution_state)
             commits_with_releases = []
 
-            ### todo ###
             # Handle manually triggered pipeline execution
             if "releases" in event:
                 is_user_event = True
@@ -165,7 +122,7 @@ def lambda_handler(event, context):
                 # Set input parameters for manual pipeline execution from event
                 input_parameters = InputParameters(**event)
 
-            ### todo ###
+            # Handle scheduled pipeline execution
             else:
                 is_user_event = False
 
@@ -183,11 +140,11 @@ def lambda_handler(event, context):
                         "body": json.dumps({"message": message}),
                     }
                 
-                # logger.info(
-                #     f"Found {len(commits)} commit(s) not yet processed\n{json.dumps([commit['sha'] for commit in commits], indent=2)}"
-                # )
+                logger.info(
+                    f"Found {len(most_recent_commits)} commit(s) not yet processed\n{json.dumps([commit['sha'] for commit in most_recent_commits], indent=2)}"
+                )
 
-                # logger.info(f"Getting release versions")
+            logger.info(f"Getting release versions")
 
             if most_recent_commits:
                 for commit in most_recent_commits:
@@ -452,6 +409,6 @@ if __name__ == "__main__":
     from pathlib import Path
 
     event = json.loads((Path(__file__).parent / "schedule-event.json").read_text())
-    event = json.loads((Path(__file__).parent / "error-event.json").read_text())
+    # event = json.loads((Path(__file__).parent / "error-event.json").read_text())
 
     lambda_handler(event, None)
