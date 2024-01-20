@@ -1,0 +1,34 @@
+{
+    "version": "0",
+    "id": "2bf41e92-7e02-cd33-3739-48728b910cc7",
+    "detail-type": "Step Functions Execution Status Change",
+    "source": "aws.states",
+    "account": "810526023897",
+    "time": "2024-01-20T22:00:37Z",
+    "region": "us-east-1",
+    "resources": [
+        "arn:aws:states:us-east-1:810526023897:execution:UpdatePipelineStateMachine-FQbLz4G0k6df:3510_5f2c562056f8ffa89aeea0631f2a52300ee0de17_20240120_220027"
+    ],
+    "detail": {
+        "executionArn": "arn:aws:states:us-east-1:810526023897:execution:UpdatePipelineStateMachine-FQbLz4G0k6df:3510_5f2c562056f8ffa89aeea0631f2a52300ee0de17_20240120_220027",
+        "stateMachineArn": "arn:aws:states:us-east-1:810526023897:stateMachine:UpdatePipelineStateMachine-FQbLz4G0k6df",
+        "name": "3510_5f2c562056f8ffa89aeea0631f2a52300ee0de17_20240120_220027",
+        "status": "ABORTED",
+        "startDate": 1705788030095,
+        "stopDate": 1705788037205,
+        "input": "{\"input\": {\"id\": \"3510_5f2c562056f8ffa89aeea0631f2a52300ee0de17_20240120_220027\", \"version\": 3510, \"commit_sha\": \"5f2c562056f8ffa89aeea0631f2a52300ee0de17\", \"input_parameters\": {\"align\": false, \"kir\": false, \"mem_profile\": false, \"limit\": 1000, \"use_existing_build\": false, \"skip_load\": false}, \"s3_path\": \"s3://nmdpf-gfe-db-810526023897-us-east-1/data/3510\", \"receipt_handle\": \"AQEBCu1015BMxXvjWE9eeTSzDq2RQHItl3gQV+zkFX86UbCgNTugZEfrMM5KGk4/H38MyKA6KKPIoHPB8oSh4p8DaXQWbo0ejGY39q/INN3dpPHO4Xyw8RlRXfIZS8dUcMqv3WY5mfXiTrGIxviCh9sMQbjK6YXD8CnrIfYIPsnDNEhJJlVlapIP+dPSZJpJG6DLmUi4lddSrRTJiDSJT3dT8FQuzhH4GzVTsdG+HdlOPdIFv+YupNJGoXif2Jx+g3cLbhWeYcppBlbKuqUG2nozi0pdA7jhP9zK0KXyWCuD2jun/tqMllXYV5RJPwpa4Xuu8+6L8UlGGugH1k8nNJ9AcAR3awGYfQE9LQGzJZCJcq0y+2I2g7v36jvrGR5e4ZsRydiIfhUVgfLQ7yhkD9MZuAmCvqGkMFGoUnv7zYEALr7hwf87i1dvV+5vsTFJEVBq\"}}",
+        "output": null,
+        "stateMachineVersionArn": null,
+        "stateMachineAliasArn": null,
+        "redriveCount": 0,
+        "redriveDate": null,
+        "redriveStatus": "REDRIVABLE",
+        "redriveStatusReason": null,
+        "inputDetails": {
+            "included": true
+        },
+        "outputDetails": null,
+        "error": null,
+        "cause": null
+    }
+}

@@ -593,6 +593,7 @@ Resources:
   GetExecutionStateFunction:
     Type: AWS::Serverless::Function
     Properties:
+      # FunctionName: !Sub ${Stage}-${AppName}-get-execution-state
       Description: !Sub ${AppName} execution input validation and state retrieval
       CodeUri: functions/get_execution_state/
       Handler: app.lambda_handler
@@ -624,6 +625,63 @@ Resources:
               Action:
                 - dynamodb:GetItem
               Resource: !GetAtt GfeDbExecutionStateTable.Arn
+
+
+
+  UpdateExecutionStateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      # FunctionName: !Sub ${Stage}-${AppName}-update-execution-state
+      Description: !Sub ${AppName} execution input validation and state retrieval
+      CodeUri: functions/update_execution_state/
+      Handler: app.lambda_handler
+      Runtime: python3.10
+      Layers:
+        - !Ref GfeDbModelsLayer
+      MemorySize: 256
+      Timeout: 60
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          APP_NAME: !Ref AppName
+          STAGE: !Ref Stage
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: AllowSSMParameterStoreAccess
+              Effect: Allow
+              Action:
+                - ssm:GetParameters
+                - ssm:GetParameter
+              Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: AllowDynamoDBReadWriteAccess
+              Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+              Resource: !GetAtt GfeDbExecutionStateTable.Arn
+      # Create EventBridge rule to trigger the function if a step functions execution is aborted
+      Events:
+        StepFunctionsExecutionAborted:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              source:
+                - aws.states
+              detail-type:
+                - Step Functions Execution Status Change
+              detail:
+                status:
+                  - ABORTED
+                stateMachineArn:
+                  - !GetAtt UpdatePipelineStateMachine.Arn
+            EventBusName: default
+
+
   InvokeUpdatePipelineFunction:
     Type: AWS::Serverless::Function
     Properties:
