@@ -625,9 +625,6 @@ Resources:
               Action:
                 - dynamodb:GetItem
               Resource: !GetAtt GfeDbExecutionStateTable.Arn
-
-
-
   UpdateExecutionStateFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -680,8 +677,6 @@ Resources:
                 stateMachineArn:
                   - !GetAtt UpdatePipelineStateMachine.Arn
             EventBusName: default
-
-
   InvokeUpdatePipelineFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -919,6 +914,42 @@ Resources:
       Name: !Sub /${AppName}/${Stage}/${AWS::Region}/GfeDbExecutionResultTopicArn
       Description: !Sub ARN for ${AppName} Data Pipeline Errors SNS topic
       Value: !Ref GfeDbExecutionResultTopic
+
+  # Dev queue, subscription and policy to receive SNS messages from the GfeDbExecutionResultTopic with bash script
+  GfeDbExecutionResultDevQueue:
+    Type: AWS::SQS::Queue
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Properties:
+      VisibilityTimeout: 30
+      MessageRetentionPeriod: 1209600
+      ReceiveMessageWaitTimeSeconds: 20
+  GfeDbExecutionResultTopicSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: !GetAtt GfeDbExecutionResultDevQueue.Arn
+      Protocol: sqs
+      TopicArn: !Ref GfeDbExecutionResultTopic
+      RawMessageDelivery: true
+  GfeDbExecutionResultDevQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref GfeDbExecutionResultDevQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowSNS
+            Effect: Allow
+            Principal:
+              AWS: "*"
+            Action:
+              - sqs:SendMessage
+            Resource: !GetAtt GfeDbExecutionResultDevQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Ref GfeDbExecutionResultTopic
+
   LoadReleaseActivity:
     Type: AWS::StepFunctions::Activity
     Properties:
