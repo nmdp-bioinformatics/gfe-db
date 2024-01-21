@@ -135,6 +135,7 @@ deploy: splash-screen logs.purge env.validate ##=> Deploy all services
 	$(MAKE) infrastructure.deploy 
 	$(MAKE) database.deploy
 	$(MAKE) pipeline.deploy
+	$(MAKE) monitoring.create-topic-subscriptions topics="GfeDbExecutionResultTopicArn DataPipelineErrorsTopicArn"
 	@sh -c '$(MAKE) pipeline.state.build && $(MAKE) pipeline.state.load || echo "Pipeline state build failed"'
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished deploying ${APP_NAME}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) options-screen
@@ -451,11 +452,38 @@ infrastructure.access-services.bastion-server.deploy:
 infrastructure.access-services.bastion-server.connect:
 	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/bastion-server/ service.connect
 
-monitoring.create-subscriptions:
-	$(MAKE) -C ${APP_NAME}/infrastructure service.monitoring.create-subscriptions
+monitoring.create-topic-subscriptions: #=> topics=<string>
+	@for topic in $$topics; do \
+		$(MAKE) monitoring.subscribe-emails topic_ssm_param=$$topic; \
+	done
 
-monitoring.subscribe-email:
-	$(MAKE) -C ${APP_NAME}/infrastructure service.monitoring.subscribe-email
+monitoring.subscribe-emails: #=> topic_ssm_param=<string>
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Creating SNS topic subscriptions for $$topic_ssm_param" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@topic_arn=$$(aws ssm get-parameters \
+		--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/$$topic_ssm_param" \
+		--with-decryption \
+		--query "Parameters[0].Value" \
+		--output text) && \
+	for EMAIL in $$(echo $${SUBSCRIBE_EMAILS} | sed 's/,/ /g'); do \
+		res=$$(aws sns subscribe \
+			--topic-arn "$$topic_arn" \
+			--protocol email \
+			--notification-endpoint "$$EMAIL") && \
+		echo $$res | jq -r || \
+		echo "\033[0;31mFailed to subscribe $$EMAIL to SNS topic\033[0m"; \
+	done
+
+monitoring.subscribe-email: #=> topic_name=<string> email=<string>
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Creating SNS topic subscription" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@topic_arn=$$(aws ssm get-parameters \
+		--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/"$$topic_name"Arn" \
+		--with-decryption \
+		--query "Parameters[0].Value" \
+		--output text) && \
+	aws sns subscribe \
+		--topic-arn "$$topic_arn" \
+		--protocol email \
+		--notification-endpoint "$$email" 2>&1 | tee -a $${CFN_LOG_PATH} || true;
 
 database.deploy:
 	$(MAKE) -C ${APP_NAME}/database/ deploy
@@ -877,7 +905,7 @@ define HELP_MESSAGE
 	$ make infrastructure.access-services.bastion-server.delete
 
 	...::: Create CloudWatch subscriptions :::...
-	$ make monitoring.create-subscriptions
+	$ make monitoring.subscribe-emails
 
 	...::: Subscribe an email to CloudWatch notifications :::...
 	$ make monitoring.subscribe-email

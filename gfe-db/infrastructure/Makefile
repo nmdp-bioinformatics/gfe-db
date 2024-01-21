@@ -45,8 +45,6 @@ ifeq ($(USE_PRIVATE_SUBNET),false)
 	$(MAKE) service.deploy.update-dns
 else ifeq ($(USE_PRIVATE_SUBNET),true)
 ifeq ($(HAS_STAGE),null)
-
-
 ifeq ($(CREATE_SSM_VPC_ENDPOINT),true)
 	$(call blue, Creating Systems Manager VPC endpoint...)
 	$(MAKE) service.deploy.create-endpoint service=ssm
@@ -85,7 +83,6 @@ else
 endif
 endif
 endif
-	$(MAKE) service.monitoring.create-subscriptions
 
 service.deploy.update-dns:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Updating DNS records" 2>&1 | tee -a $${CFN_LOG_PATH}
@@ -246,35 +243,6 @@ endif
 
 service.access-services.bastion-server.connect:
 	$(MAKE) -C access-services/bastion-server service.bastion-server.connect
-
-service.monitoring.create-subscriptions:
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Creating SNS topic subscriptions" 2>&1 | tee -a $${CFN_LOG_PATH}
-	@topic_arn=$$(aws ssm get-parameters \
-		--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/DataPipelineErrorsTopicArn" \
-		--with-decryption \
-		--query "Parameters[0].Value" \
-		--output text) && \
-	for EMAIL in $$(echo $${SUBSCRIBE_EMAILS} | sed 's/,/ /g'); do \
-		res=$$(aws sns subscribe \
-			--topic-arn "$$topic_arn" \
-			--protocol email \
-			--notification-endpoint "$$EMAIL") && \
-		echo $$res | jq -r && \
-		echo "\033[0;34mSuccessfully subscribed $$EMAIL to SNS topic\033[0m" || \
-		echo "\033[0;31mFailed to subscribe $$EMAIL to SNS topic\033[0m"; \
-	done
-
-service.monitoring.subscribe-email: #email=<string>
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Creating SNS topic subscription" 2>&1 | tee -a $${CFN_LOG_PATH}
-	@topic_arn=$$(aws ssm get-parameters \
-		--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/DataPipelineErrorsTopicArn" \
-		--with-decryption \
-		--query "Parameters[0].Value" \
-		--output text) && \
-	aws sns subscribe \
-		--topic-arn "$$topic_arn" \
-		--protocol email \
-		--notification-endpoint "$$email" 2>&1 | tee -a $${CFN_LOG_PATH} || true;
 
 delete: ##=> Delete resources
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $${CFN_LOG_PATH}
