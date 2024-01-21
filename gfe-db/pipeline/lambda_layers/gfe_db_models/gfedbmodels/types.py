@@ -186,7 +186,8 @@ class RepositoryConfig(BaseModel):
 
 
 class ExecutionDetailsConfig(BaseModel):
-    id: str = None
+    id: str = None # Refers to execution id in Step Functions and is only set if the commit is processed
+    invocation_id: str = None # One invocation can have multiple executions depending on how many release versions are given
     version: int
     status: str
     date_utc: Optional[str] = None
@@ -298,6 +299,7 @@ class ExecutionState(BaseModel):
 class ExecutionPayloadItem(BaseModel):
     id: str
     version: int
+    invocation_id: str
     commit_sha: str
     input_parameters: InputParameters
     s3_path: str
@@ -316,6 +318,7 @@ class ExecutionPayloadItem(BaseModel):
         return cls(
             id=execution_state_item.execution.id,
             version=execution_state_item.execution.version,
+            invocation_id=execution_state_item.execution.invocation_id,
             commit_sha=execution_state_item.commit.sha,
             input_parameters=execution_state_item.execution.input_parameters,
             s3_path=execution_state_item.execution.s3_path,

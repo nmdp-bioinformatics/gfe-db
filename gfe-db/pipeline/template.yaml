@@ -106,6 +106,7 @@ Resources:
             "commit.date_utc",
             "commit.html_url",
             "commit.message",
+            "execution.invocation_id",
             "execution.id",
             "execution.date_utc",
             "execution.status",
