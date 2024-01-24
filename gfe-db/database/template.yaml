@@ -69,6 +69,49 @@ Resources:
       Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn
       Description: ARN for Neo4jCredentialsSecret
       Value: !Ref Neo4jCredentialsSecret
+  # Controls load concurrency
+  GfeDbLoadQueue:
+    Type: AWS::SQS::Queue
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Properties:
+      FifoQueue: true
+      VisibilityTimeout: 43200 # max 12 hours (longest load is 7hr 8 min), how long a message is invisible after being received by a consumer
+      MessageRetentionPeriod: 1209600
+      ReceiveMessageWaitTimeSeconds: 0 # Short polling can be used since there is 1 consumer
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt GfeDbLoadDeadLetterQueue.Arn
+        maxReceiveCount: 1 # Can only fail once before going to dead letter queue
+  GfeDbLoadDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Properties:
+      FifoQueue: true
+      VisibilityTimeout: 43200
+      MessageRetentionPeriod: 1209600
+      ReceiveMessageWaitTimeSeconds: 10
+  GfeDbLoadQueueUrlParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueUrl
+      Description: URL of gfe-db load queue
+      Value: !GetAtt GfeDbLoadQueue.QueueUrl
+  GfeDbLoadQueueArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueArn
+      Description: ARN of gfe-db load queue
+      Value: !GetAtt GfeDbLoadQueue.Arn
+  GfeDbLoadQueueNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueName
+      Description: Name of gfe-db load queue
+      Value: !GetAtt GfeDbLoadQueue.QueueName
   Neo4jDatabaseInstance:
     Type: AWS::EC2::Instance
     CreationPolicy:
@@ -389,7 +432,7 @@ Resources:
                 Action:
                   - "sqs:ReceiveMessage"
                 Resource:
-                  - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueArn}}'
+                  - !GetAtt GfeDbLoadQueue.Arn
               - Effect: Allow
                 Action:
                   - ssm:PutParameter
