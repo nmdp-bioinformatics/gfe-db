@@ -822,7 +822,13 @@ Resources:
       Name: !Sub /${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueUrl
       Description: URL of gfe-db load queue
       Value: !GetAtt GfeDbLoadQueue.QueueUrl
-
+  GfeDbLoadQueueArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueArn
+      Description: ARN of gfe-db load queue
+      Value: !GetAtt GfeDbLoadQueue.Arn
   UpdatePipelineStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:

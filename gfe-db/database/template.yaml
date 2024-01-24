@@ -385,16 +385,16 @@ Resources:
                   - ec2:AssociateAddress
                 Resource:
                   - "*"
-              # - Effect: "Allow"
-              #   Action:
-              #     - "sqs:ReceiveMessage"
-              #     - "sqs:DeleteMessage"
-              #     - "sqs:ChangeMessageVisibility"
-              #   Resource:
-              #     - "*"
+              - Effect: "Allow"
+                Action:
+                  - "sqs:ReceiveMessage"
+                Resource:
+                  - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueArn}}'
               - Effect: Allow
                 Action:
                   - ssm:PutParameter
+                  - ssm:GetParameters
+                  - ssm:GetParameter
                 Resource:
                   - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*
   Neo4jDatabaseInstanceProfile:
