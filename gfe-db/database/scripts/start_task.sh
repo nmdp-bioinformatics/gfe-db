@@ -7,6 +7,7 @@ set -e
 APP_NAME=$1
 STAGE=$2
 ERR_MSG=null
+status=""
 
 if [[ -z $APP_NAME ]]; then
     ERR_MSG="APP_NAME environment variable not set"
@@ -36,6 +37,16 @@ if [[ -z $QUEUE_URL ]]; then
     echo $ERR_MSG >&2
     exit 1
 fi
+
+# # Change message visibility to 0 for failures
+# function reset_msg_visibility {
+#     echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Resetting message visibility"
+#     aws sqs change-message-visibility \
+#         --queue-url "$QUEUE_URL" \
+#         --receipt-handle "$receipt_handle" \
+#         --visibility-timeout 0 \
+#         --region "$AWS_REGION"
+# }
 
 # Send task failure if script errors
 send_result () {
@@ -79,12 +90,10 @@ while true; do
 
         export task_input="$(echo "$message" | jq -r '.Input')"
         export task_token="$(echo "$message" | jq -r '.TaskToken')"
+        export receipt_handle="$(echo "$message" | jq -r '.ReceiptHandle')"
 
         echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - task_input=$task_input"
         echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - task_token=$task_token"
-
-        # TODO handle success or failure for sqs task
-        # Failure: change message visibility to 0
 
         # Check for release argument
         release=$(echo $task_input | jq -r '.version')
@@ -99,6 +108,10 @@ while true; do
         else
             echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Loading release version $release for commit $(echo $task_input | jq -r '.commit_sha')"
         fi
+
+        export HEARTBEAT_INTERVAL=30
+        bash send_heartbeat.sh "$task_token" &
+        send_heartbeat_pid=$!
 
         # Run task - invoke load script 
         # TODO get s3 path from step functions payload
