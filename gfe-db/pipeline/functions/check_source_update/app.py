@@ -77,7 +77,11 @@ gfedb_processing_queue = queue.Queue(gfedb_processing_queue_url)
 
 # TODO validate commits against tracked source files requiring ingestion
 def lambda_handler(event, context):
+
     utc_now = get_utc_now()
+    invocation_id = context.aws_request_id
+
+    logger.info(f"Invocation Id: {invocation_id}")
     logger.info(json.dumps(event))
 
     try:
@@ -146,6 +150,7 @@ def lambda_handler(event, context):
 
             logger.info(f"Getting release versions")
 
+
             if most_recent_commits:
                 for commit in most_recent_commits:
                     sha = commit["sha"]
@@ -169,7 +174,10 @@ def lambda_handler(event, context):
 
                             # Build the execution object to be stored in the state table (`execution__*` fields)
                             execution_detail = ExecutionDetailsConfig(
-                                **{"version": release_version, "status": ExecutionStatus.NOT_PROCESSED}
+                                **{
+                                    "version": release_version, 
+                                    "status": ExecutionStatus.NOT_PROCESSED
+                                }
                             )
 
                             # Build the repository object to be stored in the state table (`repository__*` fields)
@@ -209,6 +217,7 @@ def lambda_handler(event, context):
         pending_commits = [
             update_execution_state_item(
                 execution_state_item=execution_state_item,
+                invocation_id=invocation_id,
                 status=ExecutionStatus.PENDING,
                 timestamp=utc_now,
                 input_parameters=input_parameters,
@@ -221,12 +230,13 @@ def lambda_handler(event, context):
         # 1b) Mark the older commits for each release as SKIPPED *only* if they are marked as NOT_PROCESSED
         skipped_commits = [
             update_execution_state_item(
-                execution_state_item=commit, 
+                execution_state_item=execution_state_item, 
+                invocation_id=invocation_id,
                 status=ExecutionStatus.SKIPPED,
                 timestamp=utc_now
             )
-            for commit in commits_with_releases
-            if (commit not in pending_commits and commit.execution.status == ExecutionStatus.NOT_PROCESSED)
+            for execution_state_item in commits_with_releases
+            if (execution_state_item not in pending_commits and execution_state_item.execution.status == ExecutionStatus.NOT_PROCESSED)
         ]
 
         # 1c) Combine the pending and skipped commits
@@ -373,11 +383,14 @@ def select_most_recent_commit_for_release(commits: list[ExecutionStateItem], sel
 
 def update_execution_state_item(
     execution_state_item: ExecutionStateItem,
+    invocation_id: str,
     status: str,
     timestamp: str,
     input_parameters: dict = None,
     version: int = None
-):
+) -> ExecutionStateItem:
+    
+    execution_state_item.execution.invocation_id = invocation_id
     execution_state_item.execution.status = status
     execution_state_item.updated_utc = timestamp
 
@@ -408,7 +421,10 @@ def update_execution_state_item(
 if __name__ == "__main__":
     from pathlib import Path
 
-    event = json.loads((Path(__file__).parent / "schedule-event.json").read_text())
-    # event = json.loads((Path(__file__).parent / "error-event.json").read_text())
+    # event = json.loads((Path(__file__).parent / "schedule-event.json").read_text())
+    event = json.loads((Path(__file__).parent / "error-event.json").read_text())
 
-    lambda_handler(event, None)
+    class MockContext:
+        aws_request_id = "1234"
+
+    lambda_handler(event, MockContext())

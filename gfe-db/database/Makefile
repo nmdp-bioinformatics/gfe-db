@@ -87,7 +87,7 @@ service.deploy:
 			Subdomain="$${SUBDOMAIN}" \
 			AdminEmail="$${ADMIN_EMAIL}" \
 			APOCVersion="$${APOC_VERSION}" \
-			GDSVersion="$${GDS_VERSION}" 2>&1 | tee -a $$CFN_LOG_PATH || true
+			GDSVersion="$${GDS_VERSION}"
 
 service.backup:
 	@res=$$(aws ssm send-command \
