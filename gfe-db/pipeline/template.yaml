@@ -1114,6 +1114,7 @@ Resources:
       Dimensions:
         - Name: ServiceIntegrationResourceArn
           Value: !Sub arn:aws:states:${AWS::Region}:${AWS::AccountId}:batch:submitJob.sync
+  # TODO move to database stack
   Neo4jLoadQueryDocument:
     Type: AWS::SSM::Document
     Properties:
