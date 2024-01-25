@@ -55,7 +55,7 @@ if __name__ == "__main__":
 
     # TODO FIX not returning all commits from repo, integrate pygethub
     # Fetch all commits from repo using GitHub API, will be cached
-    logger.info("Fetching all commits from repo using GitHub API")
+    logger.info("Processing source repository data")
 
     # COMMITS
     # TODO add requests session for user-agent tracking

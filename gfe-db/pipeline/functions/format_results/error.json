@@ -1,0 +1,314 @@
+{
+    "input": {
+      "id": "3550_df6ba6f80a2c5f999590f06fced6c4c4ff56b89d_20240125_182342",
+      "version": 3550,
+      "invocation_id": "8575add5-e17c-4fc0-8d59-834cd3bd07b0",
+      "commit_sha": "df6ba6f80a2c5f999590f06fced6c4c4ff56b89d",
+      "input_parameters": {
+        "align": false,
+        "kir": false,
+        "mem_profile": false,
+        "limit": 1000,
+        "use_existing_build": true,
+        "skip_load": false
+      },
+      "s3_path": "s3://nmdpf-gfe-db-810526023897-us-east-1/data/3550",
+      "receipt_handle": "AQEBiQ3cZ39digrHIjqrjcV9vQW5W1AHkv9A8ygCt2IR8FjXbzZQiqvCiTnoQf9mh6dW0mdEVNLq7WkVtsk+piWQe6cdaRXA9+RtqKhvFDCYSpQ+z7OCTfkYXwsT6fB/DxB5XQMXuSLjNVhnI9X/U017u9bY+mUm4EQCC8tzSrGF9i2pE0jV44MjddjmnuLoun8rS+WWqSD8F/tAtmLSUxDrSvCKSJKuqNQbpY5sH+TbsMBnHbMCBSAL0Is1FH5VuQx7AC+fHHtm8NRWGhMSonEyw9fvaAiIz7IuvQUZEn9rL9rH1f+zSYXaDrc+RMn9Dr5yofhl3tF4UHwC6A1BcmCKVKpetYFugQuTOosw2wzGdvANh5p4S8P0ilZgCH1mZyIEHHErOk3ohSxMLbTsDAb579a/XA6HEqz/U1K/Bq32lIqEsLllmoO9ufHKkNF7+rxP"
+    },
+    "validations": {
+      "queries": {
+        "pre": {
+          "node_counts": [
+            {
+              "node": "GFE",
+              "count": 1000
+            },
+            {
+              "node": "IPD_Accession",
+              "count": 1000
+            },
+            {
+              "node": "IPD_Allele",
+              "count": 1000
+            },
+            {
+              "node": "Sequence",
+              "count": 1000
+            },
+            {
+              "node": "Feature",
+              "count": 1092
+            },
+            {
+              "node": "Submitter",
+              "count": 1
+            }
+          ],
+          "has_ipd_allele_release_counts": [
+            {
+              "release_version": 3550,
+              "count": 1000
+            }
+          ],
+          "ipd_accession_release_counts": [
+            {
+              "release_version": "3.55.0",
+              "count": 1000
+            }
+          ]
+        },
+        "post": {
+          "node_counts": [
+            {
+              "node": "GFE",
+              "count": 1000
+            },
+            {
+              "node": "IPD_Accession",
+              "count": 1000
+            },
+            {
+              "node": "IPD_Allele",
+              "count": 1000
+            },
+            {
+              "node": "Sequence",
+              "count": 1000
+            },
+            {
+              "node": "Feature",
+              "count": 1092
+            },
+            {
+              "node": "Submitter",
+              "count": 1
+            }
+          ],
+          "has_ipd_allele_release_counts": [
+            {
+              "release_version": 3550,
+              "count": 1000
+            }
+          ],
+          "ipd_accession_release_counts": [
+            {
+              "release_version": "3.55.0",
+              "count": 1000
+            }
+          ]
+        }
+      },
+      "check_existing_build": {
+        "Contents": [
+          {
+            "ETag": "\"02a4756ba462e482c4db31c0fdb9170c\"",
+            "Key": "data/3550/csv/all_cds.3550.csv",
+            "LastModified": "2024-01-25T17:27:53Z",
+            "Owner": {
+              "DisplayName": "gclindsey+awstesting",
+              "Id": "c7bf5cd354a38116b91f478b895cf40889f01091a7d26941d8a367727278b611"
+            },
+            "Size": 1399196,
+            "StorageClass": "STANDARD"
+          },
+          {
+            "ETag": "\"e7e7a74b3dfc3504e61cac5c1489b4d8\"",
+            "Key": "data/3550/csv/all_features.3550.csv",
+            "LastModified": "2024-01-25T17:27:53Z",
+            "Owner": {
+              "DisplayName": "gclindsey+awstesting",
+              "Id": "c7bf5cd354a38116b91f478b895cf40889f01091a7d26941d8a367727278b611"
+            },
+            "Size": 3810345,
+            "StorageClass": "STANDARD"
+          },
+          {
+            "ETag": "\"7c2d7c40a3a06cb7cd790f7d0db7983b\"",
+            "Key": "data/3550/csv/all_groups.3550.csv",
+            "LastModified": "2024-01-25T17:27:53Z",
+            "Owner": {
+              "DisplayName": "gclindsey+awstesting",
+              "Id": "c7bf5cd354a38116b91f478b895cf40889f01091a7d26941d8a367727278b611"
+            },
+            "Size": 293142,
+            "StorageClass": "STANDARD"
+          },
+          {
+            "ETag": "\"ebf679c17761b3e5bc73734a68e0952d\"",
+            "Key": "data/3550/csv/gfe_sequences.3550.csv",
+            "LastModified": "2024-01-25T17:27:53Z",
+            "Owner": {
+              "DisplayName": "gclindsey+awstesting",
+              "Id": "c7bf5cd354a38116b91f478b895cf40889f01091a7d26941d8a367727278b611"
+            },
+            "Size": 2582950,
+            "StorageClass": "STANDARD"
+          }
+        ],
+        "IsTruncated": false,
+        "Marker": "",
+        "MaxKeys": 1000,
+        "Name": "nmdpf-gfe-db-810526023897-us-east-1",
+        "Prefix": "data/3550/csv/"
+      },
+      "build_outputs": {
+        "release_version": 3550,
+        "details": [
+          {
+            "schema": "all_cds",
+            "release": 3550,
+            "file_path": "s3://nmdpf-gfe-db-810526023897-us-east-1/data/3550/csv/all_cds.3550.csv",
+            "cols": [
+              "gfe_name",
+              "bp_seq_id",
+              "bp_sequence",
+              "aa_seq_id",
+              "aa_sequence"
+            ],
+            "num_rows": 1000,
+            "created_utc": "2024-01-25T17:27:53.000Z",
+            "details": {
+              "is_valid_csv_filename": true,
+              "is_valid_csv_header": true,
+              "is_valid_csv_rows": true
+            },
+            "num_errors": 0,
+            "is_valid_csv": true
+          },
+          {
+            "schema": "all_features",
+            "release": 3550,
+            "file_path": "s3://nmdpf-gfe-db-810526023897-us-east-1/data/3550/csv/all_features.3550.csv",
+            "cols": [
+              "accession",
+              "hash_code",
+              "locus",
+              "rank",
+              "sequence",
+              "term",
+              "gfe_name",
+              "allele_id",
+              "hla_name",
+              "imgt_release"
+            ],
+            "num_rows": 12979,
+            "created_utc": "2024-01-25T17:27:53.000Z",
+            "details": {
+              "is_valid_csv_filename": true,
+              "is_valid_csv_header": true,
+              "is_valid_csv_rows": true
+            },
+            "num_errors": 0,
+            "is_valid_csv": true
+          },
+          {
+            "schema": "all_groups",
+            "release": 3550,
+            "file_path": "s3://nmdpf-gfe-db-810526023897-us-east-1/data/3550/csv/all_groups.3550.csv",
+            "cols": [
+              "gfe_name",
+              "allele_id",
+              "hla_name",
+              "ard_id",
+              "ard_name",
+              "locus",
+              "imgt_release"
+            ],
+            "num_rows": 3000,
+            "created_utc": "2024-01-25T17:27:53.000Z",
+            "details": {
+              "is_valid_csv_filename": true,
+              "is_valid_csv_header": true,
+              "is_valid_csv_rows": true
+            },
+            "num_errors": 0,
+            "is_valid_csv": true
+          },
+          {
+            "schema": "gfe_sequences",
+            "release": 3550,
+            "file_path": "s3://nmdpf-gfe-db-810526023897-us-east-1/data/3550/csv/gfe_sequences.3550.csv",
+            "cols": [
+              "gfe_name",
+              "acc_name",
+              "locus",
+              "hla_name",
+              "seq_id",
+              "sequence",
+              "length",
+              "imgt_release"
+            ],
+            "num_rows": 1000,
+            "created_utc": "2024-01-25T17:27:53.000Z",
+            "details": {
+              "is_valid_csv_filename": true,
+              "is_valid_csv_header": true,
+              "is_valid_csv_rows": true
+            },
+            "num_errors": 0,
+            "is_valid_csv": true
+          }
+        ],
+        "errors": [],
+        "expected_artifacts": [
+          "all_cds.3550.csv",
+          "all_features.3550.csv",
+          "all_groups.3550.csv",
+          "gfe_sequences.3550.csv"
+        ],
+        "is_valid_build": true
+      },
+      "load_results": {
+        "is_load_successful": {
+          "value": true,
+          "details": {
+            "unique_releases_in_db_pre_load": [
+              3550
+            ],
+            "unique_releases_in_db_post_load": [
+              3550
+            ]
+          }
+        }
+      }
+    },
+    "backups": {
+      "pre": {
+        "document_name": "nmdpf-gfe-db-database-Neo4jBackupDocument-2YWbsH03BpED",
+        "command_id": "519eae4b-85ec-4c92-ac88-e9d92297f690"
+      },
+      "post": {
+        "document_name": "nmdpf-gfe-db-database-Neo4jBackupDocument-2YWbsH03BpED",
+        "command_id": "8624a3b7-cdae-45b8-8e01-32bd53ccfccc"
+      }
+    },
+    "state": {
+      "created_utc": "2024-01-25T17:24:09.819Z",
+      "updated_utc": "2024-01-25T18:23:42.308Z",
+      "repository": {
+        "owner": "ANHIG",
+        "name": "IMGTHLA",
+        "url": "https://github.com/ANHIG/IMGTHLA"
+      },
+      "commit": {
+        "sha": "df6ba6f80a2c5f999590f06fced6c4c4ff56b89d",
+        "date_utc": "2024-01-18T11:06:05.000Z",
+        "message": "Merge pull request #359 from ANHIG/3550\n\nRemoval of empty sequence block in A_prot.txt and MICA_prot.txt",
+        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/df6ba6f80a2c5f999590f06fced6c4c4ff56b89d"
+      },
+      "execution": {
+        "id": "3550_df6ba6f80a2c5f999590f06fced6c4c4ff56b89d_20240125_182342",
+        "invocation_id": "8575add5-e17c-4fc0-8d59-834cd3bd07b0",
+        "version": 3550,
+        "status": "LOAD_SUCCESS",
+        "input_parameters": {
+          "align": false,
+          "kir": false,
+          "mem_profile": false,
+          "limit": 1000,
+          "use_existing_build": false,
+          "skip_load": false
+        }
+      }
+    }
+  }

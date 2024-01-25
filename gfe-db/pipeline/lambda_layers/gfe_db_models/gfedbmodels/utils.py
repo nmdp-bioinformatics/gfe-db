@@ -216,7 +216,7 @@ def paginate_commits(owner, repo, start_page=1, per_page=100, **kwargs):
         response = list_commits(owner, repo, page=page, per_page=per_page, **kwargs)
         if len(response) == 0:
             break
-        logger.debug(f"Page {page}: {len(response)} commits")
+        # logger.debug(f"Page {page}: {len(response)} commits")
         commits.extend(response)
         page += 1
 

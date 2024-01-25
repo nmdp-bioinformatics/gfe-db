@@ -305,7 +305,7 @@
                     }
                 }
             ],
-            "Next": "Publish Result 📡"
+            "Next": "Format Results"
         },
         "Update Status → LOAD_IN_PROGRESS": {
             "Type": "Pass",
@@ -485,7 +485,7 @@
             "Type": "Task",
             "Resource": "${InvokeBackupScriptFunctionArn}",
             "ResultPath": "$.backups.post",
-            "Next": "Publish Result 📡",
+            "Next": "Format Results",
             "Catch": [
                 {
                     "ErrorEquals": [
@@ -498,7 +498,7 @@
         "Handle Error": {
             "Type": "Parallel",
             "OutputPath": "$.[0]",
-            "Next": "Publish Result 📡",
+            "Next": "Format Results",
             "Branches": [
                 {
                     "StartAt": "Get Current State",
@@ -582,13 +582,19 @@
                 }
             ]
         },
-        "Publish Result 📡": {
+        "Format Results": {
+            "Type": "Task",
+            "Resource": "${FormatResultsFunctionArn}",
+            "ResultPath": "$.report",
+            "Next": "Publish Report 📡"
+        },
+        "Publish Report 📡": {
             "Type": "Task",
             "Resource": "arn:aws:states:::sns:publish",
             "ResultPath": null,
             "Parameters": {
                 "TopicArn": "${GfeDbExecutionResultTopicArn}",
-                "Message.$": "$"
+                "Message.$": "$.report"
             },
             "Next": "Success or Failure❓"
         },
