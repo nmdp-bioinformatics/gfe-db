@@ -14,6 +14,8 @@ report_template = """
 {title}
 -------
 
+Release Version: {release_version}
+
 Execution ID: {execution_id}
 Execution Status: {execution_status}
 Execution Date: {execution_date} UTC
@@ -47,8 +49,11 @@ def lambda_handler(event, context):
     title = f"{STAGE}-{APP_NAME} Pipeline Execution Report"
     title_underline = "-" * len(title)
 
+    release_version = data['input']['version']
+
     # Extract required information from JSON
-    execution_status = data['state']['execution']['status']
+    execution_status = f"🟢 {data['state']['execution']['status']}" if data['state']['execution']['status'] == "LOAD_SUCCESS" \
+        else f"🔴 {data['state']['execution']['status']}"
     execution_id = data['state']['execution']['id']
     execution_date = data['state']['updated_utc']
     commit_sha = data['state']['commit']['sha']
@@ -79,6 +84,7 @@ def lambda_handler(event, context):
     report = report_template.format(
         title=title,
         title_underline=title_underline,
+        release_version=release_version,
         execution_status=execution_status,
         execution_id=execution_id,
         execution_date=execution_date,
