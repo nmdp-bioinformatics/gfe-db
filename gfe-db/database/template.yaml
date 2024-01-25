@@ -592,7 +592,7 @@ Resources:
           setUserPermissions:
             type: "String"
             description: "Deletes ETag files created by SSM Agent and set user permissions."
-            default: 'rm *.etag && find . \( -name "*.sh" -o -name "Makefile" -o -name "init" \) -exec chown ubuntu {} \; && find . \( -name "*.sh" -o -name "Makefile" -o -name "init" \) -exec chgrp ubuntu {} \;'
+            default: 'rm *.etag || true && find . \( -name "*.sh" -o -name "Makefile" -o -name "init" \) -exec chown ubuntu {} \; && find . \( -name "*.sh" -o -name "Makefile" -o -name "init" \) -exec chgrp ubuntu {} \;'
           workingDirectory:
             type: "String"
             description: "Working directory"

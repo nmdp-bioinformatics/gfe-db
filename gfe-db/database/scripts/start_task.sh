@@ -64,24 +64,27 @@ while true; do
 
     # Poll SQS for new messages
     echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Polling for new messages..."
-    export message=$(aws sqs receive-message \
+    export messages="$(aws sqs receive-message \
         --queue-url "$QUEUE_URL" \
         --region "$AWS_REGION" \
-        --wait-time-seconds 20 \
-        --max-number-of-messages 1 \
-        | jq -r '.Messages[0]')
+        --max-number-of-messages 1)"
 
+    message=$(echo $messages | jq -r '.Messages[0].Body')
+    
     if [[ -z $message ]]; then
         echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - No messages found"
         break
     else
         echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Message found"
 
-        export task_token=$(echo "$message | jq -r '.Body.TaskToken'")
-        export task_input=$(echo "$message | jq -r '.Body.Input'")
+        export task_input="$(echo "$message" | jq -r '.Input')"
+        export task_token="$(echo "$message" | jq -r '.TaskToken')"
 
-        echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - task_token=$task_token"
         echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - task_input=$task_input"
+        echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - task_token=$task_token"
+
+        # TODO handle success or failure for sqs task
+        # Failure: change message visibility to 0
 
         # Check for release argument
         release=$(echo $task_input | jq -r '.version')
@@ -97,13 +100,9 @@ while true; do
             echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Loading release version $release for commit $(echo $task_input | jq -r '.commit_sha')"
         fi
 
-        # export HEARTBEAT_INTERVAL=30
-        # bash send_heartbeat.sh &
-        # send_heartbeat_pid=$!
-
         # Run task - invoke load script 
         # TODO get s3 path from step functions payload
-        bash load_db.sh $RELEASE
+        bash load_db.sh $release
         TASK_EXIT_STATUS=$?
         echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Task exit status: $TASK_EXIT_STATUS"
 
@@ -118,7 +117,7 @@ while true; do
         else
             status="SUCCESS"
             send_result
-            kill $send_heartbeat_pid
+            kill 0
         fi
     fi
 done
