@@ -365,18 +365,9 @@
                     "StartAt": "Wait For Load 🕗",
                     "States": {
                         "Wait For Load 🕗": {
-                            "Type":"Task",
-                            "Resource":"arn:aws:states:::sqs:sendMessage.waitForTaskToken",
+                            "Type": "Task",
+                            "Resource": "${LoadReleaseActivityArn}",
                             "HeartbeatSeconds": 60,
-                            "Parameters":{  
-                               "QueueUrl":"${GfeDbLoadQueueUrl}",
-                               "MessageGroupId.$": "$.input.invocation_id",
-                               "MessageDeduplicationId.$": "$.input.id",
-                               "MessageBody":{  
-                                  "Input.$":"$.input",
-                                  "TaskToken.$":"$$.Task.Token"
-                               }
-                            },
                             "ResultPath": null,
                             "Next": "Run Validation Query"
                         },

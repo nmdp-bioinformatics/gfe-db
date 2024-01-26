@@ -1,13 +1,12 @@
 #!/bin/bash -x
 
 # Exit immediately if a command exits with a non-zero status
-set -e
+set -ex
 
 # get APP_NAME and STAGE from arguments
 APP_NAME=$1
 STAGE=$2
 ERR_MSG=null
-status=""
 
 if [[ -z $APP_NAME ]]; then
     ERR_MSG="APP_NAME environment variable not set"
@@ -26,49 +25,30 @@ if [[ -z $AWS_REGION ]]; then
     export AWS_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')
 fi
 
-QUEUE_URL=$(aws ssm get-parameter \
-    --name "/${APP_NAME}/${STAGE}/${AWS_REGION}/GfeDbLoadQueueUrl" \
+ACTIVITY_ARN=$(aws ssm get-parameter \
+    --name "/${APP_NAME}/${STAGE}/${AWS_REGION}/LoadReleaseActivityArn" \
     --query "Parameter.Value" \
     --output text \
     --region "$AWS_REGION")
 
-if [[ -z $QUEUE_URL ]]; then
-    ERR_MSG="Queue URL not found"
+if [[ -z $ACTIVITY_ARN ]]; then
+    ERR_MSG="ACTIVITY_ARN environment variable not set"
     echo $ERR_MSG >&2
     exit 1
 fi
-
-# # Change message visibility to 0 for failures
-# function reset_msg_visibility {
-#     echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Resetting message visibility"
-#     aws sqs change-message-visibility \
-#         --queue-url "$QUEUE_URL" \
-#         --receipt-handle "$receipt_handle" \
-#         --visibility-timeout 0 \
-#         --region "$AWS_REGION"
-# }
-
-# Delete message
-function delete_msg {
-    echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting message"
-    aws sqs delete-message \
-        --queue-url "$QUEUE_URL" \
-        --receipt-handle "$receipt_handle" \
-        --region "$AWS_REGION"
-}
 
 # Send task failure if script errors
 send_result () {
     if [[ $status = "SUCCESS" ]]; then
         echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Sending task success"
         aws stepfunctions send-task-success \
-            --task-token "$task_token" \
+            --task-token "$TASK_TOKEN" \
             --task-output "{\"status\":\"$status\"}" \
             --region "$AWS_REGION"
     else
         echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Sending task failure"
         aws stepfunctions send-task-failure \
-            --task-token "$task_token" \
+            --task-token "$TASK_TOKEN" \
             --cause "$cause" \
             --error "$error" \
             --region "$AWS_REGION"
@@ -82,44 +62,45 @@ trap 'cause="Error on line $LINENO: $ERR_MSG" && error=$? && send_result && kill
 # timeout=120
 while true; do
 
-    # Poll SQS for new messages
-    echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Polling for new messages..."
-    export messages="$(aws sqs receive-message \
-        --queue-url "$QUEUE_URL" \
+    # Poll StepFunctions API for new activities
+    echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Polling for new activities..."
+    export ACTIVITY=$(aws stepfunctions get-activity-task \
+        --activity-arn "$ACTIVITY_ARN" \
+        --worker-name "$APP_NAME" \
         --region "$AWS_REGION" \
-        --max-number-of-messages 1)"
+        --cli-connect-timeout 65)
 
-    message=$(echo $messages | jq -r '.Messages[0].Body')
-    
-    if [[ -z $message ]]; then
-        echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - No messages found"
+    if [[ -z $ACTIVITY ]]; then
+        echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - No activities found"
         break
+
     else
-        echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Message found"
+        echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Activity found"
+        echo "$ACTIVITY"
 
-        export task_input="$(echo "$message" | jq -r '.Input')"
-        export task_token="$(echo "$message" | jq -r '.TaskToken')"
-        export receipt_handle="$(echo "$message" | jq -r '.ReceiptHandle')"
-
-        echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - task_input=$task_input"
-        echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - task_token=$task_token"
+        # Check for task token
+        export TASK_TOKEN=$(echo "$ACTIVITY" | jq -r '.taskToken')
+        if [[ -z $TASK_TOKEN ]]; then
+            ERR_MSG="TASK_TOKEN not found"
+            echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - $ERR_MSG" >&2
+            exit 1
+        else
+            echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Found task token"
+        fi
 
         # Check for release argument
-        release=$(echo $task_input | jq -r '.version')
-        if [[ -z $task_input || "$task_input" == "" ]]; then
-            ERR_MSG="Release version not found, or is empty."
+        release=$(echo "$ACTIVITY" | jq -r '.input' | jq -r '.input.version')
+        if [[ -z $release || "$release" == "null" || ! $release =~ ^[0-9]{1,4}$ ]]; then
+            ERR_MSG="Release version not found, is 'null', or is not a 1-4 digit integer"
             echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - $ERR_MSG" >&2
-            status="FAILED"
-            error="1"
-            cause="$ERR_MSG"
-            send_result
-            kill 0
+            exit 1
         else
-            echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Loading release version $release for commit $(echo $task_input | jq -r '.commit_sha')"
+            echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Starting load process for $release"
         fi
 
         export HEARTBEAT_INTERVAL=30
-        bash send_heartbeat.sh "$task_token" &
+        echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Begin task heartbeat"
+        bash send_heartbeat.sh &
         send_heartbeat_pid=$!
 
         # Run task - invoke load script 
@@ -135,11 +116,11 @@ while true; do
             cause="Error on line $LINENO"
             send_result
             kill 0
+
         else
             status="SUCCESS"
-            delete_msg
             send_result
-            kill 0
+            kill $send_heartbeat_pid
         fi
     fi
 done
