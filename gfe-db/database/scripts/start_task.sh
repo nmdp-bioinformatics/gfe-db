@@ -48,6 +48,15 @@ fi
 #         --region "$AWS_REGION"
 # }
 
+# Delete message
+function delete_msg {
+    echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting message"
+    aws sqs delete-message \
+        --queue-url "$QUEUE_URL" \
+        --receipt-handle "$receipt_handle" \
+        --region "$AWS_REGION"
+}
+
 # Send task failure if script errors
 send_result () {
     if [[ $status = "SUCCESS" ]]; then
@@ -126,9 +135,9 @@ while true; do
             cause="Error on line $LINENO"
             send_result
             kill 0
-
         else
             status="SUCCESS"
+            delete_msg
             send_result
             kill 0
         fi
