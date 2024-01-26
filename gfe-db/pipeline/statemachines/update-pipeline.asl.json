@@ -21,12 +21,6 @@
                             "Type": "Task",
                             "Resource": "${ExecuteValidationQueriesFunctionArn}",
                             "ResultPath": "$.validations.queries.pre",
-                            "Next": "Run Pre-Execution Backup"
-                        },
-                        "Run Pre-Execution Backup": {
-                            "Type": "Task",
-                            "Resource": "${InvokeBackupScriptFunctionArn}",
-                            "ResultPath": "$.backups.pre",
                             "Next": "Get Execution State"
                         },
                         "Get Execution State": {
@@ -316,7 +310,7 @@
         "Load Stage": {
             "Type": "Parallel",
             "OutputPath": "$.[2]",
-            "Next": "Run Post-Execution Backup",
+            "Next": "Format Results",
             "Catch": [
                 {
                     "ErrorEquals": [
@@ -373,7 +367,7 @@
                         "Wait For Load 🕗": {
                             "Type":"Task",
                             "Resource":"arn:aws:states:::sqs:sendMessage.waitForTaskToken",
-                            "HeartbeatSeconds": 10,
+                            "HeartbeatSeconds": 60,
                             "Parameters":{  
                                "QueueUrl":"${GfeDbLoadQueueUrl}",
                                "MessageGroupId.$": "$.input.invocation_id",
@@ -479,20 +473,6 @@
                             "CausePath": "States.JsonToString($.validations.load_results.errors)"
                         }
                     }
-                }
-            ]
-        },
-        "Run Post-Execution Backup": {
-            "Type": "Task",
-            "Resource": "${InvokeBackupScriptFunctionArn}",
-            "ResultPath": "$.backups.post",
-            "Next": "Format Results",
-            "Catch": [
-                {
-                    "ErrorEquals": [
-                        "States.ALL"
-                    ],
-                    "Next": "Handle Error"
                 }
             ]
         },
