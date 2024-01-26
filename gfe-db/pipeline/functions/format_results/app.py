@@ -108,8 +108,12 @@ def lambda_handler(event, context):
         
         data_files_info = format_data_files(data['validations']['build_outputs']['details'])
 
-        pre_execution_backup = data['backups']['pre']['command_id']
-        post_execution_backup = data['backups']['post']['command_id']
+        if "backups" in data.keys():
+            pre_execution_backup = data['backups']['pre']['command_id']
+            post_execution_backup = data['backups']['post']['command_id']
+        else:
+            pre_execution_backup = "N/A"
+            post_execution_backup = "N/A"
 
         status_report = success_report_template.format(
             new_node_counts=new_node_counts,
