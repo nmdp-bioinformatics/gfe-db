@@ -136,7 +136,9 @@ deploy: splash-screen logs.purge env.validate ##=> Deploy all services
 	$(MAKE) database.deploy
 	$(MAKE) pipeline.deploy
 	$(MAKE) monitoring.create-topic-subscriptions topics="GfeDbExecutionResultTopicArn DataPipelineErrorsTopicArn"
+ifeq ($(HAS_STAGE),null)
 	@sh -c '$(MAKE) pipeline.state.build && $(MAKE) pipeline.state.load || echo "Pipeline state build failed"'
+endif
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished deploying ${APP_NAME}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) options-screen
 
