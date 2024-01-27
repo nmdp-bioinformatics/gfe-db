@@ -721,23 +721,64 @@ Resources:
           Properties:
             Queue: !GetAtt GfeDbProcessingQueue.Arn
             BatchSize: 10
-  InvokeLoadScriptFunctionAlarm:
-    Type: AWS::CloudWatch::Alarm
+  InvokeLoadConcurrencyHandlerFunction:
+    Type: AWS::Serverless::Function
     Properties:
-      AlarmDescription: !Sub Alarm for ${InvokeLoadScriptFunction} function errors
-      ActionsEnabled: true
-      AlarmActions:
-        - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}"
-      MetricName: Errors
-      Namespace: AWS/Lambda
-      Statistic: Sum
-      Period: 86400
-      EvaluationPeriods: 1
-      Threshold: 1
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      Dimensions:
-        - Name: FunctionName
-          Value: !Ref InvokeLoadScriptFunction
+      FunctionName: !Sub ${Stage}-${AppName}-invoke-load-concurrency-handler
+      Description: !Sub Invoke the Load Concurrency Handler for ${Stage}-${AppName}
+      CodeUri: functions/invoke_load_concurrency_handler/
+      Handler: app.lambda_handler
+      Runtime: python3.10
+      Layers:
+        - !Ref GfeDbModelsLayer
+      MemorySize: 128
+      Timeout: 10
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          APP_NAME: !Ref AppName
+          STAGE: !Ref Stage
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameters
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*
+
+            - Effect: Allow
+              Action:
+                - states:StartExecution
+              Resource:
+                # - !GetAtt UpdatePipelineStateMachine.Arn
+                - "*"
+      Events:
+        GfeDbLoadQueueHasMessagesAlarmTopicTrigger:
+          Type: SNS
+          Properties:
+            Topic: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueHasMessagesAlarmTopicName}}"
+  # # TODO replace with an alarm for all lambda functions in the deployment
+  # InvokeLoadScriptFunctionAlarm:
+  #   Type: AWS::CloudWatch::Alarm
+  #   Properties:
+  #     AlarmDescription: !Sub Alarm for ${InvokeLoadScriptFunction} function errors
+  #     ActionsEnabled: true
+  #     AlarmActions:
+  #       - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}"
+  #     MetricName: Errors
+  #     Namespace: AWS/Lambda
+  #     Statistic: Sum
+  #     Period: 86400
+  #     EvaluationPeriods: 1
+  #     Threshold: 1
+  #     ComparisonOperator: GreaterThanOrEqualToThreshold
+  #     Dimensions:
+  #       - Name: FunctionName
+  #         Value: !Ref InvokeLoadScriptFunction
   ValidateBuildOutputFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -1117,6 +1158,7 @@ Resources:
       Dimensions:
         - Name: StateMachineArn
           Value: !GetAtt UpdatePipelineStateMachine.Arn
+  # Activates if the Batch job fails, not integrated with other services
   UpdatePipelineStateMachineIntegrationAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:

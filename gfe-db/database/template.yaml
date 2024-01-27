@@ -112,6 +112,76 @@ Resources:
       Name: !Sub /${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueName
       Description: Name of gfe-db load queue
       Value: !GetAtt GfeDbLoadQueue.QueueName
+  # SNS Topic for sending notifications when the GfeDbLoadQueueHasMessagesAlarm goes into Alarm state to trigger Load Concurrency Handler
+  GfeDbLoadQueueHasMessagesAlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: GfeDbLoadQueueHasMessagesAlarmTopic
+  # Alarm for when the GfeDbLoadQueue has messages, which is when both ApproximateNumberOfMessagesVisible and ApproximateNumberOfMessagesNotVisible are greater than 0
+  GfeDbLoadQueueHasMessagesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: "GfeDbLoadQueueHasMessages"
+      AlarmDescription: "Alarm when the GfeDbLoadQueue has messages"
+      Metrics:
+        - Id: visible
+          MetricStat:
+            Metric:
+              MetricName: ApproximateNumberOfMessagesVisible
+              Namespace: AWS/SQS
+              Dimensions:
+                - Name: QueueName
+                  Value: !GetAtt GfeDbLoadQueue.QueueName
+            Period: 30
+            Stat: Average
+            Unit: Count
+          ReturnData: false
+        - Id: notVisible
+          MetricStat:
+            Metric:
+              MetricName: ApproximateNumberOfMessagesNotVisible
+              Namespace: AWS/SQS
+              Dimensions:
+                - Name: QueueName
+                  Value: !GetAtt GfeDbLoadQueue.QueueName
+            Period: 30
+            Stat: Average
+            Unit: Count
+          ReturnData: false
+        - Id: e1
+          Expression: visible + notVisible
+          Label: QueueHasMessages
+          ReturnData: true
+      ComparisonOperator: GreaterThanThreshold
+      Threshold: 0
+      EvaluationPeriods: 1
+      # TODO integrate with SNS topic when the alarm returns to OK state
+      AlarmActions:
+        - !Ref GfeDbLoadQueueHasMessagesAlarmTopic
+  # Permissions for the GfeDbLoadQueueHasMessagesAlarm to publish to the GfeDbLoadQueueHasMessagesAlarmTopic
+  GfeDbLoadQueueHasMessagesAlarmTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref GfeDbLoadQueueHasMessagesAlarmTopic
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudwatch.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref GfeDbLoadQueueHasMessagesAlarmTopic
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+  GfeDbLoadQueueHasMessagesAlarmTopicNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueHasMessagesAlarmTopicName
+      Description: Name of SNS topic for GfeDbLoadQueueHasMessagesAlarm
+      Value: !Ref GfeDbLoadQueueHasMessagesAlarmTopic
   Neo4jDatabaseInstance:
     Type: AWS::EC2::Instance
     CreationPolicy:
@@ -430,7 +500,9 @@ Resources:
                   - "*"
               - Effect: "Allow"
                 Action:
-                  - "sqs:ReceiveMessage"
+                  - sqs:ReceiveMessage
+                  - sqs:deletemessage
+                  - sqs:ChangeMessageVisibility
                 Resource:
                   - !GetAtt GfeDbLoadQueue.Arn
               - Effect: Allow
@@ -596,7 +668,7 @@ Resources:
           cleanUp:
             type: "String"
             description: "Deletes ETag files created by SSM Agent."
-            default: 'rm *.etag /dev/null 2>&1'
+            default: 'rm *.etag 2>/dev/null || true'
           workingDirectory:
             type: "String"
             description: "Working directory"

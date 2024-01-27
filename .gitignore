@@ -110,6 +110,7 @@ gfe-db/pipeline/jobs/build/event.json
 gfe-db/pipeline/statemachines/test*
 reports/
 output-payload.json
+*bkp*
 
 # Local Deployment
 gfe-db/local/neo4j
