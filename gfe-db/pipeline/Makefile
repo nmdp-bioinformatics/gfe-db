@@ -25,6 +25,7 @@ service.functions.deploy:
 		--no-fail-on-empty-changeset \
 		--region "$${AWS_REGION}" \
 		--template-file packaged.yaml \
+		--resolve-s3 \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" \
 		--tags stage="$${STAGE}" app="$${APP_NAME}" service="${SERVICE}" branch="$$(git branch --show-current)" commit=$$(git rev-parse HEAD) \
 		--capabilities CAPABILITY_IAM \
