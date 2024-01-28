@@ -1,0 +1,67 @@
+{
+  "StartAt": "Receive SQS Message",
+  "States": {
+    "Receive SQS Message": {
+      "Type": "Task",
+      "Resource": "${LcmReceiveMessageFunctionArn}",
+      "ResultPath": "$.sqs",
+      "Next": "Message Received?"
+    },
+    "Message Received?": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.sqs.MessageId",
+          "IsPresent": true,
+          "Next": "Execute Load Query"
+        }
+      ],
+      "Default": "Sleep 30"
+    },
+    "Sleep 30": {
+      "Type": "Wait",
+      "Seconds": 30,
+      "Next": "Check Alarm State"
+    },
+    "Execute Load Query": {
+      "Type": "Pass",
+      "Next": "Sync State"
+    },
+    "Sync State": {
+      "Type": "Pass",
+      "Next": "Check Alarm State"
+    },
+    "Check Alarm State": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:cloudwatch:describeAlarms",
+      "Parameters": {
+        "AlarmNames": [
+          "${GfeDbLoadQueueHasMessagesAlarmName}"
+        ]
+      },
+      "ResultSelector": {
+        "StateValue.$": "$.MetricAlarms[0].StateValue"
+      },
+      "Next": "Evaluate Alarm State"
+    },
+    "Evaluate Alarm State": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.StateValue",
+          "StringMatches": "ALARM",
+          "Next": "Sleep 10"
+        }
+      ],
+      "Default": "Shut Down"
+    },
+    "Sleep 10": {
+      "Type": "Wait",
+      "Seconds": 10,
+      "Next": "Receive SQS Message"
+    },
+    "Shut Down": {
+      "Type": "Succeed"
+    }
+  }
+}
