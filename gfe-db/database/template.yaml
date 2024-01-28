@@ -158,6 +158,20 @@ Resources:
       # TODO integrate with SNS topic when the alarm returns to OK state
       AlarmActions:
         - !Ref GfeDbLoadQueueHasMessagesAlarmTopic
+  GfeDbLoadQueueHasMessagesAlarmArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueHasMessagesAlarmArn
+      Description: ARN of GfeDbLoadQueueHasMessagesAlarm
+      Value: !GetAtt GfeDbLoadQueueHasMessagesAlarm.Arn
+  GfeDbLoadQueueHasMessagesAlarmNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueHasMessagesAlarmName
+      Description: Name of GfeDbLoadQueueHasMessagesAlarm
+      Value: !Ref GfeDbLoadQueueHasMessagesAlarm
   # Permissions for the GfeDbLoadQueueHasMessagesAlarm to publish to the GfeDbLoadQueueHasMessagesAlarmTopic
   GfeDbLoadQueueHasMessagesAlarmTopicPolicy:
     Type: AWS::SNS::TopicPolicy
@@ -713,6 +727,9 @@ Resources:
       Value: !Sub |
         {
           "ssm": [
+              "/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueUrl",
+              "/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueArn",
+              "/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueHasMessagesAlarmTopicName",
               "/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn",
               "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupName",
               "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId",

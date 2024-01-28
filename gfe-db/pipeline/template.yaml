@@ -721,12 +721,12 @@ Resources:
           Properties:
             Queue: !GetAtt GfeDbProcessingQueue.Arn
             BatchSize: 10
-  InvokeLoadConcurrencyHandlerFunction:
+  InvokeLoadConcurrencyManagerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub ${Stage}-${AppName}-invoke-load-concurrency-handler
+      FunctionName: !Sub ${Stage}-${AppName}-invoke-lcm
       Description: !Sub Invoke the Load Concurrency Handler for ${Stage}-${AppName}
-      CodeUri: functions/invoke_load_concurrency_handler/
+      CodeUri: functions/invoke_load_concurrency_manager/
       Handler: app.lambda_handler
       Runtime: python3.10
       Layers:
@@ -754,8 +754,7 @@ Resources:
               Action:
                 - states:StartExecution
               Resource:
-                # - !GetAtt UpdatePipelineStateMachine.Arn
-                - "*"
+                - !GetAtt LoadConcurrencyManagerStateMachine.Arn
       Events:
         GfeDbLoadQueueHasMessagesAlarmTopicTrigger:
           Type: SNS
@@ -918,6 +917,73 @@ Resources:
                 - "events:DescribeRule"
               Resource: 
                 - !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule'
+  LoadConcurrencyManagerStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: statemachines/load-concurrency-manager.asl.json
+      DefinitionSubstitutions:
+        LcmReceiveMessageFunctionArn: !GetAtt LcmReceiveMessageFunction.Arn
+        GfeDbLoadQueueHasMessagesAlarmName: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueHasMessagesAlarmName}}"
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref LcmReceiveMessageFunction
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogDelivery
+                - logs:GetLogDelivery
+                - logs:UpdateLogDelivery
+                - logs:DeleteLogDelivery
+                - logs:ListLogDeliveries
+                - logs:PutResourcePolicy
+                - logs:DescribeResourcePolicies
+                - logs:DescribeLogGroups
+              Resource:
+                - "*"
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - cloudwatch:DescribeAlarms
+              Resource:
+                - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueHasMessagesAlarmArn}}'
+      Logging:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt LoadConcurrencyManagerLogGroup.Arn
+        IncludeExecutionData: true
+        Level: ALL
+  LcmReceiveMessageFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${Stage}-${AppName}-lcm-receive-message
+      Description: !Sub Receive messages from the GfeDbLoadQueue for ${Stage}-${AppName}
+      CodeUri: functions/lcm_receive_message/
+      Handler: app.lambda_handler
+      Runtime: python3.10
+      Layers:
+        - !Ref GfeDbModelsLayer
+      MemorySize: 128
+      Timeout: 60
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          APP_NAME: !Ref AppName
+          STAGE: !Ref Stage
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - SQSPollerPolicy:
+            QueueName: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueName}}"
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameters
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*
   InvokeLoadScriptFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -1015,6 +1081,7 @@ Resources:
     DeletionPolicy: Delete
     Properties:
       LogGroupName: !Sub ${Stage}-${AppName}-pipeline-execution-logs
+      RetentionInDays: 7
   UpdatePipelineStateMachineArnParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -1087,6 +1154,20 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       Threshold: 0
       EvaluationPeriods: 1
+  LoadConcurrencyManagerLogGroup:
+    Type: AWS::Logs::LogGroup
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Properties:
+      LogGroupName: !Sub ${Stage}-${AppName}-load-concurrency-manager-execution-logs
+      RetentionInDays: 7
+  LoadConcurrencyManagerStateMachineArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/LoadConcurrencyManagerStateMachineArn
+      Description: !Sub 'ARN of ${Stage}-${AppName} load concurrency handler state machine'
+      Value: !GetAtt LoadConcurrencyManagerStateMachine.Arn
   DisableBackupFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -1252,6 +1333,7 @@ Resources:
               "/${AppName}/${Stage}/${AWS::Region}/GfeDbExecutionResultTopicArn",
               "/${AppName}/${Stage}/${AWS::Region}/LoadReleaseActivityArn",
               "/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineStateMachineArn",
+              "/${AppName}/${Stage}/${AWS::Region}/LoadConcurrencyManagerStateMachineArn",
               "/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName",
               "/${AppName}/${Stage}/${AWS::Region}/DatabaseSyncScriptsDocumentName"
           ],
