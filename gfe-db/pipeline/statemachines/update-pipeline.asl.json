@@ -352,23 +352,23 @@
                     }
                 },
                 {
-                    "StartAt": "Execute Load Query",
+                    "StartAt": "Queue Load",
                     "States": {
-                        "Execute Load Query": {
+                        "Queue Load": {
                             "Type": "Task",
-                            "Resource": "${InvokeLoadScriptFunctionArn}",
-                            "End": true
-                        }
-                    }
-                },
-                {
-                    "StartAt": "Wait For Load 🕗",
-                    "States": {
-                        "Wait For Load 🕗": {
-                            "Type": "Task",
-                            "Resource": "${LoadReleaseActivityArn}",
-                            "HeartbeatSeconds": 60,
+                            "Resource": "arn:aws:states:::aws-sdk:sqs:sendMessage",
+                              "Parameters": {
+                                "QueueUrl": "${GfeDbLoadQueueUrl}",
+                                "MessageGroupId": "$.input.invocation_id",
+                                "MessageDeduplicationId.$": "$.state.execution.id",
+                                "MessageBody.$": "$"
+                              },
                             "ResultPath": null,
+                            "Next": "Wait for Load to Complete 🕗"
+                        },
+                        "Wait for Load to Complete 🕗": {
+                            "Type": "Wait",
+                            "Seconds": 60,
                             "Next": "Run Validation Query"
                         },
                         "Run Validation Query": {

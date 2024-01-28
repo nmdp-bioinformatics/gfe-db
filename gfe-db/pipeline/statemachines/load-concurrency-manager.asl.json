@@ -13,7 +13,7 @@
         {
           "Variable": "$.sqs.MessageId",
           "IsPresent": true,
-          "Next": "Execute Load Query"
+          "Next": "Load Stage"
         }
       ],
       "Default": "Sleep 30"
@@ -23,12 +23,47 @@
       "Seconds": 30,
       "Next": "Check Alarm State"
     },
-    "Execute Load Query": {
-      "Type": "Pass",
-      "Next": "Sync State"
+    "Load Stage": {
+        "Type": "Parallel",
+        "OutputPath": "$.[2]",
+        "Next": "Sync State",
+        "Branches": [
+            {
+                "StartAt": "Execute Load Query",
+                "States": {
+                    "Execute Load Query": {
+                        "Type": "Task",
+                        "Resource": "${InvokeLoadScriptFunctionArn}",
+                        "End": true
+                    }
+                }
+            },
+            {
+                "StartAt": "Wait For Load 🕗",
+                "States": {
+                    "Wait For Load 🕗": {
+                        "Type": "Task",
+                        "Resource": "${LoadReleaseActivityArn}",
+                        "InputPath": "$.sqs.Body",
+                        "HeartbeatSeconds": 60,
+                        "ResultPath": null,
+                        "End": true
+                    }
+                }
+            }
+        ]
     },
     "Sync State": {
       "Type": "Pass",
+      "Next": "Delete Message"
+    },
+    "Delete Message": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:sqs:deleteMessage",
+        "Parameters": {
+            "QueueUrl.$": "${GfeDbLoadQueueUrl}",
+            "ReceiptHandle.$": "${sqs.ReceiptHandle}"
+        },
       "Next": "Check Alarm State"
     },
     "Check Alarm State": {

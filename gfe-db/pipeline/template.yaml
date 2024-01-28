@@ -712,7 +712,7 @@ Resources:
     Properties:
       FunctionName: !Sub ${Stage}-${AppName}-invoke-lcm
       Description: !Sub Invoke the Load Concurrency Handler for ${Stage}-${AppName}
-      CodeUri: functions/invoke_load_concurrency_manager/
+      CodeUri: functions/invoke_lcm/
       Handler: app.lambda_handler
       Runtime: python3.10
       Layers:
@@ -824,15 +824,11 @@ Resources:
         BuildJobQueue: !Ref BuildJobQueue
         ExecuteValidationQueriesFunctionArn: !GetAtt ExecuteValidationQueriesFunction.Arn
         EvaluateQueryResultsFunctionArn: !GetAtt EvaluateQueryResultsFunction.Arn
-        LoadReleaseActivityArn: !Ref LoadReleaseActivity
-        InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
         FormatResultsFunctionArn: !GetAtt FormatResultsFunction.Arn
         GfeDbLoadQueueUrl: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueUrl}}"
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref GetExecutionStateFunction
-        - LambdaInvokePolicy:
-            FunctionName: !Ref InvokeLoadScriptFunction
         - DynamoDBReadPolicy:
             TableName: !Ref GfeDbExecutionStateTable
         - DynamoDBWritePolicy:
@@ -892,9 +888,15 @@ Resources:
       DefinitionSubstitutions:
         LcmReceiveMessageFunctionArn: !GetAtt LcmReceiveMessageFunction.Arn
         GfeDbLoadQueueHasMessagesAlarmName: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueHasMessagesAlarmName}}"
+        LoadReleaseActivityArn: !Ref LoadReleaseActivity
+        InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref LcmReceiveMessageFunction
+        - SQSPollerPolicy:
+            QueueName: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueName}}"
+        - LambdaInvokePolicy:
+            FunctionName: !Ref InvokeLoadScriptFunction
         - Version: "2012-10-17"
           Statement:
             - Effect: Allow
