@@ -1,0 +1,22 @@
+{
+    "Records": [
+        {
+            "EventSource": "aws:sns",
+            "EventVersion": "1.0",
+            "EventSubscriptionArn": "arn:aws:sns:us-east-1:810526023897:nmdpf-gfe-db-database-GfeDbLoadQueueHasMessagesAlarmTopic-aUbhIif9d3xp:38bef3de-863d-4bcb-9fa7-98c3a14009e0",
+            "Sns": {
+                "Type": "Notification",
+                "MessageId": "09bdffd0-3b3f-5a17-9d3f-a1ff59b61b09",
+                "TopicArn": "arn:aws:sns:us-east-1:810526023897:nmdpf-gfe-db-database-GfeDbLoadQueueHasMessagesAlarmTopic-aUbhIif9d3xp",
+                "Subject": "ALARM: \"GfeDbLoadQueueHasMessages\" in US East (N. Virginia)",
+                "Message": "{\"AlarmName\":\"GfeDbLoadQueueHasMessages\",\"AlarmDescription\":\"Alarm when the GfeDbLoadQueue has messages\",\"AWSAccountId\":\"810526023897\",\"AlarmConfigurationUpdatedTimestamp\":\"2024-01-27T01:19:09.671+0000\",\"NewStateValue\":\"ALARM\",\"NewStateReason\":\"Threshold Crossed: 1 datapoint [1.0 (27/01/24 19:57:00)] was greater than the threshold (0.0).\",\"StateChangeTime\":\"2024-01-27T19:58:01.417+0000\",\"Region\":\"US East (N. Virginia)\",\"AlarmArn\":\"arn:aws:cloudwatch:us-east-1:810526023897:alarm:GfeDbLoadQueueHasMessages\",\"OldStateValue\":\"INSUFFICIENT_DATA\",\"OKActions\":[],\"AlarmActions\":[\"arn:aws:sns:us-east-1:810526023897:nmdpf-gfe-db-database-GfeDbLoadQueueHasMessagesAlarmTopic-aUbhIif9d3xp\"],\"InsufficientDataActions\":[],\"Trigger\":{\"Period\":30,\"EvaluationPeriods\":1,\"ComparisonOperator\":\"GreaterThanThreshold\",\"Threshold\":0.0,\"TreatMissingData\":\"\",\"EvaluateLowSampleCountPercentile\":\"\",\"Metrics\":[{\"Id\":\"visible\",\"MetricStat\":{\"Metric\":{\"Dimensions\":[{\"value\":\"nmdpf-gfe-db-database-GfeDbLoadQueue-RLiPEqMuza6m.fifo\",\"name\":\"QueueName\"}],\"MetricName\":\"ApproximateNumberOfMessagesVisible\",\"Namespace\":\"AWS/SQS\"},\"Period\":30,\"Stat\":\"Average\",\"Unit\":\"Count\"},\"ReturnData\":false},{\"Id\":\"notVisible\",\"MetricStat\":{\"Metric\":{\"Dimensions\":[{\"value\":\"nmdpf-gfe-db-database-GfeDbLoadQueue-RLiPEqMuza6m.fifo\",\"name\":\"QueueName\"}],\"MetricName\":\"ApproximateNumberOfMessagesNotVisible\",\"Namespace\":\"AWS/SQS\"},\"Period\":30,\"Stat\":\"Average\",\"Unit\":\"Count\"},\"ReturnData\":false},{\"Expression\":\"visible + notVisible\",\"Id\":\"e1\",\"Label\":\"QueueHasMessages\",\"ReturnData\":true}]}}",
+                "Timestamp": "2024-01-27T19:58:01.469Z",
+                "SignatureVersion": "1",
+                "Signature": "mb3aeSln+mdH4iv+g3CG0d5gRocC3ICjulZXNmZs3J90Sf/E21OvH8/B3wS54wWuH/pVbjxa//Jo/AUXaKGS2rTK8ZgFy+tO579mooYFhmOurKU3wkFHyCRtLLjwvtSvBlf50cYYqSvDN8NwwwJuAH8tXIC4+GSvdAr6BGQxL2S2hfpcEGNtLR02aiy2npWpPjmTVKAAwpwM/jpIWkUdQcG9AMGgTCtHg7iciWlgXhou1821WmT9Ti/HviR8D76im4cQ7Seaj4MoM78J8cI2rkFbNmfdvTpn3pvd64n1katKyBuOH3WWCbIpaSGwWICT92Ey/715UD89NHm+/uLkPQ==",
+                "SigningCertUrl": "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-60eadc530605d63b8e62a523676ef735.pem",
+                "UnsubscribeUrl": "https://sns.us-east-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-east-1:810526023897:nmdpf-gfe-db-database-GfeDbLoadQueueHasMessagesAlarmTopic-aUbhIif9d3xp:38bef3de-863d-4bcb-9fa7-98c3a14009e0",
+                "MessageAttributes": {}
+            }
+        }
+    ]
+}
