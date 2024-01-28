@@ -32,13 +32,24 @@ def lambda_handler(event, context):
 
     logger.info(json.dumps(event))
 
-    response = sqs.receive_message(
+    res = sqs.receive_message(
         QueueUrl=gfe_db_load_queue_url,
         MaxNumberOfMessages=1
     )
 
-    if "Messages" in response:
-        message = response["Messages"][0]
+    if "Messages" in res:
+        message = res["Messages"][0]
+
+        # Format the message body as json
+        message['Body'] = json.loads(message['Body'])
+
+        # change message visibility to 8 hours
+        sqs.change_message_visibility(
+            QueueUrl=gfe_db_load_queue_url,
+            ReceiptHandle=message["ReceiptHandle"],
+            VisibilityTimeout=28800
+        )
+
     else:
         logger.info("No messages found")
         return {}
@@ -49,5 +60,5 @@ def lambda_handler(event, context):
 if __name__ == "__main__":
     from pathlib import Path
 
-    event = json.loads((Path(__file__).parent / "sqs-event.json").read_text())
+    event = json.loads((Path(__file__).parent / "event.json").read_text())
     lambda_handler(event, "")

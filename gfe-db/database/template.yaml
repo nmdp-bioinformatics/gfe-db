@@ -77,7 +77,7 @@ Resources:
     Properties:
       FifoQueue: true
       # TODO change visibility timeout when message is received
-      VisibilityTimeout: 43200 # max 12 hours (longest load is 7hr 8 min), how long a message is invisible after being received by a consumer
+      VisibilityTimeout: 60
       MessageRetentionPeriod: 1209600
       ReceiveMessageWaitTimeSeconds: 0 # Short polling can be used since there is 1 consumer
       RedrivePolicy:
@@ -89,7 +89,7 @@ Resources:
     DeletionPolicy: Delete
     Properties:
       FifoQueue: true
-      VisibilityTimeout: 43200
+      VisibilityTimeout: 60
       MessageRetentionPeriod: 1209600
       ReceiveMessageWaitTimeSeconds: 10
   GfeDbLoadQueueUrlParameter:
