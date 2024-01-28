@@ -1,7 +1,7 @@
 #!/bin/bash -x
 
 # Exit immediately if a command exits with a non-zero status
-set -ex
+set -e
 
 # get APP_NAME and STAGE from arguments
 APP_NAME=$1

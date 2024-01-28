@@ -17,19 +17,15 @@ from gfedbmodels.constants import (
     session,
     database)
 
-# set up logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# Environment
 APP_NAME = os.environ["APP_NAME"]
 STAGE = os.environ["STAGE"]
 AWS_REGION = os.environ["AWS_REGION"]
 
-# Boto3 Clients
 sqs = session.client("sqs", region_name=AWS_REGION)
 
-# Get SSM Parameters
 gfe_db_load_queue_url = database.params.GfeDbLoadQueueUrl
 
 def lambda_handler(event, context):
@@ -44,8 +40,7 @@ def lambda_handler(event, context):
     if "Messages" in response:
         message = response["Messages"][0]
     else:
-        return_msg = "No messages found in GfeDbLoadQueue."
-        logger.info(return_msg)
+        logger.info("No messages found")
         return {}
     
     return message

@@ -59,6 +59,8 @@ get_asset() {
     fi
 }
 
+# TODO use receive-message from SQS instead environment variables
+# Using environment variables requires a job to deploy for *every* release version
 if [[ -z "${EVENT}" ]]; then
 	echo "No event found. Exiting..."
     exit 1

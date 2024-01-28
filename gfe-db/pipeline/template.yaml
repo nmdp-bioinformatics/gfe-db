@@ -193,6 +193,7 @@ Resources:
                 Resource:
                   - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}"
                   - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketArn}}/*"
+        # TODO separate into specific policies for SecretsManager and SSM
         - PolicyName: !Sub ${Stage}-${AppName}-SecretsPolicy
           PolicyDocument:
             Version: "2012-10-17"
@@ -209,20 +210,6 @@ Resources:
                 # TODO tighten permissions
                 Resource: 
                   - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*'
-        # - PolicyName: !Sub '${Stage}-${AppName}-SQSPolicy'
-        #   PolicyDocument:
-        #     Version: '2012-10-17' 
-        #     Statement:
-        #       - Effect: Allow
-        #         Action:
-        #           - "sqs:GetQueueAttributes"
-        #           - "sqs:SendMessageBatch"
-        #           - "sqs:SendMessage"
-        #           - "sqs:ReceiveMessage"
-        #           - "sqs:DeleteMessage"
-        #         Resource:
-        #           - !GetAtt FailedAllelesQueue.Arn
-
   BuildJobDefinition:
     Type: AWS::Batch::JobDefinition
     Properties:
@@ -662,7 +649,6 @@ Resources:
                 - dynamodb:PutItem
                 - dynamodb:UpdateItem
               Resource: !GetAtt GfeDbExecutionStateTable.Arn
-      # Create EventBridge rule to trigger the function if a step functions execution is aborted
       Events:
         StepFunctionsExecutionAborted:
           Type: EventBridgeRule
@@ -760,24 +746,6 @@ Resources:
           Type: SNS
           Properties:
             Topic: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueHasMessagesAlarmTopicName}}"
-  # # TODO replace with an alarm for all lambda functions in the deployment
-  # InvokeLoadScriptFunctionAlarm:
-  #   Type: AWS::CloudWatch::Alarm
-  #   Properties:
-  #     AlarmDescription: !Sub Alarm for ${InvokeLoadScriptFunction} function errors
-  #     ActionsEnabled: true
-  #     AlarmActions:
-  #       - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}"
-  #     MetricName: Errors
-  #     Namespace: AWS/Lambda
-  #     Statistic: Sum
-  #     Period: 86400
-  #     EvaluationPeriods: 1
-  #     Threshold: 1
-  #     ComparisonOperator: GreaterThanOrEqualToThreshold
-  #     Dimensions:
-  #       - Name: FunctionName
-  #         Value: !Ref InvokeLoadScriptFunction
   ValidateBuildOutputFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -1028,42 +996,40 @@ Resources:
       Name: !Sub /${AppName}/${Stage}/${AWS::Region}/GfeDbExecutionResultTopicArn
       Description: !Sub ARN for ${AppName} Data Pipeline Errors SNS topic
       Value: !Ref GfeDbExecutionResultTopic
-
-  # Dev queue, subscription and policy to receive SNS messages from the GfeDbExecutionResultTopic with bash script
-  GfeDbExecutionResultDevQueue:
-    Type: AWS::SQS::Queue
-    UpdateReplacePolicy: Delete
-    DeletionPolicy: Delete
-    Properties:
-      VisibilityTimeout: 30
-      MessageRetentionPeriod: 1209600
-      ReceiveMessageWaitTimeSeconds: 20
-  GfeDbExecutionResultTopicSubscription:
-    Type: AWS::SNS::Subscription
-    Properties:
-      Endpoint: !GetAtt GfeDbExecutionResultDevQueue.Arn
-      Protocol: sqs
-      TopicArn: !Ref GfeDbExecutionResultTopic
-      RawMessageDelivery: true
-  GfeDbExecutionResultDevQueuePolicy:
-    Type: AWS::SQS::QueuePolicy
-    Properties:
-      Queues:
-        - !Ref GfeDbExecutionResultDevQueue
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Sid: AllowSNS
-            Effect: Allow
-            Principal:
-              AWS: "*"
-            Action:
-              - sqs:SendMessage
-            Resource: !GetAtt GfeDbExecutionResultDevQueue.Arn
-            Condition:
-              ArnEquals:
-                aws:SourceArn: !Ref GfeDbExecutionResultTopic
-
+  # # These resources make it possible to fetch the notifications sent during Update Pipeline executions
+  # GfeDbExecutionResultDevQueue:
+  #   Type: AWS::SQS::Queue
+  #   UpdateReplacePolicy: Delete
+  #   DeletionPolicy: Delete
+  #   Properties:
+  #     VisibilityTimeout: 30
+  #     MessageRetentionPeriod: 1209600
+  #     ReceiveMessageWaitTimeSeconds: 20
+  # GfeDbExecutionResultTopicSubscription:
+  #   Type: AWS::SNS::Subscription
+  #   Properties:
+  #     Endpoint: !GetAtt GfeDbExecutionResultDevQueue.Arn
+  #     Protocol: sqs
+  #     TopicArn: !Ref GfeDbExecutionResultTopic
+  #     RawMessageDelivery: true
+  # GfeDbExecutionResultDevQueuePolicy:
+  #   Type: AWS::SQS::QueuePolicy
+  #   Properties:
+  #     Queues:
+  #       - !Ref GfeDbExecutionResultDevQueue
+  #     PolicyDocument:
+  #       Version: "2012-10-17"
+  #       Statement:
+  #         - Sid: AllowSNS
+  #           Effect: Allow
+  #           Principal:
+  #             AWS: "*"
+  #           Action:
+  #             - sqs:SendMessage
+  #           Resource: !GetAtt GfeDbExecutionResultDevQueue.Arn
+  #           Condition:
+  #             ArnEquals:
+  #               aws:SourceArn: !Ref GfeDbExecutionResultTopic
   LoadReleaseActivity:
     Type: AWS::StepFunctions::Activity
     Properties:
@@ -1330,7 +1296,6 @@ Resources:
               "/${AppName}/${Stage}/${AWS::Region}/BuildJobQueueArn",
               "/${AppName}/${Stage}/${AWS::Region}/BuildServiceRepositoryName",
               "/${AppName}/${Stage}/${AWS::Region}/GfeDbProcessingQueueUrl",
-              "/${AppName}/${Stage}/${AWS::Region}/GfeDbExecutionResultTopicArn",
               "/${AppName}/${Stage}/${AWS::Region}/LoadReleaseActivityArn",
               "/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineStateMachineArn",
               "/${AppName}/${Stage}/${AWS::Region}/LoadConcurrencyManagerStateMachineArn",

@@ -21,19 +21,15 @@ from gfedbmodels.constants import (
     session,
     pipeline)
 
-# set up logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# Environment
 APP_NAME = os.environ["APP_NAME"]
 STAGE = os.environ["STAGE"]
 AWS_REGION = os.environ["AWS_REGION"]
 
-# Boto3 Clients
 states = session.client("stepfunctions", region_name=AWS_REGION)
 
-# Get SSM Parameters
 update_pipeline_state_machine_arn = pipeline.params.UpdatePipelineStateMachineArn
 lcm_state_machine_arn = pipeline.params.LoadConcurrencyManagerStateMachineArn
 
@@ -43,7 +39,7 @@ def lambda_handler(event, context):
 
     alarm_message = json.loads(event["Records"][0]["Sns"]["Message"])
 
-    # validate the alarm state is IN ALARM
+    # Validate the alarm state is IN ALARM
     state_has_changed = "NewStateValue" in alarm_message
     is_in_alarm = alarm_message["NewStateValue"] == "ALARM"
 
@@ -51,24 +47,18 @@ def lambda_handler(event, context):
 
     if load_queue_has_messages:
 
-        # TODO query the state table for commits with PENDING status
+        # TODO query the state table for commits with PENDING status to get the invocation_id for the LCM's execution_id
 
-        # TODO trigger the Load Concurrency Handler state machine
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         execution_id = update_pipeline_state_machine_arn.split(":")[-1] + "_" + timestamp
 
         response = states.start_execution(
             stateMachineArn=lcm_state_machine_arn,
-            name=execution_id,
-            # input=json.dumps({}),
-        )
-        pass
+            name=execution_id        )
 
-    return
-    # return {
-    #     "statusCode": 200,
-    #     "body": json.dumps({"message": return_msg, "execution_arns": execution_arns}),
-    # }
+    return {
+        "statusCode": 200
+    }
 
 
 if __name__ == "__main__":

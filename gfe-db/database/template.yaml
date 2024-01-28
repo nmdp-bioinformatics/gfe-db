@@ -76,12 +76,13 @@ Resources:
     DeletionPolicy: Delete
     Properties:
       FifoQueue: true
+      # TODO change visibility timeout when message is received
       VisibilityTimeout: 43200 # max 12 hours (longest load is 7hr 8 min), how long a message is invisible after being received by a consumer
       MessageRetentionPeriod: 1209600
       ReceiveMessageWaitTimeSeconds: 0 # Short polling can be used since there is 1 consumer
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt GfeDbLoadDeadLetterQueue.Arn
-        maxReceiveCount: 1 # Can only fail once before going to dead letter queue
+        maxReceiveCount: 1
   GfeDbLoadDeadLetterQueue:
     Type: AWS::SQS::Queue
     UpdateReplacePolicy: Delete
@@ -155,7 +156,6 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       Threshold: 0
       EvaluationPeriods: 1
-      # TODO integrate with SNS topic when the alarm returns to OK state
       AlarmActions:
         - !Ref GfeDbLoadQueueHasMessagesAlarmTopic
   GfeDbLoadQueueHasMessagesAlarmArnParameter:
@@ -172,7 +172,6 @@ Resources:
       Name: !Sub /${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueHasMessagesAlarmName
       Description: Name of GfeDbLoadQueueHasMessagesAlarm
       Value: !Ref GfeDbLoadQueueHasMessagesAlarm
-  # Permissions for the GfeDbLoadQueueHasMessagesAlarm to publish to the GfeDbLoadQueueHasMessagesAlarmTopic
   GfeDbLoadQueueHasMessagesAlarmTopicPolicy:
     Type: AWS::SNS::TopicPolicy
     Properties:
