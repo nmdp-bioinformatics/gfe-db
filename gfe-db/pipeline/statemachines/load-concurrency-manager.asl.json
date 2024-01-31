@@ -25,8 +25,16 @@
     },
     "Load Stage": {
         "Type": "Parallel",
-        "OutputPath": "$.[2]",
-        "Next": "Sync State",
+        "OutputPath": "$.[1]",
+        "Catch": [
+            {
+                "ErrorEquals": [
+                    "States.ALL"
+                ],
+                "Next": "Update Status → LOAD_FAILED"
+            }
+        ],
+        "Next": "Update Status → LOAD_COMPLETE",
         "Branches": [
             {
                 "StartAt": "Execute Load Query",
@@ -53,16 +61,50 @@
             }
         ]
     },
+    "Update Status → LOAD_COMPLETE": {
+        "Type": "Pass",
+        "Result": "LOAD_COMPLETE",
+        "ResultPath": "$.sqs.Body.state.execution.status",
+        "Next": "Sync State"
+    },
+    "Update Status → LOAD_FAILED": {
+        "Type": "Pass",
+        "Result": "LOAD_FAILED",
+        "ResultPath": "$.state.execution.status",
+        "Next": "Sync State"
+    },
     "Sync State": {
-      "Type": "Pass",
-      "Next": "Delete Message"
+        "Type": "Task",
+        "Resource": "arn:aws:states:::dynamodb:updateItem",
+        "ResultPath": null,
+        "Next": "Delete Message",
+        "Parameters": {
+            "TableName": "${GfeDbExecutionStateTable}",
+            "Key": {
+                "commit__sha": {
+                    "S.$": "$.sqs.Body.state.execution.commit.sha"
+                },
+                "execution__version": {
+                    "N.$": "States.Format('{}', $.sqs.Body.state.execution.version)"
+                }
+            },
+            "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc",
+            "ExpressionAttributeValues": {
+                ":status": {
+                    "S.$": "$.sqs.Body.state.execution.status"
+                },
+                ":updated_utc": {
+                    "S.$": "$$.State.EnteredTime"
+                }
+            }
+        }
     },
     "Delete Message": {
       "Type": "Task",
       "Resource": "arn:aws:states:::aws-sdk:sqs:deleteMessage",
         "Parameters": {
-            "QueueUrl.$": "${GfeDbLoadQueueUrl}",
-            "ReceiptHandle.$": "${sqs.ReceiptHandle}"
+            "QueueUrl": "${GfeDbLoadQueueUrl}",
+            "ReceiptHandle.$": "$.sqs.ReceiptHandle"
         },
       "Next": "Check Alarm State"
     },

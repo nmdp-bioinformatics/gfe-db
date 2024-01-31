@@ -309,7 +309,7 @@
         },
         "Load Stage": {
             "Type": "Parallel",
-            "OutputPath": "$.[2]",
+            "OutputPath": "$.[1]",
             "Next": "Format Results",
             "Catch": [
                 {

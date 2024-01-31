@@ -462,6 +462,7 @@ Resources:
                 - sqs:GetQueueUrl
                 - sqs:GetQueueAttributes
                 - sqs:SendMessageBatch
+              # TODO tighten permissions
               Resource: "*"
         - Version: "2012-10-17"
           Statement:
@@ -890,6 +891,7 @@ Resources:
         GfeDbLoadQueueHasMessagesAlarmName: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueHasMessagesAlarmName}}"
         LoadReleaseActivityArn: !Ref LoadReleaseActivity
         InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
+        GfeDbExecutionStateTable: !Ref GfeDbExecutionStateTable
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref LcmReceiveMessageFunction
@@ -897,6 +899,8 @@ Resources:
             QueueName: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueName}}"
         - LambdaInvokePolicy:
             FunctionName: !Ref InvokeLoadScriptFunction
+        - DynamoDBWritePolicy:
+            TableName: !Ref GfeDbExecutionStateTable
         - Version: "2012-10-17"
           Statement:
             - Effect: Allow
