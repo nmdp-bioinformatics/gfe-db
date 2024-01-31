@@ -533,6 +533,10 @@ config.deploy:
 	$(MAKE) pipeline.config.deploy
 
 database.load.run: # args: align, kir, limit, releases
+	@res=$$($(MAKE) database.status) && \
+	echo $$res | jq -r '.State' | grep -q 'stopped' && \
+	echo "\033[0;31mERROR: Database is stopped. Please start the database before loading data.\033[0m" && \
+	exit 1 || true
 	@echo "Confirm payload:" && \
 	[ "$$align" ] && align="$$align" || align=false && \
 	[ "$$kir" ] && kir="$$kir" || kir=false && \
@@ -627,7 +631,7 @@ database.restore: #from_path=s3://<backup path>
 
 database.status:
 	@aws ec2 describe-instances | \
-		jq --arg iid "${INSTANCE_ID}" '.Reservations[].Instances[] | (.InstanceId == $$iid) | {InstanceId, InstanceType, "Status": .State.Name, StateTransitionReason, ImageId}'
+		jq --arg iid "${INSTANCE_ID}" '.Reservations[].Instances[] | select(.InstanceId == $$iid) | {InstanceId: .InstanceId, State: .State.Name}'
 
 database.get.endpoint:
 ifeq ($(USE_PRIVATE_SUBNET),true)
