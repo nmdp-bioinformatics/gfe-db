@@ -94,7 +94,39 @@
             "Type": "Pass",
             "Result": "LOAD_FAILED",
             "ResultPath": "$[0].sqs.Body.state.execution.status",
-            "Next": "Sync State"
+            "Next": "Sync State for Failure"
+        },
+        "Sync State for Failure": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::dynamodb:updateItem",
+            "ResultPath": null,
+            "Next": "Check Alarm State",
+            "Parameters": {
+                "TableName": "${GfeDbExecutionStateTable}",
+                "Key": {
+                    "commit__sha": {
+                        "S.$": "$[0].sqs.Body.state.commit.sha"
+                    },
+                    "execution__version": {
+                        "N.$": "States.Format('{}', $[0].sqs.Body.state.execution.version)"
+                    }
+                },
+                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc, error__message = :error, error__cause = :cause",
+                "ExpressionAttributeValues": {
+                    ":status": {
+                        "S.$": "$[0].sqs.Body.state.execution.status"
+                    },
+                    ":updated_utc": {
+                        "S.$": "$$.State.EnteredTime"
+                    },
+                    ":error": {
+                        "S.$": "$[1].Error"
+                    },
+                    ":cause": {
+                        "S.$": "$[1].Cause"
+                    }
+                }
+            }
         },
         "Delete Message": {
             "Type": "Task",
@@ -111,12 +143,13 @@
             "Type": "Pass",
             "Result": "LOAD_COMPLETE",
             "ResultPath": "$[0].sqs.Body.state.execution.status",
-            "Next": "Sync State"
+            "Next": "Sync State for Success"
         },
-        "Sync State": {
+        "Sync State for Success": {
             "Type": "Task",
             "Resource": "arn:aws:states:::dynamodb:updateItem",
             "InputPath": "$[0]",
+            "ResultPath": null,
             "Next": "Check Alarm State",
             "Parameters": {
                 "TableName": "${GfeDbExecutionStateTable}",

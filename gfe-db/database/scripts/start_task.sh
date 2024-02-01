@@ -107,11 +107,7 @@ while true; do
         # TODO get s3 path from step functions payload
         bash load_db.sh $release
         TASK_EXIT_STATUS=$?
-
-        # # todo debug state machine error handling
-        # TASK_EXIT_STATUS=1
-        # echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Task exit status: $TASK_EXIT_STATUS"
-
+        
         # Send TaskSuccess token to StepFunctions
         if [[ $TASK_EXIT_STATUS != "0" ]]; then
             status="FAILED"

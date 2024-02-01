@@ -153,6 +153,7 @@ if __name__ == "__main__":
     from pathlib import Path
 
     # event = json.loads((Path(__file__).parent / "failure-event.json").read_text())
-    event = json.loads((Path(__file__).parent / "success-event.json").read_text())
+    # event = json.loads((Path(__file__).parent / "success-event.json").read_text())
+    event = json.loads((Path(__file__).parent / "error.json").read_text())
 
     lambda_handler(event,"")

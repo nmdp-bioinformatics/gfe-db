@@ -195,6 +195,7 @@ class ExecutionDetailsConfig(BaseModel):
     input_parameters: Optional[InputParameters] = None
     s3_path: Optional[str] = None
     receipt_handle: Optional[str] = None
+    # TODO move execution errors here
 
     @validator("status")
     def status_is_valid(cls, v):
