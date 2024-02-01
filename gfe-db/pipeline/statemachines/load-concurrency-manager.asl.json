@@ -1,144 +1,175 @@
 {
-  "StartAt": "Receive SQS Message",
-  "States": {
-    "Receive SQS Message": {
-      "Type": "Task",
-      "Resource": "${LcmReceiveMessageFunctionArn}",
-      "ResultPath": "$.sqs",
-      "Next": "Message Received?"
-    },
-    "Message Received?": {
-      "Type": "Choice",
-      "Choices": [
-        {
-          "Variable": "$.sqs.MessageId",
-          "IsPresent": true,
-          "Next": "Load Stage"
-        }
-      ],
-      "Default": "Sleep 30"
-    },
-    "Sleep 30": {
-      "Type": "Wait",
-      "Seconds": 30,
-      "Next": "Check Alarm State"
-    },
-    "Load Stage": {
-        "Type": "Parallel",
-        "OutputPath": "$.[1]",
-        "Catch": [
-            {
-                "ErrorEquals": [
-                    "States.ALL"
-                ],
-                "Next": "Update Status → LOAD_FAILED"
-            }
-        ],
-        "Next": "Update Status → LOAD_COMPLETE",
-        "Branches": [
-            {
-                "StartAt": "Execute Load Query",
-                "States": {
-                    "Execute Load Query": {
-                        "Type": "Task",
-                        "Resource": "${InvokeLoadScriptFunctionArn}",
-                        "End": true
-                    }
-                }
-            },
-            {
-                "StartAt": "Wait For Load 🕗",
-                "States": {
-                    "Wait For Load 🕗": {
-                        "Type": "Task",
-                        "Resource": "${LoadReleaseActivityArn}",
-                        "InputPath": "$.sqs.Body",
-                        "HeartbeatSeconds": 60,
-                        "ResultPath": null,
-                        "End": true
-                    }
-                }
-            }
-        ]
-    },
-    "Update Status → LOAD_COMPLETE": {
-        "Type": "Pass",
-        "Result": "LOAD_COMPLETE",
-        "ResultPath": "$.sqs.Body.state.execution.status",
-        "Next": "Sync State"
-    },
-    "Update Status → LOAD_FAILED": {
-        "Type": "Pass",
-        "Result": "LOAD_FAILED",
-        "ResultPath": "$.state.execution.status",
-        "Next": "Sync State"
-    },
-    "Sync State": {
-        "Type": "Task",
-        "Resource": "arn:aws:states:::dynamodb:updateItem",
-        "ResultPath": null,
-        "Next": "Delete Message",
-        "Parameters": {
-            "TableName": "${GfeDbExecutionStateTable}",
-            "Key": {
-                "commit__sha": {
-                    "S.$": "$.sqs.Body.state.execution.commit.sha"
-                },
-                "execution__version": {
-                    "N.$": "States.Format('{}', $.sqs.Body.state.execution.version)"
-                }
-            },
-            "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc",
-            "ExpressionAttributeValues": {
-                ":status": {
-                    "S.$": "$.sqs.Body.state.execution.status"
-                },
-                ":updated_utc": {
-                    "S.$": "$$.State.EnteredTime"
-                }
-            }
-        }
-    },
-    "Delete Message": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::aws-sdk:sqs:deleteMessage",
-        "Parameters": {
-            "QueueUrl": "${GfeDbLoadQueueUrl}",
-            "ReceiptHandle.$": "$.sqs.ReceiptHandle"
+    "StartAt": "Receive SQS Message",
+    "States": {
+        "Receive SQS Message": {
+            "Type": "Task",
+            "Resource": "${LcmReceiveMessageFunctionArn}",
+            "ResultPath": "$.sqs",
+            "Next": "Message Received?"
         },
-      "Next": "Check Alarm State"
-    },
-    "Check Alarm State": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::aws-sdk:cloudwatch:describeAlarms",
-      "Parameters": {
-        "AlarmNames": [
-          "${GfeDbLoadQueueHasMessagesAlarmName}"
-        ]
-      },
-      "ResultSelector": {
-        "StateValue.$": "$.MetricAlarms[0].StateValue"
-      },
-      "Next": "Evaluate Alarm State"
-    },
-    "Evaluate Alarm State": {
-      "Type": "Choice",
-      "Choices": [
-        {
-          "Variable": "$.StateValue",
-          "StringMatches": "ALARM",
-          "Next": "Sleep 10"
+        "Message Received?": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.sqs.MessageId",
+                    "IsPresent": true,
+                    "Next": "Load Stage"
+                }
+            ],
+            "Default": "Sleep 30"
+        },
+        "Sleep 30": {
+            "Type": "Wait",
+            "Seconds": 30,
+            "Next": "Check Alarm State"
+        },
+        "Load Stage": {
+            "Type": "Parallel",
+            "OutputPath": "$",
+            "Next": "Evaluate Load Status",
+            "Branches": [
+                {
+                    "StartAt": "Execute Load Query",
+                    "States": {
+                        "Execute Load Query": {
+                            "Type": "Task",
+                            "Resource": "${InvokeLoadScriptFunctionArn}",
+                            "ResultPath": null,
+                            "End": true
+                        }
+                    }
+                },
+                {
+                    "StartAt": "Wait For Load 🕗",
+                    "States": {
+                        "Wait For Load 🕗": {
+                            "Type": "Task",
+                            "Resource": "${LoadReleaseActivityArn}",
+                            "InputPath": "$.sqs.Body",
+                            "HeartbeatSeconds": 60,
+                            "ResultPath": null,
+                            "End": true,
+                            "Catch": [
+                                {
+                                    "ErrorEquals": [
+                                        "States.ALL"
+                                    ],
+                                    "Next": "Handle Failure"
+                                }
+                            ]
+                        },
+                        "Handle Failure": {
+                            "Type": "Pass",
+                            "ResultPath": null,
+                            "End": true
+                        }
+                    }
+                }
+            ]
+        },
+        "Evaluate Load Status": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$[1].Error",
+                    "IsPresent": true,
+                    "Next": "Return Message"
+                }
+            ],
+            "Default": "Delete Message"
+        },
+        "Return Message": {
+            "Type": "Task",
+            "InputPath": "$[0]",
+            "Resource": "arn:aws:states:::aws-sdk:sqs:changeMessageVisibility",
+            "Parameters": {
+                "QueueUrl": "${GfeDbLoadQueueUrl}",
+                "ReceiptHandle.$": "$.sqs.ReceiptHandle",
+                "VisibilityTimeout": 0
+            },
+            "ResultPath": null,
+            "Next": "Update Status → LOAD_FAILED"
+        },
+        "Update Status → LOAD_FAILED": {
+            "Type": "Pass",
+            "Result": "LOAD_FAILED",
+            "ResultPath": "$[0].sqs.Body.state.execution.status",
+            "Next": "Sync State"
+        },
+        "Delete Message": {
+            "Type": "Task",
+            "InputPath": "$[0]",
+            "Resource": "arn:aws:states:::aws-sdk:sqs:deleteMessage",
+            "Parameters": {
+                "QueueUrl": "${GfeDbLoadQueueUrl}",
+                "ReceiptHandle.$": "$.sqs.ReceiptHandle"
+            },
+            "ResultPath": null,
+            "Next": "Update Status → LOAD_COMPLETE"
+        },
+        "Update Status → LOAD_COMPLETE": {
+            "Type": "Pass",
+            "Result": "LOAD_COMPLETE",
+            "ResultPath": "$[0].sqs.Body.state.execution.status",
+            "Next": "Sync State"
+        },
+        "Sync State": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::dynamodb:updateItem",
+            "InputPath": "$[0]",
+            "Next": "Check Alarm State",
+            "Parameters": {
+                "TableName": "${GfeDbExecutionStateTable}",
+                "Key": {
+                    "commit__sha": {
+                        "S.$": "$.sqs.Body.state.commit.sha"
+                    },
+                    "execution__version": {
+                        "N.$": "States.Format('{}', $.sqs.Body.state.execution.version)"
+                    }
+                },
+                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc",
+                "ExpressionAttributeValues": {
+                    ":status": {
+                        "S.$": "$.sqs.Body.state.execution.status"
+                    },
+                    ":updated_utc": {
+                        "S.$": "$$.State.EnteredTime"
+                    }
+                }
+            }
+        },
+        "Check Alarm State": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::aws-sdk:cloudwatch:describeAlarms",
+            "Parameters": {
+                "AlarmNames": [
+                    "${GfeDbLoadQueueHasMessagesAlarmName}"
+                ]
+            },
+            "ResultSelector": {
+                "StateValue.$": "$.MetricAlarms[0].StateValue"
+            },
+            "Next": "Evaluate Alarm State"
+        },
+        "Evaluate Alarm State": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.StateValue",
+                    "StringMatches": "ALARM",
+                    "Next": "Sleep 10"
+                }
+            ],
+            "Default": "Shut Down"
+        },
+        "Sleep 10": {
+            "Type": "Wait",
+            "Seconds": 10,
+            "Next": "Receive SQS Message"
+        },
+        "Shut Down": {
+            "Type": "Succeed"
         }
-      ],
-      "Default": "Shut Down"
-    },
-    "Sleep 10": {
-      "Type": "Wait",
-      "Seconds": 10,
-      "Next": "Receive SQS Message"
-    },
-    "Shut Down": {
-      "Type": "Succeed"
     }
-  }
 }

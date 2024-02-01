@@ -892,6 +892,7 @@ Resources:
         LoadReleaseActivityArn: !Ref LoadReleaseActivity
         InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
         GfeDbExecutionStateTable: !Ref GfeDbExecutionStateTable
+        GfeDbLoadQueueUrl: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueUrl}}"
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref LcmReceiveMessageFunction

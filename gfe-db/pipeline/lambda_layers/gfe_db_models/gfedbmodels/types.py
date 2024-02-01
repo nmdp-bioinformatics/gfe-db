@@ -30,6 +30,7 @@ class ExecutionStatus(str, Enum):
     BUILD_SUCCESS = "BUILD_SUCCESS"
     BUILD_FAILED = "BUILD_FAILED"
     LOAD_IN_PROGRESS = "LOAD_IN_PROGRESS"
+    LOAD_COMPLETE = "LOAD_COMPLETE"
     LOAD_SUCCESS = "LOAD_SUCCESS"
     LOAD_FAILED = "LOAD_FAILED"
     LOAD_SKIPPED = "LOAD_SKIPPED"
@@ -193,6 +194,7 @@ class ExecutionDetailsConfig(BaseModel):
     date_utc: Optional[str] = None
     input_parameters: Optional[InputParameters] = None
     s3_path: Optional[str] = None
+    receipt_handle: Optional[str] = None
 
     @validator("status")
     def status_is_valid(cls, v):
