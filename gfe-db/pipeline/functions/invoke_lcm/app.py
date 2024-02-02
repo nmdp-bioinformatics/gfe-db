@@ -43,26 +43,35 @@ def lambda_handler(event, context):
     state_has_changed = "NewStateValue" in alarm_message
     is_in_alarm = alarm_message["NewStateValue"] == "ALARM"
 
-    load_queue_has_messages = state_has_changed and is_in_alarm
-
-    if load_queue_has_messages:
+    if state_has_changed and is_in_alarm:
 
         # TODO query the state table for commits with PENDING status to get the invocation_id for the LCM's execution_id
-
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         execution_id = update_pipeline_state_machine_arn.split(":")[-1] + "_" + timestamp
 
-        response = states.start_execution(
-            stateMachineArn=lcm_state_machine_arn,
-            name=execution_id        )
+        if not executions_in_progress(lcm_state_machine_arn):
+            response = states.start_execution(
+                stateMachineArn=lcm_state_machine_arn,
+                name=execution_id
+            )
 
     return {
         "statusCode": 200
     }
 
 
+def executions_in_progress(state_machine_arn):
+    # List executions for the state machine
+    response = states.list_executions(
+        stateMachineArn=state_machine_arn,
+        statusFilter="RUNNING"
+    )
+
+    return bool(response['executions'])
+
+
 if __name__ == "__main__":
     from pathlib import Path
 
-    event = json.loads((Path(__file__).parent / "sns-event.json").read_text())
+    event = json.loads((Path(__file__).parent / "gfedbloadqueue-sns-event.json").read_text())
     lambda_handler(event, "")
