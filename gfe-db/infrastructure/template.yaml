@@ -361,39 +361,6 @@ Resources:
       Description: !Sub "AllocationId for ${AppName} Neo4j server static IP"
       Value: !GetAtt UsePublicSubnetConditionNeo4jDatabaseElasticIp.AllocationId
 
-  DataPipelineErrorsTopicPolicy:
-    Type: AWS::SNS::TopicPolicy
-    Properties:
-      Topics:
-        - !Ref DataPipelineErrorsTopic
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: cloudwatch.amazonaws.com
-            Action: sns:Publish
-            Resource: !Ref DataPipelineErrorsTopic
-            Condition:
-              StringEquals:
-                aws:SourceAccount: !Ref AWS::AccountId
-
-  DataPipelineErrorsTopic:
-    Type: AWS::SNS::Topic
-    Properties:
-      DisplayName: !Sub "${AppName} Data Pipeline Errors"
-      Subscription:
-        - Endpoint: !Ref AdminEmail
-          Protocol: email
-
-  DataPipelineErrorsTopicArnParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn"
-      Description: !Sub "ARN for ${AppName} Data Pipeline Errors SNS topic"
-      Value: !Ref DataPipelineErrorsTopic
-
   GfedbInfrastructureParamMappingsParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -409,49 +376,7 @@ Resources:
             "/${AppName}/${Stage}/${AWS::Region}/DataBucketName",
             "/${AppName}/${Stage}/${AWS::Region}/DataBucketArn",
             "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint",
-            "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId",
-            "/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn",
-            "/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicArn"
+            "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId"
           ]
         }
-
-  DataPipelineExecutionTopicPolicy:
-    Type: AWS::SNS::TopicPolicy
-    Properties:
-      Topics:
-        - !Ref DataPipelineExecutionTopic
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: cloudwatch.amazonaws.com
-            Action: sns:Publish
-            Resource: !Ref DataPipelineExecutionTopic
-            Condition:
-              StringEquals:
-                aws:SourceAccount: !Ref AWS::AccountId
-
-  DataPipelineExecutionTopic:
-    Type: AWS::SNS::Topic
-    Properties:
-      DisplayName: !Sub "${AppName} Data Pipeline Errors"
-      Subscription:
-        - Endpoint: !Ref AdminEmail
-          Protocol: email
-
-  DataPipelineExecutionTopicArnParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicArn"
-      Description: !Sub "ARN for ${AppName} Data Pipeline Errors SNS topic"
-      Value: !Ref DataPipelineExecutionTopic
-
-  DataPipelineExecutionTopicNameParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicName"
-      Description: !Sub "Name for ${AppName} Data Pipeline Errors SNS topic"
-      Value: !Ref DataPipelineExecutionTopic
+        

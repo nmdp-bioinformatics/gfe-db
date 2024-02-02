@@ -136,7 +136,7 @@ deploy: splash-screen logs.purge env.validate ##=> Deploy all services
 	$(MAKE) infrastructure.deploy 
 	$(MAKE) database.deploy
 	$(MAKE) pipeline.deploy
-	$(MAKE) monitoring.create-topic-subscriptions topics="GfeDbExecutionResultTopicArn DataPipelineErrorsTopicArn"
+	$(MAKE) monitoring.create-topic-subscriptions topics="GfeDbExecutionResultTopicArn UpdatePipelineErrorsTopicArn"
 ifeq ($(HAS_STAGE),null)
 	@sh -c '$(MAKE) pipeline.state.build && $(MAKE) pipeline.state.load || echo "Pipeline state build failed"'
 endif

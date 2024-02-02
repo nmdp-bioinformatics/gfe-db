@@ -405,6 +405,38 @@ Resources:
       Name: !Sub /${AppName}/${Stage}/${AWS::Region}/GfeDbProcessingQueueUrl
       Description: URL of gfe-db processing queue
       Value: !GetAtt GfeDbProcessingQueue.QueueUrl
+
+
+
+  # Controls load concurrency
+  GfeDbLoadQueue:
+    Type: AWS::SQS::Queue
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Properties:
+      FifoQueue: true
+      VisibilityTimeout: 10
+      MessageRetentionPeriod: 1209600
+      ReceiveMessageWaitTimeSeconds: 0 # Short polling can be used since there is 1 consumer
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt GfeDbLoadDeadLetterQueue.Arn
+        maxReceiveCount: 1
+  GfeDbLoadDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Properties:
+      FifoQueue: true
+      VisibilityTimeout: 60
+      MessageRetentionPeriod: 1209600
+      ReceiveMessageWaitTimeSeconds: 10
+  GfeDbLoadQueueUrlParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueUrl
+      Description: URL of gfe-db load queue
+      Value: !GetAtt GfeDbLoadQueue.QueueUrl
   CheckSourceUpdateFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -738,7 +770,6 @@ Resources:
                 - ssm:GetParameter
               Resource:
                 - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*
-
             - Effect: Allow
               Action:
                 - states:StartExecution
@@ -746,10 +777,10 @@ Resources:
               Resource:
                 - !GetAtt LoadConcurrencyManagerStateMachine.Arn
       Events:
-        DataPipelineExecutionTopicTrigger:
+        ExecutionsTrigger:
           Type: SNS
           Properties:
-            Topic: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicName}}"
+            Topic: !GetAtt UpdatePipelineExecutionTopic.TopicArn
   ValidateBuildOutputFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -829,7 +860,7 @@ Resources:
         ExecuteValidationQueriesFunctionArn: !GetAtt ExecuteValidationQueriesFunction.Arn
         EvaluateQueryResultsFunctionArn: !GetAtt EvaluateQueryResultsFunction.Arn
         FormatResultsFunctionArn: !GetAtt FormatResultsFunction.Arn
-        GfeDbLoadQueueUrl: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueUrl}}"
+        GfeDbLoadQueueUrl: !GetAtt GfeDbLoadQueue.QueueUrl
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref GetExecutionStateFunction
@@ -852,7 +883,7 @@ Resources:
         - S3ReadPolicy:
             BucketName: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}"
         - SQSSendMessagePolicy:
-            QueueName: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueName}}"
+            QueueName: !GetAtt GfeDbLoadQueue.QueueName
         - Version: "2012-10-17"
           Statement:
             - Effect: Allow
@@ -892,19 +923,18 @@ Resources:
       DefinitionSubstitutions:
         InvokeBackupScriptFunctionArn: !GetAtt InvokeBackupScriptFunction.Arn
         LcmReceiveMessageFunctionArn: !GetAtt LcmReceiveMessageFunction.Arn
-        # GfeDbLoadQueueHasMessagesAlarmName: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueHasMessagesAlarmName}}"
         UpdatePipelineStateMachineExecutionAlarmName: !Ref UpdatePipelineStateMachineExecutionAlarm
         LoadReleaseActivityArn: !Ref LoadReleaseActivity
         InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
         GfeDbExecutionStateTable: !Ref GfeDbExecutionStateTable
-        GfeDbLoadQueueUrl: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueUrl}}"
+        GfeDbLoadQueueUrl: !GetAtt GfeDbLoadQueue.QueueUrl
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref InvokeBackupScriptFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref LcmReceiveMessageFunction
         - SQSPollerPolicy:
-            QueueName: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueName}}"
+            QueueName: !GetAtt GfeDbLoadQueue.QueueName
         - LambdaInvokePolicy:
             FunctionName: !Ref InvokeLoadScriptFunction
         - DynamoDBWritePolicy:
@@ -957,7 +987,7 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - SQSPollerPolicy:
-            QueueName: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueName}}"
+            QueueName: !GetAtt GfeDbLoadQueue.QueueName
         - Version: "2012-10-17"
           Statement:
             - Effect: Allow
@@ -1069,15 +1099,76 @@ Resources:
       Name: !Sub /${AppName}/${Stage}/${AWS::Region}/UpdatePipelineStateMachineArn
       Description: ARN of gfe-db update pipeline state machine
       Value: !GetAtt UpdatePipelineStateMachine.Arn
+  UpdatePipelineErrorsTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref UpdatePipelineErrorsTopic
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudwatch.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref UpdatePipelineErrorsTopic
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+  UpdatePipelineErrorsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Sub "${AppName} Data Pipeline Errors"
+  UpdatePipelineErrorsTopicArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/UpdatePipelineErrorsTopicArn
+      Description: !Sub ARN of ${AppName} Update Pipeline Errors SNS topic
+      Value: !GetAtt UpdatePipelineErrorsTopic.TopicArn
+  UpdatePipelineExecutionTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Sub "${AppName} Data Pipeline Executions"
+  UpdatePipelineExecutionTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref UpdatePipelineExecutionTopic
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudwatch.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref UpdatePipelineExecutionTopic
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+  UpdatePipelineExecutionTopicArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/UpdatePipelineExecutionTopicArn
+      Description: !Sub ARN of ${AppName} Update Pipeline Executions SNS topic
+      Value: !GetAtt UpdatePipelineExecutionTopic.TopicArn
+  UpdatePipelineExecutionTopicNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineExecutionTopicName"
+      Description: !Sub "Name for ${AppName} Data Pipeline Errors SNS topic"
+      Value: !Ref UpdatePipelineExecutionTopic
   UpdatePipelineStateMachineExecutionAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmDescription: !Sub ${UpdatePipelineStateMachine} state machine execution in progress
       ActionsEnabled: true
       AlarmActions:
-        - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicArn}}"
+        - !GetAtt UpdatePipelineExecutionTopic.TopicArn
       OKActions:
-        - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicArn}}"
+        - !GetAtt UpdatePipelineExecutionTopic.TopicArn
       Metrics:
         - Id: m1
           MetricStat:
@@ -1181,10 +1272,10 @@ Resources:
               Resource: 
                 - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:maintenancewindow/{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jBackupMaintenanceWindowId}}'
       Events:
-        PipelineExecutionTopic:
+        ExecutionsTrigger:
           Type: SNS
           Properties:
-            Topic: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicArn}}"     
+            Topic: !GetAtt UpdatePipelineExecutionTopic.TopicArn
   FormatResultsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -1202,13 +1293,17 @@ Resources:
           APP_NAME: !Ref AppName
       Policies:
         - AWSLambdaBasicExecutionRole
+
+
+
+
   UpdatePipelineStateMachineExecutionErrorsAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmDescription: !Sub ${UpdatePipelineStateMachine} state machine errors
       ActionsEnabled: true
       AlarmActions:
-        - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}"
+        - !GetAtt UpdatePipelineErrorsTopic.TopicArn
       MetricName: ExecutionsFailed
       Namespace: AWS/States
       Statistic: Sum
@@ -1219,6 +1314,10 @@ Resources:
       Dimensions:
         - Name: StateMachineArn
           Value: !GetAtt UpdatePipelineStateMachine.Arn
+
+
+
+
   # Activates if the Batch job fails, not integrated with other services
   UpdatePipelineStateMachineIntegrationAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -1226,7 +1325,7 @@ Resources:
       AlarmDescription: !Sub ${UpdatePipelineStateMachine} state machine errors
       ActionsEnabled: true
       AlarmActions:
-        - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}"
+        - !GetAtt UpdatePipelineErrorsTopic.TopicArn
       MetricName: ServiceIntegrationsFailed
       Namespace: AWS/States
       Statistic: Sum
@@ -1237,6 +1336,11 @@ Resources:
       Dimensions:
         - Name: ServiceIntegrationResourceArn
           Value: !Sub arn:aws:states:${AWS::Region}:${AWS::AccountId}:batch:submitJob.sync
+
+
+
+
+
   # TODO move to database stack
   Neo4jLoadQueryDocument:
     Type: AWS::SSM::Document
@@ -1293,7 +1397,7 @@ Resources:
       Type: String
       Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName
       Description: Name of SSM document for loading Neo4j
-      Value: !Ref Neo4jLoadQueryDocument
+      Value: !Ref Neo4jLoadQueryDocument  
   GfedbPipelineParamMappingsParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -1310,6 +1414,7 @@ Resources:
               "/${AppName}/${Stage}/${AWS::Region}/BuildJobQueueArn",
               "/${AppName}/${Stage}/${AWS::Region}/BuildServiceRepositoryName",
               "/${AppName}/${Stage}/${AWS::Region}/GfeDbProcessingQueueUrl",
+              "/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueUrl",
               "/${AppName}/${Stage}/${AWS::Region}/LoadReleaseActivityArn",
               "/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineStateMachineArn",
               "/${AppName}/${Stage}/${AWS::Region}/LoadConcurrencyManagerStateMachineArn",

@@ -15,7 +15,7 @@ import logging
 import json
 from gfedbmodels.constants import (
     session,
-    database)
+    pipeline)
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -26,7 +26,7 @@ AWS_REGION = os.environ["AWS_REGION"]
 
 sqs = session.client("sqs", region_name=AWS_REGION)
 
-gfe_db_load_queue_url = database.params.GfeDbLoadQueueUrl
+gfe_db_load_queue_url = pipeline.params.GfeDbLoadQueueUrl
 
 def lambda_handler(event, context):
 
