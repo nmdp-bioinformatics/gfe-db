@@ -740,13 +740,14 @@ Resources:
             - Effect: Allow
               Action:
                 - states:StartExecution
+                - states:ListExecutions
               Resource:
                 - !GetAtt LoadConcurrencyManagerStateMachine.Arn
       Events:
-        GfeDbLoadQueueHasMessagesAlarmTopicTrigger:
+        DataPipelineExecutionTopicTrigger:
           Type: SNS
           Properties:
-            Topic: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueHasMessagesAlarmTopicName}}"
+            Topic: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicName}}"
   ValidateBuildOutputFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -887,13 +888,17 @@ Resources:
     Properties:
       DefinitionUri: statemachines/load-concurrency-manager.asl.json
       DefinitionSubstitutions:
+        InvokeBackupScriptFunctionArn: !GetAtt InvokeBackupScriptFunction.Arn
         LcmReceiveMessageFunctionArn: !GetAtt LcmReceiveMessageFunction.Arn
-        GfeDbLoadQueueHasMessagesAlarmName: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueHasMessagesAlarmName}}"
+        # GfeDbLoadQueueHasMessagesAlarmName: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueHasMessagesAlarmName}}"
+        UpdatePipelineStateMachineExecutionAlarmName: !Ref UpdatePipelineStateMachineExecutionAlarm
         LoadReleaseActivityArn: !Ref LoadReleaseActivity
         InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
         GfeDbExecutionStateTable: !Ref GfeDbExecutionStateTable
         GfeDbLoadQueueUrl: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueUrl}}"
       Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref InvokeBackupScriptFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref LcmReceiveMessageFunction
         - SQSPollerPolicy:
@@ -922,7 +927,7 @@ Resources:
               Action:
                 - cloudwatch:DescribeAlarms
               Resource:
-                - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueHasMessagesAlarmArn}}'
+                - !GetAtt UpdatePipelineStateMachineExecutionAlarm.Arn
       Logging:
         Destinations:
           - CloudWatchLogsLogGroup:

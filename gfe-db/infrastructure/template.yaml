@@ -447,3 +447,11 @@ Resources:
       Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicArn"
       Description: !Sub "ARN for ${AppName} Data Pipeline Errors SNS topic"
       Value: !Ref DataPipelineExecutionTopic
+
+  DataPipelineExecutionTopicNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicName"
+      Description: !Sub "Name for ${AppName} Data Pipeline Errors SNS topic"
+      Value: !Ref DataPipelineExecutionTopic

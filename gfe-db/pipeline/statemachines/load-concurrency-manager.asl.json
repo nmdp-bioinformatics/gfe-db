@@ -1,6 +1,12 @@
 {
-    "StartAt": "Receive SQS Message",
+    "StartAt": "Pre-Execution Backup",
     "States": {
+        "Pre-Execution Backup": {
+            "Type": "Task",
+            "Resource": "${InvokeBackupScriptFunctionArn}",
+            "ResultPath": "$.backups.pre",
+            "Next": "Receive SQS Message"
+        },
         "Receive SQS Message": {
             "Type": "Task",
             "Resource": "${LcmReceiveMessageFunctionArn}",
@@ -94,9 +100,9 @@
             "Type": "Pass",
             "Result": "LOAD_FAILED",
             "ResultPath": "$[0].sqs.Body.state.execution.status",
-            "Next": "Sync State for Failure"
+            "Next": "Sync State → LOAD_FAILED"
         },
-        "Sync State for Failure": {
+        "Sync State → LOAD_FAILED": {
             "Type": "Task",
             "Resource": "arn:aws:states:::dynamodb:updateItem",
             "ResultPath": null,
@@ -143,9 +149,9 @@
             "Type": "Pass",
             "Result": "LOAD_COMPLETE",
             "ResultPath": "$[0].sqs.Body.state.execution.status",
-            "Next": "Sync State for Success"
+            "Next": "Sync State → LOAD_COMPLETE"
         },
-        "Sync State for Success": {
+        "Sync State → LOAD_COMPLETE": {
             "Type": "Task",
             "Resource": "arn:aws:states:::dynamodb:updateItem",
             "InputPath": "$[0]",
@@ -177,7 +183,7 @@
             "Resource": "arn:aws:states:::aws-sdk:cloudwatch:describeAlarms",
             "Parameters": {
                 "AlarmNames": [
-                    "${GfeDbLoadQueueHasMessagesAlarmName}"
+                    "${UpdatePipelineStateMachineExecutionAlarmName}"
                 ]
             },
             "ResultSelector": {
@@ -192,17 +198,25 @@
                     "Variable": "$.StateValue",
                     "StringMatches": "ALARM",
                     "Next": "Sleep 10"
+                },
+                {
+                    "Variable": "$.StateValue",
+                    "StringMatches": "INSUFFICIENT_DATA",
+                    "Next": "Sleep 10"
                 }
             ],
-            "Default": "Shut Down"
+            "Default": "Post-Execution Backup"
         },
         "Sleep 10": {
             "Type": "Wait",
             "Seconds": 10,
             "Next": "Receive SQS Message"
         },
-        "Shut Down": {
-            "Type": "Succeed"
+        "Post-Execution Backup": {
+            "Type": "Task",
+            "Resource": "${InvokeBackupScriptFunctionArn}",
+            "ResultPath": "$.backups.post",
+            "End": true
         }
     }
 }

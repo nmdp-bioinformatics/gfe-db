@@ -6,23 +6,23 @@ from pydantic import BaseModel, validator, root_validator
 import jmespath
 from .utils import restore_nested_json, filter_nested_nulls
 
-"""
-ExecutionState is synced using the Step Functions DynamoDB integration:
-NOT_PROCESSED: never processed (set by CheckSourceUpdate) ✅
-SKIPPED: never processed (set by CheckSourceUpdate) ✅
-PENDING: state machine execution started (set by CheckSourceUpdate) ✅
-BUILD_IN_PROGRESS: build started (set by State Machine) ✅
-BUILD_SUCCESS: build succeeded (set by State Machine) ✅
-LOAD_IN_PROGRESS: load started (set by State Machine) ✅
-LOAD_SUCCESS: load succeeded (set by State Machine) ✅
-LOAD_SKIPPED: load skipped (set by State Machine) ✅
-LOAD_FAILED: load failed (set by State Machine) ✅
-BUILD_FAILED: build failed (set by State Machine) ✅
-FAILED: build or load failed (set by State Machine) ✅
-ABORTED: build or load aborted (set by UpdateExecutionState) ✅
-"""
 
 class ExecutionStatus(str, Enum):
+    """
+    ExecutionStatus is synced using the Step Functions DynamoDB integration:
+    NOT_PROCESSED: never processed (set by CheckSourceUpdate) ✅
+    SKIPPED: never processed (set by CheckSourceUpdate) ✅
+    PENDING: state machine execution started (set by CheckSourceUpdate) ✅
+    BUILD_IN_PROGRESS: build started (set by State Machine) ✅
+    BUILD_SUCCESS: build succeeded (set by State Machine) ✅
+    LOAD_IN_PROGRESS: load started (set by State Machine) ✅
+    LOAD_SUCCESS: load succeeded (set by State Machine) ✅
+    LOAD_SKIPPED: load skipped (set by State Machine) ✅
+    LOAD_FAILED: load failed (set by State Machine) ✅
+    BUILD_FAILED: build failed (set by State Machine) ✅
+    EXECUTION_FAILED: build or load failed (set by State Machine) ✅
+    ABORTED: build or load aborted (set by UpdateExecutionState) ✅
+    """
     NOT_PROCESSED = "NOT_PROCESSED"
     SKIPPED = "SKIPPED"
     PENDING = "PENDING"
@@ -34,7 +34,7 @@ class ExecutionStatus(str, Enum):
     LOAD_SUCCESS = "LOAD_SUCCESS"
     LOAD_FAILED = "LOAD_FAILED"
     LOAD_SKIPPED = "LOAD_SKIPPED"
-    FAILED = "FAILED"
+    EXECUTION_FAILED = "EXECUTION_FAILED"
     ABORTED = "ABORTED"
 
     @classmethod
