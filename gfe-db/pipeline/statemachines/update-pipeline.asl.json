@@ -408,9 +408,9 @@
                             "Type": "Task",
                             "Resource": "${EvaluateQueryResultsFunctionArn}",
                             "ResultPath": "$.validations.load_results",
-                            "Next": "Is Load Successful❓"
+                            "Next": "Is Load Valid❓"
                         },
-                        "Is Load Successful❓": {
+                        "Is Load Valid❓": {
                             "Type": "Choice",
                             "Choices": [
                                 {
@@ -419,7 +419,7 @@
                                     "Next": "Update Status → LOAD_SUCCESS"
                                 }
                             ],
-                            "Default": "Update Status → LOAD_FAILED"
+                            "Default": "Update Status → LOAD_INVALID"
                         },
                         "Update Status → LOAD_SUCCESS": {
                             "Type": "Pass",
@@ -453,9 +453,9 @@
                                 }
                             }
                         },
-                        "Update Status → LOAD_FAILED": {
+                        "Update Status → LOAD_INVALID": {
                             "Type": "Pass",
-                            "Result": "LOAD_FAILED",
+                            "Result": "LOAD_INVALID",
                             "ResultPath": "$.state.execution.status",
                             "Next": "Sync State → LOAD_FAILED"
                         },

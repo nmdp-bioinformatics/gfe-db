@@ -17,8 +17,9 @@ class ExecutionStatus(str, Enum):
     BUILD_SUCCESS: build succeeded (set by State Machine) ✅
     LOAD_IN_PROGRESS: load started (set by State Machine) ✅
     LOAD_SUCCESS: load succeeded (set by State Machine) ✅
-    LOAD_SKIPPED: load skipped (set by State Machine) ✅
     LOAD_FAILED: load failed (set by State Machine) ✅
+    LOAD_INVALID: load invalid from query results (set by State Machine) ✅
+    LOAD_SKIPPED: load skipped (set by State Machine) ✅
     BUILD_FAILED: build failed (set by State Machine) ✅
     EXECUTION_FAILED: build or load failed (set by State Machine) ✅
     ABORTED: build or load aborted (set by UpdateExecutionState) ✅
@@ -33,6 +34,7 @@ class ExecutionStatus(str, Enum):
     LOAD_COMPLETE = "LOAD_COMPLETE"
     LOAD_SUCCESS = "LOAD_SUCCESS"
     LOAD_FAILED = "LOAD_FAILED"
+    LOAD_INVALID = "LOAD_INVALID"
     LOAD_SKIPPED = "LOAD_SKIPPED"
     EXECUTION_FAILED = "EXECUTION_FAILED"
     ABORTED = "ABORTED"
