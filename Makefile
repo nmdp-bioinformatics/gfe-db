@@ -8,6 +8,7 @@ SPLASH_FONT := slant
 export AWS_ACCOUNT = $(shell aws sts get-caller-identity \
 	--query Account \
 	--output text)
+
 export HAS_STAGE = $(shell aws ssm get-parameters \
 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Stage" \
 		--output json \
@@ -526,6 +527,10 @@ pipeline.state.build:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.state.build
 
 pipeline.state.load: 
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.state.load
+
+pipeline.state.deploy:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.state.build
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.state.load
 
 config.deploy:
