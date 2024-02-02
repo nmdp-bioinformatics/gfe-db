@@ -359,8 +359,8 @@
                             "Resource": "arn:aws:states:::aws-sdk:sqs:sendMessage",
                             "Parameters": {
                                 "QueueUrl": "${GfeDbLoadQueueUrl}",
-                                "MessageGroupId": "$.input.invocation_id",
-                                "MessageDeduplicationId.$": "$.state.execution.id",
+                                "MessageGroupId": "${Stage}-${AppName}",
+                                "MessageDeduplicationId.$": "States.Format('{}', $.input.version)",
                                 "MessageBody.$": "$"
                             },
                             "ResultPath": null,
@@ -388,14 +388,14 @@
                                 {
                                     "Variable": "$.state.execution.status",
                                     "StringEquals": "LOAD_FAILED",
-                                    "Next": "Load Failed"
+                                    "Next": "Fail Load"
                                 }
                             ],
                             "Default": "Wait for Load Status"
                         },
-                        "Load Failed": {
+                        "Fail Load": {
                             "Type": "Fail",
-                            "Error": "States.JsonToString($.state.error.message)",
+                            "ErrorPath": "States.JsonToString($.state.error.message)",
                             "CausePath": "States.JsonToString($.state.error.cause)"
                         },
                         "Run Validation Query": {
@@ -525,18 +525,18 @@
                                             "StringEquals": "LOAD_FAILED"
                                         }
                                     ],
-                                    "Next": "Sync State for Failure"
+                                    "Next": "Sync State → EXECUTION_FAILED"
                                 }
                             ],
-                            "Default": "Update Status → FAILED"
+                            "Default": "Update Status → EXECUTION_FAILED"
                         },
-                        "Update Status → FAILED": {
+                        "Update Status → EXECUTION_FAILED": {
                             "Type": "Pass",
-                            "Result": "FAILED",
+                            "Result": "EXECUTION_FAILED",
                             "ResultPath": "$.state.execution.status",
-                            "Next": "Sync State for Failure"
+                            "Next": "Sync State → EXECUTION_FAILED"
                         },
-                        "Sync State for Failure": {
+                        "Sync State → EXECUTION_FAILED": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
