@@ -382,17 +382,19 @@ Resources:
     UpdateReplacePolicy: Delete
     DeletionPolicy: Delete
     Properties:
+      FifoQueue: true
       VisibilityTimeout: 300
       MessageRetentionPeriod: 43200
       ReceiveMessageWaitTimeSeconds: 20
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt GfeDbProcessingDeadLetterQueue.Arn
-        maxReceiveCount: 3
+        maxReceiveCount: 1
   GfeDbProcessingDeadLetterQueue:
     Type: AWS::SQS::Queue
     UpdateReplacePolicy: Delete
     DeletionPolicy: Delete
     Properties:
+      FifoQueue: true
       VisibilityTimeout: 43200
       MessageRetentionPeriod: 1209600
       ReceiveMessageWaitTimeSeconds: 10

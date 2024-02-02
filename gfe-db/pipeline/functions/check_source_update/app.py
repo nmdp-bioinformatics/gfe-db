@@ -64,6 +64,8 @@ s3 = session.client("s3")
 dynamodb = session.resource("dynamodb")
 queue = session.resource("sqs")
 
+STAGE = os.environ["STAGE"]
+APP_NAME = os.environ["APP_NAME"]
 GITHUB_PERSONAL_ACCESS_TOKEN = pipeline.secrets.GitHubPersonalAccessToken
 
 # Get data source configuration
@@ -290,7 +292,12 @@ def lambda_handler(event, context):
 
         # Send the payload to the processing queue for the state machine 
         for item in execution_payload:
-            gfedb_processing_queue.send_message(MessageBody=json.dumps(item))
+            # add group ID and message deduplication ID to the message
+            gfedb_processing_queue.send_message(
+                MessageGroupId=f'{STAGE}-{APP_NAME}',
+                MessageDeduplicationId=str(item["version"]),
+                MessageBody=json.dumps(item)
+            )
 
         message = f"Queued {len(execution_payload)} release(s) for processing"
         logger.info(message)

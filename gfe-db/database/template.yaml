@@ -76,8 +76,7 @@ Resources:
     DeletionPolicy: Delete
     Properties:
       FifoQueue: true
-      # TODO change visibility timeout when message is received
-      VisibilityTimeout: 60
+      VisibilityTimeout: 10
       MessageRetentionPeriod: 1209600
       ReceiveMessageWaitTimeSeconds: 0 # Short polling can be used since there is 1 consumer
       RedrivePolicy:
