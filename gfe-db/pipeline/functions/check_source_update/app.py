@@ -110,14 +110,15 @@ def lambda_handler(event, context):
                 # extract the most recent record for the release value passed in the event
                 releases = [int(release) for release in event["releases"].split(",")]
 
-                # commits_with_releases = []
                 for release in releases:
                     commits_with_releases.extend(list(filter(
                         lambda record: record.execution.version == release,
                         execution_state
                     )))
 
-                if not commits_with_releases:
+                releases_without_commits = list(set(releases) - set([item.execution.version for item in execution_state]))
+
+                if not commits_with_releases or releases_without_commits:
                     logger.info("No commits found for release version(s) provided, fetching most recent commits...")
                     most_recent_commits = get_most_recent_commits(execution_state)
                 else:
