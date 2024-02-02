@@ -111,6 +111,7 @@ gfe-db/pipeline/statemachines/test*
 reports/
 output-payload.json
 *bkp*
+execution-state.json
 
 # Local Deployment
 gfe-db/local/neo4j
