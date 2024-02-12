@@ -1,6 +1,6 @@
 {
-    "created_utc": "2024-02-02T20:56:36.504Z",
-    "updated_utc": "2024-02-02T20:56:36.504Z",
+    "created_utc": "2024-02-11T23:36:40.352Z",
+    "updated_utc": "2024-02-11T23:36:40.352Z",
     "repositories": {
         "ANHIG/IMGTHLA": {
             "owner": "ANHIG",
@@ -33,7 +33,7 @@
                         "metadata_regex": "[1-9]\\d{0,1}\\.[1-9]\\d{0,2}\\.0(?:\\.\\d{1,2})?(?=\\s|$)"
                     },
                     {
-                        "description": "Extract release version metadata for all commits before 08e0ef9",
+                        "description": "Extract release version metadata for all commits including and before 08e0ef9",
                         "asset_path": "V_nuc.txt",
                         "metadata_regex": "[1-9]\\d{0,1}\\.[1-9]\\d{0,2}\\.0(?:\\.\\d{1,2})?(?=\\s|$)"
                     }
