@@ -3,6 +3,8 @@ import logging
 from typing import List, Dict, Union
 import multiprocessing
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from requests.exceptions import HTTPError
+from time import sleep
 from .types import (
     SourceConfig,
     RepositoryConfig,
@@ -53,28 +55,34 @@ def process_execution_state_item(
                 metadata_regex=config.metadata_regex)
             logger.info(f"Found release version {release_version} ({sha})")
 
-            result = {
-                "created_utc": timestamp,
-                "repository": repository_config,
-                "commit": Commit(**commit),
-                "execution": ExecutionDetailsConfig(
-                    version=release_version,
-                    status="NOT_PROCESSED",
-                    date_utc=None,
-                    input_parameters=None,
-                ),
-            }
+            result = (
+                None,
+                {
+                    "created_utc": timestamp,
+                    "repository": repository_config,
+                    "commit": Commit(**commit),
+                    "execution": ExecutionDetailsConfig(
+                        version=release_version,
+                        status="NOT_PROCESSED",
+                        date_utc=None,
+                        input_parameters=None,
+                    ),
+                }
+            )
 
-        except Exception as e:
+        except HTTPError as e:
             # This is because Allelelist.txt for certain commits doesn't contain the release version or name
             # Need to find another file that indicates the release version should be small
             errors += 1
-            logger.info(f"Commit {sha} failed: {e}")
+            logger.info(f"Commit {sha} failed: {e} for {config.asset_path}")
 
             # Throw error if all possible asset paths have been tried
             if errors == len(target_metadata_config.items):
-                logger.error(f"Max errors reached. Exiting loop.")
-                raise e
+                logger.error(f"Max errors reached, this sha must be skipped: {sha}")
+
+                # return the sha if all asset paths have been tried
+                result = (sha, None)
+                return result
             else:
                 continue
 
@@ -113,16 +121,23 @@ def parallel_process_execution_state_items(
         ]
 
         # Collect the results as they complete
-        execution_state_items = [future.result() for future in as_completed(futures)]
+        results = [future.result() for future in as_completed(futures)]
 
-    return [
-        ExecutionStateItem(**item)
-        for item in sort_execution_state_items(filter_nulls(execution_state_items))
-    ]
+        # Separate the results into execution state items and error shas
+        execution_state_items = [result[1] for result in results if result[1] is not None]
+        error_shas = [result[0] for result in results if result[0] is not None]
+
+    return (
+        error_shas,
+        [
+            ExecutionStateItem(**item)
+            for item in sort_execution_state_items(filter_nulls(execution_state_items))
+        ]
+    )
 
 
 # limit is int or None
-@cache_pickle
+# @cache_pickle
 def process_execution_state_items(
     timestamp: str,
     commits: List[Dict[str, str]],
@@ -177,14 +192,32 @@ def get_release_version_for_commit(commit: Union[Commit, dict], owner: str, repo
         commit_sha=sha
     )
 
+    # # todo debug error shas
+    # if sha in [
+    #     # "8d77b3dd93959663d58ae5b626289d0746edd0e7",
+    #     # "252d7c5dc9d2f7671447fd11fe6bb004c438f34b",
+    #     "e1cd1ec3e66f4ab2b218f6758ed315f557778655",
+    #     "fa208da83a7f96d62c1e4efee2018074bbd805e0",
+
+    #     "09ed08b9abcd97622d59ec37e31b4706dc9a9391",
+    #     "8db938b1eb58dd8c77cba9b7524f84cf8ffe719c",
+    #     "041318439bf0ba291f990faaa27cd6ad0a062d13",
+    #     "ba5cb3d05c7b3ba5024cdafa192d89af186f08a9",
+    #     "7ca4eb239a96884142d3ef0b0182d3bc84ec1bba",
+    #     "3abe7e12dcbc3824315959af4428c53bd760c6e7",
+    #     "c4d3f67ef7ef4b5f6571b4f1d4aa5b928d2a3d56",
+    #     "23044ee80c27f75bb34c9f9ac689b1c68cd65914"
+    # ]:
+    #     print(f"Error sha: {sha}")
+
     release_version = find_text(metadata_regex, allele_list)
     if release_version is None:
+        # TODO BOOKMARK 2/12/24 save these shas (`fatal: reference is not a tree`) for debugging, need to get the file contents
         raise Exception(f"Release version not found for commit {sha}")
     
-    # TODO fix so that 3 digit release versions are returned correctly
     return int(release_version.replace(".", "")[:4])
 
-    ### debug ###
+### debug ###
 if __name__ == "__main__":
     import sys
     sys.path.append(os.environ["GFEDBMODELS_PATH"])

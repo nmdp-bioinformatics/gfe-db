@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 # from datetime import datetime
 import json
-from pygethub import list_commits, GitHubPaginator
+from pygethub import list_commits, list_branches, GitHubPaginator
 from gfedbmodels.utils import (
     get_utc_now,
     paginate_commits,
@@ -23,6 +23,7 @@ from gfedbmodels.utils import (
     select_keys,
     rename_fields,
     filter_nested_nulls,
+    cache_json
 )
 from gfedbmodels.types import (
     SourceConfig, 
@@ -53,19 +54,58 @@ if __name__ == "__main__":
     with open(output_dir / "source-config.json", "r") as f:
         source_config = SourceConfig(**json.load(f))
 
-    # TODO FIX not returning all commits from repo, integrate pygethub
     # Fetch all commits from repo using GitHub API, will be cached
     logger.info("Processing source repository data")
 
-    # COMMITS
     # TODO add requests session for user-agent tracking
     paginator = GitHubPaginator(GITHUB_PERSONAL_ACCESS_TOKEN)
-    pages = paginator.get_paginator(
-        list_commits, 
-        owner=GITHUB_REPOSITORY_OWNER, 
-        repo=GITHUB_REPOSITORY_NAME, 
-        user_agent="nmdp-bioinformatics-gfe-db-state-builder/1.0")
-    all_commits = list(pages)
+
+    ### COMMITS BY BRANCHES ###
+    branch_pages = paginator.get_paginator(list_branches, owner=GITHUB_REPOSITORY_OWNER, repo=GITHUB_REPOSITORY_NAME)
+    all_branches = list(branch_pages)
+
+    # extract the branch names
+    branch_names = [branch["name"] for branch in all_branches]
+
+    @cache_json
+    def get_commits_by_branch(branch_name):
+        
+        # Fetch the commits for each branch
+        commits_by_branch = {}
+        for branch in branch_names:
+            logger.info(f"Retrieving commits for branch {branch}")
+            list_commits_params = {
+                "owner": GITHUB_REPOSITORY_OWNER,
+                "repo": GITHUB_REPOSITORY_NAME,
+                "sha": branch,
+            }
+            branch_commit_pages = paginator.get_paginator(
+                list_commits, 
+                **list_commits_params,
+                user_agent="nmdp-bioinformatics-gfe-db-state-builder/1.0")
+            commits_by_branch[branch] = list(branch_commit_pages)
+
+        # Create an array of all unique commits (using set method) in commits_by_branch and omit the branch information
+        all_commits = set()
+        for release, commits in commits_by_branch.items():
+            all_commits.update([json.dumps(commit) for commit in commits])
+
+        # covert back to dict
+        all_commits = [json.loads(commit) for commit in all_commits]
+
+        return all_commits
+
+    # get all commits by branch
+    all_commits = get_commits_by_branch(branch_names)
+
+    # # COMMITS
+    # commit_pages = paginator.get_paginator(
+    #     list_commits, 
+    #     owner=GITHUB_REPOSITORY_OWNER, 
+    #     repo=GITHUB_REPOSITORY_NAME, 
+    #     user_agent="nmdp-bioinformatics-gfe-db-state-builder/1.0")
+    # all_commits = list(commit_pages)
+
 
     # filter by chosen commit keys
     commit_keys = ["sha", "commit", "html_url"]
@@ -101,7 +141,7 @@ if __name__ == "__main__":
 
     # Build ExecutionStateItem records from raw commits using thread pooling
     logger.info("Building execution state")
-    execution_state_items = process_execution_state_items(
+    error_shas, execution_state_items = process_execution_state_items(
         timestamp=utc_now,
         commits=commits,
         # TODO remove default params from state table, they are retrieved from source config file in S3
@@ -142,3 +182,9 @@ if __name__ == "__main__":
     # write SourceConfig locally
     with open(output_dir / f"source-config.json", "w") as f:
         json.dump(source_config.model_dump(), f, indent=4)
+
+    logger.info("Execution state and source config updated")
+
+    # write error shas
+    with open(output_dir / "error-shas.json", "w") as f:
+        json.dump(error_shas, f, indent=4)

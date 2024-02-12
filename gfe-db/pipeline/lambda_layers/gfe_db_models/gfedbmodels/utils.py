@@ -327,6 +327,24 @@ def get_repo_contents(owner, repo, token, path, commit_sha=None):
 
 def get_repo_asset(owner, repo, token, path, commit_sha=None):
     """Download a file from a GitHub repository"""
+
+    # # todo debug error shas
+    # if commit_sha in [
+    #     "8d77b3dd93959663d58ae5b626289d0746edd0e7",
+    #     "252d7c5dc9d2f7671447fd11fe6bb004c438f34b",
+    #     "e1cd1ec3e66f4ab2b218f6758ed315f557778655",
+    #     "fa208da83a7f96d62c1e4efee2018074bbd805e0",
+    #     "09ed08b9abcd97622d59ec37e31b4706dc9a9391",
+    #     "8db938b1eb58dd8c77cba9b7524f84cf8ffe719c",
+    #     "041318439bf0ba291f990faaa27cd6ad0a062d13",
+    #     "ba5cb3d05c7b3ba5024cdafa192d89af186f08a9",
+    #     "7ca4eb239a96884142d3ef0b0182d3bc84ec1bba",
+    #     "3abe7e12dcbc3824315959af4428c53bd760c6e7",
+    #     "c4d3f67ef7ef4b5f6571b4f1d4aa5b928d2a3d56",
+    #     "23044ee80c27f75bb34c9f9ac689b1c68cd65914"
+    # ]:
+    #     print(f"Error sha: {commit_sha}")
+
     repo_contents = get_repo_contents(owner, repo, token, path, commit_sha)
 
     response = requests.get(repo_contents["download_url"])
