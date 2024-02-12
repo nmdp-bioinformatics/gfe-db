@@ -1,0 +1,72 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Deploys a bastion host with access to a private EC2 instance.
+
+Parameters:
+  Stage:
+    Type: String
+    Description: Stage of production
+  AppName:
+    Type: String
+    Description: Application name
+  Ec2KeyPairName:
+    Type: String
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the bastion host
+  AdminIp:
+    Type: String
+    Description: Your IP address for initial SSH access to the bastion host
+  
+Resources:
+
+  BastionHostSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for bastion host allowing SSH access
+      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref AdminIp
+
+  BastionHost:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      KeyName: !Ref Ec2KeyPairName
+      ImageId: !Sub '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}'
+      SubnetId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetId}}'
+      SecurityGroupIds:
+        - !Ref BastionHostSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub '${Stage}-${AppName}-bastion-server'
+
+  ElasticIp:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${Stage}-${AppName}-bastion-server'
+
+  ElasticIpAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref BastionHost
+      AllocationId: !GetAtt ElasticIp.AllocationId
+
+  ElasticIpParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/BastionHostElasticIp'
+      Description: "Elastic IP address of the Bastion Host"
+      Value: !Ref ElasticIp
+
+  BastionHostSecurityGroupIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/BastionHostSecurityGroupId'
+      Description: "Security Group ID for the Bastion Host"
+      Value: !Ref BastionHostSecurityGroup

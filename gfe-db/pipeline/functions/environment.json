@@ -4,30 +4,36 @@
             "InvokePipelineFunctionSchedule": "cron(0\\ 12\\ *\\ *\\ ?\\ *)",
             "FunctionConfiguration": {
                 "FunctionName": "invoke-pipeline",
-                "Timeout": 60,
                 "MemorySize": 256,
+                "Timeout": 60,
                 "Environment": {
                     "Variables": {
-                        "GITHUB_REPOSITORY_OWNER": "ANHIG",
-                        "GITHUB_REPOSITORY_NAME": "IMGTHLA",
-                        "PIPELINE_STATE_PATH": "config/IMGTHLA-repository-state.json",
-                        "PIPELINE_PARAMS_PATH": "config/pipeline-input.json"
+                        "PIPELINE_STATE_PATH": "config/pipeline/IMGTHLA-repository-state.json",
+                        "PIPELINE_PARAMS_PATH": "config/pipeline/pipeline-input.json"
                     }
                 }
             }
         },
-        "InvokeLoadScript": {
+        "ExecuteValidationQueries": {
             "FunctionConfiguration": {
-                "FunctionName": "invoke-load-script",
-                "Timeout": 60,
-                "MemorySize": 256
+                "FunctionName": "execute-validation-queries",
+                "MemorySize": 256,
+                "Timeout": 60
             }
         },
         "InvokeBackupScript": {
             "FunctionConfiguration": {
-                "FunctionName": "invoke-backup-script",
-                "Timeout": 60,
-                "MemorySize": 128
+                "FunctionName": "invoke-backup-script"
+            }
+        },
+        "InvokeLoadScript": {
+            "FunctionConfiguration": {
+                "FunctionName": "invoke-load-script"
+            }
+        },
+        "ValidateBuildOutput": {
+            "FunctionConfiguration": {
+                "FunctionName": "validate-build-output"
             }
         },
         "DisableBackup": {

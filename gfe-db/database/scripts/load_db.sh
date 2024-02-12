@@ -1,12 +1,12 @@
-# #!/bin/bash -x
+#!/bin/bash -x
 
-export BITNAMI_HOME=/home/bitnami
-
-# Check for release argument
-RELEASE=$1
+source /home/ubuntu/env.sh
 
 # Get APP_NAME, AWS_REGION, STAGE setup on db install
-source $BITNAMI_HOME/env.sh
+if [ -z $UBUNTU_HOME ]; then
+    echo "ERROR: UBUNTU_HOME not set"
+    exit 1
+fi
 
 if [[ -z $NEO4J_HOME ]]; then
     echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Neo4j not found"
@@ -15,13 +15,14 @@ else
     echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Found Neo4j in $NEO4J_HOME"
 fi
 
+# Check for release argument
+RELEASE=$1
+
 # Set paths
 NEO4J_CYPHER_PATH=$NEO4J_HOME/cypher
-NEO4J_IMPORT_PATH=/bitnami/neo4j/import
+NEO4J_IMPORT_PATH=$NEO4J_HOME/import
 S3_NEO4J_CYPHER_PATH=config/neo4j/cypher
 S3_CSV_PATH=data/$RELEASE/csv
-
-# exit 1
 
 if [[ -z $AWS_REGION ]]; then
     export AWS_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')
@@ -37,7 +38,7 @@ fi
 # Get Neo4j Credentials
 NEO4J_CREDENTIALS=$(aws secretsmanager get-secret-value \
     --region $AWS_REGION \
-    --secret-id ${APP_NAME}-${STAGE}-Neo4jCredentials | jq -r '.SecretString')
+    --secret-id /${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials | jq -r '.SecretString')
 NEO4J_USERNAME=$(echo $NEO4J_CREDENTIALS | jq -r '.NEO4J_USERNAME')
 NEO4J_PASSWORD=$(echo $NEO4J_CREDENTIALS | jq -r '.NEO4J_PASSWORD')
 
@@ -73,15 +74,32 @@ echo "****** End Cypher ******"
 
 # Run Cypher load query
 echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Loading data for release $RELEASE into Neo4j..."
-cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp | \
-    /$NEO4J_HOME/bin/cypher-shell \
-        --address neo4j://$SUBDOMAIN.$HOST_DOMAIN:7687 \
-        --encryption true \
-        --username $NEO4J_USERNAME \
-        --password $NEO4J_PASSWORD \
-        --format verbose
 
-LOAD_EXIT_STATUS=$?
+if [[ "$USE_PRIVATE_SUBNET" = true ]]; then
+
+    # # With SSL/TLS policy disabled for private instance
+    cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp | \
+        cypher-shell \
+            --address bolt://127.0.0.1:7687 \
+            --encryption false \
+            --username $NEO4J_USERNAME \
+            --password $NEO4J_PASSWORD \
+            --format verbose
+    LOAD_EXIT_STATUS=$?
+
+else
+
+    # With SSL/TLS policy enabled
+    cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp | \
+        cypher-shell \
+            --address neo4j://$SUBDOMAIN.$HOST_DOMAIN:7687 \
+            --encryption true \
+            --username $NEO4J_USERNAME \
+            --password $NEO4J_PASSWORD \
+            --format verbose
+    LOAD_EXIT_STATUS=$?
+
+fi
 
 if [[ $LOAD_EXIT_STATUS -eq 0 ]]; then
     echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Load complete"

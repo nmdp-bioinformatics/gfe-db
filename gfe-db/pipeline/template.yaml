@@ -9,32 +9,84 @@ Parameters:
   AppName:
     Type: String
     Description: Application name
-  InvokePipelineFunctionName:
+  createVpc:
     Type: String
-  InvokePipelineFunctionMemorySize:
-    Type: Number
-    MinValue: 128
-    MaxValue: 512
-  InvokePipelineFunctionTimeout:
-    Type: Number
-  InvokePipelineFunctionSchedule:
+    AllowedValues:
+      - "true"
+      - "false"
+  usePrivateSubnet:
     Type: String
+    AllowedValues:
+      - "true"
+      - "false"
   GitHubRepositoryOwner: 
     Type: String
   GitHubRepositoryName:
     Type: String
+  InvokePipelineFunctionName:
+    Type: String
+    AllowedPattern: ^[a-z-]+$
+  InvokePipelineFunctionSchedule:
+    Type: String
+    AllowedPattern: ^cron\(.*\)$
+  InvokePipelineFunctionMemorySize:
+    Type: Number
+    Default: 256
+    AllowedValues:
+      - 128
+      - 256
+      - 512
+  InvokePipelineFunctionTimeout:
+    Type: Number
+    Default: 60
   PipelineStatePath:
     Type: String
   PipelineParamsPath:
     Type: String
-  DisableBackupFunctionName:
+  ExecuteValidationQueriesFunctionName:
     Type: String
+    AllowedPattern: ^[a-z-]+$
+    MaxLength: 140
+  ExecuteValidationQueriesFunctionMemorySize:
+    Type: Number
+    Default: 256
+    AllowedValues:
+      - 128
+      - 256
+      - 512
+  ExecuteValidationQueriesFunctionTimeout:
+    Type: Number
+  InvokeBackupScriptFunctionName:
+    Type: String
+    AllowedPattern: ^[a-z-]+$
+    MaxLength: 140
+  ValidateBuildOutputFunctionName:
+    Type: String
+    AllowedPattern: ^[a-z-]+$
+    MaxLength: 140
   InvokeLoadScriptFunctionName:
     Type: String
+    AllowedPattern: ^[a-z-]+$
+    MaxLength: 140
+  DisableBackupFunctionName:
+    Type: String
+    AllowedPattern: ^[a-z-]+$
+    MaxLength: 140
   ECRBaseUri:
     Type: String
   BuildServiceRepositoryName:
     Type: String
+  FeatureServiceUrl:
+    Type: String
+
+Conditions:
+  # Important: All stacks (infra, database, pipeline) should use the same conditions
+  CreateVpc: !Equals [!Ref createVpc, 'true']
+  UseExternalVpc: !Equals [!Ref createVpc, 'false']
+  UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
+  UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
+  UsePrivateSubnet: !Equals [!Ref usePrivateSubnet, 'true']
+  UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
 
 Resources:
   BuildServerSG:
@@ -42,13 +94,12 @@ Resources:
     Properties:
       GroupName: !Sub '${Stage}-${AppName}-build-server-sg'
       GroupDescription: !Sub 'Security group for the ${Stage}-${AppName} build server'
-      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcID}}'
+      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}'
       # SecurityGroupIngress: # Uncomment to allow SSH access to build instance
       #   - CidrIp: 0.0.0.0/0
       #     FromPort: 22
       #     IpProtocol: tcp
       #     ToPort: 22
-      # TODO remove
       Tags:
         - Key: Name
           Value: !Sub '${Stage}-${AppName}-build-server-sg'
@@ -128,6 +179,7 @@ Resources:
                   - "secretsmanager:DescribeSecret"
                   - "secretsmanager:ListSecretVersionIds"
                   - "secretsmanager:ListSecrets"
+                # TODO tighten permissions
                 Resource: 
                   - "*"
         # - PolicyName: !Sub '${Stage}-${AppName}-SQSPolicy'
@@ -163,6 +215,8 @@ Resources:
         Environment:
           - Name: GFE_BUCKET
             Value: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}'
+          - Name: FEATURE_SERVICE_URL
+            Value: !Ref FeatureServiceUrl
           # - Name: FAILED_ALLELES_QUEUE
           #   Value: !Ref FailedAllelesQueue
           - Name: AWS_REGION
@@ -185,23 +239,20 @@ Resources:
       Type: MANAGED
       ComputeResources:
         Type: EC2
-        # # Testing only, comment before prouction deployment
+        # # Testing only, comment before production deployment
         # Ec2KeyPair: !Ref EC2KeyPairName
-        # #
         MinvCpus: 0
         DesiredvCpus: 0
         MaxvCpus: 32
         InstanceTypes:
           - c5d.2xlarge
-        # TODO use private subnet?
         Subnets:
-          - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID}}'
+          - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetId}}'
         SecurityGroupIds:
           - !Ref BuildServerSG
         InstanceRole: !Ref BatchWorkerInstanceProfile
         LaunchTemplate:
           LaunchTemplateId: !Ref BuildLaunchTemplate
-        # TODO remove
       Tags: { "Name": "gfe-db-build-worker" }
       ServiceRole: !GetAtt BatchServiceRole.Arn
 
@@ -322,7 +373,7 @@ Resources:
       Description: !Sub '${AppName} update pipeline trigger: checks for new IMGT/HLA releases and starts the loading process'
       CodeUri: functions/invoke_pipeline/
       Handler: app.lambda_handler
-      Runtime: python3.9
+      Runtime: python3.10
       MemorySize: !Ref InvokePipelineFunctionMemorySize
       Timeout: !Ref InvokePipelineFunctionTimeout
       Architectures:
@@ -363,7 +414,7 @@ Resources:
   InvokePipelineFunctionAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: !Sub 'Alarm for ${InvokePipelineFunction} function errors'
+      AlarmDescription: !Sub 'Alarm for ${InvokePipelineFunctionName} function errors'
       ActionsEnabled: true
       AlarmActions:
         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn}}'
@@ -381,20 +432,29 @@ Resources:
   ExecuteValidationQueriesFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Description: !Sub "Invoke backup for Neo4j for ${AppName}"
+      FunctionName: !Ref ExecuteValidationQueriesFunctionName
+      Description: !Sub "Execute validation a queries on Neo4j for ${AppName}"
       CodeUri: functions/execute_validation_queries/
       Handler: app.lambda_handler
       Runtime: python3.10
-      MemorySize: 256
-      Timeout: 60
+      MemorySize: !Ref ExecuteValidationQueriesFunctionMemorySize
+      Timeout: !Ref ExecuteValidationQueriesFunctionTimeout
       Architectures:
         - x86_64
       Environment:
         Variables:
           STAGE: !Ref Stage
           APP_NAME: !Ref AppName
+      VpcConfig: !If
+        - UsePrivateSubnet
+        - SubnetIds:
+            - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
+          SecurityGroupIds:
+            - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
+        - !Ref AWS::NoValue
+      # TODO fix conditional policy assignment using If operator
+      # If UsePrivateSubnet is true, attach AWSLambdaVPCAccessExecutionRole, otherwise attach AWSLambdaBasicExecutionRole
       Policies:
-        - AWSLambdaBasicExecutionRole
         - Version: "2012-10-17"
           Statement:
             - Effect: "Allow"
@@ -405,16 +465,35 @@ Resources:
                 - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*'
             - Effect: "Allow"
               Action:
-                  - "secretsmanager:GetSecretValue"
-                  - "secretsmanager:DescribeSecret"
-                  - "secretsmanager:ListSecretVersionIds"
-                  - "secretsmanager:ListSecrets"
+                - "secretsmanager:GetSecretValue"
+                - "secretsmanager:DescribeSecret"
+                - "secretsmanager:ListSecretVersionIds"
+                - "secretsmanager:ListSecrets"
               Resource:
-                - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentialsSecretArn}}'
+                - !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${AppName}/${Stage}/${AWS::Region}/Neo4jCredentials*'
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action: !If
+                - UsePrivateSubnet
+                - - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                  - "ec2:CreateNetworkInterface"
+                  - "ec2:DescribeNetworkInterfaces"
+                  - "ec2:DeleteNetworkInterface"
+                  - "ec2:AssignPrivateIpAddresses"
+                  - "ec2:UnassignPrivateIpAddresses"
+                - - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+              Resource: 
+                - "*"
 
   InvokeBackupScriptFunction:
     Type: AWS::Serverless::Function
     Properties:
+      FunctionName: !Ref InvokeBackupScriptFunctionName
       Description: !Sub "Invoke backup for Neo4j for ${AppName}"
       CodeUri: functions/invoke_backup_script/
       Handler: app.lambda_handler
@@ -457,14 +536,14 @@ Resources:
       Description: !Sub "Invoke server-side loading on Neo4j for ${AppName}"
       CodeUri: functions/invoke_load_script/
       Handler: app.lambda_handler
-      Runtime: python3.9
+      Runtime: python3.10
       MemorySize: 256
       Timeout: 60
       Architectures:
         - x86_64
       Environment:
         Variables:
-          NEO4J_LOAD_QUERY_DOCUMENT_NAME: !Ref Neo4jLoadQueryDocument # TODO fetch from parameter store
+          NEO4J_LOAD_QUERY_DOCUMENT_NAME_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName'
           NEO4J_DATABASE_INSTANCE_ID_SSM_PARAM: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId'
           LOAD_NEO4J_ACTIVITY: !Ref LoadNeo4jActivity
           APP_NAME: !Ref AppName
@@ -507,6 +586,7 @@ Resources:
   ValidateBuildOutputFunction:
     Type: AWS::Serverless::Function
     Properties:
+      FunctionName: !Ref ValidateBuildOutputFunctionName
       Description: !Sub "Validate build output for ${AppName}"
       CodeUri: functions/validate_build_output/
       Handler: app.lambda_handler
@@ -831,60 +911,4 @@ Resources:
       Description: "Name of SSM document for loading Neo4j"
       Value: !Ref Neo4jLoadQueryDocument
 
-  DatabaseSyncScriptsDocument: 
-    Type: AWS::SSM::Document
-    Properties:
-      DocumentType: "Command"
-      DocumentFormat: "YAML"
-      TargetType: "/AWS::EC2::Instance"
-      Content:
-        schemaVersion: "2.2"
-        description: !Sub "Sync database scripts for ${AppName}"
-        parameters:
-          sourceType:
-            type: "String"
-            description: "S3"
-            default: "S3"
-          sourceInfo:
-            type: "StringMap"
-            description: !Sub "Downloads all files under the ${AppName} scripts prefix"
-            default:
-              path: !Sub 'https://{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}.s3.amazonaws.com/config/scripts/'
-          commandLine:
-            type: "String"
-            description: "Deletes ETag files created by SSM Agent."
-            default: 'rm *.etag && find . \( -name "*.sh" -o -name "Makefile" -o -name "init" \) -exec chown bitnami {} \; && find . \( -name "*.sh" -o -name "Makefile" -o -name "init" \) -exec chgrp bitnami {} \;'
-          workingDirectory:
-            type: "String"
-            description: "Working directory"
-            default: "/home/bitnami"
-          executionTimeout:
-            type: "String"
-            description: "(Optional) The time in seconds for a command to complete before it is considered to have failed. Default is 3600 (1 hour). Maximum is 28800 (8 hours)."
-            default: "300"
-        mainSteps:
-          - action: "aws:downloadContent"
-            name: "downloadContent"
-            inputs:
-              sourceType: "{{ sourceType }}"
-              sourceInfo: "{{ sourceInfo }}"
-              destinationPath: "{{ workingDirectory }}"
-          - action: "aws:runShellScript"
-            name: "runShellScript"
-            inputs: 
-              runCommand:
-                - ""
-                - "directory=$(pwd)"
-                - "export PATH=$PATH:$directory"
-                - " {{ commandLine }} " 
-                - ""
-              workingDirectory: "{{ workingDirectory }}"
-              timeoutSeconds: "{{ executionTimeout }}"
-
-  DatabaseSyncScriptsDocumentNameParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DatabaseSyncScriptsDocumentName'
-      Description: "Name of SSM document for syncing shell scripts to the database"
-      Value: !Ref DatabaseSyncScriptsDocument
+      

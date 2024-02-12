@@ -1,17 +1,16 @@
 # This Makefile only orchestrates process that are run on the EC2 database instance, it is deployed and called on the server
-# Must be run as sudo
+# Must be run as root
 
 # Application specific environment variables
 include env.sh
 export
 
-export BITNAMI_HOME ?= /home/bitnami
 export LOGS_DIR := /tmp/logs
-export REPORTS_DIR := ${BITNAMI_HOME}/reports
-export NEO4J_HOME := /opt/bitnami/neo4j
-export NEO4J_USERNAME := $(shell cat ${BITNAMI_HOME}/bitnami_credentials | sed 's/ /\n/g' | grep -E "'([a-zA-Z0-9]+)'" | sed "s/'//g" | sed "s/\.//g" | head -n 1)
-export NEO4J_PASSWORD := $(shell cat ${BITNAMI_HOME}/bitnami_credentials | sed 's/ /\n/g' | grep -E "'([a-zA-Z0-9]+)'" | sed "s/'//g" | sed "s/\.//g" | tail -n 1)
-export INSTANCE_ID := $(shell curl -sS http://169.254.169.254/latest/meta-data/instance-id)
+export REPORTS_DIR := ${UBUNTU_HOME}/reports
+export NEO4J_USERNAME=$(shell aws secretsmanager get-secret-value --secret-id "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials" | jq -r '.SecretString' | jq -r '.NEO4J_USERNAME')
+export NEO4J_PASSWORD=$(shell aws secretsmanager get-secret-value --secret-id "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials" | jq -r '.SecretString' | jq -r '.NEO4J_PASSWORD')
+
+REQUIRED_VARS := UBUNTU_HOME NEO4J_HOME INSTANCE_ID DATA_BUCKET_NAME NEO4J_USERNAME NEO4J_PASSWORD ADMIN_EMAIL GDS_VERSION
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -23,100 +22,64 @@ env:
 get.data: #=> Download the build data locally; get.data release=3470
 	# should be [[ -n "$$release" ]]
 	@[ -z "$$release" ] && aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/data/$$release/csv/ ${NEO4J_HOME}/import/ || echo "No release argument"
-# env.fetch:
 
-env.check:
-ifndef DATA_BUCKET_NAME
-$(error DATA_BUCKET_NAME is not set.)
-endif
-ifndef NEO4J_HOME
-$(error NEO4J_HOME is not set.)
-endif
-ifndef NEO4J_USERNAME
-$(error NEO4J_HOME is not set.)
-endif
-ifndef NEO4J_PASSWORD
-$(error NEO4J_HOME is not set.)
-endif
-ifndef HOST_DOMAIN
-$(error HOST_DOMAIN is not set.)
-endif
-ifndef ADMIN_EMAIL
-$(error ADMIN_EMAIL is not set.)
-endif
-ifndef APOC_VERSION
-$(error APOC_VERSION is not set.)
-endif
-ifndef GDS_VERSION
-$(error GDS_VERSION is not set.)
-endif
+env.validate.vars:
+	$(foreach var,$(REQUIRED_VARS),\
+		$(if $(value $(var)),,$(error $(var) is not set. Please add $(var) to the environment variables.)))
 	@echo "$$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1
 
-bootstrap:
+bootstrap: env.validate.vars
 	# $(MAKE) cfn-helpers.install
 	# $(MAKE) ssm.install
 	# $(MAKE) cloudwatch.install
 	# $(MAKE) cfn-signal exitcode=0
+ifeq ($(USE_PRIVATE_SUBNET),false)
 	$(MAKE) eip.waiter
 	$(MAKE) ssl.create-cert
+endif
 
 neo4j: bootstrap
-	$(MAKE) neo4j.update-credentials
-	$(MAKE) neo4j.config.update
-	$(MAKE) neo4j.plugins.install-apoc
 	$(MAKE) neo4j.plugins.install-gds
-	$(MAKE) neo4j.restart
+	$(MAKE) neo4j.start
 	$(MAKE) neo4j.init
-	$(MAKE) neo4j.restart
 	$(MAKE) copy-logs
 
 # eip
 eip.waiter:
-	@bash ${BITNAMI_HOME}/init/eip_assoc_waiter.sh
+	@bash ${UBUNTU_HOME}/init/eip_assoc_waiter.sh
 
-# neo4j
-neo4j.update-credentials:
-	@aws --region ${AWS_REGION} secretsmanager update-secret \
-		--secret-id ${NEO4J_CREDENTIALS_SECRET_ARN} \
-		--secret-string "{\"NEO4J_USERNAME\":\"${NEO4J_USERNAME}\",\"NEO4J_PASSWORD\":\"${NEO4J_PASSWORD}\"}"
+neo4j.credentials.show:
+	@echo "Username: ${NEO4J_USERNAME}"
+	@echo "Password: ${NEO4J_PASSWORD}"
 
 neo4j.status:
-	@/opt/bitnami/ctlscript.sh status
+	@systemctl status neo4j
 
 neo4j.stop:
-	@/opt/bitnami/ctlscript.sh stop
+	@systemctl stop neo4j
 
 neo4j.start:
-	@/opt/bitnami/ctlscript.sh start
+	@systemctl start neo4j
 	$(MAKE) neo4j.waiter
 
 neo4j.restart:
-	@/opt/bitnami/ctlscript.sh restart
+	@systemctl restart neo4j
 	$(MAKE) neo4j.waiter
-
-neo4j.config.update: neo4j.config.backup
-	@echo "Downloading Neo4j configuration from ${DATA_BUCKET_NAME}"
-	@aws s3 cp s3://${DATA_BUCKET_NAME}/config/neo4j/neo4j.conf ${NEO4J_HOME}/conf/neo4j.conf
-
-neo4j.config.reset-auth:
-	@echo "Resetting Neo4j authentication"
-	$(MAKE) neo4j.stop
-	@sed -i 's/#dbms.security.auth_enabled=false/dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
-	$(MAKE) neo4j.start
-	@-echo "ALTER USER neo4j SET PASSWORD '${NEO4J_PASSWORD}'" | /opt/bitnami/neo4j/bin/cypher-shell -u neo4j -p neo4j -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687 -d system
-	$(MAKE) neo4j.stop
-	@sed -i 's/dbms.security.auth_enabled=false/#dbms.security.auth_enabled=false/g' ${NEO4J_HOME}/conf/neo4j.conf
-	$(MAKE) neo4j.start
 
 neo4j.config.backup:
 	@echo "Backing up Neo4j configuration to ${NEO4J_HOME}/conf/$$(date -u +'%Y-%m-%d-%H-%M')-neo4j.conf.bkp"
 	@cp "${NEO4J_HOME}/conf/neo4j.conf" "${NEO4J_HOME}/conf/$$(date -u +'%Y-%m-%d-%H-%M')-neo4j.conf.bkp"
 
-neo4j.plugins.install-apoc:
-	@echo "Downloading APOC Full plugin..."
-	@curl -L https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/${APOC_VERSION}/apoc-${APOC_VERSION}-all.jar -O
-	@mv apoc-${APOC_VERSION}-all.jar ${NEO4J_HOME}/plugins/apoc-${APOC_VERSION}-all.jar
+# TODO check if the APOC plugin is already installed for the version specified and skip if it is
+# https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/5.13.0/apoc-5.13.0-extended.jar
+neo4j.plugins.install-apoc-extended:
+	@rm -f ${NEO4J_HOME}/plugins/apoc-*.jar
+	@echo "Downloading APOC Extended plugin..."
+	@curl -L https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/${APOC_VERSION}/apoc-${APOC_VERSION}-extended.jar -O
+	@mv apoc-${APOC_VERSION}-extended.jar ${NEO4J_HOME}/plugins/apoc-${APOC_VERSION}-extended.jar
 
+# TODO check if the GDS plugin is already installed for the version specified and skip if it is
+# https://graphdatascience.ninja/neo4j-graph-data-science-2.5.5.zip
 neo4j.plugins.install-gds:
 	@echo "Downloading Neo4j Graph Data Science plugin..."
 	@curl -L https://graphdatascience.ninja/neo4j-graph-data-science-${GDS_VERSION}.zip -O
@@ -126,13 +89,53 @@ neo4j.plugins.install-gds:
 	@rm neo4j-graph-data-science-${GDS_VERSION}.zip
 
 neo4j.init:
+	$(MAKE) neo4j.init.download-scripts
+	$(MAKE) neo4j.query.init
+
+neo4j.update-permissions:
+	@chown -R neo4j:neo4j ${NEO4J_HOME}/*
+
+neo4j.init.download-scripts:
 	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
 	@echo "Fetching Cypher scripts from S3..."
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
-	@echo "Executing initialization queries..."
-	@cat ${NEO4J_HOME}/cypher/init.cyp | /opt/bitnami/neo4j/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
+
+neo4j.query.init: # public: neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687; private: bolt://<private_ip>:7687
+	@echo "Executing initialization queries"
+ifeq ($(USE_PRIVATE_SUBNET),true)
+	$(MAKE) neo4j.query.init.no-ssl
+else ifeq ($(USE_PRIVATE_SUBNET),false)
+	$(MAKE) neo4j.query.init.ssl
+endif
+
+neo4j.query.init.ssl:
+	@cat ${NEO4J_HOME}/cypher/init.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
+
+neo4j.query.init.no-ssl:
+	@cat ${NEO4J_HOME}/cypher/init.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
+
+neo4j.query: #=> query=<cypher string>
+ifeq ($(USE_PRIVATE_SUBNET),true)
+	@echo "$$query" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
+else ifeq ($(USE_PRIVATE_SUBNET),false)
+	@echo "$$query" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
+endif
+
+neo4j.query.show-constraints: # public: neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687; private: bolt://<private_ip>:7687
+ifeq ($(USE_PRIVATE_SUBNET),true)
+	@echo "SHOW CONSTRAINTS;" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
+else ifeq ($(USE_PRIVATE_SUBNET),false)
+	@echo "SHOW CONSTRAINTS;" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
+endif
 
 neo4j.waiter:
+ifeq ($(USE_PRIVATE_SUBNET),true)
+	$(MAKE) neo4j.waiter.no-ssl
+else ifeq ($(USE_PRIVATE_SUBNET),false)
+	$(MAKE) neo4j.waiter.ssl
+endif
+
+neo4j.waiter.ssl:
 	@timeout=120 && \
 	counter=0 && \
 	echo "Waiting for response from Neo4j at https://${SUBDOMAIN}.${HOST_DOMAIN}:7473..." && \
@@ -145,44 +148,48 @@ neo4j.waiter:
 	printf "%s\n" " " && \
 	[ $$counter -eq $$timeout ] && echo "Operation timed out!" || echo "Neo4j is ready"
 
+neo4j.waiter.no-ssl:
+	@timeout=120 && \
+	counter=0 && \
+	host=127.0.0.1 && \
+	echo "Waiting for response from Neo4j at http://$$host:7474..." && \
+	until $$(curl --output /dev/null --silent --head --fail http://$$host:7474) ; do \
+		printf '.' ; \
+		sleep 1 ; \
+		counter=$$((counter + 1)) ; \
+		[ $$counter -eq $$timeout ] && break || true ; \
+	done && \
+	printf "%s\n" " " && \
+	[ $$counter -eq $$timeout ] && echo "Operation timed out!" || echo "Neo4j is ready"
+
 neo4j.backup:
 	$(MAKE) neo4j.stop
-	@cd ${BITNAMI_NEO4J}/ && zip -r ${BITNAMI_HOME}/gfedb.zip data
-	@result=$$(aws s3 cp ${BITNAMI_HOME}/gfedb.zip s3://${DATA_BUCKET_NAME}/backups/neo4j/$$(date +'%Y/%m/%d/%H')/gfedb.zip) && \
-		echo $$result
-	@rm ${BITNAMI_HOME}/gfedb.zip
+	@cd ${NEO4J_HOME} && \
+	sudo -u neo4j neo4j-admin database dump system --to-path=/var/lib/neo4j/backups/system/ --overwrite-destination=true && \
+	sudo -u neo4j neo4j-admin database dump neo4j --to-path=/var/lib/neo4j/backups/neo4j/ --overwrite-destination=true && \
+	archive_path=$$(date +%Y/%m/%d/%H/%M)/gfedb.zip && \
+	echo "Uploading archive to S3: s3://${DATA_BUCKET_NAME}/backups/neo4j/$$archive_path" && \
+	sudo -u neo4j zip -r - backups | aws s3 cp - s3://${DATA_BUCKET_NAME}/backups/neo4j/$$archive_path
 	$(MAKE) neo4j.start
 
-neo4j.restore: #from_date=<YYYY/MM/DD/HH>
-	@echo "Received data restore request for date $$from_date"
-	@[ "$$from_date" != "" ] || (echo "from_date is required" && exit 1) && \
-	[ "$$(echo "$$from_date" | grep -E '^[0-9]{4}/[0-9]{2}/[0-9]{2}/[0-9]{2}$$')" ] || (echo "from_date must be in the format YYYY/MM/DD/HH" && exit 1) && \
-	echo "Running restore for $$from_date"
+neo4j.restore: #from_path=s3://<backup path>.zip
 	$(MAKE) neo4j.stop
-	@aws s3 cp s3://${DATA_BUCKET_NAME}/backups/neo4j/$$from_date/gfedb.zip ${BITNAMI_HOME}/gfedb.zip
-	@unzip -o ${BITNAMI_HOME}/gfedb.zip
-	@cp -r data/* ${BITNAMI_NEO4J}/data/
-	@chown -R neo4j:neo4j ${BITNAMI_NEO4J}/data/
-	@rm ${BITNAMI_HOME}/gfedb.zip
-	@rm -r ${BITNAMI_HOME}/data/
-	$(MAKE) neo4j.config.reset-auth
+	@echo "Received data restore request for backup $$from_path"
+	@[ "$$from_path" != "" ] || (echo "from_path is required" && exit 1)
+	@echo "$$from_path" | grep -E '^s3:\/\/[a-zA-Z0-9\.-]+\/([a-zA-Z0-9\.-]+\/)*[a-zA-Z0-9\.-]+\.zip$$' > /dev/null || (echo "\`from_path\` must be an S3 URI: 's3://<bucket>/path'" && exit 1)
+	@echo "Running restore for $$from_path"
+	@mkdir -p /tmp/restore
+	@aws s3 cp $$from_path /tmp/restore/gfedb.zip && chown neo4j:neo4j /tmp/restore/gfedb.zip
+	@sudo -u neo4j unzip -o /tmp/restore/gfedb.zip -d /var/lib/neo4j/
+	@sudo -u neo4j neo4j-admin database load --from-path=/var/lib/neo4j/backups/system system --overwrite-destination=true
+	@sudo -u neo4j neo4j-admin database load --from-path=/var/lib/neo4j/backups/neo4j neo4j --overwrite-destination=true
+	@rm -r /tmp/restore
+	$(MAKE) neo4j.start
 
-neo4j.create-constraints:
-	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
-	@echo "Fetching cypher scripts from S3..."
-	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
-	@cat ${NEO4J_HOME}/cypher/create_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
-
-neo4j.drop-constraints:
-	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
-	@echo "Fetching cypher scripts from S3..."
-	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
-	@cat ${NEO4J_HOME}/cypher/drop_constraints.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
-
-# TODO integrate reporting, copy to S3 with logs
-neo4j.create-report:
-	@mkdir -p ${REPORTS_DIR}
-	@neo4j-admin check-consistency --database=neo4j --verbose=true --report-dir=reports > reports/consistency_check.txt
+# # TODO update for Neo4j 5
+# neo4j.create-report:
+# 	@mkdir -p ${REPORTS_DIR}
+# 	@neo4j-admin check-consistency --database=neo4j --verbose=true --report-dir=reports > reports/consistency_check.txt
 
 ssl.create-cert:
 	@bash init/create_cert.sh "${SUBDOMAIN}.${HOST_DOMAIN}" ${ADMIN_EMAIL}
@@ -191,27 +198,32 @@ ssl.renew-cert:
 	@bash init/renew_cert.sh "${SUBDOMAIN}.${HOST_DOMAIN}"
 
 copy-logs:
-	@mkdir -p ${LOGS_DIR}/neo4j ${LOGS_DIR}/system
+	@mkdir -p ${LOGS_DIR}/var/logs
 	$(MAKE) logs.bootstrap
 	$(MAKE) logs.system
-	$(MAKE) logs.neo4j
 	@echo "Copying logs to S3..." && \
 	aws s3 cp --recursive /tmp/logs/ s3://${DATA_BUCKET_NAME}/logs/database/${INSTANCE_ID}/$$(date +'%Y/%m/%d/%H')/
 
 logs.bootstrap:
-	@journalctl -b > ${LOGS_DIR}/bootstrap.log
+	@journalctl -b > ${LOGS_DIR}/journalctl.log
 
 logs.system:
-	@cp -r /var/log/* ${LOGS_DIR}/system
+	@cp -r /var/log ${LOGS_DIR}/var/log
 
-logs.neo4j:
-	@cp -r ${NEO4J_HOME}/logs/* ${LOGS_DIR}/neo4j/
+logs.bootstrap.show:
+	@journalctl -b | less
+
+logs.neo4j.show:
+	@cat ${NEO4J_HOME}/logs/neo4j.log
+
+logs.neo4j.debug.show:
+	@cat ${NEO4J_HOME}/logs/debug.log
 
 define HELP_MESSAGE
 
 	Environment variables:
 
-	BITNAMI_HOME: "${BITNAMI_HOME}"
+	UBUNTU_HOME: "${UBUNTU_HOME}"
 		Description: Root directory where the Makefile resides
 	
 	NEO4J_HOME: "${NEO4J_HOME}"

@@ -3,7 +3,7 @@
 # Part of user data, to be run on the database instance on initialization, or later for renewal
 
 echo "Renewing SSL certificate..."
-export NEO4J_HOME=/opt/bitnami/neo4j
+export NEO4J_HOME=/var/lib/neo4j
 
 # Passed from command line
 DOMAIN=$1

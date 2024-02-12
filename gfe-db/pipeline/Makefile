@@ -7,9 +7,9 @@ target:
 # TODO: Don't deploy jobs if pipeline stack fails to create (exit Make)
 deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
+	$(MAKE) service.config.deploy
 	$(MAKE) service.deploy
 	$(MAKE) service.jobs.deploy
-	$(MAKE) service.config.deploy
 
 service.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} - functions" 2>&1 | tee -a $$CFN_LOG_PATH
@@ -28,28 +28,36 @@ service.deploy:
 		--parameter-overrides \
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
+			createVpc="$${CREATE_VPC}" \
+			usePrivateSubnet="$${USE_PRIVATE_SUBNET}" \
+			GitHubRepositoryOwner="${GITHUB_REPOSITORY_OWNER}" \
+			GitHubRepositoryName="${GITHUB_REPOSITORY_NAME}" \
 			InvokePipelineFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.FunctionName')" \
+			InvokePipelineFunctionSchedule="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.InvokePipelineFunctionSchedule')" \
 			InvokePipelineFunctionMemorySize="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.MemorySize')" \
 			InvokePipelineFunctionTimeout="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Timeout')" \
-			InvokePipelineFunctionSchedule="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.InvokePipelineFunctionSchedule')" \
-			GitHubRepositoryOwner="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Environment.Variables.GITHUB_REPOSITORY_OWNER')" \
-			GitHubRepositoryName="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Environment.Variables.GITHUB_REPOSITORY_NAME')" \
 			PipelineStatePath="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Environment.Variables.PIPELINE_STATE_PATH')" \
-			PipelineParamsPath="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Environment.Variables.PIPELINE_PARAMS_PATH')"  \
-			DisableBackupFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.DisableBackup.FunctionConfiguration.FunctionName')" \
+			PipelineParamsPath="$$(cat functions/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.Environment.Variables.PIPELINE_PARAMS_PATH')" \
+			ExecuteValidationQueriesFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.ExecuteValidationQueries.FunctionConfiguration.FunctionName')" \
+			ExecuteValidationQueriesFunctionMemorySize="$$(cat functions/environment.json | jq -r '.Functions.ExecuteValidationQueries.FunctionConfiguration.MemorySize')" \
+			ExecuteValidationQueriesFunctionTimeout="$$(cat functions/environment.json | jq -r '.Functions.ExecuteValidationQueries.FunctionConfiguration.Timeout')" \
+			InvokeBackupScriptFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokeBackupScript.FunctionConfiguration.FunctionName')" \
 			InvokeLoadScriptFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.InvokeLoadScript.FunctionConfiguration.FunctionName')" \
-			Stage="$${STAGE}" \
-			AppName="$${APP_NAME}" \
+			ValidateBuildOutputFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.ValidateBuildOutput.FunctionConfiguration.FunctionName')" \
+			DisableBackupFunctionName="$${STAGE}"-"$${APP_NAME}"-"$$(cat functions/environment.json | jq -r '.Functions.DisableBackup.FunctionConfiguration.FunctionName')" \
 			ECRBaseUri="${ECR_BASE_URI}" \
-			BuildServiceRepositoryName="${BUILD_REPOSITORY}" \
+			BuildServiceRepositoryName="${BUILD_REPOSITORY_NAME}" \
+			FeatureServiceUrl="${FEATURE_SERVICE_URL}" \
 			2>&1 | tee -a $$CFN_LOG_PATH || true
 
 service.jobs.deploy:
 	$(MAKE) -C jobs/ deploy
 
-# TODO parameterize S3 config path and export as environment variable to recall in database shell scripts
 service.config.deploy:
-	@config_s3_path=s3://$$DATA_BUCKET_NAME/config/ && \
+	$(MAKE) service.config.pipeline-params.deploy
+
+service.config.pipeline-params.deploy:
+	@config_s3_path=s3://$$DATA_BUCKET_NAME/config/pipeline/ && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying config to $$config_s3_path" 2>&1 | tee -a $$CFN_LOG_PATH && \
 	aws s3 cp --recursive config/ $$config_s3_path 2>&1 | tee -a $$CFN_LOG_PATH
 
