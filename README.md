@@ -43,9 +43,15 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
   * [Backup & Restore](#backup---restore)
     + [Backups](#backups)
     + [Restore](#restore)
+  * [Run `gfe-db` Locally Using Docker](#run-gfe-db-locally-using-docker)
+    + [Build Environment](#build-environment)
+    + [Usage](#usage)
   * [Local Development](#local-development)
     + [Creating a Python Virtual Environment](#creating-a-python-virtual-environment)
-  * [Documentation](#documentation)
+    + [Debugging Lambda Functions](#debugging-lambda-functions)
+    + [Debugging Batch Jobs](#debugging-batch-jobs)
+      - [Running the Build job using Python](#running-the-build-job-using-python)
+      - [Running the Build job using Docker](#running-the-build-job-using-docker)
     + [Editing and Building the Documentation](#editing-and-building-the-documentation)
   * [Troubleshooting](#troubleshooting)
   * [Authors](#authors)
@@ -87,6 +93,11 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
     │   │       └── template.yaml
     │   ├── change-batch.json
     │   └── template.yaml
+    # Docker layer
+    ├── local
+    │   ├── Dockerfile                              # Dockerfile for building the Neo4j Docker image
+    │   ├── Makefile
+    │   └── build-local.sh                          # Builds the Neo4j Docker image from backup and installs plugins
     # Data Pipeline layer
     └── pipeline                                     # Data pipeline including Batch job, Lambda functions & state machine
         ├── Makefile
@@ -278,6 +289,8 @@ Private deployments require a NAT Gateway which can be deployed along with the s
 
 #### Shell Variables
 These variables must be defined before running Make. The best way to set these variables is with a `.env.<stage>` file following this structure. For optional resources such as VPCs, subnets, VPC endpoints and NAT Gateways, an external resource ID is required if it is not deployed as part of the stack.
+
+***Important:*** Using `.env.<stage>` allows for multiple deployments to different environments. Make sure to update `.gitignore` with `.env*` to avoid pushing sensitive data to public repositories. For example, if your deployment stage is labeled `dev` your .env file should be named `.env.dev` and you would deploy by calling `STAGE=dev make deploy`.
 
 | Variable                           | Data Type | Example Value           | Required    | Notes                                                    |
 | ---------------------------------- | --------- | ----------------------- | ----------- | -------------------------------------------------------- |
@@ -609,6 +622,40 @@ To restore from a backup, pass the date of the backup you wish to restore using 
 ```bash
 STAGE=<stage> make database.restore from_date=<YYYY/MM/DD/HH>
 ```
+
+## Run `gfe-db` Locally Using Docker
+Once the application has been deployed and the database is loaded, it is possible to build a Docker image and run the latest version of gfe-db locally.
+
+### Build Environment
+Make sure you have added your Docker Hub credentials to your .env file.
+```bash
+# .env.<stage>
+DOCKER_USERNAME=<username>
+DOCKER_PASSWORD=<password>
+```
+
+### Usage
+Build and push the image to Docker Hub. The Makefile will automatically fetch the most recent backup data from S3 and use it to build the image. You can access the logs in `./gfe-db/local/neo4j/logs`.
+```bash
+STAGE=<stage> make local.build
+```
+
+Once the image is built and pushed to Docker Hub you can run the command to run the most recent version of gfe-db locally.
+1. Make DOCKER_USERNAME is available in the `.env.<stage>` and export the variables to your shell.
+```bash
+# Export the environment variables
+set -a; source .env.<stage>; set +a
+```
+2. Run the command to run gfe-db locally.
+```bash
+# Run from the root directory of gfe-db
+docker run \
+    --restart always \
+    --publish=7474:7474 --publish=7687:7687 \
+    --volume=$(pwd)/gfe-db/local/neo4j/logs:/logs \
+    $DOCKER_USERNAME/gfe-db:latest
+```
+3. Navigate to `http://localhost:7474/browser/` to access the Neo4j browser. There is no authentication set so you can leave the username and password fields blank.
 
 ## Local Development
 

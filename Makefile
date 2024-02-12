@@ -56,6 +56,10 @@ export PIPELINE_STATE_PATH = config/IMGTHLA-repository-state.json
 export PIPELINE_PARAMS_PATH = config/pipeline-input.json
 export FUNCTIONS_PATH = ${PIPELINE_DIR}/functions
 
+# Neo4j
+export NEO4J_DATABASE_NAME ?= gfedb
+
+
 # Required environment variables
 REQUIRED_VARS := STAGE APP_NAME AWS_ACCOUNT AWS_REGION AWS_PROFILE SUBSCRIBE_EMAILS \
 	GITHUB_REPOSITORY_OWNER GITHUB_REPOSITORY_NAME GITHUB_PERSONAL_ACCESS_TOKEN \
@@ -115,7 +119,16 @@ endif
 env.print:
 	@echo "\033[0;33mReview the contents of the .env file:\033[0m"
 	@echo "+---------------------------------------------------------------------------------+"
-	@awk '{ if (substr($$0, 1, 1) != "#") { line = substr($$0, 1, 76); if (length($$0) > 76) line = line "..."; printf "| %-79s |\n", line }}' .env.${STAGE}
+	@awk -F'=' '{ \
+		key = $$1; value = $$2; \
+		if (key == "GITHUB_PERSONAL_ACCESS_TOKEN" || key == "DOCKER_PASSWORD" || key == "NEO4J_PASSWORD") value = "************"; \
+		if (substr($$0, 1, 1) != "#") { \
+			line = key "=" value; \
+			line = substr(line, 1, 76); \
+			if (length(line) > 76) line = line "..."; \
+			printf "| %-79s |\n", line \
+		} \
+	}' .env.${STAGE}
 	@echo "+---------------------------------------------------------------------------------+"
 	@echo "\033[0;33mPlease confirm the above values are correct.\033[0m"
 
@@ -342,6 +355,23 @@ else
 endif
 endif
 
+env.validate.create-neo4j-users:
+	@if [ -n "${CREATE_NEO4J_USERS}" ]; then \
+	    valid_format=1; \
+	    IFS=',' read -ra ADDR <<< "${CREATE_NEO4J_USERS}"; \
+	    for user_pass in "$${ADDR[@]}"; do \
+	        if [[ ! $$user_pass =~ ^[^:]+:[^:]+$$ ]]; then \
+	            valid_format=0; \
+	            break; \
+	        fi; \
+	    done; \
+	    if [[ $$valid_format -eq 0 ]]; then \
+	        echo "\033[0;31mERROR: Invalid Neo4j user format. Please use the format \`username:password\`.\033[0m"; \
+	    fi; \
+	else \
+	    echo "\033[0;34mNo Neo4j users defined, skipping validation.\033[0m"; \
+	fi
+
 env.validate.boolean-vars:
 	@$(foreach var,$(BOOLEAN_VARS),\
 		if [ "$(value $(var))" != "" ] && [ "$(value $(var))" != "true" ] && [ "$(value $(var))" != "false" ]; then \
@@ -377,7 +407,7 @@ else ifeq ($(CREATE_VPC),true)
 	$(call blue, "**** This deployment includes a VPC ****")
 endif
 
-env.validate: check.dependencies env.validate.vars env.validate.boolean-vars env.validate.stage env.validate.create-vpc.vars env.validate.use-private-subnet.vars
+env.validate: check.dependencies env.validate.vars env.validate.boolean-vars env.validate.stage env.validate.create-vpc.vars env.validate.use-private-subnet.vars env.validate.create-neo4j-users
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 options-screen:
@@ -534,9 +564,15 @@ database.config.update:
 database.ssl.renew-cert:
 	$(MAKE) -C ${APP_NAME}/database/ service.ssl.renew-cert
 
+database.config.create-users:
+	$(MAKE) -C ${APP_NAME}/database/ service.config.neo4j.create-users
+
 database.backup:
 	@echo "Backing up $${APP_NAME} server..."
 	$(MAKE) -C ${APP_NAME}/database/ service.backup
+
+database.get.current-backup:
+	$(MAKE) -C ${APP_NAME}/database/ service.backup.get-current
 
 database.backup.list:
 	$(MAKE) -C ${APP_NAME}/database/ service.backup.list
@@ -577,6 +613,9 @@ database.get.public-ip:
 
 database.get.instance-id:
 	@echo "${INSTANCE_ID}"
+
+local.build:
+	$(MAKE) -C ${APP_NAME}/local/ build
 
 delete: # data=true/false ##=> Delete services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${APP_NAME} in ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}

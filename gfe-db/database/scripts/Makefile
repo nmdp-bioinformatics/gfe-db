@@ -1,5 +1,6 @@
 # This Makefile only orchestrates process that are run on the EC2 database instance, it is deployed and called on the server
 # Must be run as root
+SERVICE := database
 
 # Application specific environment variables
 include env.sh
@@ -10,7 +11,7 @@ export REPORTS_DIR := ${UBUNTU_HOME}/reports
 export NEO4J_USERNAME=$(shell aws secretsmanager get-secret-value --secret-id "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials" | jq -r '.SecretString' | jq -r '.NEO4J_USERNAME')
 export NEO4J_PASSWORD=$(shell aws secretsmanager get-secret-value --secret-id "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials" | jq -r '.SecretString' | jq -r '.NEO4J_PASSWORD')
 
-REQUIRED_VARS := UBUNTU_HOME NEO4J_HOME INSTANCE_ID DATA_BUCKET_NAME NEO4J_USERNAME NEO4J_PASSWORD ADMIN_EMAIL GDS_VERSION
+REQUIRED_VARS := UBUNTU_HOME NEO4J_HOME INSTANCE_ID DATA_BUCKET_NAME NEO4J_USERNAME NEO4J_PASSWORD NEO4J_DATABASE_NAME ADMIN_EMAIL GDS_VERSION NEO4J_URI NEO4J_ENCRYPTION
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -29,10 +30,6 @@ env.validate.vars:
 	@echo "$$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1
 
 bootstrap: env.validate.vars
-	# $(MAKE) cfn-helpers.install
-	# $(MAKE) ssm.install
-	# $(MAKE) cloudwatch.install
-	# $(MAKE) cfn-signal exitcode=0
 ifeq ($(USE_PRIVATE_SUBNET),false)
 	$(MAKE) eip.waiter
 	$(MAKE) ssl.create-cert
@@ -114,6 +111,10 @@ neo4j.query.init.ssl:
 neo4j.query.init.no-ssl:
 	@cat ${NEO4J_HOME}/cypher/init.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
 
+neo4j.query.create-users: #=> users=<username:password,...>
+	@echo "Creating users"
+	@bash init/create_users.sh "$$users"
+
 neo4j.query: #=> query=<cypher string>
 ifeq ($(USE_PRIVATE_SUBNET),true)
 	@echo "$$query" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
@@ -165,11 +166,17 @@ neo4j.waiter.no-ssl:
 neo4j.backup:
 	$(MAKE) neo4j.stop
 	@cd ${NEO4J_HOME} && \
-	sudo -u neo4j neo4j-admin database dump system --to-path=/var/lib/neo4j/backups/system/ --overwrite-destination=true && \
-	sudo -u neo4j neo4j-admin database dump neo4j --to-path=/var/lib/neo4j/backups/neo4j/ --overwrite-destination=true && \
-	archive_path=$$(date +%Y/%m/%d/%H/%M)/gfedb.zip && \
-	echo "Uploading archive to S3: s3://${DATA_BUCKET_NAME}/backups/neo4j/$$archive_path" && \
-	sudo -u neo4j zip -r - backups | aws s3 cp - s3://${DATA_BUCKET_NAME}/backups/neo4j/$$archive_path
+	sudo -u neo4j mkdir -p ${NEO4J_HOME}/backups/system ${NEO4J_HOME}/backups/${NEO4J_DATABASE_NAME} && \
+	sudo -u neo4j neo4j-admin database dump system --to-path=${NEO4J_HOME}/backups/system/ --overwrite-destination=true --verbose && \
+	sudo -u neo4j neo4j-admin database dump ${NEO4J_DATABASE_NAME} --to-path=${NEO4J_HOME}/backups/${NEO4J_DATABASE_NAME}/ --overwrite-destination=true --verbose && \
+	archive_path=$$(date +%Y/%m/%d/%H/%M)/${NEO4J_DATABASE_NAME}.zip && \
+	echo "Uploading archive to S3: s3://${DATA_BUCKET_NAME}/backups/${SERVICE}/${NEO4J_DATABASE_NAME}/$$archive_path" && \
+	sudo -u neo4j zip -r - backups | aws s3 cp - s3://${DATA_BUCKET_NAME}/backups/${SERVICE}/${NEO4J_DATABASE_NAME}/$$archive_path && \
+	echo "Updating SSM Parameter for current backup S3 path" && \
+	res=$$(aws ssm put-parameter --name "/${APP_NAME}/${STAGE}/${AWS_REGION}/CurrentBackupS3Path" --value "s3://${DATA_BUCKET_NAME}/backups/${SERVICE}/${NEO4J_DATABASE_NAME}/$$archive_path" --type String --overwrite) && \
+	echo $$res | jq -r && \
+	echo "Cleaning up" && \
+	sudo -u neo4j rm -rf ${NEO4J_HOME}/backups/*
 	$(MAKE) neo4j.start
 
 neo4j.restore: #from_path=s3://<backup path>.zip
@@ -179,10 +186,10 @@ neo4j.restore: #from_path=s3://<backup path>.zip
 	@echo "$$from_path" | grep -E '^s3:\/\/[a-zA-Z0-9\.-]+\/([a-zA-Z0-9\.-]+\/)*[a-zA-Z0-9\.-]+\.zip$$' > /dev/null || (echo "\`from_path\` must be an S3 URI: 's3://<bucket>/path'" && exit 1)
 	@echo "Running restore for $$from_path"
 	@mkdir -p /tmp/restore
-	@aws s3 cp $$from_path /tmp/restore/gfedb.zip && chown neo4j:neo4j /tmp/restore/gfedb.zip
-	@sudo -u neo4j unzip -o /tmp/restore/gfedb.zip -d /var/lib/neo4j/
-	@sudo -u neo4j neo4j-admin database load --from-path=/var/lib/neo4j/backups/system system --overwrite-destination=true
-	@sudo -u neo4j neo4j-admin database load --from-path=/var/lib/neo4j/backups/neo4j neo4j --overwrite-destination=true
+	@aws s3 cp $$from_path /tmp/restore/${NEO4J_DATABASE_NAME}.zip && chown neo4j:neo4j /tmp/restore/${NEO4J_DATABASE_NAME}.zip
+	@sudo -u neo4j unzip -o /tmp/restore/${NEO4J_DATABASE_NAME}.zip -d ${NEO4J_HOME}/
+	@sudo -u neo4j neo4j-admin database load --from-path=${NEO4J_HOME}/backups/system system --overwrite-destination=true
+	@sudo -u neo4j neo4j-admin database load --from-path=${NEO4J_HOME}/backups/${NEO4J_DATABASE_NAME} ${NEO4J_DATABASE_NAME} --overwrite-destination=true
 	@rm -r /tmp/restore
 	$(MAKE) neo4j.start
 

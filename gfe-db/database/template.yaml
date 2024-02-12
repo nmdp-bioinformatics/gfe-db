@@ -7,11 +7,11 @@ Parameters:
   AppName:
     Type: String
     Description: Application name
-  createVpc:
-    Type: String
-    AllowedValues:
-      - 'true'
-      - 'false'
+  # createVpc:
+  #   Type: String
+  #   AllowedValues:
+  #     - 'true'
+  #     - 'false'
   usePrivateSubnet:
     Type: String
     AllowedValues:
@@ -20,11 +20,18 @@ Parameters:
   DataBucketName:
     Type: String
   UbuntuAmiId:
-    Type: String
+    Type: AWS::EC2::Image::Id
     Description: AMI ID for Neo4j Community edition from AWS Marketplace
+  Neo4jDatabaseName:
+    Type: String
+    Description: Name of Neo4j database
   Neo4jPassword:
     Type: String
     Description: Password for Neo4j database
+    NoEcho: true
+  CreateNeo4jUsers:
+    Type: String
+    Description: Comma-separated list of Neo4j users
     NoEcho: true
   DatabaseVolumeSize:
     Type: String
@@ -49,9 +56,11 @@ Conditions:
 Resources:
   Neo4jCredentialsSecret:
     Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
     Properties:
       Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jCredentials
-      Description: Specified in the deployment environment.
+      Description: Neo4j credentials for gfedb datase; Specified in the deployment environment.
       SecretString: !Sub '{"NEO4J_USERNAME":"neo4j","NEO4J_PASSWORD":"${Neo4jPassword}"}'
   Neo4jCredentialsSecretArnParameter:
     Type: AWS::SSM::Parameter
@@ -147,6 +156,18 @@ Resources:
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
           [ $(amazon-cloudwatch-agent-ctl -a status | jq -r '.status') = running ] && echo "INFO: CloudWatch Logs Agent is running" || \
             (msg="ERROR: CloudWatch Logs Agent did not initialize correctly" && echo $msg && cfn_signal 1 "$msg" && exit 1)
+          # Set NEO4J_URI
+          export USE_PRIVATE_SUBNET=${usePrivateSubnet}
+          if [ "$USE_PRIVATE_SUBNET" = true ]; then
+            export NEO4J_URI=bolt://127.0.0.1:7687
+            export NEO4J_ENCRYPTION=false
+          elif [ "$USE_PRIVATE_SUBNET" = false ]; then
+            export NEO4J_URI=neo4j+s://${Subdomain}.${HostDomain}:7687
+            export NEO4J_ENCRYPTION=default
+          else
+            echo "ERROR: USE_PRIVATE_SUBNET must be set to 'true' or 'false'"
+            exit 1
+          fi
           # Permanently set application environment variables (these should never change for the duration of the deployment)
           echo "INFO: Setting application environment variables"
           echo "INSTANCE_ID=$INSTANCE_ID" > $UBUNTU_HOME/env.sh
@@ -154,12 +175,15 @@ Resources:
           echo "NEO4J_HOME=$NEO4J_HOME" >> $UBUNTU_HOME/env.sh
           echo "STAGE=${Stage}" >> $UBUNTU_HOME/env.sh
           echo "APP_NAME=${AppName}" >> $UBUNTU_HOME/env.sh
-          echo "USE_PRIVATE_SUBNET=${usePrivateSubnet}" >> $UBUNTU_HOME/env.sh
+          echo "USE_PRIVATE_SUBNET=$USE_PRIVATE_SUBNET" >> $UBUNTU_HOME/env.sh
           echo "AWS_REGION=us-east-1" >> $UBUNTU_HOME/env.sh
           echo "DATA_BUCKET_NAME=${DataBucketName}" >> $UBUNTU_HOME/env.sh
           echo "HOST_DOMAIN=${HostDomain}" >> $UBUNTU_HOME/env.sh
           echo "SUBDOMAIN=${Subdomain}" >> $UBUNTU_HOME/env.sh
           echo "ADMIN_EMAIL=${AdminEmail}" >> $UBUNTU_HOME/env.sh
+          echo "NEO4J_DATABASE_NAME=${Neo4jDatabaseName}" >> $UBUNTU_HOME/env.sh
+          echo "NEO4J_URI=$NEO4J_URI" >> $UBUNTU_HOME/env.sh
+          echo "NEO4J_ENCRYPTION=$NEO4J_ENCRYPTION" >> $UBUNTU_HOME/env.sh
           echo "APOC_VERSION=${APOCVersion}" >> $UBUNTU_HOME/env.sh
           echo "GDS_VERSION=${GDSVersion}" >> $UBUNTU_HOME/env.sh
           echo "PRIVATE_IP=$(curl -sS http://169.254.169.254/latest/meta-data/local-ipv4)" >> $UBUNTU_HOME/env.sh
@@ -172,9 +196,9 @@ Resources:
           exit_code=0
           msg="The following variables failed to be set: "
           if [ $USE_PRIVATE_SUBNET = "true" ]; then
-            vars="UBUNTU_HOME STAGE APP_NAME USE_PRIVATE_SUBNET AWS_REGION DATA_BUCKET_NAME PRIVATE_IP ADMIN_EMAIL APOC_VERSION GDS_VERSION"
+            vars="UBUNTU_HOME STAGE APP_NAME USE_PRIVATE_SUBNET AWS_REGION DATA_BUCKET_NAME PRIVATE_IP ADMIN_EMAIL APOC_VERSION GDS_VERSION NEO4J_URI NEO4J_ENCRYPTION"
           elif [ $USE_PRIVATE_SUBNET = "false" ]; then
-            vars="UBUNTU_HOME STAGE APP_NAME USE_PRIVATE_SUBNET AWS_REGION DATA_BUCKET_NAME HOST_DOMAIN SUBDOMAIN ADMIN_EMAIL APOC_VERSION GDS_VERSION"
+            vars="UBUNTU_HOME STAGE APP_NAME USE_PRIVATE_SUBNET AWS_REGION DATA_BUCKET_NAME HOST_DOMAIN SUBDOMAIN ADMIN_EMAIL APOC_VERSION GDS_VERSION NEO4J_URI NEO4J_ENCRYPTION"
           else
             echo "ERROR: USE_PRIVATE_SUBNET must be set to 'true' or 'false'"
             exit 1
@@ -205,7 +229,7 @@ Resources:
             apt-get install -y neo4j=1:5.14.0
             systemctl enable neo4j
             neo4j-admin dbms set-initial-password ${Neo4jPassword}
-            mkdir -p /var/lib/neo4j/backups/{system,neo4j}
+            mkdir -p /var/lib/neo4j/backups/{system,$NEO4J_DATABASE_NAME}
             chown -R neo4j:neo4j /var/lib/neo4j/backups
           }
           install_apoc_plugin() {
@@ -218,7 +242,7 @@ Resources:
               exit 1
             fi
             cp /etc/neo4j/neo4j.conf /etc/neo4j/neo4j.conf.bak
-            # sed -i 's/#initial.dbms.default_database=neo4j/initial.dbms.default_database=gfedb/g' /etc/neo4j/neo4j.conf
+            sed -i 's/#initial.dbms.default_database=neo4j/initial.dbms.default_database=${Neo4jDatabaseName}/g' /etc/neo4j/neo4j.conf
             sed -i 's/#server.default_listen_address=0.0.0.0/server.default_listen_address=0.0.0.0/g' /etc/neo4j/neo4j.conf
             sed -i "s/#server.default_advertised_address=localhost/server.default_advertised_address=$SUBDOMAIN.$HOST_DOMAIN/g" /etc/neo4j/neo4j.conf
             sed -i 's/#server.bolt.tls_level=DISABLED/server.bolt.tls_level=REQUIRED/g' /etc/neo4j/neo4j.conf
@@ -246,7 +270,7 @@ Resources:
           }
           build_neo4j_private_config() {
             cp /etc/neo4j/neo4j.conf /etc/neo4j/neo4j.conf.bak
-            # sed -i 's/#initial.dbms.default_database=neo4j/initial.dbms.default_database=gfedb/g' /etc/neo4j/neo4j.conf
+            sed -i 's/#initial.dbms.default_database=neo4j/initial.dbms.default_database=${Neo4jDatabaseName}/g' /etc/neo4j/neo4j.conf
             sed -i 's/#server.default_listen_address=0.0.0.0/server.default_listen_address=0.0.0.0/g' /etc/neo4j/neo4j.conf
             sed -i "s/#server.default_advertised_address=localhost/server.default_advertised_address=localhost/g" /etc/neo4j/neo4j.conf
             sed -i 's/#server.bolt.tls_level=DISABLED/server.bolt.tls_level=DISABLED/g' /etc/neo4j/neo4j.conf
@@ -278,6 +302,14 @@ Resources:
             exit 1
           fi
           cd $UBUNTU_HOME && make neo4j
+          CREATE_NEO4J_USERS=${CreateNeo4jUsers}
+          if [ ! -z "$CREATE_NEO4J_USERS" ]; then
+            echo "INFO: Creating Neo4j users"
+            cd $UBUNTU_HOME && make neo4j.query.create-users users="${CreateNeo4jUsers}"
+          else 
+            echo "INFO: No Neo4j users to create"
+          fi
+          unset CREATE_NEO4J_USERS
           exit_code=$?
           [ $exit_code -eq 0 ] && echo "INFO: Neo4j initialized successfully" || (msg="ERROR: Neo4j failed to initialize" && echo $msg && cfn_signal 1 "$msg" && exit 1)
           cypher_constraints=$(sudo make neo4j.query.show-constraints | awk -F, 'NR>1 {print $2}')
@@ -330,7 +362,7 @@ Resources:
                   - secretsmanager:ListSecretVersionIds
                   - secretsmanager:ListSecrets
                 Resource:
-                  - '*'
+                  - !Sub arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${AppName}/${Stage}/${AWS::Region}/*
               - Effect: Allow
                 Action:
                   - secretsmanager:UpdateSecret
@@ -351,6 +383,11 @@ Resources:
                   - ec2:AssociateAddress
                 Resource:
                   - '*'
+              - Effect: Allow
+                Action:
+                  - ssm:PutParameter
+                Resource:
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*
   Neo4jDatabaseInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
@@ -416,7 +453,7 @@ Resources:
         parameters:
           commandLine:
             type: String
-            description: '(Required) Specify the command line to be executed. The following formats of commands can be run: ''pythonMainFile.py argument1 argument2'', ''ansible-playbook -i "localhost," -c local example.yml'''
+            description: 'Run on the server to create a dump of Neo4j and store in S3'
             default: make neo4j.backup
           workingDirectory:
             type: String
@@ -437,6 +474,13 @@ Resources:
       Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jBackupDocumentName
       Description: Name of SSM document for backing up Neo4j
       Value: !Ref Neo4jBackupDocument
+  CurrentBackupS3PathParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/CurrentBackupS3Path
+      Description: !Sub 'S3 path to the most recent backup for ${Stage}-${AppName}'
+      Value: 'null'
   Neo4jBackupMaintenanceWindow:
     Type: AWS::SSM::MaintenanceWindow
     Properties:
@@ -497,9 +541,13 @@ Resources:
             description: !Sub "Downloads all files under the ${AppName} scripts prefix"
             default:
               path: !Sub 'https://{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}.s3.amazonaws.com/config/scripts/'
-          commandLine:
+          copyCypherScripts:
             type: "String"
-            description: "Deletes ETag files created by SSM Agent."
+            description: "Copies Cypher scripts to the database"
+            default: 'make neo4j.init.download-scripts'
+          setUserPermissions:
+            type: "String"
+            description: "Deletes ETag files created by SSM Agent and set user permissions."
             default: 'rm *.etag && find . \( -name "*.sh" -o -name "Makefile" -o -name "init" \) -exec chown ubuntu {} \; && find . \( -name "*.sh" -o -name "Makefile" -o -name "init" \) -exec chgrp ubuntu {} \;'
           workingDirectory:
             type: "String"
@@ -523,7 +571,8 @@ Resources:
                 - ""
                 - "directory=$(pwd)"
                 - "export PATH=$PATH:$directory"
-                - " {{ commandLine }} " 
+                - "cd {{ workingDirectory }} && {{ copyCypherScripts }}"
+                - " {{ setUserPermissions }} " 
                 - ""
               workingDirectory: "{{ workingDirectory }}"
               timeoutSeconds: "{{ executionTimeout }}"

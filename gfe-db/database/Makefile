@@ -15,7 +15,7 @@ service.config.scripts.deploy:
 		| tee -a $$CFN_LOG_PATH && \
 	aws s3 cp --recursive --quiet scripts/ $$script_s3_path
 
-service.config.scripts.sync: service.config.scripts.deploy
+service.config.scripts.sync: service.config.scripts.deploy service.config.neo4j.deploy
 	@document_name="$$(aws ssm get-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/DatabaseSyncScriptsDocumentName" | jq -r '.Parameter.Value')" && \
 	res=$$(aws ssm send-command \
@@ -41,7 +41,7 @@ service.config.cloudwatch-agent.deploy:
 	@rm -rf amazon-cloudwatch-agent/tmp/
 
 service.config.neo4j.deploy:
-	@aws s3 cp --recursive neo4j/cypher/ s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
+	@aws s3 cp --recursive --quiet neo4j/cypher/ s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
 
 service.config.deploy: service.config.scripts.deploy service.config.cloudwatch-agent.deploy service.config.neo4j.deploy
 
@@ -74,7 +74,9 @@ service.deploy:
 			usePrivateSubnet="$${USE_PRIVATE_SUBNET}" \
 			DataBucketName="$${DATA_BUCKET_NAME}" \
 			UbuntuAmiId="$${UBUNTU_AMI_ID}" \
+			Neo4jDatabaseName="$${NEO4J_DATABASE_NAME}" \
 			Neo4jPassword="$${NEO4J_PASSWORD}" \
+			CreateNeo4jUsers="$${CREATE_NEO4J_USERS}" \
 			DatabaseVolumeSize="$${DATABASE_VOLUME_SIZE}" \
 			HostDomain="$${HOST_DOMAIN}" \
 			Subdomain="$${SUBDOMAIN}" \
@@ -97,14 +99,20 @@ service.backup:
 		--instance-id "$${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
 
 service.backup.list:
-	@aws s3 ls --recursive s3://${DATA_BUCKET_NAME}/backups/neo4j/ 
+	@aws s3 ls --recursive --human-readable s3://${DATA_BUCKET_NAME}/backups/${SERVICE}/${NEO4J_DATABASE_NAME}/
+
+service.backup.get-current:
+	@res=$$(aws ssm get-parameter \
+		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/CurrentBackupS3Path" | jq -r '.Parameter.Value') && \
+	echo "$$res"
 
 service.restore: #from_path=s3://<backup path>
 	@[ "$$from_path" != "" ] || (echo "from_path is required" && exit 1) && \
 	echo "$$from_path" | grep -E '^s3:\/\/[a-zA-Z0-9\.-]+\/([a-zA-Z0-9\.-]+\/)*[a-zA-Z0-9\.-]+\.zip$$' > /dev/null || (echo "\`from_path\` must be an S3 URI: 's3://<bucket>/path'" && exit 1) && \
 	echo "Restore $${APP_NAME} from S3 path \`$$from_path\`? [y/N] \c " && read ans && [ $${ans:-N} = y ]
 	$(MAKE) service.restore.pre-validate from_path=$$from_path
-	@res=$$(aws ssm send-command \
+	@echo "Restoring Neo4j database..." && \
+	res=$$(aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/ubuntu && sudo make neo4j.restore from_path=$$from_path]" \
 		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
@@ -120,7 +128,7 @@ service.restore: #from_path=s3://<backup path>
 service.restore.pre-validate:
 	@echo "Validating restore pre-conditions"
 	@echo "Checking if backup exists for $$from_path"
-	@backup_object=$$(aws s3 ls $$from_path | cut -d ' ' -f 6-) && \
+	@backup_object=$$(aws s3 ls $$from_path | cut -d ' ' -f 5-) && \
 	[ "$$backup_object" != "" ] || (echo "ERROR: Backup does not exist" && exit 1) && \
 	echo "Found backup target for $$backup_object"
 
