@@ -19,11 +19,8 @@ session.get_client("ssm")
 infra_config_path = f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GfedbInfrastructureParamMappings"
 infra = AppConfig(mappings_path=infra_config_path, boto3_session=session)
 
-# TODO parameterize paths or use a consolidated mapping for all layers
 pipeline_config_path = f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GfedbPipelineParamMappings"
 pipeline = AppConfig(mappings_path=pipeline_config_path, boto3_session=session)
 
-# TODO parameterize paths or use a consolidated mapping for all layers
 database_config_path = f"/{APP_NAME}/{STAGE}/{AWS_REGION}/GfedbDatabaseParamMappings"
 database = AppConfig(mappings_path=database_config_path, boto3_session=session)
-

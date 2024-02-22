@@ -24,6 +24,7 @@ class ExecutionStatus(str, Enum):
     EXECUTION_FAILED: build or load failed (set by State Machine) ✅
     ABORTED: build or load aborted (set by UpdateExecutionState) ✅
     """
+
     NOT_PROCESSED = "NOT_PROCESSED"
     SKIPPED = "SKIPPED"
     PENDING = "PENDING"
@@ -43,6 +44,7 @@ class ExecutionStatus(str, Enum):
     def __contains__(cls, item):
         return item in cls.__members__
 
+
 def str_to_datetime(v, fmt="%Y-%m-%dT%H:%M:%S.%fZ"):
     return datetime.strptime(v, fmt)
 
@@ -50,25 +52,26 @@ def str_to_datetime(v, fmt="%Y-%m-%dT%H:%M:%S.%fZ"):
 def str_from_datetime(v, fmt="%Y-%m-%dT%H:%M:%SZ"):
     return v.strftime(fmt)
 
+
 # validate that date field is ISO 8601 format with timezone
 def date_is_iso_8601_with_timezone(v):
     # Check if the date is already in the desired ISO 8601 format with 3 milliseconds
     if re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$", v):
         return v
-    
+
     # Check if the date is in ISO 8601 format with fractional seconds (arbitrary number of digits)
     match = re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z$", v)
     if match:
         fractional_seconds = v.split(".")[1].split("Z")[0]
         # Truncate or pad fractional seconds to 3 digits
-        truncated_fractional_seconds = fractional_seconds[:3].ljust(3, '0')
+        truncated_fractional_seconds = fractional_seconds[:3].ljust(3, "0")
         return v.replace(fractional_seconds, truncated_fractional_seconds)
-    
+
     # Check if the date is in ISO 8601 format without fractional seconds
     if re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$", v):
         # Add milliseconds and return
         return v[:-1] + ".000Z"
-    
+
     raise ValueError("Date must be in ISO 8601 format with timezone")
 
 
@@ -78,11 +81,15 @@ def url_is_valid(v):
         raise ValueError("Url must be a valid URL")
     return v
 
+
 release_version_re = r"^[1-9][0-9]{1,2}0$"
+
 
 def version_is_valid(v):
     if not re.match(release_version_re, str(v)):
-        raise ValueError(f"Release version must match regex pattern `{release_version_re}`")
+        raise ValueError(
+            f"Release version must match regex pattern `{release_version_re}`"
+        )
     return v
 
 
@@ -97,6 +104,7 @@ def s3_path_is_valid(v):
     if not re.match(r"^s3://", v):
         raise ValueError("S3 path must be a valid S3 path (s3://<bucket>/<key>)")
     return v
+
 
 ### Source Config Models ###
 class Commit(BaseModel):
@@ -126,7 +134,6 @@ class Commit(BaseModel):
     def date_utc_is_iso_8601_with_timezone(cls, v):
         return date_is_iso_8601_with_timezone(v)
 
-    # TODO: validate that html_url is a valid URL for a commit
 
 
 class InputParameters(BaseModel):
@@ -166,8 +173,8 @@ class TrackedAssetsConfig(BaseModel):
 
 class TargetMetadataConfigItem(BaseModel):
     description: Optional[str] = None
-    asset_path: str # Path (in remote git repository, on GitHub) to the file to check for strings matching a release version
-    metadata_regex: str # Contextual metadata for the commit. This is the regex to match the release version string that might be found in the assets being checked
+    asset_path: str  # Path (in remote git repository, on GitHub) to the file to check for strings matching a release version
+    metadata_regex: str  # Contextual metadata for the commit. This is the regex to match the release version string that might be found in the assets being checked
 
 
 class TargetMetadataConfig(BaseModel):
@@ -192,8 +199,12 @@ class RepositoryConfig(BaseModel):
 
 
 class ExecutionDetailsConfig(BaseModel):
-    id: str = None # Refers to execution id in Step Functions and is only set if the commit is processed
-    invocation_id: str = None # One invocation can have multiple executions depending on how many release versions are given
+    id: str = (
+        None  # Refers to execution id in Step Functions and is only set if the commit is processed
+    )
+    invocation_id: str = (
+        None  # One invocation can have multiple executions depending on how many release versions are given
+    )
     version: int
     status: str
     date_utc: Optional[str] = None
@@ -205,7 +216,9 @@ class ExecutionDetailsConfig(BaseModel):
     @validator("status")
     def status_is_valid(cls, v):
         if v not in ExecutionStatus.__members__:
-            raise ValueError(f"Status must be one of {[value.value for value in ExecutionStatus.__members__.values()]}")
+            raise ValueError(
+                f"Status must be one of {[value.value for value in ExecutionStatus.__members__.values()]}"
+            )
         return v
 
     # validate that version is a 4 digit number, position 0 is a number between 1 and 9, and position 1:2 is a number between 0 and 99 and position 3 is 0
@@ -230,11 +243,16 @@ class ExecutionError(BaseModel):
     message: str
     cause: str
 
+
 # One item in the ExecutionState table
 # The Primary Key is commit.sha, or commit__sha in the table
 class ExecutionStateItem(BaseModel):
-    created_utc: Optional[str] = None  # Partial updates may not be able to include timestamps
-    updated_utc: Optional[str] = None  # Partial updates may not be able to include timestamps
+    created_utc: Optional[str] = (
+        None  # Partial updates may not be able to include timestamps
+    )
+    updated_utc: Optional[str] = (
+        None  # Partial updates may not be able to include timestamps
+    )
     repository: Optional[RepositoryConfig]
     commit: Commit
     execution: ExecutionDetailsConfig
@@ -295,7 +313,9 @@ class ExecutionState(BaseModel):
 
             # Make custom adjust for releases under 3100 to account for inconsistent versioning
             if actual_version == 390:
-                expected_version = int(str(expected_version)[:1] + str(expected_version)[2:])
+                expected_version = int(
+                    str(expected_version)[:1] + str(expected_version)[2:]
+                )
 
             # If the version is not the expected version, raise an error
             if actual_version != expected_version:
@@ -310,7 +330,7 @@ class ExecutionState(BaseModel):
                         f"Execution history has an unexpected version {actual_version}"
                     )
                 break
-            
+
             # Since release versioning increments by 10 in a complete dataset (all version), get the expected value using math
             expected_version -= 10
 

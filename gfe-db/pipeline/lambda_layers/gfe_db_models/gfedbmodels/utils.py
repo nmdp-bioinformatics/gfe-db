@@ -22,8 +22,10 @@ cache_dir = Path(__file__).parent / "_cache"
 # TODO clear cache
 # TODO disable/enable cache for testing
 
+
 def get_utc_now():
     return datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+
 
 def save_json_to_cache(data, var_name):
     """Saves data to cache directory"""
@@ -170,7 +172,9 @@ def write_s3_json(s3_client, bucket, key, data):
     a GitHub repo"""
 
     try:
-        response = s3_client.put_object(Bucket=bucket, Key=key, Body=json.dumps(data).encode())
+        response = s3_client.put_object(
+            Bucket=bucket, Key=key, Body=json.dumps(data).encode()
+        )
 
     except Exception as err:
         logger.error(

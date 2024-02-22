@@ -19,16 +19,18 @@ from .utils import (
     sort_execution_state_items,
     filter_nulls,
     get_repo_asset,
-    find_text
+    find_text,
 )
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+
 # TODO use method SourceConfig().from_s3(bucket, key) instead
 def read_source_config(s3_client, bucket, key):
     data = read_s3_json(s3_client, bucket, key)
     return SourceConfig(**data)
+
 
 def process_execution_state_item(
     timestamp: str,
@@ -47,12 +49,13 @@ def process_execution_state_item(
                 f"Getting release version for sha {sha} from {config.asset_path}"
             )
             release_version = get_release_version_for_commit(
-                commit=commit, 
-                owner=repository_config.owner, 
-                repo=repository_config.name, 
-                token=token, 
-                asset_path=config.asset_path, 
-                metadata_regex=config.metadata_regex)
+                commit=commit,
+                owner=repository_config.owner,
+                repo=repository_config.name,
+                token=token,
+                asset_path=config.asset_path,
+                metadata_regex=config.metadata_regex,
+            )
             logger.info(f"Found release version {release_version} ({sha})")
 
             result = (
@@ -67,7 +70,7 @@ def process_execution_state_item(
                         date_utc=None,
                         input_parameters=None,
                     ),
-                }
+                },
             )
 
         except HTTPError as e:
@@ -90,7 +93,8 @@ def process_execution_state_item(
 
         # TODO deserialize to ExecutionStateItem, use as method
         return result
-    
+
+
 def parallel_process_execution_state_items(
     timestamp: str,
     commits: List[Dict[str, str]],
@@ -124,7 +128,9 @@ def parallel_process_execution_state_items(
         results = [future.result() for future in as_completed(futures)]
 
         # Separate the results into execution state items and error shas
-        execution_state_items = [result[1] for result in results if result[1] is not None]
+        execution_state_items = [
+            result[1] for result in results if result[1] is not None
+        ]
         error_shas = [result[0] for result in results if result[0] is not None]
 
     return (
@@ -132,7 +138,7 @@ def parallel_process_execution_state_items(
         [
             ExecutionStateItem(**item)
             for item in sort_execution_state_items(filter_nulls(execution_state_items))
-        ]
+        ],
     )
 
 
@@ -176,50 +182,39 @@ def process_execution_state_items(
             ExecutionStateItem(**item)
             for item in sort_execution_state_items(filter_nulls(execution_state_items))
         ]
-    
 
-def get_release_version_for_commit(commit: Union[Commit, dict], owner: str, repo: str, token: str, asset_path:str, metadata_regex: str) -> int:
+
+def get_release_version_for_commit(
+    commit: Union[Commit, dict],
+    owner: str,
+    repo: str,
+    token: str,
+    asset_path: str,
+    metadata_regex: str,
+) -> int:
 
     try:
         sha = commit["sha"]
     except:
         sha = commit.sha
     allele_list = get_repo_asset(
-        owner=owner,
-        repo=repo,
-        token=token,
-        path=asset_path,
-        commit_sha=sha
+        owner=owner, repo=repo, token=token, path=asset_path, commit_sha=sha
     )
 
-    # # todo debug error shas
-    # if sha in [
-    #     # "8d77b3dd93959663d58ae5b626289d0746edd0e7",
-    #     # "252d7c5dc9d2f7671447fd11fe6bb004c438f34b",
-    #     "e1cd1ec3e66f4ab2b218f6758ed315f557778655",
-    #     "fa208da83a7f96d62c1e4efee2018074bbd805e0",
-
-    #     "09ed08b9abcd97622d59ec37e31b4706dc9a9391",
-    #     "8db938b1eb58dd8c77cba9b7524f84cf8ffe719c",
-    #     "041318439bf0ba291f990faaa27cd6ad0a062d13",
-    #     "ba5cb3d05c7b3ba5024cdafa192d89af186f08a9",
-    #     "7ca4eb239a96884142d3ef0b0182d3bc84ec1bba",
-    #     "3abe7e12dcbc3824315959af4428c53bd760c6e7",
-    #     "c4d3f67ef7ef4b5f6571b4f1d4aa5b928d2a3d56",
-    #     "23044ee80c27f75bb34c9f9ac689b1c68cd65914"
-    # ]:
-    #     print(f"Error sha: {sha}")
-
     release_version = find_text(metadata_regex, allele_list)
+
     if release_version is None:
+
         # TODO BOOKMARK 2/12/24 save these shas (`fatal: reference is not a tree`) for debugging, need to get the file contents
         raise Exception(f"Release version not found for commit {sha}")
-    
+
     return int(release_version.replace(".", "")[:4])
+
 
 ### debug ###
 if __name__ == "__main__":
     import sys
+
     sys.path.append(os.environ["GFEDBMODELS_PATH"])
     from pathlib import Path
     import json
@@ -236,15 +231,22 @@ if __name__ == "__main__":
     GITHUB_REPOSITORY_NAME = os.environ["GITHUB_REPOSITORY_NAME"]
     GITHUB_PERSONAL_ACCESS_TOKEN = os.environ["GITHUB_PERSONAL_ACCESS_TOKEN"]
 
-    test_path = json.loads((Path(__file__).parent.parent.parent.parent / "functions" / "check_source_update" / "most-recent-commits.json").read_text())
+    test_path = json.loads(
+        (
+            Path(__file__).parent.parent.parent.parent
+            / "functions"
+            / "check_source_update"
+            / "most-recent-commits.json"
+        ).read_text()
+    )
     commits_with_releases = []
     for commit in test_path:
 
         # Get data source configuration
         source_repo_config = read_source_config(
-            s3_client=s3, 
+            s3_client=s3,
             bucket=os.environ["DATA_BUCKET_NAME"],
-            key=os.environ["PIPELINE_SOURCE_CONFIG_S3_PATH"]
+            key=os.environ["PIPELINE_SOURCE_CONFIG_S3_PATH"],
         ).repositories[f"{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}"]
 
         # Loop through available file assets containing release version metadata
@@ -252,12 +254,12 @@ if __name__ == "__main__":
 
             # Get the release version for the commit by examining file asset contents
             release_version = get_release_version_for_commit(
-                commit=commit, 
+                commit=commit,
                 owner=GITHUB_REPOSITORY_OWNER,
                 repo=GITHUB_REPOSITORY_NAME,
                 token=GITHUB_PERSONAL_ACCESS_TOKEN,
                 asset_path=asset_config.asset_path,
-                metadata_regex=asset_config.metadata_regex
+                metadata_regex=asset_config.metadata_regex,
             )
             logger.info(
                 f'Found release version {release_version} for commit {commit["sha"]}'
@@ -273,7 +275,7 @@ if __name__ == "__main__":
                 **{
                     "owner": GITHUB_REPOSITORY_OWNER,
                     "name": GITHUB_REPOSITORY_NAME,
-                    "url": f"https://github.com/{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}"
+                    "url": f"https://github.com/{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}",
                 }
             )
 
