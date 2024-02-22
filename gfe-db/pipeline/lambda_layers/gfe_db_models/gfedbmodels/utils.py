@@ -237,7 +237,7 @@ def get_commit(owner, repo, token, commit_sha):
 
     # Headers
     headers = {
-        "Authorization": f"token {token}",
+        "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
         "Accept": "application/vnd.github.v3+json",
         "X-GitHub-Api-Version": "2022-11-28",

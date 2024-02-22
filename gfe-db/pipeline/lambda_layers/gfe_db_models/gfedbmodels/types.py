@@ -104,6 +104,8 @@ class Commit(BaseModel):
     date_utc: str
     message: Optional[str] = None
     html_url: str
+    # # TODO the url field returns a JSON object with a list of files; see all-branches for more info
+    # url: str
 
     @validator("sha")
     def _commit_sha_is_hex(cls, v):
@@ -278,28 +280,41 @@ class ExecutionState(BaseModel):
             )
         return v
 
-    # Releases are formatted as a 4 digit integer incrementing by 10 with a lower bound of 3170
+    # Releases are formatted as a 3 or 4 digit integer incrementing by 10 with a lower bound of 300
     # Based on the formatting described, validate that no releases are missing from items
-    # Remember that the items is sorted by commit.date_utc descending, so release versions will decrement by 10
+    # Remember that the items is sorted by commit.date_utc descending and that release versions decrement by 10
     @validator("items")
-    def execution_state_has_no_missing_releases(cls, v):
-        unique_release_versions = sorted(
-            list(set([item.execution.version for item in v])), reverse=True
+    def execution_state_has_no_missing_releases(cls, items):
+        actual_unique_release_versions = sorted(
+            list(set([item.execution.version for item in items])), reverse=True
         )
 
-        first_version = 3170
-        expected_version = v[0].execution.version
-        for version in unique_release_versions:
-            if version != expected_version:
+        first_version = 300
+        expected_version = items[0].execution.version
+        for idx, actual_version in enumerate(actual_unique_release_versions):
+
+            # Make custom adjust for releases under 3100 to account for inconsistent versioning
+            if actual_version == 390:
+                expected_version = int(str(expected_version)[:1] + str(expected_version)[2:])
+
+            # If the version is not the expected version, raise an error
+            if actual_version != expected_version:
                 raise ValueError(
                     f"Execution history is missing version {expected_version}"
                 )
+
+            # If the version is the first version, then the expected version should be the last version
+            if actual_version == first_version:
+                if idx != len(actual_unique_release_versions) - 1:
+                    raise ValueError(
+                        f"Execution history has an unexpected version {actual_version}"
+                    )
+                break
+            
+            # Since release versioning increments by 10 in a complete dataset (all version), get the expected value using math
             expected_version -= 10
 
-            if version == first_version:
-                break
-
-        return v
+        return items
 
 
 class ExecutionPayloadItem(BaseModel):

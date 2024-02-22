@@ -17,21 +17,26 @@ import json
 from pygethub import list_commits, list_branches, GitHubPaginator
 from gfedbmodels.utils import (
     get_utc_now,
-    paginate_commits,
     select_fields,
     flatten_json_records,
     select_keys,
     rename_fields,
     filter_nested_nulls,
-    cache_json
+    get_commit,
+    cache_pickle
 )
 from gfedbmodels.types import (
     SourceConfig, 
-    RepositoryConfig, 
+    RepositoryConfig,
+    Commit,
+    ExecutionStateItem,
+    ExecutionDetailsConfig,
     ExecutionState
 )
 from gfedbmodels.ingest import (
-    process_execution_state_items
+    process_execution_state_items,
+    get_commits_by_branch,
+    sort_execution_state_items
 )
 
 # Environment variables
@@ -40,6 +45,80 @@ GITHUB_REPOSITORY_NAME = os.environ["GITHUB_REPOSITORY_NAME"]
 GITHUB_PERSONAL_ACCESS_TOKEN = os.environ["GITHUB_PERSONAL_ACCESS_TOKEN"]
 # DATA_BUCKET_NAME = infra.params.DataBucketName
 
+# @cache_pickle
+def get_branch_commits(branches):
+
+    # For each entry in all-branches, get the commit data and build the execution state item
+    execution_state_items = []
+    for item in branches:
+
+        if item['name'].lower() == 'latest':
+            continue
+        
+        release_version = item['name']
+        sha = item['commit']['sha']
+
+        commit_json = get_commit(GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY_NAME, GITHUB_PERSONAL_ACCESS_TOKEN, sha)
+        assert sha == commit_json['sha']
+
+        logger.info(f'Retrieving data for {sha}')
+        
+        commit = Commit(
+            sha=commit_json['sha'],
+            date_utc=commit_json['commit']['author']['date'],
+            message=commit_json['commit']['message'],
+            html_url=commit_json['html_url']
+        )
+
+        execution_state_item = ExecutionStateItem(
+            created_utc=utc_now,
+            updated_utc=utc_now,
+            commit=commit,
+            execution=ExecutionDetailsConfig(
+                version=release_version,
+                status="NOT_PROCESSED",
+                date_utc=None,
+                input_parameters=None,
+            ),
+            # error=None,
+            # s3_path=None,
+            repository=RepositoryConfig(
+                **select_keys(
+                    source_config.repositories[
+                        GITHUB_REPOSITORY_OWNER + "/" + GITHUB_REPOSITORY_NAME
+                    ].model_dump(),
+                    ["owner", "name", "url"],
+                )
+            ),
+        )
+        execution_state_items.append(execution_state_item)
+
+    return execution_state_items
+
+
+def build_execution_state(branches, utc_now=None):
+
+    utc_now = utc_now or get_utc_now()
+
+    # Create ExecutionStateItems array from branch/commit sha pairs
+    execution_state_items = get_branch_commits(branches)
+
+    # Sort execution state items by date descending
+    execution_state_items = sorted(
+        execution_state_items,
+        key=lambda x: x.commit.date_utc,
+        reverse=True
+    )
+
+    # Package records as ExecutionState object to seed table
+    execution_state = ExecutionState(
+        **{
+            "created_utc": utc_now,
+            "items": execution_state_items,
+        }
+    )
+
+    return execution_state
 
 if __name__ == "__main__":
 
@@ -61,42 +140,82 @@ if __name__ == "__main__":
     paginator = GitHubPaginator(GITHUB_PERSONAL_ACCESS_TOKEN)
 
     ### COMMITS BY BRANCHES ###
-    branch_pages = paginator.get_paginator(list_branches, owner=GITHUB_REPOSITORY_OWNER, repo=GITHUB_REPOSITORY_NAME)
+    branch_pages = paginator.get_paginator(
+        list_branches, 
+        owner=GITHUB_REPOSITORY_OWNER, 
+        repo=GITHUB_REPOSITORY_NAME,
+        user_agent="nmdp-bioinformatics-gfe-db-state-builder/1.0"
+    )
     all_branches = list(branch_pages)
 
-    # extract the branch names
-    branch_names = [branch["name"] for branch in all_branches]
+    # # extract the branch names
+    # branch_names = [branch["name"] for branch in all_branches]
 
-    @cache_json
-    def get_commits_by_branch(branch_name):
+    # # For each entry in all-branches, get the commit data and build the execution state item
+    # execution_state_items = []
+    # for item in all_branches:
+
+    #     if item['name'].lower() == 'latest':
+    #         continue
         
-        # Fetch the commits for each branch
-        commits_by_branch = {}
-        for branch in branch_names:
-            logger.info(f"Retrieving commits for branch {branch}")
-            list_commits_params = {
-                "owner": GITHUB_REPOSITORY_OWNER,
-                "repo": GITHUB_REPOSITORY_NAME,
-                "sha": branch,
-            }
-            branch_commit_pages = paginator.get_paginator(
-                list_commits, 
-                **list_commits_params,
-                user_agent="nmdp-bioinformatics-gfe-db-state-builder/1.0")
-            commits_by_branch[branch] = list(branch_commit_pages)
+    #     release_version = item['name']
+    #     sha = item['commit']['sha']
 
-        # Create an array of all unique commits (using set method) in commits_by_branch and omit the branch information
-        all_commits = set()
-        for release, commits in commits_by_branch.items():
-            all_commits.update([json.dumps(commit) for commit in commits])
+    #     commit_json = get_commit(GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY_NAME, GITHUB_PERSONAL_ACCESS_TOKEN, sha)
+    #     assert sha == commit_json['sha']
 
-        # covert back to dict
-        all_commits = [json.loads(commit) for commit in all_commits]
+    #     logger.info(f'Retrieving data for {sha}')
+        
+    #     commit = Commit(
+    #         sha=commit_json['sha'],
+    #         date_utc=commit_json['commit']['author']['date'],
+    #         message=commit_json['commit']['message'],
+    #         html_url=commit_json['html_url']
+    #     )
 
-        return all_commits
+    #     execution_state_item = ExecutionStateItem(
+    #         created_utc=utc_now,
+    #         updated_utc=utc_now,
+    #         commit=commit,
+    #         execution=ExecutionDetailsConfig(
+    #                     version=release_version,
+    #                     status="NOT_PROCESSED",
+    #                     date_utc=None,
+    #                     input_parameters=None,
+    #         ),
+    #         # error=None,
+    #         # s3_path=None,
+    #         repository=RepositoryConfig(
+    #             **select_keys(
+    #                 source_config.repositories[
+    #                     GITHUB_REPOSITORY_OWNER + "/" + GITHUB_REPOSITORY_NAME
+    #                 ].model_dump(),
+    #                 ["owner", "name", "url"],
+    #             )
+    #         ),
+    #     )
+    #     execution_state_items.append(execution_state_item)
 
-    # get all commits by branch
-    all_commits = get_commits_by_branch(branch_names)
+    # Create ExecutionStateItems object from branch/commit sha pairs
+    # Commit fields
+    """
+    class Commit(BaseModel):
+        sha: str
+        date_utc: str
+        message: Optional[str] = None
+        html_url: str
+    """
+    # ExecutionStateItems fields
+    """
+    class ExecutionStateItem(BaseModel):
+        created_utc: Optional[str] = None
+        updated_utc: Optional[str] = None
+        repository: Optional[RepositoryConfig]
+        commit: Commit
+        execution: ExecutionDetailsConfig
+        error: Optional[ExecutionError] = None
+        s3_path: Optional[str] = None
+    """
 
     # # COMMITS
     # commit_pages = paginator.get_paginator(
@@ -106,65 +225,73 @@ if __name__ == "__main__":
     #     user_agent="nmdp-bioinformatics-gfe-db-state-builder/1.0")
     # all_commits = list(commit_pages)
 
+    # # filter by chosen commit keys
+    # commit_keys = ["sha", "commit", "html_url"]
+    # all_commits = select_fields(all_commits, commit_keys)
 
-    # filter by chosen commit keys
-    commit_keys = ["sha", "commit", "html_url"]
-    all_commits = select_fields(all_commits, commit_keys)
+    # # flatten JSON records
+    # all_commits_flat = flatten_json_records(all_commits)
+    # commit_keys = ["sha", "commit.author.date", "commit.message", "html_url"]
+    # all_commits_flat = [select_keys(x, commit_keys) for x in all_commits_flat]
 
-    # flatten JSON records
-    all_commits_flat = flatten_json_records(all_commits)
-    commit_keys = ["sha", "commit.author.date", "commit.message", "html_url"]
-    all_commits_flat = [select_keys(x, commit_keys) for x in all_commits_flat]
+    # # rename fields for state table model
+    # commit_key_names_map = {
+    #     "sha": "sha",
+    #     "commit.author.date": "date_utc",
+    #     "commit.message": "message",
+    #     "html_url": "html_url",
+    # }
 
-    # rename fields for state table model
-    commit_key_names_map = {
-        "sha": "sha",
-        "commit.author.date": "date_utc",
-        "commit.message": "message",
-        "html_url": "html_url",
-    }
+    # commits = rename_fields(all_commits_flat, commit_key_names_map)
 
-    commits = rename_fields(all_commits_flat, commit_key_names_map)
+    # # Get the release version for each commit
+    # target_metadata_config = source_config.repositories[
+    #     GITHUB_REPOSITORY_OWNER + "/" + GITHUB_REPOSITORY_NAME
+    # ].target_metadata_config
 
-    # Get the release version for each commit
-    target_metadata_config = source_config.repositories[
-        GITHUB_REPOSITORY_OWNER + "/" + GITHUB_REPOSITORY_NAME
-    ].target_metadata_config
+    # excluded_commit_shas = source_config.repositories[
+    #     GITHUB_REPOSITORY_OWNER + "/" + GITHUB_REPOSITORY_NAME
+    # ].excluded_commit_shas.values
 
-    excluded_commit_shas = source_config.repositories[
-        GITHUB_REPOSITORY_OWNER + "/" + GITHUB_REPOSITORY_NAME
-    ].excluded_commit_shas.values
+    # commits = [
+    #     commit for commit in commits if commit["sha"] not in excluded_commit_shas
+    # ]
 
-    commits = [
-        commit for commit in commits if commit["sha"] not in excluded_commit_shas
-    ]
+    # # Build ExecutionStateItem records from raw commits using thread pooling
+    # logger.info("Building execution state")
+    # error_shas, execution_state_items = process_execution_state_items(
+    #     timestamp=utc_now,
+    #     commits=commits,
+    #     # TODO remove default params from state table, they are retrieved from source config file in S3
+    #     repository_config=RepositoryConfig(
+    #         **select_keys(
+    #             source_config.repositories[
+    #                 GITHUB_REPOSITORY_OWNER + "/" + GITHUB_REPOSITORY_NAME
+    #             ].model_dump(),
+    #             ["owner", "name", "url"],
+    #         )
+    #     ),
+    #     target_metadata_config=target_metadata_config,  # Infers release version from file contents
+    #     token=GITHUB_PERSONAL_ACCESS_TOKEN,
+    #     parallel=True,
+    # )
 
-    # Build ExecutionStateItem records from raw commits using thread pooling
-    logger.info("Building execution state")
-    error_shas, execution_state_items = process_execution_state_items(
-        timestamp=utc_now,
-        commits=commits,
-        # TODO remove default params from state table, they are retrieved from source config file in S3
-        repository_config=RepositoryConfig(
-            **select_keys(
-                source_config.repositories[
-                    GITHUB_REPOSITORY_OWNER + "/" + GITHUB_REPOSITORY_NAME
-                ].model_dump(),
-                ["owner", "name", "url"],
-            )
-        ),
-        target_metadata_config=target_metadata_config,  # Infers release version from file contents
-        token=GITHUB_PERSONAL_ACCESS_TOKEN,
-        parallel=True,
-    )
+    # # Sort execution state items by date descending
+    # execution_state_items = sorted(
+    #     execution_state_items,
+    #     key=lambda x: x.commit.date_utc,
+    #     reverse=True
+    # )
 
-    # Package records as ExecutionState object to seed table
-    execution_state = ExecutionState(
-        **{
-            "created_utc": utc_now,
-            "items": execution_state_items,
-        }
-    )
+    # # Package records as ExecutionState object to seed table
+    # execution_state = ExecutionState(
+    #     **{
+    #         "created_utc": utc_now,
+    #         "items": execution_state_items,
+    #     }
+    # )
+
+    execution_state = build_execution_state(all_branches, utc_now)
 
     # Updates the source config file but does not actually build it
     source_config.created_utc, source_config.updated_utc = utc_now, utc_now
@@ -185,6 +312,6 @@ if __name__ == "__main__":
 
     logger.info("Execution state and source config updated")
 
-    # write error shas
-    with open(output_dir / "error-shas.json", "w") as f:
-        json.dump(error_shas, f, indent=4)
+    # # write error shas
+    # with open(output_dir / "error-shas.json", "w") as f:
+    #     json.dump(error_shas, f, indent=4)
