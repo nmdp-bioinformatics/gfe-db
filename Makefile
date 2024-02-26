@@ -112,7 +112,7 @@ ifeq ($(SPLASH_FONT),slant)
 	@echo "\033[0;34m \__, //_/   \___/            \____//_____/ "
 	@echo "\033[0;34m/____/                                      "
 	@echo "\033[0;34m                                            "
-	@echo "\033[0;34mCopyright © 2002-2023 National Marrow Donor Program. All rights reserved."
+	@echo "\033[0;34mCopyright © 2002-2024 National Marrow Donor Program. All rights reserved."
 	@echo "\033[0;34m                                            \033[0m"
 endif
 
