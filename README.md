@@ -650,9 +650,8 @@ set -a; source .env.<stage>; set +a
 ```bash
 # Run from the root directory of gfe-db
 docker run \
-    --restart always \
+    --name gfedb \
     --publish=7474:7474 --publish=7687:7687 \
-    --volume=$(pwd)/gfe-db/local/neo4j/logs:/logs \
     $DOCKER_USERNAME/gfe-db:latest
 ```
 3. Navigate to `http://localhost:7474/browser/` to access the Neo4j browser. There is no authentication set so you can leave the username and password fields blank.
