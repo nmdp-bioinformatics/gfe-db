@@ -1,6 +1,6 @@
 # --extra-index-url https://test.pypi.org/simple/
-pydantic>=2.0.0
-requests>=2.22.0
+pydantic~=2.0.0
+requests~=2.22.0
 urllib3<2
-aws-parameters>=0.1.8
-pygethub>=0.1.0
+aws-parameters~=0.1.8
+pygethub~=0.1.1

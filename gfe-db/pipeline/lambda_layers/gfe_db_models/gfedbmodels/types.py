@@ -96,7 +96,7 @@ def version_is_valid(v):
 # validate that commit sha is a 40 character hex string
 def commit_sha_is_hex(v):
     if not re.match(r"^[0-9a-f]{40}$", v):
-        raise ValueError("Commit sha must be a 40 character hex string")
+        raise ValueError(f"Commit sha must be a 40 character hex string matching regex pattern `^[0-9a-f]{40}$`: {v}")
     return v
 
 

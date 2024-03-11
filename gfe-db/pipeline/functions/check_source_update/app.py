@@ -20,6 +20,7 @@ import logging
 from decimal import Decimal
 from datetime import datetime, timedelta
 import json
+from pygethub import list_branches, GitHubPaginator
 from gfedbmodels.constants import session, pipeline
 from gfedbmodels.types import (
     str_to_datetime,
@@ -31,6 +32,7 @@ from gfedbmodels.types import (
     Commit,
     ExecutionDetailsConfig,
     ExecutionPayloadItem,
+    ExecutionState
 )
 from gfedbmodels.utils import (
     get_utc_now,
@@ -38,6 +40,8 @@ from gfedbmodels.utils import (
     list_commits,
     flatten_json,
     filter_null_fields,
+    select_keys,
+    get_commit
 )
 from gfedbmodels.ingest import (
     read_source_config,
@@ -69,11 +73,13 @@ APP_NAME = os.environ["APP_NAME"]
 GITHUB_PERSONAL_ACCESS_TOKEN = pipeline.secrets.GitHubPersonalAccessToken
 
 # Get data source configuration
-source_repo_config = read_source_config(
+source_config = read_source_config(
     s3_client=s3, 
     bucket=data_bucket_name, 
     key=PIPELINE_SOURCE_CONFIG_S3_PATH
-).repositories[f"{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}"]
+)
+
+source_repo_config = source_config.repositories[f"{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}"]
 
 gfedb_processing_queue = queue.Queue(gfedb_processing_queue_url)
 
@@ -86,127 +92,195 @@ def lambda_handler(event, context):
     logger.info(f"Invocation Id: {invocation_id}")
     logger.info(json.dumps(event))
 
-    try:
-        ### Get the app state and compare with the repository ###
+    is_user_event = True if "releases" in event else False
 
-        # 1) Get all items from state table
+    try:
+        ### Sync App State with Repo State ###
+
         logger.info(f"Fetching execution state from {execution_state_table_name}")
         table = dynamodb.Table(execution_state_table_name)
+
+        # Get all items from app state table
         execution_state = get_execution_state(table)
+        execution_state_items = execution_state.items
 
-        if not execution_state:
-            message = "No execution items found. Please populate the state table."
-            logger.error(message)
-            raise Exception(message)
+        # 2) Get the repository state from the GitHub API
+        paginator = GitHubPaginator(GITHUB_PERSONAL_ACCESS_TOKEN)
+        branch_pages = paginator.get_paginator(
+            list_branches,
+            owner=GITHUB_REPOSITORY_OWNER,
+            repo=GITHUB_REPOSITORY_NAME,
+            user_agent="nmdp-bioinformatics-gfe-db-update-pipeline/1.0",
+        )
+        all_branches = list(branch_pages)
 
-        else:
-            commits_with_releases = []
+        repo_state = build_execution_state(all_branches, utc_now)
+        repo_state = repo_state.items
 
-            # Handle manually triggered pipeline execution
-            if "releases" in event:
-                is_user_event = True
+        # 3) Compare the app state with the repo state to find new commits
 
-                logger.info(f"Processing release(s) from user: {event['releases']}")
+        # Extract commit sha, release version  into tuples from both the app and repo states for set operations
+        app_state_commits = set([(item.commit.sha, item.execution.version) for item in execution_state_items])
+        # app_state_commits = set([(item.commit.sha, item.execution.version) for item in execution_state_items][:-1]) # todo: for testing, remove before deploy
+        repo_state_commits = set([(item.commit.sha, item.execution.version) for item in repo_state])
 
-                # TODO marshal releases to InputPayloadItem instead of casting to int
-                # extract the most recent record for the release value passed in the event
-                releases = [int(release) for release in event["releases"].split(",")]
+        # get the difference between the two states
+        new_items = []
+        if app_state_commits != repo_state_commits:
+            new_commits = repo_state_commits - app_state_commits
 
-                for release in releases:
-                    commits_with_releases.extend(list(filter(
-                        lambda record: record.execution.version == release,
-                        execution_state
-                    )))
+            # update the outdated records in app state with the new records from repo state
+            logger.info(f"Updating execution state with new commits: {new_commits}")
+            
+            # get the new records from the repo state
+            new_items.extend([item for item in repo_state if (item.commit.sha, item.execution.version) in new_commits])
 
-                releases_without_commits = list(set(releases) - set([item.execution.version for item in execution_state]))
+            # insert the new records into the remote app state
+            items = format_execution_state_items(new_items)
+            for item in items:
+                table.put_item(Item=item)
 
-                if not commits_with_releases or releases_without_commits:
-                    logger.info("No commits found for release version(s) provided, fetching most recent commits...")
-                    most_recent_commits = get_most_recent_commits(execution_state)
-                else:
-                    most_recent_commits = []
+            # insert the new records into the local app state
+            execution_state_items.extend(new_items)
 
-                # Set input parameters for manual pipeline execution from event
-                input_parameters = InputParameters(**event)
+        synced_execution_state_items = sorted(
+            execution_state_items, key=lambda x: x.commit.date_utc, reverse=False
+        )
 
-            # Handle scheduled pipeline execution
-            else:
-                is_user_event = False
+    except Exception as e:
+        import traceback
+        message = f"Error syncing app state: {e}\n{traceback.format_exc()}\n{json.dumps(event)}"
+        logger.error(message)
+        raise Exception(message)
 
-                # Use default parameters for automated pipeline execution
-                input_parameters = source_repo_config.default_input_parameters
-                # 2) Get the most recent commits from github since the most recent commit date retrieved from DynamoDB
+    ### Process New and User Requested Release Versions ###
+    unprocessed_execution_state_items = []
+
+    # Parse event for user input
+    user_items = []
+    if is_user_event:
+
+        # Get the state items for each release given by the user
+        user_releases = [int(release) for release in event["releases"].split(",")]
+        user_items = list(filter(
+            lambda item: item.execution.version in user_releases,
+            synced_execution_state_items
+        ))
+
+    # Combine the new items and user items
+    unprocessed_execution_state_items.extend(new_items + user_items)
+
+    # TODO Convert unprocessed items to state machine payload
+    # TODO deduplicate and sort the unprocessed_execution_state_items by date
+
+    try:
+        commits_with_releases = []
+        # Handle manually triggered pipeline execution
+        if "releases" in event:
+            is_user_event = True
+
+            logger.info(f"Processing release(s) from user: {event['releases']}")
+
+            # TODO marshal releases to InputPayloadItem instead of casting to int
+            # extract the most recent record for the release value passed in the event
+            releases = [int(release) for release in event["releases"].split(",")]
+
+            # Filter the execution state for the release version(s) provided in the input event
+            for release in releases:
+                commits_with_releases.extend(list(filter(
+                    lambda record: record.execution.version == release,
+                    execution_state
+                )))
+
+            releases_without_commits = list(set(releases) - set([item.execution.version for item in execution_state]))
+
+            if not commits_with_releases or releases_without_commits:
+                logger.info("No commits found for release version(s) provided, fetching most recent commits...")
                 most_recent_commits = get_most_recent_commits(execution_state)
+            else:
+                most_recent_commits = []
 
-                # Return if no commits are found, otherwise process the new commits
-                if not most_recent_commits:
-                    message = "No new commits found"
-                    logger.info(message)
-                    return {
-                        "statusCode": 200,
-                        "body": json.dumps({"message": message}),
-                    }
-                
-                logger.info(
-                    f"Found {len(most_recent_commits)} commit(s) not yet processed\n{json.dumps([commit['sha'] for commit in most_recent_commits], indent=2)}"
-                )
+            # Set input parameters for manual pipeline execution from event
+            input_parameters = InputParameters(**event)
 
-            logger.info(f"Getting release versions")
+        # Handle scheduled pipeline execution
+        else:
+            is_user_event = False
+
+            # Use default parameters for automated pipeline execution
+            input_parameters = source_repo_config.default_input_parameters
+            # 2) Get the most recent commits from github since the most recent commit date retrieved from DynamoDB
+            most_recent_commits = get_most_recent_commits(execution_state)
+
+            # Return if no commits are found, otherwise process the new commits
+            if not most_recent_commits:
+                message = "No new commits found"
+                logger.info(message)
+                return {
+                    "statusCode": 200,
+                    "body": json.dumps({"message": message}),
+                }
+            
+            logger.info(
+                f"Found {len(most_recent_commits)} commit(s) not yet processed\n{json.dumps([commit['sha'] for commit in most_recent_commits], indent=2)}"
+            )
+
+        logger.info(f"Getting release versions")
 
 
-            if most_recent_commits:
-                for commit in most_recent_commits:
-                    sha = commit["sha"]
+        if most_recent_commits:
+            for commit in most_recent_commits:
+                sha = commit["sha"]
 
-                    # Loop through available file assets containing release version metadata
-                    for asset_config in source_repo_config.target_metadata_config.items:
-                        try:
+                # Loop through available file assets containing release version metadata
+                for asset_config in source_repo_config.target_metadata_config.items:
+                    try:
 
-                            # Get the release version for the commit by examining file asset contents
-                            release_version = get_release_version_for_commit(
-                                commit=commit, 
-                                owner=GITHUB_REPOSITORY_OWNER,
-                                repo=GITHUB_REPOSITORY_NAME,
-                                token=GITHUB_PERSONAL_ACCESS_TOKEN,
-                                asset_path=asset_config.asset_path,
-                                metadata_regex=asset_config.metadata_regex
-                            )
-                            logger.info(
-                                f"Found release version {release_version} for commit {sha}"
-                            )
+                        # Get the release version for the commit by examining file asset contents
+                        release_version = get_release_version_for_commit(
+                            commit=commit, 
+                            owner=GITHUB_REPOSITORY_OWNER,
+                            repo=GITHUB_REPOSITORY_NAME,
+                            token=GITHUB_PERSONAL_ACCESS_TOKEN,
+                            asset_path=asset_config.asset_path,
+                            metadata_regex=asset_config.metadata_regex
+                        )
+                        logger.info(
+                            f"Found release version {release_version} for commit {sha}"
+                        )
 
-                            # Build the execution object to be stored in the state table (`execution__*` fields)
-                            execution_detail = ExecutionDetailsConfig(
-                                **{
-                                    "version": release_version, 
-                                    "status": ExecutionStatus.NOT_PROCESSED
-                                }
-                            )
+                        # Build the execution object to be stored in the state table (`execution__*` fields)
+                        execution_detail = ExecutionDetailsConfig(
+                            **{
+                                "version": release_version, 
+                                "status": ExecutionStatus.NOT_PROCESSED
+                            }
+                        )
 
-                            # Build the repository object to be stored in the state table (`repository__*` fields)
-                            repository_config = RepositoryConfig(
-                                **{
-                                    "owner": GITHUB_REPOSITORY_OWNER,
-                                    "name": GITHUB_REPOSITORY_NAME,
-                                    "url": f"https://github.com/{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}",
-                                    # TODO remove default params from state table, they are retrieved from source config file in S3
-                                    # "default_input_parameters": source_repo_config.default_input_parameters,
-                                }
-                            )
+                        # Build the repository object to be stored in the state table (`repository__*` fields)
+                        repository_config = RepositoryConfig(
+                            **{
+                                "owner": GITHUB_REPOSITORY_OWNER,
+                                "name": GITHUB_REPOSITORY_NAME,
+                                "url": f"https://github.com/{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}",
+                                # TODO remove default params from state table, they are retrieved from source config file in S3
+                                # "default_input_parameters": source_repo_config.default_input_parameters,
+                            }
+                        )
 
-                            # Assemble the execution state item for the new commit
-                            execution_state_item = ExecutionStateItem(
-                                created_utc=utc_now,
-                                execution=execution_detail,
-                                repository=repository_config,
-                                commit=Commit.from_response_json(commit),
-                            )
+                        # Assemble the execution state item for the new commit
+                        execution_state_item = ExecutionStateItem(
+                            created_utc=utc_now,
+                            execution=execution_detail,
+                            repository=repository_config,
+                            commit=Commit.from_response_json(commit),
+                        )
 
-                            commits_with_releases.append(execution_state_item)
-                            # break the loop if successful
-                            break
-                        except Exception as e:
-                            logger.info(f"Error getting release version for commit {sha}: {e}")
+                        commits_with_releases.append(execution_state_item)
+                        # break the loop if successful
+                        break
+                    except Exception as e:
+                        logger.info(f"Error getting release version for commit {sha}: {e}")
 
         logger.info("Updating execution state")
         if is_user_event:
@@ -254,18 +328,7 @@ def lambda_handler(event, context):
             raise Exception(message)
 
         # 2) Preprocess the records for the state table (DynamoDB payload)
-        items = [
-            filter_null_fields(
-                flatten_json(
-                    data=item.model_dump(),
-                    sep="__",
-                    select_fields=[
-                        item.replace(".", "__") for item in execution_state_table_fields
-                    ],
-                )
-            )
-            for item in new_execution_state
-        ]
+        items = format_execution_state_items(new_execution_state)
 
         logger.info(f'Adding items to state table: {json.dumps(items, indent=2)}')
 
@@ -341,7 +404,9 @@ def get_execution_state(table, sort_column="commit__date_utc", reverse_sort=True
     items = table.scan()["Items"]
 
     if not items:
-        return []
+        message = "No execution items found. Please populate the state table."
+        logger.error(message)
+        raise Exception(message)
 
     items = [
         {k: int(v) if isinstance(v, Decimal) else v for k, v in item.items()}
@@ -350,9 +415,18 @@ def get_execution_state(table, sort_column="commit__date_utc", reverse_sort=True
     items = sorted(items, key=lambda x: x[sort_column], reverse=reverse_sort)
 
     # TODO Deserialize and repack the items
-    return [
+    execution_state_items = [
         ExecutionStateItem(**restore_nested_json(item, split_on="__")) for item in items
     ]
+
+    execution_state = ExecutionState(
+        **{
+            "created_utc": get_utc_now(),
+            "items": execution_state_items,
+        }
+    )
+
+    return execution_state
 
 
 # @cache_json
@@ -425,6 +499,98 @@ def update_execution_state_item(
 
     return execution_state_item
 
+def format_execution_state_items(new_execution_state: list[ExecutionStateItem]) -> list[dict]:
+    return [
+            filter_null_fields(
+                flatten_json(
+                    data=item.model_dump(),
+                    sep="__",
+                    select_fields=[
+                        item.replace(".", "__") for item in execution_state_table_fields
+                    ],
+                )
+            )
+            for item in new_execution_state
+        ]
+
+
+def get_branch_commits(branches: list[dict]) -> list[ExecutionStateItem]:
+
+    # For each entry in all-branches, get the commit data and build the execution state item
+    execution_state_items = []
+
+    for item in branches:
+
+        if item["name"].lower() == "latest":
+            continue
+
+        release_version = item["name"]
+        sha = item["commit"]["sha"]
+
+        logger.info(f"Retrieving data for {sha}")
+        commit_json = get_commit(
+            GITHUB_REPOSITORY_OWNER,
+            GITHUB_REPOSITORY_NAME,
+            GITHUB_PERSONAL_ACCESS_TOKEN,
+            sha,
+        )
+        assert sha == commit_json["sha"]
+
+        commit = Commit(
+            sha=commit_json["sha"],
+            date_utc=commit_json["commit"]["author"]["date"],
+            message=commit_json["commit"]["message"],
+            html_url=commit_json["html_url"],
+        )
+
+        execution_state_item = ExecutionStateItem(
+            created_utc=get_utc_now(),
+            updated_utc=get_utc_now(),
+            commit=commit,
+            execution=ExecutionDetailsConfig(
+                version=release_version,
+                status="NOT_PROCESSED",
+                date_utc=None,
+                input_parameters=None,
+            ),
+            # error=None,
+            # s3_path=None,
+            repository=RepositoryConfig(
+                **select_keys(
+                    source_config.repositories[
+                        GITHUB_REPOSITORY_OWNER + "/" + GITHUB_REPOSITORY_NAME
+                    ].model_dump(),
+                    ["owner", "name", "url"],
+                )
+            ),
+        )
+        execution_state_items.append(execution_state_item)
+
+    return execution_state_items
+
+
+
+def build_execution_state(branches, utc_now=None):
+
+    utc_now = utc_now or get_utc_now()
+
+    # Create ExecutionStateItems array from branch/commit sha pairs
+    execution_state_items = get_branch_commits(branches)
+
+    # Sort execution state items by date descending
+    execution_state_items = sorted(
+        execution_state_items, key=lambda x: x.commit.date_utc, reverse=True
+    )
+
+    # Package records as ExecutionState object to seed table
+    execution_state = ExecutionState(
+        **{
+            "created_utc": utc_now,
+            "items": execution_state_items,
+        }
+    )
+
+    return execution_state
 
 if __name__ == "__main__":
     from pathlib import Path
