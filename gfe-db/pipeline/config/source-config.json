@@ -1,6 +1,6 @@
 {
-    "created_utc": "2024-02-11T23:36:40.352Z",
-    "updated_utc": "2024-02-11T23:36:40.352Z",
+    "created_utc": "2024-03-10T21:08:25.742Z",
+    "updated_utc": "2024-03-10T21:08:25.742Z",
     "repositories": {
         "ANHIG/IMGTHLA": {
             "owner": "ANHIG",
@@ -20,22 +20,22 @@
                     {
                         "description": "Extract release version metadata for commits from 3a71348 to current",
                         "asset_path": "alignments/V_nuc.txt",
-                        "metadata_regex": "[1-9]\\d{0,1}\\.[1-9]\\d{0,2}\\.0(?:\\.\\d{1,2})?(?=\\s|$)"
+                        "metadata_regex": "[1-9]\\d{0,1}\\.[0-9]\\d{0,2}\\.[0-9](?:\\.\\d{1,2})?(?=\\s|$)"
                     },
                     {
                         "description": "Extract release version metadata for commits from 8632b0d to 3645f26",
                         "asset_path": "aligments/V_nuc.txt",
-                        "metadata_regex": "[1-9]\\d{0,1}\\.[1-9]\\d{0,2}\\.0(?:\\.\\d{1,2})?(?=\\s|$)"
+                        "metadata_regex": "[1-9]\\d{0,1}\\.[0-9]\\d{0,2}\\.[0-9](?:\\.\\d{1,2})?(?=\\s|$)"
                     },
                     {
                         "description": "Extract release version metadata for commits from af54d28 to 9d8f585",
                         "asset_path": "Alignments/V_nuc.txt",
-                        "metadata_regex": "[1-9]\\d{0,1}\\.[1-9]\\d{0,2}\\.0(?:\\.\\d{1,2})?(?=\\s|$)"
+                        "metadata_regex": "[1-9]\\d{0,1}\\.[0-9]\\d{0,2}\\.[0-9](?:\\.\\d{1,2})?(?=\\s|$)"
                     },
                     {
                         "description": "Extract release version metadata for all commits including and before 08e0ef9",
                         "asset_path": "V_nuc.txt",
-                        "metadata_regex": "[1-9]\\d{0,1}\\.[1-9]\\d{0,2}\\.0(?:\\.\\d{1,2})?(?=\\s|$)"
+                        "metadata_regex": "[1-9]\\d{0,1}\\.[0-9]\\d{0,2}\\.[0-9](?:\\.\\d{1,2})?(?=\\s|$)"
                     }
                 ]
             },
