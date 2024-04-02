@@ -110,8 +110,7 @@ Resources:
             python3 \
             python3-setuptools \
             git \
-            java-1.8.0-openjdk \
-            java-1.8.0-openjdk-devel
+            java-17-amazon-corretto
           # Install AWS CLI v2
           curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
           unzip awscliv2.zip
@@ -128,12 +127,9 @@ Resources:
           # Configure services as needed, e.g., start and enable collectd
           systemctl start collectd
           systemctl enable collectd
-          # Update system Java for Neo4j cypher-shell
-          update-java-alternatives --set /usr/lib/jvm/java-1.17.0-openjdk-amd64
-          /usr/bin/java -version
           export EC2_USER_HOME=/home/ec2-user
           export INSTANCE_ID=$(curl -sS http://169.254.169.254/latest/meta-data/instance-id)
-          export NEO4J_HOME=/var/lib/neo4j
+          export NEO4J_HOME=/opt/neo4j
           mkdir -p /tmp/logs/system /tmp/logs/neo4j
           cfn_signal() {
             local exit_code=$1
@@ -159,8 +155,6 @@ Resources:
             echo "ERROR: USE_PRIVATE_SUBNET must be set to 'true' or 'false'"
             exit 1
           fi
-
-          # TODO BOOKMARK 3/30/24 Env variables are not showing up in env.sh; try redeploying the database stack fresh
           # Permanently set application environment variables (these should never change for the duration of the deployment)
           echo "INFO: Setting application environment variables"
           echo "INSTANCE_ID=$INSTANCE_ID" > $EC2_USER_HOME/env.sh
@@ -212,22 +206,46 @@ Resources:
           else
             echo "Found USE_PRIVATE_SUBNET=$USE_PRIVATE_SUBNET"
           fi
-          # install_neo4j() {
-          #   echo "INFO: Installing Neo4j"
-          #   wget -O - https://debian.neo4j.com/neotechnology.gpg.key | sudo apt-key add -
-          #   echo 'deb https://debian.neo4j.com stable 5' | tee -a /etc/apt/sources.list.d/neo4j.list
-          #   apt-get update -y
-          #   apt list -a neo4j
-          #   add-apt-repository -y universe
-          #   apt-get install -y neo4j=1:5.14.0
-          #   systemctl enable neo4j
-          #   neo4j-admin dbms set-initial-password ${Neo4jPassword}
-          #   mkdir -p /var/lib/neo4j/backups/{system,$NEO4J_DATABASE_NAME}
-          #   chown -R neo4j:neo4j /var/lib/neo4j/backups
-          # }
+          install_neo4j() {
+            echo "INFO: Installing Neo4j"
+            curl -O -C - http://dist.neo4j.org/neo4j-community-5.15.0-unix.tar.gz
+            tar zxf neo4j-community-5.15.0-unix.tar.gz
+            mv neo4j-community-5.15.0 /opt/
+            ln -s /opt/neo4j-community-5.15.0 /opt/neo4j
+            groupadd neo4j
+            useradd -g neo4j neo4j -s /bin/bash
+            chown -R neo4j /opt/neo4j-community-5.15.0
+
+            # Create the neo4j.service file and write the configuration
+            SERVICE_FILE="/lib/systemd/system/neo4j.service"
+            cat <<EOF >"$SERVICE_FILE"
+            [Unit]
+            Description=Neo4j Graph Database
+            After=network-online.target
+            Wants=network-online.target
+
+            [Service]
+            ExecStart=/opt/neo4j/bin/neo4j console
+            Restart=on-abnormal
+            User=neo4j
+            Group=neo4j
+            Environment="NEO4J_CONF=/opt/neo4j/conf" "NEO4J_HOME=/opt/neo4j"
+            LimitNOFILE=60000
+            TimeoutSec=120
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+
+            echo "INFO: Neo4j systemd service file has been created at $SERVICE_FILE"
+            systemctl daemon-reload
+            systemctl enable neo4j
+            systemctl start neo4j
+          }
+          install_neo4j
           # install_apoc_plugin() {
           #   echo "INFO: Installing APOC"
-          #   mv /var/lib/neo4j/labs/apoc-*-core.jar /var/lib/neo4j/plugins
+          #   mv $NEO4J_HOME/labs/apoc-*-core.jar $NEO4J_HOME/plugins
           # }
           # build_neo4j_public_config() {
           #   if [ -z "$SUBDOMAIN" ] || [ -z "$HOST_DOMAIN" ]; then
