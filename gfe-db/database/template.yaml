@@ -206,6 +206,57 @@ Resources:
           else
             echo "Found USE_PRIVATE_SUBNET=$USE_PRIVATE_SUBNET"
           fi
+          install_apoc_plugin() {
+            echo "INFO: Installing APOC"
+            mv $NEO4J_HOME/labs/apoc-*-core.jar $NEO4J_HOME/plugins
+          }
+          # todo test public configuration
+          build_neo4j_public_config() {
+            if [ -z "$SUBDOMAIN" ] || [ -z "$HOST_DOMAIN" ]; then
+              echo "ERROR: SUBDOMAIN and HOST_DOMAIN must be set"
+              exit 1
+            fi
+            sed -i "s/#initial.dbms.default_database=neo4j/initial.dbms.default_database=${!NEO4J_DATABASE_NAME}/g" $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#server.default_listen_address=0.0.0.0/server.default_listen_address=0.0.0.0/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i "s/#server.default_advertised_address=localhost/server.default_advertised_address=$SUBDOMAIN.$HOST_DOMAIN/g" $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#server.bolt.tls_level=DISABLED/server.bolt.tls_level=REQUIRED/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#server.bolt.listen_address=:7687/server.bolt.listen_address=:7687/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#server.bolt.advertised_address=:7687/server.bolt.advertised_address=:7687/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/server.http.enabled=true/#server.http.enabled=true/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/server.https.enabled=false/server.https.enabled=true/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#server.https.listen_address=:7473/server.https.listen_address=:7473/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#server.https.advertised_address=:7473/server.https.advertised_address=:7473/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#dbms.ssl.policy.bolt.enabled=true/dbms.ssl.policy.bolt.enabled=true/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#dbms.ssl.policy.bolt.base_directory=certificates\/bolt/dbms.ssl.policy.bolt.base_directory=\/opt\/neo4j\/certificates\/bolt/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#dbms.ssl.policy.bolt.private_key=private.key/dbms.ssl.policy.bolt.private_key=\/opt\/neo4j\/certificates\/bolt\/neo4j.key/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#dbms.ssl.policy.bolt.public_certificate=public.crt/dbms.ssl.policy.bolt.public_certificate=\/opt\/neo4j\/certificates\/bolt\/neo4j.cert/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#dbms.ssl.policy.bolt.client_auth=NONE/dbms.ssl.policy.bolt.client_auth=NONE/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#dbms.ssl.policy.https.enabled=true/dbms.ssl.policy.https.enabled=true/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#dbms.ssl.policy.https.base_directory=certificates\/https/dbms.ssl.policy.https.base_directory=\/opt\/neo4j\/certificates\/https/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#dbms.ssl.policy.https.private_key=private.key/dbms.ssl.policy.https.private_key=\/opt\/neo4j\/certificates\/https\/neo4j.key/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#dbms.ssl.policy.https.public_certificate=public.crt/dbms.ssl.policy.https.public_certificate=\/opt\/neo4j\/certificates\/https\/neo4j.cert/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#dbms.ssl.policy.https.client_auth=NONE/dbms.ssl.policy.https.client_auth=NONE/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#dbms.logs.http.enabled=true/dbms.logs.http.enabled=true/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#dbms.security.allow_csv_import_from_file_urls=true/dbms.security.allow_csv_import_from_file_urls=true/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#dbms.security.procedures.unrestricted=my.extensions.example,my.procedures.*/dbms.security.procedures.unrestricted=apoc.*,gds.*/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#dbms.security.procedures.allowlist=apoc.coll.*,apoc.load.*,gds.*/dbms.security.procedures.allowlist=apoc.*,gds.*/g' $NEO4J_HOME/conf/neo4j.conf
+          }
+          build_neo4j_private_config() {
+            sed -i "s/#initial.dbms.default_database=neo4j/initial.dbms.default_database=${!NEO4J_DATABASE_NAME}/g" $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#server.default_listen_address=0.0.0.0/server.default_listen_address=0.0.0.0/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i "s/#server.default_advertised_address=localhost/server.default_advertised_address=localhost/g" $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#server.bolt.tls_level=DISABLED/server.bolt.tls_level=DISABLED/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#server.bolt.listen_address=:7687/server.bolt.listen_address=:7687/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#server.bolt.advertised_address=:7687/server.bolt.advertised_address=:7687/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#server.http.listen_address=:7474/server.http.listen_address=:7474/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#server.http.advertised_address=:7474/server.http.advertised_address=:7474/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/server.https.enabled=false/#server.https.enabled=false/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#dbms.ssl.policy.bolt.enabled=true/dbms.ssl.policy.bolt.enabled=false/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#dbms.logs.http.enabled=true/dbms.logs.http.enabled=true/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#dbms.security.allow_csv_import_from_file_urls=true/dbms.security.allow_csv_import_from_file_urls=true/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#dbms.security.procedures.unrestricted=my.extensions.example,my.procedures.*/dbms.security.procedures.unrestricted=apoc.*,gds.*/g' $NEO4J_HOME/conf/neo4j.conf
+            sed -i 's/#dbms.security.procedures.allowlist=apoc.coll.*,apoc.load.*,gds.*/dbms.security.procedures.allowlist=apoc.*,gds.*/g' $NEO4J_HOME/conf/neo4j.conf
+          }
           install_neo4j() {
             echo "INFO: Installing Neo4j"
             curl -O -C - http://dist.neo4j.org/neo4j-community-5.15.0-unix.tar.gz
@@ -219,99 +270,46 @@ Resources:
             # Create the neo4j.service file and write the configuration
             SERVICE_FILE="/lib/systemd/system/neo4j.service"
             cat <<EOF >"$SERVICE_FILE"
-            [Unit]
-            Description=Neo4j Graph Database
-            After=network-online.target
-            Wants=network-online.target
+          [Unit]
+          Description=Neo4j Graph Database
+          After=network-online.target
+          Wants=network-online.target
 
-            [Service]
-            ExecStart=/opt/neo4j/bin/neo4j console
-            Restart=on-abnormal
-            User=neo4j
-            Group=neo4j
-            Environment="NEO4J_CONF=/opt/neo4j/conf" "NEO4J_HOME=/opt/neo4j"
-            LimitNOFILE=60000
-            TimeoutSec=120
+          [Service]
+          ExecStart=/opt/neo4j/bin/neo4j console
+          Restart=on-abnormal
+          User=neo4j
+          Group=neo4j
+          Environment="NEO4J_CONF=/opt/neo4j/conf" "NEO4J_HOME=/opt/neo4j"
+          LimitNOFILE=60000
+          TimeoutSec=120
 
-            [Install]
-            WantedBy=multi-user.target
-            EOF
+          [Install]
+          WantedBy=multi-user.target
+          EOF
 
             echo "INFO: Neo4j systemd service file has been created at $SERVICE_FILE"
             systemctl daemon-reload
             systemctl enable neo4j
             systemctl start neo4j
+            install_apoc_plugin
+            cp $NEO4J_HOME/conf/neo4j.conf $NEO4J_HOME/conf/neo4j.conf.bak
+            if [ "$USE_PRIVATE_SUBNET" = "false" ]; then
+              echo "INFO: Building public subnet configuration for Neo4j"
+              build_neo4j_public_config;
+            elif [ "$USE_PRIVATE_SUBNET" = "true" ]; then
+              echo "INFO: Building private subnet configuration for Neo4j"
+              build_neo4j_private_config;
+            else
+              echo "ERROR: USE_PRIVATE_SUBNET must be set to 'true' or 'false'"
+              exit 1
+            fi
+            $NEO4J_HOME/bin/neo4j-admin server memory-recommendation | grep -v ^# >> $NEO4J_HOME/conf/neo4j.conf
           }
+          echo "INFO: Initiliazing Neo4j database"
           install_neo4j
-          # install_apoc_plugin() {
-          #   echo "INFO: Installing APOC"
-          #   mv $NEO4J_HOME/labs/apoc-*-core.jar $NEO4J_HOME/plugins
-          # }
-          # build_neo4j_public_config() {
-          #   if [ -z "$SUBDOMAIN" ] || [ -z "$HOST_DOMAIN" ]; then
-          #     echo "ERROR: SUBDOMAIN and HOST_DOMAIN must be set"
-          #     exit 1
-          #   fi
-          #   cp /etc/neo4j/neo4j.conf /etc/neo4j/neo4j.conf.bak
-          #   sed -i 's/#initial.dbms.default_database=neo4j/initial.dbms.default_database=${Neo4jDatabaseName}/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#server.default_listen_address=0.0.0.0/server.default_listen_address=0.0.0.0/g' /etc/neo4j/neo4j.conf
-          #   sed -i "s/#server.default_advertised_address=localhost/server.default_advertised_address=$SUBDOMAIN.$HOST_DOMAIN/g" /etc/neo4j/neo4j.conf
-          #   sed -i 's/#server.bolt.tls_level=DISABLED/server.bolt.tls_level=REQUIRED/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#server.bolt.listen_address=:7687/server.bolt.listen_address=:7687/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#server.bolt.advertised_address=:7687/server.bolt.advertised_address=:7687/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/server.http.enabled=true/#server.http.enabled=true/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/server.https.enabled=false/server.https.enabled=true/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#server.https.listen_address=:7473/server.https.listen_address=:7473/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#server.https.advertised_address=:7473/server.https.advertised_address=:7473/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#dbms.ssl.policy.bolt.enabled=true/dbms.ssl.policy.bolt.enabled=true/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#dbms.ssl.policy.bolt.base_directory=certificates\/bolt/dbms.ssl.policy.bolt.base_directory=\/var\/lib\/neo4j\/certificates\/bolt/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#dbms.ssl.policy.bolt.private_key=private.key/dbms.ssl.policy.bolt.private_key=\/var\/lib\/neo4j\/certificates\/bolt\/neo4j.key/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#dbms.ssl.policy.bolt.public_certificate=public.crt/dbms.ssl.policy.bolt.public_certificate=\/var\/lib\/neo4j\/certificates\/bolt\/neo4j.cert/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#dbms.ssl.policy.bolt.client_auth=NONE/dbms.ssl.policy.bolt.client_auth=NONE/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#dbms.ssl.policy.https.enabled=true/dbms.ssl.policy.https.enabled=true/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#dbms.ssl.policy.https.base_directory=certificates\/https/dbms.ssl.policy.https.base_directory=\/var\/lib\/neo4j\/certificates\/https/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#dbms.ssl.policy.https.private_key=private.key/dbms.ssl.policy.https.private_key=\/var\/lib\/neo4j\/certificates\/https\/neo4j.key/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#dbms.ssl.policy.https.public_certificate=public.crt/dbms.ssl.policy.https.public_certificate=\/var\/lib\/neo4j\/certificates\/https\/neo4j.cert/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#dbms.ssl.policy.https.client_auth=NONE/dbms.ssl.policy.https.client_auth=NONE/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#dbms.logs.http.enabled=true/dbms.logs.http.enabled=true/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#dbms.security.allow_csv_import_from_file_urls=true/dbms.security.allow_csv_import_from_file_urls=true/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#dbms.security.procedures.unrestricted=my.extensions.example,my.procedures.*/dbms.security.procedures.unrestricted=apoc.*,gds.*/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#dbms.security.procedures.allowlist=apoc.coll.*,apoc.load.*,gds.*/dbms.security.procedures.allowlist=apoc.*,gds.*/g' /etc/neo4j/neo4j.conf
-          #   neo4j-admin server memory-recommendation | grep -v ^# >> /etc/neo4j/neo4j.conf
-          # }
-          # build_neo4j_private_config() {
-          #   cp /etc/neo4j/neo4j.conf /etc/neo4j/neo4j.conf.bak
-          #   sed -i 's/#initial.dbms.default_database=neo4j/initial.dbms.default_database=${Neo4jDatabaseName}/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#server.default_listen_address=0.0.0.0/server.default_listen_address=0.0.0.0/g' /etc/neo4j/neo4j.conf
-          #   sed -i "s/#server.default_advertised_address=localhost/server.default_advertised_address=localhost/g" /etc/neo4j/neo4j.conf
-          #   sed -i 's/#server.bolt.tls_level=DISABLED/server.bolt.tls_level=DISABLED/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#server.bolt.listen_address=:7687/server.bolt.listen_address=:7687/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#server.bolt.advertised_address=:7687/server.bolt.advertised_address=:7687/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#server.http.listen_address=:7474/server.http.listen_address=:7474/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#server.http.advertised_address=:7474/server.http.advertised_address=:7474/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/server.https.enabled=false/#server.https.enabled=false/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#dbms.ssl.policy.bolt.enabled=true/dbms.ssl.policy.bolt.enabled=false/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#dbms.logs.http.enabled=true/dbms.logs.http.enabled=true/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#dbms.security.allow_csv_import_from_file_urls=true/dbms.security.allow_csv_import_from_file_urls=true/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#dbms.security.procedures.unrestricted=my.extensions.example,my.procedures.*/dbms.security.procedures.unrestricted=apoc.*,gds.*/g' /etc/neo4j/neo4j.conf
-          #   sed -i 's/#dbms.security.procedures.allowlist=apoc.coll.*,apoc.load.*,gds.*/dbms.security.procedures.allowlist=apoc.*,gds.*/g' /etc/neo4j/neo4j.conf
-          #   neo4j-admin server memory-recommendation | grep -v ^# >> /etc/neo4j/neo4j.conf
-          # }
           # echo "INFO: Downloading scripts"
-          # aws s3 cp --quiet --recursive s3://${DataBucketName}/config/scripts/ $UBUNTU_HOME/
-          # echo "INFO: Initiliazing Neo4j database"
-          # install_neo4j
-          # install_apoc_plugin
-          # if [ "$USE_PRIVATE_SUBNET" = "false" ]; then
-          #   echo "INFO: Building public subnet configuration for Neo4j"
-          #   build_neo4j_public_config;
-          # elif [ "$USE_PRIVATE_SUBNET" = "true" ]; then
-          #   echo "INFO: Building private subnet configuration for Neo4j"
-          #   build_neo4j_private_config;
-          # else
-          #   echo "ERROR: USE_PRIVATE_SUBNET must be set to 'true' or 'false'"
-          #   exit 1
-          # fi
+          # aws s3 cp --quiet --recursive s3://${!DATA_BUCKET_NAME}/config/scripts/ $UBUNTU_HOME/
           # cd $UBUNTU_HOME && make neo4j
           # CREATE_NEO4J_USERS=${CreateNeo4jUsers}
           # if [ ! -z "$CREATE_NEO4J_USERS" ]; then
