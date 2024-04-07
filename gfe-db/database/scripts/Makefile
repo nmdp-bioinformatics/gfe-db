@@ -79,6 +79,7 @@ neo4j.plugins.install-apoc-extended:
 # TODO check if the GDS plugin is already installed for the version specified and skip if it is
 # https://graphdatascience.ninja/neo4j-graph-data-science-2.5.5.zip
 neo4j.plugins.install-gds:
+	@rm -f ${NEO4J_HOME}/plugins/neo4j-graph-data-science-*.jar
 	@echo "Downloading Neo4j Graph Data Science plugin..."
 	@curl -L https://graphdatascience.ninja/neo4j-graph-data-science-${GDS_VERSION}.zip -O
 	@unzip neo4j-graph-data-science-${GDS_VERSION}.zip
