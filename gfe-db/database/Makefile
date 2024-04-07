@@ -48,7 +48,7 @@ service.config.deploy: service.config.scripts.deploy service.config.cloudwatch-a
 service.ssl.renew-cert:
 	@res=$$(aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
-		--parameters "commands=[cd /home/ubuntu && sudo make ssl.renew-cert]" \
+		--parameters "commands=[cd /home/ec2-user && sudo make ssl.renew-cert]" \
 		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
 		--comment "${STAGE}-${APP_NAME} SSL certificate renewal utility") && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
@@ -60,7 +60,7 @@ service.ssl.renew-cert:
 		--instance-id "$${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
 
 service.deploy:
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Neo4j to EC2 with ${UBUNTU_AMI_ID}" 2>&1 | tee -a $$CFN_LOG_PATH
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Neo4j to EC2" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws cloudformation deploy \
 		--region $${AWS_REGION} \
 		--template-file template.yaml \
@@ -73,7 +73,6 @@ service.deploy:
 			createVpc="$${CREATE_VPC}" \
 			usePrivateSubnet="$${USE_PRIVATE_SUBNET}" \
 			DataBucketName="$${DATA_BUCKET_NAME}" \
-			UbuntuAmiId="$${UBUNTU_AMI_ID}" \
 			Neo4jDatabaseName="$${NEO4J_DATABASE_NAME}" \
 			Neo4jPassword="$${NEO4J_PASSWORD}" \
 			CreateNeo4jUsers="$${CREATE_NEO4J_USERS}" \
@@ -87,7 +86,7 @@ service.deploy:
 service.backup:
 	@res=$$(aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
-		--parameters "commands=[cd /home/ubuntu && sudo make neo4j.backup]" \
+		--parameters "commands=[cd /home/ec2-user && sudo make neo4j.backup]" \
 		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
 		--comment "${STAGE}=${APP_NAME} backup service") && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
@@ -114,7 +113,7 @@ service.restore: #from_path=s3://<backup path>
 	@echo "Restoring Neo4j database..." && \
 	res=$$(aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
-		--parameters "commands=[cd /home/ubuntu && sudo make neo4j.restore from_path=$$from_path]" \
+		--parameters "commands=[cd /home/ec2-user && sudo make neo4j.restore from_path=$$from_path]" \
 		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
 		--comment "${STAGE}=${APP_NAME} restore service") && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
@@ -137,7 +136,7 @@ service.connect:
 	@instance_ip=$$(aws ssm get-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseEndpoint" | jq -r '.Parameter.Value') && \
 	echo "Connecting to Neo4j EC2 instance at $$instance_ip" && \
-	ssh -o "IdentitiesOnly yes" -tt -i ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem ubuntu@$$instance_ip
+	ssh -o "IdentitiesOnly yes" -tt -i ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem ec2-user@$$instance_ip
 
 
 delete: ##=> Delete resources

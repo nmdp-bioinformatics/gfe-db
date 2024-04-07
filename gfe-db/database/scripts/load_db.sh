@@ -1,10 +1,10 @@
 #!/bin/bash -x
 
-source /home/ubuntu/env.sh
+source /home/ec2-user/env.sh
 
 # Get APP_NAME, AWS_REGION, STAGE setup on db install
-if [ -z $UBUNTU_HOME ]; then
-    echo "ERROR: UBUNTU_HOME not set"
+if [ -z $EC2_USER_HOME ]; then
+    echo "ERROR: EC2_USER_HOME not set"
     exit 1
 fi
 

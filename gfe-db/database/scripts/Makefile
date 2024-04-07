@@ -1,5 +1,6 @@
 # This Makefile only orchestrates process that are run on the EC2 database instance, it is deployed and called on the server
 # Must be run as root
+# TODO make sure commands are idempotent
 SERVICE := database
 
 # Application specific environment variables
@@ -7,11 +8,11 @@ include env.sh
 export
 
 export LOGS_DIR := /tmp/logs
-export REPORTS_DIR := ${UBUNTU_HOME}/reports
+export REPORTS_DIR := ${EC2_USER_HOME}/reports
 export NEO4J_USERNAME=$(shell aws secretsmanager get-secret-value --secret-id "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials" | jq -r '.SecretString' | jq -r '.NEO4J_USERNAME')
 export NEO4J_PASSWORD=$(shell aws secretsmanager get-secret-value --secret-id "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials" | jq -r '.SecretString' | jq -r '.NEO4J_PASSWORD')
 
-REQUIRED_VARS := UBUNTU_HOME NEO4J_HOME INSTANCE_ID DATA_BUCKET_NAME NEO4J_USERNAME NEO4J_PASSWORD NEO4J_DATABASE_NAME ADMIN_EMAIL GDS_VERSION NEO4J_URI NEO4J_ENCRYPTION
+REQUIRED_VARS := EC2_USER_HOME NEO4J_HOME INSTANCE_ID DATA_BUCKET_NAME NEO4J_USERNAME NEO4J_PASSWORD NEO4J_DATABASE_NAME ADMIN_EMAIL GDS_VERSION NEO4J_URI NEO4J_ENCRYPTION
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -43,7 +44,7 @@ neo4j: bootstrap
 
 # eip
 eip.waiter:
-	@bash ${UBUNTU_HOME}/init/eip_assoc_waiter.sh
+	@bash ${EC2_USER_HOME}/init/eip_assoc_waiter.sh
 
 neo4j.credentials.show:
 	@echo "Username: ${NEO4J_USERNAME}"
@@ -106,10 +107,10 @@ else ifeq ($(USE_PRIVATE_SUBNET),false)
 endif
 
 neo4j.query.init.ssl:
-	@cat ${NEO4J_HOME}/cypher/init.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
+	@cat ${NEO4J_HOME}/cypher/init.cyp | ${NEO4J_HOME}/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 
 neo4j.query.init.no-ssl:
-	@cat ${NEO4J_HOME}/cypher/init.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
+	@cat ${NEO4J_HOME}/cypher/init.cyp | ${NEO4J_HOME}/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
 
 neo4j.query.create-users: #=> users=<username:password,...>
 	@echo "Creating users"
@@ -117,16 +118,16 @@ neo4j.query.create-users: #=> users=<username:password,...>
 
 neo4j.query: #=> query=<cypher string>
 ifeq ($(USE_PRIVATE_SUBNET),true)
-	@echo "$$query" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
+	@echo "$$query" | ${NEO4J_HOME}/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
 else ifeq ($(USE_PRIVATE_SUBNET),false)
-	@echo "$$query" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
+	@echo "$$query" | ${NEO4J_HOME}/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 endif
 
 neo4j.query.show-constraints: # public: neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687; private: bolt://<private_ip>:7687
 ifeq ($(USE_PRIVATE_SUBNET),true)
-	@echo "SHOW CONSTRAINTS;" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
+	@echo "SHOW CONSTRAINTS;" | ${NEO4J_HOME}/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
 else ifeq ($(USE_PRIVATE_SUBNET),false)
-	@echo "SHOW CONSTRAINTS;" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
+	@echo "SHOW CONSTRAINTS;" | ${NEO4J_HOME}/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 endif
 
 neo4j.waiter:
@@ -230,7 +231,7 @@ define HELP_MESSAGE
 
 	Environment variables:
 
-	UBUNTU_HOME: "${UBUNTU_HOME}"
+	EC2_USER_HOME: "${EC2_USER_HOME}"
 		Description: Root directory where the Makefile resides
 	
 	NEO4J_HOME: "${NEO4J_HOME}"
