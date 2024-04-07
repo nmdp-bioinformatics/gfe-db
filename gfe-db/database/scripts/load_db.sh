@@ -79,7 +79,7 @@ if [[ "$USE_PRIVATE_SUBNET" = true ]]; then
 
     # # With SSL/TLS policy disabled for private instance
     cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp | \
-        cypher-shell \
+        $NEO4J_HOME/bin/cypher-shell \
             --address bolt://127.0.0.1:7687 \
             --encryption false \
             --username $NEO4J_USERNAME \
@@ -91,7 +91,7 @@ else
 
     # With SSL/TLS policy enabled
     cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp | \
-        cypher-shell \
+        $NEO4J_HOME/bin/cypher-shell \
             --address neo4j://$SUBDOMAIN.$HOST_DOMAIN:7687 \
             --encryption true \
             --username $NEO4J_USERNAME \

@@ -38,7 +38,7 @@ endif
 
 neo4j: bootstrap
 	$(MAKE) neo4j.plugins.install-gds
-	$(MAKE) neo4j.start
+	$(MAKE) neo4j.restart
 	$(MAKE) neo4j.init
 	$(MAKE) copy-logs
 

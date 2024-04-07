@@ -3,6 +3,11 @@
 # Comma-separated list of users to create
 USERS=$1 # username:password,...
 
+if [ -z "${NEO4J_HOME}" ]; then
+    echo "No NEO4J_HOME specified, exiting"
+    exit 1
+fi
+
 if [ -z "${USERS}" ]; then
     echo "No users specified, exiting"
     exit 1
@@ -32,7 +37,7 @@ do
     password=$(echo $user | cut -d':' -f2)
     echo "Creating user ${username}..."
     cat $NEO4J_HOME/cypher/create_user.cyp | \
-    cypher-shell \
+    $NEO4J_HOME/bin/cypher-shell \
         -u neo4j \
         -p ${NEO4J_PASSWORD} \
         -a ${NEO4J_URI} \
