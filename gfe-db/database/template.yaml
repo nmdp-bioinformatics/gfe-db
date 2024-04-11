@@ -264,7 +264,7 @@ Resources:
             ln -s /opt/neo4j-community-5.15.0 /opt/neo4j
             groupadd neo4j
             useradd -g neo4j neo4j -s /bin/bash
-            chown -R neo4j /opt/neo4j-community-5.15.0
+            chown -R neo4j:neo4j /opt/neo4j-community-5.15.0
             $NEO4J_HOME/bin/neo4j-admin dbms set-initial-password ${Neo4jPassword}
 
             # Create the neo4j.service file and write the configuration
@@ -462,7 +462,7 @@ Resources:
           commandLine:
             type: String
             description: 'Run on the server to create a dump of Neo4j and store in S3'
-            default: make neo4j.backup
+            default: 'make neo4j.backup'
           workingDirectory:
             type: String
             description: Working directory

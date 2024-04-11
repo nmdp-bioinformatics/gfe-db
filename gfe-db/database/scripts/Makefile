@@ -4,6 +4,7 @@
 SERVICE := database
 
 # Application specific environment variables
+# env.sh is created by the EC2 User Data in CloudFormation template
 include env.sh
 export
 
@@ -12,7 +13,7 @@ export REPORTS_DIR := ${EC2_USER_HOME}/reports
 export NEO4J_USERNAME=$(shell aws secretsmanager get-secret-value --secret-id "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials" | jq -r '.SecretString' | jq -r '.NEO4J_USERNAME')
 export NEO4J_PASSWORD=$(shell aws secretsmanager get-secret-value --secret-id "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials" | jq -r '.SecretString' | jq -r '.NEO4J_PASSWORD')
 
-REQUIRED_VARS := EC2_USER_HOME NEO4J_HOME INSTANCE_ID DATA_BUCKET_NAME NEO4J_USERNAME NEO4J_PASSWORD NEO4J_DATABASE_NAME ADMIN_EMAIL GDS_VERSION NEO4J_URI NEO4J_ENCRYPTION
+REQUIRED_VARS := APP_NAME STAGE AWS_REGION SERVICE EC2_USER_HOME NEO4J_HOME INSTANCE_ID DATA_BUCKET_NAME NEO4J_USERNAME NEO4J_PASSWORD NEO4J_DATABASE_NAME ADMIN_EMAIL GDS_VERSION NEO4J_URI NEO4J_ENCRYPTION
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -169,14 +170,19 @@ neo4j.backup:
 	$(MAKE) neo4j.stop
 	@cd ${NEO4J_HOME} && \
 	sudo -u neo4j mkdir -p ${NEO4J_HOME}/backups/system ${NEO4J_HOME}/backups/${NEO4J_DATABASE_NAME} && \
-	sudo -u neo4j neo4j-admin database dump system --to-path=${NEO4J_HOME}/backups/system/ --overwrite-destination=true --verbose && \
-	sudo -u neo4j neo4j-admin database dump ${NEO4J_DATABASE_NAME} --to-path=${NEO4J_HOME}/backups/${NEO4J_DATABASE_NAME}/ --overwrite-destination=true --verbose && \
+	sudo -u neo4j ${NEO4J_HOME}/bin/neo4j-admin database dump system --to-path=${NEO4J_HOME}/backups/system/ --overwrite-destination=true --verbose && \
+	sudo -u neo4j ${NEO4J_HOME}/bin/neo4j-admin database dump ${NEO4J_DATABASE_NAME} --to-path=${NEO4J_HOME}/backups/${NEO4J_DATABASE_NAME}/ --overwrite-destination=true --verbose && \
 	archive_path=$$(date +%Y/%m/%d/%H/%M)/${NEO4J_DATABASE_NAME}.zip && \
 	echo "Uploading archive to S3: s3://${DATA_BUCKET_NAME}/backups/${SERVICE}/${NEO4J_DATABASE_NAME}/$$archive_path" && \
 	sudo -u neo4j zip -r - backups | aws s3 cp - s3://${DATA_BUCKET_NAME}/backups/${SERVICE}/${NEO4J_DATABASE_NAME}/$$archive_path && \
 	echo "Updating SSM Parameter for current backup S3 path" && \
-	res=$$(aws ssm put-parameter --name "/${APP_NAME}/${STAGE}/${AWS_REGION}/CurrentBackupS3Path" --value "s3://${DATA_BUCKET_NAME}/backups/${SERVICE}/${NEO4J_DATABASE_NAME}/$$archive_path" --type String --overwrite) && \
-	echo $$res | jq -r && \
+	cmd=$(echo )
+	res=$$(aws ssm put-parameter \
+		--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/CurrentBackupS3Path" \
+		--value "s3://${DATA_BUCKET_NAME}/backups/${SERVICE}/${NEO4J_DATABASE_NAME}/$$archive_path" \
+		--type String \
+		--overwrite) && \
+	echo $$res && \
 	echo "Cleaning up" && \
 	sudo -u neo4j rm -rf ${NEO4J_HOME}/backups/*
 	$(MAKE) neo4j.start
@@ -190,15 +196,15 @@ neo4j.restore: #from_path=s3://<backup path>.zip
 	@mkdir -p /tmp/restore
 	@aws s3 cp $$from_path /tmp/restore/${NEO4J_DATABASE_NAME}.zip && chown neo4j:neo4j /tmp/restore/${NEO4J_DATABASE_NAME}.zip
 	@sudo -u neo4j unzip -o /tmp/restore/${NEO4J_DATABASE_NAME}.zip -d ${NEO4J_HOME}/
-	@sudo -u neo4j neo4j-admin database load --from-path=${NEO4J_HOME}/backups/system system --overwrite-destination=true
-	@sudo -u neo4j neo4j-admin database load --from-path=${NEO4J_HOME}/backups/${NEO4J_DATABASE_NAME} ${NEO4J_DATABASE_NAME} --overwrite-destination=true
+	@sudo -u neo4j ${NEO4J_HOME}/bin/neo4j-admin database load --from-path=${NEO4J_HOME}/backups/system system --overwrite-destination=true
+	@sudo -u neo4j ${NEO4J_HOME}/bin/neo4j-admin database load --from-path=${NEO4J_HOME}/backups/${NEO4J_DATABASE_NAME} ${NEO4J_DATABASE_NAME} --overwrite-destination=true
 	@rm -r /tmp/restore
 	$(MAKE) neo4j.start
 
 # # TODO update for Neo4j 5
 # neo4j.create-report:
 # 	@mkdir -p ${REPORTS_DIR}
-# 	@neo4j-admin check-consistency --database=neo4j --verbose=true --report-dir=reports > reports/consistency_check.txt
+# 	@${NEO4J_HOME}/bin/neo4j-admin check-consistency --database=neo4j --verbose=true --report-dir=reports > reports/consistency_check.txt
 
 ssl.create-cert:
 	@bash init/create_cert.sh "${SUBDOMAIN}.${HOST_DOMAIN}" ${ADMIN_EMAIL}
