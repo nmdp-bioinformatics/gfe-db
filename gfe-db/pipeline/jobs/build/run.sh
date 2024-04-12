@@ -97,10 +97,9 @@ else
 	echo "Using Feature Service: ${FEATURE_SERVICE_URL}"
 fi
 
-
 # Build csv files
 RELEASES=$(echo "${RELEASES}" | sed s'/"//'g | sed s'/,/ /g')
-# exit 1 # TODO test state machine error handling
+
 for release in ${RELEASES}; do
 
 	release=$(echo "$release" | sed s'/,//g')
@@ -116,23 +115,23 @@ for release in ${RELEASES}; do
 		echo "CSV directory: $DATA_DIR/$release/csv"
 	fi
 
-	# Check if DAT file exists
-	if [ -f "$DATA_DIR/$release/hla.$release.dat" ]; then
-		echo "DAT file for release $release already exists"
-	else
-		echo "Downloading DAT file for release $release..."
-		if [ "$(echo "$release" | bc -l)" -lt 3350  ]; then
-
-			# Should be environment variable
-			imgt_hla_raw_url='https://raw.githubusercontent.com/ANHIG/IMGTHLA'
-			echo "Downloading $imgt_hla_raw_url/$release/hla.dat to $DATA_DIR/$release/hla.$release.dat"
-			curl -SL "$imgt_hla_raw_url/$release/hla.dat" > "$DATA_DIR/$release/hla.$release.dat"
-		else
-			imgt_hla_media_url='https://media.githubusercontent.com/media/ANHIG/IMGTHLA'
-			echo "Downloading $imgt_hla_media_url/$release/hla.dat to $DATA_DIR/$release/hla.$release.dat"
-			curl -SL "$imgt_hla_media_url/$release/hla.dat" > "$DATA_DIR/$release/hla.$release.dat"
-		fi
-	fi
+    # Check if DAT file exists
+    if [ -f "$DATA_DIR/$release/hla.$release.dat.zip" ]; then
+        echo "DAT file for release $release already exists"
+    else
+        echo "Downloading DAT file for release $release..."
+        # Should be environment variable
+        # https://github.com/ANHIG/IMGTHLA/raw/Latest/hla.dat.zip
+        imgt_hla_raw_url='https://github.com/ANHIG/IMGTHLA/raw'
+        echo "Downloading $imgt_hla_raw_url/$release/hla.dat.zip to $DATA_DIR/$release/hla.$release.dat.zip"
+        curl -SL "$imgt_hla_raw_url/$release/hla.dat.zip" > "$DATA_DIR/$release/hla.$release.dat.zip"
+        if [ $? -ne 0 ] || [ ! -s "$DATA_DIR/$release/hla.$release.dat.zip" ]; then
+            echo "Failed to download or empty file: $DATA_DIR/$release/hla.$release.dat.zip"
+            exit 1
+        fi
+        unzip "$DATA_DIR/$release/hla.$release.dat.zip" -d "$DATA_DIR/$release"
+        mv "$DATA_DIR/$release/hla.dat" "$DATA_DIR/$release/hla.$release.dat"
+    fi
 	
 	# Builds CSV files
 	python3 "$SRC_DIR"/app.py \
@@ -145,14 +144,14 @@ for release in ${RELEASES}; do
 		-l $LIMIT \
 		-u $FEATURE_SERVICE_URL
     build_exit_status=$?
-    echo "Build exit status (1:CRITICAL, 2:WARNING): $build_exit_status"
+    echo "Build exit status (0: SUCCESS, 1:CRITICAL, 2:WARNING): $build_exit_status"
     
-    # Notify missing alleles
+    # Notify missing alleles with exit code 2 (warning for missing data but not fatal)
     if [ $build_exit_status -eq 2 ]; then
     echo "WARNING: Some alleles failed to build, please see logs for error messages"
     fi
 
-    # fail for any exit code other than 0 or 2. 2 is a warning for missing data but not fatal.
+    # Fail for any exit code other than 0 or 2
     if [ $build_exit_status -ne 0 ] && [ $build_exit_status -ne 2 ]; then
     echo "CRITICAL: Build failed, please see logs for error messages"
     exit 1
@@ -171,7 +170,6 @@ for release in ${RELEASES}; do
 
 	echo -e "Uploading logs to s3://$GFE_BUCKET/logs/$release/:\n$(ls $LOGS_DIR/)"
 	aws s3 --recursive cp "$LOGS_DIR/" s3://$GFE_BUCKET/logs/pipeline/build/$release/ > "$LOGS_DIR/s3CopyLog.Local.txt"
-
 done
 
 END_EXECUTION=$(( SECONDS - $START_EXECUTION ))
