@@ -2,6 +2,7 @@ import os
 import logging
 import json
 import boto3
+from botocore.exceptions import WaiterError
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -44,11 +45,21 @@ def lambda_handler(event, context):
             logger.info(f"Neo4j backup invoked on instance {neo4j_database_instance_id}")
             
             # wait for the command to complete successfully
-            waiter = ssm.get_waiter('command_executed')
-            waiter.wait(
-                CommandId=response['Command']['CommandId'],
-                InstanceId=neo4j_database_instance_id
-            )
+            max_retries = 4
+            retries = 0
+            try:
+                waiter = ssm.get_waiter('command_executed')
+                waiter.wait(
+                    CommandId=response['Command']['CommandId'],
+                    InstanceId=neo4j_database_instance_id
+                )
+            except WaiterError as e:
+                logger.error(str(e))
+                retries += 1
+
+            if retries >= max_retries:
+                logger.error(f"Failed to wait for command to complete after {max_retries} retries")
+                raise e
 
             logger.info(f"Neo4j backup completed on instance {neo4j_database_instance_id}")
 
