@@ -149,18 +149,11 @@ def lambda_handler(event, context):
             execution_state_items, key=lambda x: x.commit.date_utc, reverse=False
         )
 
-        # # Reassign the app state commits to the updated state
-        # app_state_commits = new_app_state_commits
-
     except Exception as e:
         import traceback
         message = f"Error syncing app state: {e}\n{traceback.format_exc()}\n{json.dumps(event)}"
         logger.error(message)
         raise Exception(message)
-
-
-
-
 
     ### Process New and User Requested Release Versions ###
     unprocessed_execution_state_items_with_params = []
@@ -180,8 +173,6 @@ def lambda_handler(event, context):
 
         user_input_parameters = InputParameters(**event)
 
-
-    # TODO BOOKMARK 3/10/24
     # Remove duplicate releases before combining new and user items
     if bool(new_items and user_items):
         user_commits = set([(item.commit.sha, item.execution.version) for item in user_items])
@@ -213,152 +204,7 @@ def lambda_handler(event, context):
             "body": json.dumps({"message": message}),
         }
 
-    # TODO Convert unprocessed items to state machine payload
-    # TODO deduplicate and sort the unprocessed_execution_state_items by date
-
-
-    # try:
-        # commits_with_releases = []
-        # # Handle manually triggered pipeline execution
-        # if "releases" in event:
-        #     is_user_event = True
-
-        #     logger.info(f"Processing release(s) from user: {event['releases']}")
-
-        #     # TODO marshal releases to InputPayloadItem instead of casting to int
-        #     # extract the most recent record for the release value passed in the event
-        #     releases = [int(release) for release in event["releases"].split(",")]
-
-        #     # Filter the execution state for the release version(s) provided in the input event
-        #     for release in releases:
-        #         commits_with_releases.extend(list(filter(
-        #             lambda record: record.execution.version == release,
-        #             execution_state
-        #         )))
-
-        #     releases_without_commits = list(set(releases) - set([item.execution.version for item in execution_state]))
-
-        #     if not commits_with_releases or releases_without_commits:
-        #         logger.info("No commits found for release version(s) provided, fetching most recent commits...")
-        #         most_recent_commits = get_most_recent_commits(execution_state)
-        #     else:
-        #         most_recent_commits = []
-
-        #     # Set input parameters for manual pipeline execution from event
-        #     input_parameters = InputParameters(**event)
-
-        # # Handle scheduled pipeline execution
-        # is_user_event = False
-
-        # # Use default parameters for automated pipeline execution
-        # input_parameters = source_repo_config.default_input_parameters
-        # # 2) Get the most recent commits from github since the most recent commit date retrieved from DynamoDB
-        # most_recent_commits = get_most_recent_commits(execution_state)
-
-        # TODO (optional) Re-fetch app state from the table and compare it to the local app state to ensure they are in sync
-        # # This block can be used to further separate responsibilities if state syncing and release processing are split into separate functions
-        # # Get all items from app state table
-        # execution_state = get_execution_state(table)
-        # execution_state_items = execution_state.items
-        # # Compare the app state with the local app state to find new commits
-        # if execution_state_items != synced_execution_state_items:
-        #     raise Exception("App state is out of sync with the local app state")
-
-        # logger.info(f"Getting release versions")
-        # if most_recent_commits:
-        #     for commit in most_recent_commits:
-        #         sha = commit["sha"]
-
-        #         # Loop through available file assets containing release version metadata
-        #         for asset_config in source_repo_config.target_metadata_config.items:
-        #             try:
-
-        #                 # Get the release version for the commit by examining file asset contents
-        #                 release_version = get_release_version_for_commit(
-        #                     commit=commit, 
-        #                     owner=GITHUB_REPOSITORY_OWNER,
-        #                     repo=GITHUB_REPOSITORY_NAME,
-        #                     token=GITHUB_PERSONAL_ACCESS_TOKEN,
-        #                     asset_path=asset_config.asset_path,
-        #                     metadata_regex=asset_config.metadata_regex
-        #                 )
-        #                 logger.info(
-        #                     f"Found release version {release_version} for commit {sha}"
-        #                 )
-
-        #                 # Build the execution object to be stored in the state table (`execution__*` fields)
-        #                 execution_detail = ExecutionDetailsConfig(
-        #                     **{
-        #                         "version": release_version, 
-        #                         "status": ExecutionStatus.NOT_PROCESSED
-        #                     }
-        #                 )
-
-        #                 # Build the repository object to be stored in the state table (`repository__*` fields)
-        #                 repository_config = RepositoryConfig(
-        #                     **{
-        #                         "owner": GITHUB_REPOSITORY_OWNER,
-        #                         "name": GITHUB_REPOSITORY_NAME,
-        #                         "url": f"https://github.com/{GITHUB_REPOSITORY_OWNER}/{GITHUB_REPOSITORY_NAME}",
-        #                         # TODO remove default params from state table, they are retrieved from source config file in S3
-        #                         # "default_input_parameters": source_repo_config.default_input_parameters,
-        #                     }
-        #                 )
-
-        #                 # Assemble the execution state item for the new commit
-        #                 execution_state_item = ExecutionStateItem(
-        #                     created_utc=utc_now,
-        #                     execution=execution_detail,
-        #                     repository=repository_config,
-        #                     commit=Commit.from_response_json(commit),
-        #                 )
-
-        #                 commits_with_releases.append(execution_state_item)
-        #                 # break the loop if successful
-        #                 break
-        #             except Exception as e:
-        #                 logger.info(f"Error getting release version for commit {sha}: {e}")
-
     logger.info("Updating execution state for pending release versions")
-        # if is_user_event:
-        #     recent_commits_for_release = select_most_recent_commit_for_release(commits_with_releases, releases)
-        # else:
-        ### Process each release using the most recent commit for that version ###
-        # 1a) Mark the most recent commit for each release as PENDING
-        # input_parameters = source_repo_config.default_input_parameters
-        # recent_commits_for_release = select_most_recent_commit_for_release(commits_with_releases)
-
-        # recent_commits_for_release = select_most_recent_commit_for_release(unprocessed_execution_state_items)
-        
-        # pending_commits = [
-        #     update_execution_state_item(
-        #         execution_state_item=execution_state_item,
-        #         invocation_id=invocation_id,
-        #         status=ExecutionStatus.PENDING,
-        #         timestamp=utc_now,
-        #         input_parameters=input_parameters,
-        #         version=version,
-        #     )
-        #     for item in recent_commits_for_release
-        #     for version, execution_state_item in item.items()
-        # ]
-
-        # # 1b) Mark the older commits for each release as SKIPPED *only* if they are marked as NOT_PROCESSED
-        # skipped_commits = [
-        #     update_execution_state_item(
-        #         execution_state_item=execution_state_item, 
-        #         invocation_id=invocation_id,
-        #         status=ExecutionStatus.SKIPPED,
-        #         timestamp=utc_now
-        #     )
-        #     for execution_state_item in commits_with_releases
-        #     if (execution_state_item not in pending_commits and execution_state_item.execution.status == ExecutionStatus.NOT_PROCESSED)
-        # ]
-
-        # # 1c) Combine the pending and skipped commits
-        # new_execution_state = sorted(
-        #     pending_commits + skipped_commits, key=lambda x: x.commit.date_utc, reverse=False
-        # )
 
     try:
         # Update the status of unprocessed items to PENDING
@@ -544,9 +390,6 @@ def update_execution_state_item(
         execution_state_item.execution.s3_path = (
             f"s3://{data_bucket_name}/data/{execution_state_item.execution.version}"
         )
-
-        # execution.date_utc is updated by the state machine. This is different from created_utc which is set by this function
-        # execution_state_item.execution.date_utc = timestamp
 
         # Reset error if present from previous executions
         if execution_state_item.error is not None or execution_state_item.execution.date_utc is not None:
