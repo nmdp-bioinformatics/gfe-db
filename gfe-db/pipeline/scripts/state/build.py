@@ -41,9 +41,6 @@ def get_branch_commits(branches):
 
     for item in branches:
 
-        # if item["name"].lower() == "latest":
-        #     continue
-
         if not version_is_valid(item["name"], return_bool=True):
             continue
 

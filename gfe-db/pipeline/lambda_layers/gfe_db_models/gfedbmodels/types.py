@@ -84,7 +84,6 @@ def url_is_valid(v):
 
 release_version_re = r"^[1-9][0-9]{1,2}0$"
 
-
 def version_is_valid(v, return_bool=False):
 
     if not return_bool:
