@@ -884,7 +884,7 @@ Resources:
           workingDirectory:
             type: "String"
             description: "Working directory"
-            default: "/home/ubuntu"
+            default: "/home/ec2-user"
           executionTimeout:
             type: "String"
             description: "(Optional) The time in seconds for a command to complete before it is considered to have failed. Default is 3600 (1 hour). Maximum is 28800 (8 hours)."
