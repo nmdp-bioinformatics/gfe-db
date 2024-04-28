@@ -19,6 +19,7 @@ import json
 from pygethub import list_branches, GitHubPaginator
 from gfedbmodels.utils import get_utc_now, select_keys, filter_nested_nulls, get_commit
 from gfedbmodels.types import (
+    version_is_valid,
     SourceConfig,
     RepositoryConfig,
     Commit,
@@ -40,7 +41,10 @@ def get_branch_commits(branches):
 
     for item in branches:
 
-        if item["name"].lower() == "latest":
+        # if item["name"].lower() == "latest":
+        #     continue
+
+        if not version_is_valid(item["name"], return_bool=True):
             continue
 
         release_version = item["name"]

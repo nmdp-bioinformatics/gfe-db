@@ -85,12 +85,17 @@ def url_is_valid(v):
 release_version_re = r"^[1-9][0-9]{1,2}0$"
 
 
-def version_is_valid(v):
-    if not re.match(release_version_re, str(v)):
-        raise ValueError(
-            f"Release version must match regex pattern `{release_version_re}`"
-        )
-    return v
+def version_is_valid(v, return_bool=False):
+
+    if not return_bool:
+        if not re.match(release_version_re, str(v)):
+            raise ValueError(
+                f"Release version must match regex pattern `{release_version_re}`"
+            )
+        return v
+    
+    elif return_bool:
+        return bool(re.match(release_version_re, str(v)))
 
 
 # validate that commit sha is a 40 character hex string
