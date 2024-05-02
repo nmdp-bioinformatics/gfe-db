@@ -194,6 +194,7 @@ CREATE_VPC=false
 USE_PRIVATE_SUBNET=true
 DEPLOY_NAT_GATEWAY=false
 EXTERNAL_NAT_GATEWAY_ID=nat-xxxxxxxx
+SKIP_NAT_GATEWAY_VALIDATION=true
 DEPLOY_BASTION_SERVER=false
 ADMIN_IP=0.0.0.0/0
 CREATE_SSM_VPC_ENDPOINT=false
@@ -274,8 +275,8 @@ These variables must be defined before running Make. The best way to set these v
 | GITHUB_REPOSITORY_OWNER            | string    | ANHIG                   | Yes         | Owner of the GitHub repository                           |
 | GITHUB_REPOSITORY_NAME             | string    | IMGTHLA                 | Yes         | Name of the GitHub repository                            |
 | NEO4J_PASSWORD                     | string    | **********              | Yes         | Password for Neo4j                                       |
-| APOC_VERSION                       | string    | 5.13.0                  | Yes         | Version of APOC                                          |
-| GDS_VERSION                        | string    | 2.5.5                   | Yes         | Version of GDS                                           |
+| APOC_VERSION                       | string    | 5.15.0                  | Yes         | Version of APOC                                          |
+| GDS_VERSION                        | string    | 2.5.6                   | Yes         | Version of GDS                                           |
 | GITHUB_PERSONAL_ACCESS_TOKEN       | string    | ghp_xxxxxxxxxxxxxx      | Yes         | GitHub personal access token                             |
 | FEATURE_SERVICE_URL                | string    | https://api.example.com | Yes         | URL of the Feature service                               |
 | HOST_DOMAIN                        | string    | example.com             | Conditional | Required if USE_PRIVATE_SUBNET=false                     |
@@ -290,6 +291,7 @@ These variables must be defined before running Make. The best way to set these v
 | S3_VPC_ENDPOINT_ID                 | string    | vpce-xxxxxxxx           | Conditional | Required if CREATE_S3_VPC_ENDPOINT=true                  |
 | DEPLOY_NAT_GATEWAY                 | bool      | true/false              | Conditional | Required if USE_PRIVATE_SUBNET=true                      |
 | EXTERNAL_NAT_GATEWAY_ID            | string    | nat-xxxxxxxx            | Conditional | Required if DEPLOY_NAT_GATEWAY=false                     |
+| SKIP_VALIDATE_NAT_GATEWAY          | bool      | true/false              | Conditional | Optional if USE_PRIVATE_SUBNET=true                     |
 | DEPLOY_BASTION_SERVER              | bool      | true/false              | Conditional | Optional if USE_PRIVATE_SUBNET=true                      |
 | ADMIN_IP                           | string    | 192.168.1.1/32          | Conditional | Required if DEPLOY_BASTION_SERVER=true                   |
 

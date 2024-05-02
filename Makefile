@@ -25,6 +25,7 @@ export PURGE_LOGS ?= false
 export CREATE_VPC ?= false
 export USE_PRIVATE_SUBNET ?= false
 export DEPLOY_NAT_GATEWAY ?=
+export SKIP_VALIDATE_NAT_GATEWAY ?= false
 export DEPLOY_BASTION_SERVER ?=
 export CREATE_SSM_VPC_ENDPOINT ?=
 export CREATE_SECRETSMANAGER_VPC_ENDPOINT ?=
@@ -66,7 +67,7 @@ REQUIRED_VARS := STAGE APP_NAME AWS_ACCOUNT AWS_REGION AWS_PROFILE SUBSCRIBE_EMA
 	ADMIN_EMAIL UBUNTU_AMI_ID NEO4J_PASSWORD GDS_VERSION
 
 BOOLEAN_VARS := CREATE_VPC USE_PRIVATE_SUBNET CREATE_SSM_VPC_ENDPOINT CREATE_SECRETSMANAGER_VPC_ENDPOINT \
-	DEPLOY_NAT_GATEWAY DEPLOY_BASTION_SERVER
+	DEPLOY_NAT_GATEWAY DEPLOY_BASTION_SERVER SKIP_VALIDATE_NAT_GATEWAY
 
 # stdout colors
 # blue: runtime message, no action required
@@ -341,6 +342,7 @@ endif
 
 env.validate.external-nat-gateway:
 ifeq ($(DEPLOY_NAT_GATEWAY),false)
+ifeq ($(SKIP_VALIDATE_NAT_GATEWAY),false)
 ifeq ($(EXTERNAL_NAT_GATEWAY_ID),)
 	$(call red, "\`EXTERNAL_NAT_GATEWAY_ID\` must be set as an environment variable when \`DEPLOY_NAT_GATEWAY\` is \`false\`")
 	@exit 1
@@ -352,6 +354,7 @@ else
 			| select(.Associations[]? | .SubnetId == $$SUBNET_ID) | {RouteTableId: .RouteTableId, Routes: .Routes, IsNATGatewayRoutePresent: any(.Routes[]; .NatGatewayId == $$NAT_ID)}' \
 	| jq -r '.IsNATGatewayRoutePresent') && \
 	[[ $$res = "true" ]] && echo "\033[0;34mFound NAT Gateway route\033[0m" || (echo "\033[0;31mERROR: No NAT Gateway route found\033[0m" && exit 1)
+endif
 endif
 endif
 
