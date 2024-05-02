@@ -25,6 +25,7 @@ export PURGE_LOGS ?= false
 export CREATE_VPC ?= false
 export USE_PRIVATE_SUBNET ?= false
 export DEPLOY_NAT_GATEWAY ?=
+export SKIP_CHECK_DEPENDENCIES ?= false
 export SKIP_VALIDATE_NAT_GATEWAY ?= false
 export DEPLOY_BASTION_SERVER ?=
 export CREATE_SSM_VPC_ENDPOINT ?=
@@ -67,7 +68,7 @@ REQUIRED_VARS := STAGE APP_NAME AWS_ACCOUNT AWS_REGION AWS_PROFILE SUBSCRIBE_EMA
 	ADMIN_EMAIL UBUNTU_AMI_ID NEO4J_PASSWORD GDS_VERSION
 
 BOOLEAN_VARS := CREATE_VPC USE_PRIVATE_SUBNET CREATE_SSM_VPC_ENDPOINT CREATE_SECRETSMANAGER_VPC_ENDPOINT \
-	DEPLOY_NAT_GATEWAY DEPLOY_BASTION_SERVER SKIP_VALIDATE_NAT_GATEWAY
+	DEPLOY_NAT_GATEWAY DEPLOY_BASTION_SERVER SKIP_VALIDATE_NAT_GATEWAY SKIP_CHECK_DEPENDENCIES
 
 # stdout colors
 # blue: runtime message, no action required
@@ -155,11 +156,15 @@ logs.dirs:
 		"${LOGS_DIR}/database/bootstrap" || true
 
 check.dependencies:
+ifeq ($(SKIP_CHECK_DEPENDENCIES),false)
 	$(MAKE) check.dependencies.docker
 	$(MAKE) check.dependencies.awscli
 	$(MAKE) check.dependencies.samcli
 	$(MAKE) check.dependencies.jq
 	$(MAKE) check.dependencies.coreutils
+else
+	@echo "Skipping dependency checks..."
+endif
 
 check.dependencies.docker:
 	@if docker info 2>&1 | grep -q 'Is the docker daemon running?'; then \
