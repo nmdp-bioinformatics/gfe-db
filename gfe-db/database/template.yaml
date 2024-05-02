@@ -443,13 +443,14 @@ Resources:
       Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jPrivateIp
       Description: Private IP for Neo4j
       Value: !Sub ${Neo4jDatabaseInstance.PrivateIp}
-  # Neo4jPublicIpParameter:
-  #   Type: AWS::SSM::Parameter
-  #   Properties:
-  #     Type: String
-  #     Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jPublicIp
-  #     Description: Public IP for Neo4j
-  #     Value: !Sub ${Neo4jDatabaseInstance.PublicIp}
+  Neo4jPublicIpParameter:
+    Type: AWS::SSM::Parameter
+    Condition: UsePublicSubnet
+    Properties:
+      Type: String
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jPublicIp
+      Description: Public IP for Neo4j
+      Value: !Sub ${Neo4jDatabaseInstance.PublicIp}
   Neo4jBackupDocument:
     Type: AWS::SSM::Document
     Properties:
