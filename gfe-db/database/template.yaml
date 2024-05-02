@@ -19,6 +19,8 @@ Parameters:
       - 'false'
   DataBucketName:
     Type: String
+  Neo4jAmiId:
+    Type: AWS::EC2::Image::Id
   Neo4jDatabaseName:
     Type: String
     Description: Name of Neo4j database
@@ -68,13 +70,13 @@ Resources:
       Value: !Ref Neo4jCredentialsSecret
   Neo4jDatabaseInstance:
     Type: AWS::EC2::Instance
-    CreationPolicy:
-      ResourceSignal:
-        Timeout: PT10M
+    # CreationPolicy:
+    #   ResourceSignal:
+    #     Timeout: PT10M
     Properties:
       KeyName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}'
       DisableApiTermination: false
-      ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs}}'
+      ImageId: !Ref Neo4jAmiId
       InstanceType: m5.large
       IamInstanceProfile: !Ref Neo4jDatabaseInstanceProfile
       Monitoring: true
@@ -84,7 +86,7 @@ Resources:
             VolumeSize: !Ref DatabaseVolumeSize
             VolumeType: gp3
       NetworkInterfaces:
-        - AssociatePublicIpAddress: true
+        - AssociatePublicIpAddress: false
           DeviceIndex: '0'
           GroupSet:
             - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
@@ -441,13 +443,13 @@ Resources:
       Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jPrivateIp
       Description: Private IP for Neo4j
       Value: !Sub ${Neo4jDatabaseInstance.PrivateIp}
-  Neo4jPublicIpParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jPublicIp
-      Description: Public IP for Neo4j
-      Value: !Sub ${Neo4jDatabaseInstance.PublicIp}
+  # Neo4jPublicIpParameter:
+  #   Type: AWS::SSM::Parameter
+  #   Properties:
+  #     Type: String
+  #     Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jPublicIp
+  #     Description: Public IP for Neo4j
+  #     Value: !Sub ${Neo4jDatabaseInstance.PublicIp}
   Neo4jBackupDocument:
     Type: AWS::SSM::Document
     Properties:
