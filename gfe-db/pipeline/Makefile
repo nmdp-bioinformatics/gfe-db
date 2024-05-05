@@ -14,10 +14,11 @@ deploy:
 service.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} - functions" 2>&1 | tee -a $$CFN_LOG_PATH
 	@sam build \
-		--template-file template.yaml  2>&1 | tee -a $$CFN_LOG_PATH || true && \
+		--use-container \
+		--template-file template.yaml && \
 	sam package \
 		--resolve-s3 \
-		--output-template-file packaged.yaml  2>&1 | tee -a $$CFN_LOG_PATH || true && \
+		--output-template-file packaged.yaml && \
 	sam deploy \
 		--no-fail-on-empty-changeset \
 		--region "$${AWS_REGION}" \
