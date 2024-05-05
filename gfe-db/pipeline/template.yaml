@@ -880,7 +880,7 @@ Resources:
           commandLine:
             type: "String"
             description: "These commands are invoked by a Lambda script which sets the correct parameters (Refer to documentation)."
-            default: 'bash start_task.sh'
+            default: 'make neo4j.start && bash start_task.sh'
           workingDirectory:
             type: "String"
             description: "Working directory"
