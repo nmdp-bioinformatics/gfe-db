@@ -190,6 +190,7 @@ Follow these steps to deploy gfe-db to an existing private subnet and VPC.
 AWS_PROFILE=default
 APP_NAME=gfe-db
 AWS_REGION=us-east-1
+SKIP_CHECK_DEPENDENCIES=true
 CREATE_VPC=false
 USE_PRIVATE_SUBNET=true
 DEPLOY_NAT_GATEWAY=false
@@ -267,6 +268,8 @@ These variables must be defined before running Make. The best way to set these v
 | AWS_PROFILE                        | string    | default                 | Yes         | AWS account profile name                                 |
 | APP_NAME                           | string    | my-app                  | Yes         | Application name                                         |
 | AWS_REGION                         | string    | us-east-1               | Yes         | AWS region                                               |
+| SKIP_CHECK_DEPENDENCIES            | bool      | true/false              | No          | Skips checking dependencies when running `make deploy`   |
+| SKIP_VALIDATE_NAT_GATEWAY          | bool      | true/false              | No          | Skips NAT Gateway validation                             |
 | CREATE_VPC                         | bool      | true/false              | Yes         | Whether to create a VPC                                  |
 | USE_PRIVATE_SUBNET                 | bool      | true/false              | Yes         | Use private subnet if true                               |
 | PUBLIC_SUBNET_ID                   | string    | subnet-xxxxxxxx         | Conditional | Required if CREATE_VPC=false                             |
