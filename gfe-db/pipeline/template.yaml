@@ -377,7 +377,7 @@ Resources:
       Description: !Sub '${AppName} update pipeline trigger: checks for new IMGT/HLA releases and starts the loading process'
       CodeUri: functions/invoke_pipeline/
       Handler: app.lambda_handler
-      Runtime: python3.10
+      Runtime: python3.11
       MemorySize: !Ref InvokePipelineFunctionMemorySize
       Timeout: !Ref InvokePipelineFunctionTimeout
       Architectures:
@@ -440,7 +440,7 @@ Resources:
       Description: !Sub "Execute validation a queries on Neo4j for ${AppName}"
       CodeUri: functions/execute_validation_queries/
       Handler: app.lambda_handler
-      Runtime: python3.10
+      Runtime: python3.11
       MemorySize: !Ref ExecuteValidationQueriesFunctionMemorySize
       Timeout: !Ref ExecuteValidationQueriesFunctionTimeout
       Architectures:
@@ -500,7 +500,7 @@ Resources:
       Description: !Sub "Invoke backup for Neo4j for ${AppName}"
       CodeUri: functions/invoke_backup_script/
       Handler: app.lambda_handler
-      Runtime: python3.10
+      Runtime: python3.11
       MemorySize: 256
       Timeout: 300
       Architectures:
@@ -539,7 +539,7 @@ Resources:
       Description: !Sub "Invoke server-side loading on Neo4j for ${AppName}"
       CodeUri: functions/invoke_load_script/
       Handler: app.lambda_handler
-      Runtime: python3.10
+      Runtime: python3.11
       MemorySize: 256
       Timeout: 60
       Architectures:
@@ -593,7 +593,7 @@ Resources:
       Description: !Sub "Validate build output for ${AppName}"
       CodeUri: functions/validate_build_output/
       Handler: app.lambda_handler
-      Runtime: python3.10
+      Runtime: python3.11
       MemorySize: 1024
       Timeout: 900
       Architectures:
@@ -778,7 +778,7 @@ Resources:
       FunctionName: !Ref DisableBackupFunctionName
       CodeUri: functions/disable_backup/
       Handler: app.lambda_handler
-      Runtime: python3.10
+      Runtime: python3.11
       MemorySize: 128
       Timeout: 60
       Architectures:
@@ -880,7 +880,7 @@ Resources:
           commandLine:
             type: "String"
             description: "These commands are invoked by a Lambda script which sets the correct parameters (Refer to documentation)."
-            default: 'bash start_task.sh'
+            default: 'make neo4j.start && bash start_task.sh'
           workingDirectory:
             type: "String"
             description: "Working directory"

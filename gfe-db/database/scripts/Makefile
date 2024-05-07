@@ -176,12 +176,13 @@ neo4j.backup:
 	echo "Uploading archive to S3: s3://${DATA_BUCKET_NAME}/backups/${SERVICE}/${NEO4J_DATABASE_NAME}/$$archive_path" && \
 	sudo -u neo4j zip -r - backups | aws s3 cp - s3://${DATA_BUCKET_NAME}/backups/${SERVICE}/${NEO4J_DATABASE_NAME}/$$archive_path && \
 	echo "Updating SSM Parameter for current backup S3 path" && \
-	cmd=$(echo )
+	echo "AWS region: ${AWS_REGION}" && \
 	res=$$(aws ssm put-parameter \
 		--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/CurrentBackupS3Path" \
 		--value "s3://${DATA_BUCKET_NAME}/backups/${SERVICE}/${NEO4J_DATABASE_NAME}/$$archive_path" \
 		--type String \
-		--overwrite) && \
+		--overwrite \
+		--region ${AWS_REGION}) && \
 	echo $$res && \
 	echo "Cleaning up" && \
 	sudo -u neo4j rm -rf ${NEO4J_HOME}/backups/*
