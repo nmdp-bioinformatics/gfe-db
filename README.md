@@ -190,10 +190,12 @@ Follow these steps to deploy gfe-db to an existing private subnet and VPC.
 AWS_PROFILE=default
 APP_NAME=gfe-db
 AWS_REGION=us-east-1
+SKIP_CHECK_DEPENDENCIES=true
 CREATE_VPC=false
 USE_PRIVATE_SUBNET=true
 DEPLOY_NAT_GATEWAY=false
 EXTERNAL_NAT_GATEWAY_ID=nat-xxxxxxxx
+SKIP_NAT_GATEWAY_VALIDATION=true
 DEPLOY_BASTION_SERVER=false
 ADMIN_IP=0.0.0.0/0
 CREATE_SSM_VPC_ENDPOINT=false
@@ -208,6 +210,7 @@ GITHUB_REPOSITORY_NAME=IMGTHLA
 VPC_ID=vpc-xxxxxxxx
 PUBLIC_SUBNET_ID=subnet-xxxxxxxx
 PRIVATE_SUBNET_ID=subnet-xxxxxxxx
+NEO4J_AMI_ID=<ami_id>
 NEO4J_PASSWORD=<password>
 APOC_VERSION=5.15.0
 GDS_VERSION=2.5.6
@@ -265,6 +268,8 @@ These variables must be defined before running Make. The best way to set these v
 | AWS_PROFILE                        | string    | default                 | Yes         | AWS account profile name                                 |
 | APP_NAME                           | string    | my-app                  | Yes         | Application name                                         |
 | AWS_REGION                         | string    | us-east-1               | Yes         | AWS region                                               |
+| SKIP_CHECK_DEPENDENCIES            | bool      | true/false              | No          | Skips checking dependencies when running `make deploy`   |
+| SKIP_VALIDATE_NAT_GATEWAY          | bool      | true/false              | No          | Skips NAT Gateway validation                             |
 | CREATE_VPC                         | bool      | true/false              | Yes         | Whether to create a VPC                                  |
 | USE_PRIVATE_SUBNET                 | bool      | true/false              | Yes         | Use private subnet if true                               |
 | PUBLIC_SUBNET_ID                   | string    | subnet-xxxxxxxx         | Conditional | Required if CREATE_VPC=false                             |
@@ -273,9 +278,10 @@ These variables must be defined before running Make. The best way to set these v
 | SUBSCRIBE_EMAILS                   | string    | notify@example.com      | Yes         | Emails for subscription                                  |
 | GITHUB_REPOSITORY_OWNER            | string    | ANHIG                   | Yes         | Owner of the GitHub repository                           |
 | GITHUB_REPOSITORY_NAME             | string    | IMGTHLA                 | Yes         | Name of the GitHub repository                            |
+| NEO4J_AMI_ID                       | string    | ami-xxxxxxxxxxxxxxx     | Yes         | Amazon Linux 2 AMI ID                                    |
 | NEO4J_PASSWORD                     | string    | **********              | Yes         | Password for Neo4j                                       |
-| APOC_VERSION                       | string    | 5.13.0                  | Yes         | Version of APOC                                          |
-| GDS_VERSION                        | string    | 2.5.5                   | Yes         | Version of GDS                                           |
+| APOC_VERSION                       | string    | 5.15.0                  | Yes         | Version of APOC                                          |
+| GDS_VERSION                        | string    | 2.5.6                   | Yes         | Version of GDS                                           |
 | GITHUB_PERSONAL_ACCESS_TOKEN       | string    | ghp_xxxxxxxxxxxxxx      | Yes         | GitHub personal access token                             |
 | FEATURE_SERVICE_URL                | string    | https://api.example.com | Yes         | URL of the Feature service                               |
 | HOST_DOMAIN                        | string    | example.com             | Conditional | Required if USE_PRIVATE_SUBNET=false                     |
@@ -290,6 +296,7 @@ These variables must be defined before running Make. The best way to set these v
 | S3_VPC_ENDPOINT_ID                 | string    | vpce-xxxxxxxx           | Conditional | Required if CREATE_S3_VPC_ENDPOINT=true                  |
 | DEPLOY_NAT_GATEWAY                 | bool      | true/false              | Conditional | Required if USE_PRIVATE_SUBNET=true                      |
 | EXTERNAL_NAT_GATEWAY_ID            | string    | nat-xxxxxxxx            | Conditional | Required if DEPLOY_NAT_GATEWAY=false                     |
+| SKIP_VALIDATE_NAT_GATEWAY          | bool      | true/false              | Conditional | Optional if USE_PRIVATE_SUBNET=true                      |
 | DEPLOY_BASTION_SERVER              | bool      | true/false              | Conditional | Optional if USE_PRIVATE_SUBNET=true                      |
 | ADMIN_IP                           | string    | 192.168.1.1/32          | Conditional | Required if DEPLOY_BASTION_SERVER=true                   |
 
