@@ -15,7 +15,7 @@
 					},
 					{
 						"file_path": "/opt/neo4j/logs/neo4j.log",
-						"log_group_name": "STAGE/APP_NAME/neo4j.log",
+						"log_group_name": "STAGE/APP_NAME/opt/neo4j/logs/neo4j.log",
 						"log_stream_name": "{instance_id}/opt/neo4j/logs/neo4j.log",
 						"retention_in_days": 90
 					}
