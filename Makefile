@@ -163,7 +163,7 @@ ifeq ($(SKIP_CHECK_DEPENDENCIES),false)
 	$(MAKE) check.dependencies.jq
 	$(MAKE) check.dependencies.coreutils
 else
-	@echo "Skipping dependency checks..."
+	$(call blue, "Skipping dependency checks...")
 endif
 
 check.dependencies.docker:
@@ -206,7 +206,7 @@ env.validate.stage:
 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Stage" \
 		--output json \
 		| jq -r '.Parameters[0].Value') && \
-	[[ $$res = "null" ]] && echo "No deployed stage found" || echo "Found deployed stage: $$res" && \
+	[[ $$res = "null" ]] && echo "No deployed stage found" || true && \
 	if [ "$${res}" = "null" ]; then \
 		echo "\033[0;32m**** Starting new deployment. ****\033[0m"; \
 	elif [ "$${res}" = "${STAGE}" ]; then \
@@ -360,6 +360,8 @@ else
 	| jq -r '.IsNATGatewayRoutePresent') && \
 	[[ $$res = "true" ]] && echo "\033[0;34mFound NAT Gateway route\033[0m" || (echo "\033[0;31mERROR: No NAT Gateway route found\033[0m" && exit 1)
 endif
+else
+	$(call blue, "Skipping NAT Gateway validation...")
 endif
 endif
 

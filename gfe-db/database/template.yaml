@@ -81,7 +81,7 @@ Resources:
       IamInstanceProfile: !Ref Neo4jDatabaseInstanceProfile
       Monitoring: true
       BlockDeviceMappings:
-        - DeviceName: /dev/sda1
+        - DeviceName: /dev/xvda
           Ebs:
             VolumeSize: !Ref DatabaseVolumeSize
             VolumeType: gp3
@@ -98,6 +98,7 @@ Resources:
           # There is no direct equivalent to needrestart.conf configuration; manage services as needed
           yum update -y
           yum install -y \
+            xfsprogs \
             amazon-cloudwatch-agent \
             collectd \
             ca-certificates \
@@ -110,6 +111,20 @@ Resources:
             python3-setuptools \
             git \
             java-17-amazon-corretto
+          if [ "$(sudo file -s /dev/xvda | grep 'data')" ]; then
+              sudo mkfs -t xfs /dev/xvda
+          fi
+          mkdir /opt_backup
+          cp -a /opt/* /opt_backup/
+          mountpoint -q /opt || {
+              umount /opt
+              rm -rf /opt
+              mkdir /opt
+              echo "/dev/xvda /opt xfs defaults,nofail 0 2" >> /etc/fstab
+              mount -a
+              cp -a /opt_backup/* /opt/
+          }
+          chmod 755 /opt
           # Install AWS CLI v2
           curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
           unzip awscliv2.zip
