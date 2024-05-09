@@ -9,11 +9,11 @@ Parameters:
   AppName:
     Type: String
     Description: Application name
-  createVpc:
-    Type: String
-    AllowedValues:
-      - "true"
-      - "false"
+  # createVpc:
+  #   Type: String
+  #   AllowedValues:
+  #     - "true"
+  #     - "false"
   usePrivateSubnet:
     Type: String
     AllowedValues:
@@ -81,12 +81,12 @@ Parameters:
 
 Conditions:
   # Important: All stacks (infra, database, pipeline) should use the same conditions
-  CreateVpc: !Equals [!Ref createVpc, 'true']
-  UseExternalVpc: !Equals [!Ref createVpc, 'false']
-  UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
-  UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
+  # CreateVpc: !Equals [!Ref createVpc, 'true']
+  # UseExternalVpc: !Equals [!Ref createVpc, 'false']
+  # UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
+  # UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
   UsePrivateSubnet: !Equals [!Ref usePrivateSubnet, 'true']
-  UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
+  # UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
 
 Resources:
   BuildServerSG:
@@ -694,6 +694,8 @@ Resources:
 
   UpdatePipelineLogGroup:
     Type: AWS::Logs::LogGroup
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
     Properties:
       LogGroupName: !Sub "${Stage}-${AppName}-pipeline-execution-logs"
 

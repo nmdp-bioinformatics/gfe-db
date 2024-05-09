@@ -96,7 +96,7 @@ neo4j.update-permissions:
 	@chown -R neo4j:neo4j ${NEO4J_HOME}/*
 
 neo4j.init.download-scripts:
-	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
+	@sudo -u neo4j mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
 	@echo "Fetching Cypher scripts from S3..."
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
 
