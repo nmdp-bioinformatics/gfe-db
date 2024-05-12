@@ -36,7 +36,17 @@ get_download_url() {
 
     # GET request with headers and ref parameter
     # response=$(curl -s -H "${auth_header}" -H "${content_type_header}" -H "${accept_header}" -H "${x_github_api_version_header}" "${url}?ref=${commit_sha}")
+    # echo "${url}?ref=${commit_sha}"
     response=$(curl -s -H "${content_type_header}" -H "${accept_header}" -H "${x_github_api_version_header}" "${url}?ref=${commit_sha}")
+
+    # catch errors if .download_url is missing from response
+    if [ "$(echo "${response}" | jq -r '.download_url')" = "null" ]; then
+        echo "ERROR: `download_url` is null for asset: ${asset_path}, please check the asset path."
+        # exit 1
+    elif [ "$(echo "${response}" | jq -r '.download_url')" = "" ]; then
+        echo "ERROR: `download_url` is empty for asset: ${asset_path}, please check the asset path."
+        # exit 1
+    fi
 
     # Print the response
     echo "${response}" | jq -r '.download_url'
@@ -47,26 +57,41 @@ get_download_url() {
 get_asset() {
     download_url="$1"
     asset_path="$2"
+    unzip_path="$3"
+
+    echo "INFO: Received download url: $download_url"
+    echo "INFO: Downloading asset to: $asset_path"
 
     # Download the asset
-    response=$(curl -sSL -o "${asset_path}" -w "%{http_code}" "${download_url}")
+    response=$(curl -sSL -o "${asset_path}" "${download_url}")
 
-    if [ "$response" -ne 200 ]; then
-        echo "Failed to download asset. HTTP response code: $response"
-        exit 1
-    else
-        echo "Successfully downloaded asset. HTTP response code: $response"
+    # check that the file was downloaded
+    if [ ! -f "${asset_path}" ]; then
+        echo "ERROR: Failed to download asset. File not found: ${asset_path}"
+        echo $response  jq -r
+        # exit 1
     fi
+
+    echo "INFO: Successfully downloaded asset ${asset_path}"
+
+    # unzip if unzip_path is provided
+    if [ -n "$unzip_path" ]; then
+        echo "INFO: Unzipping asset to: $unzip_path"   
+        unzip "${asset_path}" -d "${unzip_path}" -x "__MACOSX/*"
+        mv -f "$DATA_DIR/$version/hla.dat" "$DATA_DIR/$version/hla.$version.dat"
+        rm -f "$DATA_DIR/$version/hla.$version.dat.zip"
+    fi
+
 }
 
 # TODO use receive-message from SQS instead environment variables
 # Using environment variables requires a job to deploy for *every* release version
 if [[ -z "${EVENT}" ]]; then
-	echo "No event found. Exiting..."
+	echo "ERROR: No event found. Exiting..."
     exit 1
 else
-	echo "Found event"
-    echo "$EVENT"
+	echo "INFO: Found event"
+    echo "INFO: $EVENT"
 fi
 
 # parse event
@@ -83,44 +108,44 @@ s3_path=$(echo "$EVENT" | jq -r '.input.s3_path')
 # Refactor the above variable validations into a for loop
 for var in version commit_sha align kir mem_profile limit repository_owner repository_name s3_path; do
     if [[ -z "${!var}" ]] || [[ "${!var}" == "null" ]]; then
-        echo "\`$var\` not set. Please specify a value."
+        echo "ERROR: \`$var\` not set. Please specify a value."
         exit 1
     fi
     echo "$var: ${!var}"
 done
 
 if [[ "${limit}" == "-1" ]] || [[ -z "${limit}" ]]; then
-    echo "No limit set, building GFEs for all alleles"
+    echo "INFO: No limit set, building GFEs for all alleles"
 elif [[ "${limit}" =~ ^[0-9]+$ ]] && [[ "${limit}" -gt 0 ]]; then
-    echo "Build is limited to $limit alleles"
+    echo "INFO: Build is limited to $limit alleles"
 else
-    echo "Invalid limit specified. Please specify either a positive integer or -1 for no limit."
+    echo "ERROR: Invalid limit specified. Please specify either a positive integer or -1 for no limit."
     exit 1
 fi
 
-echo "Found environment variables"
+echo "INFO: Found environment variables"
 
 # Check if data directory exists
 # TODO: get full path for each
 if [ ! -d "$DATA_DIR" ]; then
-	echo "Creating new directory in root: $DATA_DIR"
+	echo "INFO: Creating new directory in root: $DATA_DIR"
 	mkdir -p "$DATA_DIR"
 else
-	echo "Data directory: $DATA_DIR"
+	echo "INFO: Data directory: $DATA_DIR"
 fi
 
 # Check if logs directory exists
 if [ ! -d "$LOGS_DIR" ]; then
-	echo "Creating logs directory: $LOGS_DIR"
+	echo "INFO: Creating logs directory: $LOGS_DIR"
 	mkdir -p "$LOGS_DIR"
 else
-	echo "Logs directory: $LOGS_DIR"
+	echo "INFO: Logs directory: $LOGS_DIR"
 fi
 
 # TODO test memory profiling for build job
 # Memory profiling
 if [ "$mem_profile" == "true" ]; then
-	echo "Memory profiling is set to $mem_profile."
+	echo "INFO: Memory profiling is set to $mem_profile."
 	MEM_PROFILE_FLAG="-p"
 	touch "$LOGS_DIR/mem_profile_agg.txt"
 	touch "$LOGS_DIR/mem_profile_diff.txt"
@@ -130,7 +155,7 @@ fi
 
 # Load kir data
 if [ "$kir" == "true" ]; then
-	echo "Loading kir = $kir"
+	echo "INFO: Loading kir = $kir"
 	KIRFLAG="-k"
 else
 	KIRFLAG=""
@@ -138,7 +163,7 @@ fi
 
 # Load alignments data
 if [ "$align" == "true" ]; then
-	echo "Loading alignments..."
+	echo "INFO: Loading alignments..."
 	ALIGNFLAG="-a"
 	sh "$BIN_DIR/get_alignments.sh"
 else
@@ -147,35 +172,35 @@ fi
 
 # Check for FEATURE_SERVICE_URL
 if [[ -z "${FEATURE_SERVICE_URL}" ]]; then
-	echo "No FEATURE_SERVICE_URL set, building GFEs with default feature service."
+	echo "ERROR: No FEATURE_SERVICE_URL set, building GFEs with default feature service."
 else
-	echo "Using Feature Service: ${FEATURE_SERVICE_URL}"
+	echo "INFO: Using Feature Service: ${FEATURE_SERVICE_URL}"
 fi
 
 # Build csv files
 RELEASES=$(echo "${RELEASES}" | sed s'/"//'g | sed s'/,/ /g')
 # exit 1 # TODO test state machine error handling
 
-echo "Processing release version: $version"
+echo "INFO: Processing release version: $version"
 
 # Check if data directory exists
 # TODO: get full path for each
 if [ ! -d "$DATA_DIR/$version/csv" ]; then
-    echo "Creating new directory in root: $DATA_DIR/$version/csv"
+    echo "INFO: Creating new directory in root: $DATA_DIR/$version/csv"
     mkdir -p "$DATA_DIR/$version/csv"
 else
-    echo "CSV directory: $DATA_DIR/$version/csv"
+    echo "INFO: CSV directory: $DATA_DIR/$version/csv"
 fi
 
 # Check if DAT file exists
 if [ -f "$DATA_DIR/$version/hla.$version.dat" ]; then
-    echo "DAT file for release $version already exists"
+    echo "INFO: DAT file for release $version already exists"
 else
 
     # download_url works for all releases including 3440 and earlier
-    echo "Fetching DAT file for release $version..."
-    download_url="$(get_download_url "$repository_owner" "$repository_name" "hla.dat" "$commit_sha")"
-    get_asset "$download_url" "$DATA_DIR/$version/hla.$version.dat"
+    echo "INFO: Fetching DAT file for release $version..."
+    download_url="$(get_download_url "$repository_owner" "$repository_name" "hla.dat.zip" "$commit_sha")"
+    get_asset "$download_url" "$DATA_DIR/$version/hla.$version.dat.zip" "$DATA_DIR/$version"
 fi
 
 # Builds CSV files
@@ -192,7 +217,7 @@ python3 "$SRC_DIR"/app.py \
     -u $FEATURE_SERVICE_URL
     
 build_exit_status=$?
-echo "Build exit status (1:CRITICAL, 2:WARNING): $build_exit_status"
+echo "INFO: Build exit status (0: SUCCESS, 1:CRITICAL, 2:WARNING): $build_exit_status"
 
 # Notify missing alleles
 if [ $build_exit_status -eq 2 ]; then
@@ -206,7 +231,7 @@ exit 1
 fi
 
 # TODO: Use this S3 hierarchy: root/release/data/csv | logs
-echo -e "Uploading data to s3://$GFE_BUCKET/data/$version"
+echo -e "INFO: Uploading data to s3://$GFE_BUCKET/data/$version"
 res=$(aws s3 cp --recursive "$DATA_DIR/$version/" "s3://$GFE_BUCKET/data/$version/")
 
 echo $res
@@ -216,16 +241,16 @@ if [ "$mem_profile" == "true" ]; then
 	mv "$LOGS_DIR/mem_profile_diff.txt" "$LOGS_DIR/mem_profile_diff.$version.txt"
 fi
 
-echo -e "Uploading logs to s3://$GFE_BUCKET/logs/$version"
+echo -e "INFO: Uploading logs to s3://$GFE_BUCKET/logs/$version"
 aws s3 --recursive cp "$LOGS_DIR/" s3://$GFE_BUCKET/logs/pipeline/build/$version/logs/
 
 
 END_EXECUTION=$(( SECONDS - $START_EXECUTION ))
-echo "Finished in $END_EXECUTION seconds"
+echo "INFO: Finished in $END_EXECUTION seconds"
 
 # For debugging to keep the build server running
 if [ "$DEBUG" == "true" ]; then
-    echo "DEBUG mode is set to $DEBUG. Sleeping..."
+    echo "INFO: DEBUG mode is set to $DEBUG. Sleeping..."
     while true; do sleep 1000; done
 fi
 
