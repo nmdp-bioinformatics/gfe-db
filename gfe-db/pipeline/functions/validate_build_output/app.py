@@ -225,7 +225,7 @@ class DatetimeEncoder(json.JSONEncoder):
 if __name__ == "__main__":
     from pathlib import Path
 
-    event_path = Path(__file__).parent / "event.json"
+    event_path = Path(__file__).parent / "error-event.json"
 
     with open(event_path, "r") as file:
         event = json.load(file)
