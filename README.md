@@ -219,6 +219,7 @@ DOCKER_USERNAME=<username>
 DOCKER_PASSWORD=<password>
 ```
 - For the stage `dev`, run `STAGE=dev make deploy` to deploy the architecture.
+- If `SKIP_CONFIGURE_VPC_ENDPOINTS=true`, all VPC endpoints should be modified to be associated with the Neo4j security group once the infrastructure stack is deployed.
 - After deployment is complete run `STAGE=dev make database.load.run releases="3560"` to load the database with the IMGT/HLA release version 3560.
                                                    
 
