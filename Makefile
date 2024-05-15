@@ -27,6 +27,7 @@ export USE_PRIVATE_SUBNET ?= false
 export DEPLOY_NAT_GATEWAY ?=
 export SKIP_CHECK_DEPENDENCIES ?= false
 export SKIP_VALIDATE_NAT_GATEWAY ?= false
+export SKIP_CONFIGURE_VPC_ENDPOINTS ?= false
 export DEPLOY_BASTION_SERVER ?=
 export CREATE_SSM_VPC_ENDPOINT ?=
 export CREATE_SECRETSMANAGER_VPC_ENDPOINT ?=
@@ -241,7 +242,7 @@ ifeq ($(PUBLIC_SUBNET_ID),)
 	$(call red, "\`PUBLIC_SUBNET_ID\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`true\`")
 	@exit 1
 else
-	$(call green, "Found PRIVATE_SUBNET_ID: ${PRIVATE_SUBNET_ID}")
+	$(call green, "Found PUBLIC_SUBNET_ID: ${PUBLIC_SUBNET_ID}")
 endif
 ifeq ($(PRIVATE_SUBNET_ID),)
 	$(call red, "\`PRIVATE_SUBNET_ID\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`true\`")
@@ -253,8 +254,12 @@ ifeq ($(DEPLOY_NAT_GATEWAY),)
 	$(call red, "\`DEPLOY_NAT_GATEWAY\` must be set when \`CREATE_VPC\` is \`false\` and \`USE_PRIVATE_SUBNET\` is \`true\`")
 	@exit 1
 else ifneq ($(DEPLOY_NAT_GATEWAY),)
+ifeq ($(SKIP_VALIDATE_NAT_GATEWAY),false)
 	$(MAKE) env.validate.external-nat-gateway
+else
+	$(call blue, "Skipping NAT Gateway validation...")
 endif
+ifeq ($(SKIP_CONFIGURE_VPC_ENDPOINTS),false)
 ifeq ($(CREATE_SSM_VPC_ENDPOINT),false)
 ifeq ($(SSM_VPC_ENDPOINT_ID),)
 	$(call red, "\`SSM_VPC_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`true\` and \`CREATE_SSM_VPC_ENDPOINT\` is \`false\`")
@@ -278,6 +283,10 @@ ifeq ($(S3_VPC_ENDPOINT_ID),)
 else
 	$(call green, "Found S3_VPC_ENDPOINT_ID: ${S3_VPC_ENDPOINT_ID}")
 endif
+endif
+else
+	$(call blue, "Skipping VPC endpoint validation...")
+	$(call yellow, "Please remember to add the database security group to your VPC endpoints.")
 endif
 else ifeq ($(CREATE_VPC),true)
 ifneq ($(DEPLOY_NAT_GATEWAY),true)
@@ -347,7 +356,6 @@ endif
 
 env.validate.external-nat-gateway:
 ifeq ($(DEPLOY_NAT_GATEWAY),false)
-ifeq ($(SKIP_VALIDATE_NAT_GATEWAY),false)
 ifeq ($(EXTERNAL_NAT_GATEWAY_ID),)
 	$(call red, "\`EXTERNAL_NAT_GATEWAY_ID\` must be set as an environment variable when \`DEPLOY_NAT_GATEWAY\` is \`false\`")
 	@exit 1
@@ -360,8 +368,6 @@ else
 	| jq -r '.IsNATGatewayRoutePresent') && \
 	[[ $$res = "true" ]] && echo "\033[0;34mFound NAT Gateway route\033[0m" || (echo "\033[0;31mERROR: No NAT Gateway route found\033[0m" && exit 1)
 endif
-else
-	$(call blue, "Skipping NAT Gateway validation...")
 endif
 endif
 

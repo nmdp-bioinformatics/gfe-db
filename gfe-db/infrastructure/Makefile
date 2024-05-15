@@ -45,8 +45,7 @@ ifeq ($(USE_PRIVATE_SUBNET),false)
 	$(MAKE) service.deploy.update-dns
 else ifeq ($(USE_PRIVATE_SUBNET),true)
 ifeq ($(HAS_STAGE),null)
-
-
+ifeq ($(SKIP_CONFIGURE_VPC_ENDPOINTS),false)
 ifeq ($(CREATE_SSM_VPC_ENDPOINT),true)
 	$(call blue, Creating Systems Manager VPC endpoint...)
 	$(MAKE) service.deploy.create-endpoint service=ssm
@@ -82,6 +81,9 @@ else
 		echo "\033[0;34mAdding Neo4j Security Group to existing S3 VPC Interface endpoint...\033[0m" && \
 		$(MAKE) service.deploy.modify-endpoint service=s3; \
 	fi
+endif
+else
+	$(call blue, Skipping VPC endpoint configuration...)
 endif
 endif
 endif
