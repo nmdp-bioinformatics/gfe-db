@@ -247,7 +247,7 @@ Resources:
         InstanceTypes:
           - c5d.2xlarge
         Subnets:
-          - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetId}}'
+          - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
         SecurityGroupIds:
           - !Ref BuildServerSG
         InstanceRole: !Ref BatchWorkerInstanceProfile
