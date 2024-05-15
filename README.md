@@ -174,6 +174,13 @@ The following resources are required to deploy the application depending on the 
     * Public Subnet
     * Private Subnet
 
+**Note**: If using Rancher Desktop, set the `DOCKER_HOST` variable to use the correct file. [Ref](https://github.com/aws/aws-sam-cli/issues/3715#issuecomment-1962126068)
+
+```
+export DOCKER_HOST="unix://$HOME/.rd/docker.sock"
+```
+
+
 ## Quick Start
 
 ### Private deployments using existing VPC and VPC Endpoints
