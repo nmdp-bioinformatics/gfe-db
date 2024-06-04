@@ -227,6 +227,7 @@ service.deploy:
 service.access-services.deploy:
 	$(MAKE) service.access-services.nat-gateway.deploy
 	$(MAKE) service.access-services.bastion-server.deploy
+	$(MAKE) service.access-services.vpc-endpoints.deploy
 
 service.access-services.nat-gateway.deploy:
 ifeq ($(DEPLOY_NAT_GATEWAY),true)
@@ -244,6 +245,9 @@ endif
 
 service.access-services.bastion-server.connect:
 	$(MAKE) -C access-services/bastion-server service.bastion-server.connect
+
+service.access-services.vpc-endpoints.deploy:
+	$(MAKE) -C access-services/vpc-endpoints deploy
 
 service.monitoring.create-subscriptions:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Creating SNS topic subscriptions" 2>&1 | tee -a $${CFN_LOG_PATH}
@@ -309,11 +313,14 @@ service.access-services.delete:
 	$(MAKE) -C access-services/bastion-server delete
 	$(MAKE) -C access-services/nat-gateway delete
 
+service.access-services.bastion-server.delete:
+	$(MAKE) -C access-services/bastion-server delete
+
 service.access-services.nat-gateway.delete:
 	$(MAKE) -C access-services/nat-gateway delete
 
-service.access-services.bastion-server.delete:
-	$(MAKE) -C access-services/bastion-server delete
+service.access-services.vpc-endpoints.delete:
+	$(MAKE) -C access-services/vpc-endpoints delete
 
 service.delete.delete-endpoint: #=> service=<string>
 	@if [ -z $$service ]; then \

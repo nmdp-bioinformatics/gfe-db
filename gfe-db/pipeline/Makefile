@@ -14,9 +14,11 @@ deploy:
 service.deploy:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} - functions" 2>&1 | tee -a $$CFN_LOG_PATH
 	@sam build \
+	--region "$${AWS_REGION}" \
 		--use-container \
 		--template-file template.yaml && \
 	sam package \
+	--region "$${AWS_REGION}" \
 		--resolve-s3 \
 		--output-template-file packaged.yaml && \
 	sam deploy \
@@ -49,6 +51,7 @@ service.deploy:
 			ECRBaseUri="${ECR_BASE_URI}" \
 			BuildServiceRepositoryName="${BUILD_REPOSITORY_NAME}" \
 			FeatureServiceUrl="${FEATURE_SERVICE_URL}" \
+			Ec2KeyPairName="${EC2_KEY_PAIR_NAME}" \
 			2>&1 | tee -a $$CFN_LOG_PATH || true
 
 service.jobs.deploy:

@@ -1,15 +1,14 @@
-SERVICE := nat-gateway
+SERVICE := vpc-endpoints
 
 target:
 	$(info ${HELP_MESSAGE})
 	@exit 0
 
 deploy:
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
+	@echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE}\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
 	$(MAKE) service.deploy
 
 service.deploy: 
-	@echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying NAT Gateway\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
 	@aws cloudformation deploy \
 		--region $${AWS_REGION} \
 		--template-file template.yaml \
@@ -18,7 +17,8 @@ service.deploy:
 		--capabilities CAPABILITY_IAM \
 		--parameter-overrides \
 			Stage="$${STAGE}" \
-			AppName="$${APP_NAME}"
+			AppName="$${APP_NAME}" \
+			VpcId="$${VPC_ID}"
 
 delete: ##=> Delete resources
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH

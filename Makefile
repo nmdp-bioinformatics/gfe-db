@@ -451,6 +451,7 @@ infrastructure.create-endpoint:
 infrastructure.access-services.deploy:
 	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/nat-gateway/ deploy
 	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/bastion-server/ deploy
+	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/vpc-endpoints/ deploy
 
 infrastructure.access-services.nat-gateway.deploy:
 	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/nat-gateway/ deploy
@@ -460,6 +461,9 @@ infrastructure.access-services.bastion-server.deploy:
 
 infrastructure.access-services.bastion-server.connect:
 	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/bastion-server/ service.connect
+
+infrastructure.access-services.vpc-endpoints.deploy:
+	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/vpc-endpoints/ deploy
 
 monitoring.create-subscriptions:
 	$(MAKE) -C ${APP_NAME}/infrastructure service.monitoring.create-subscriptions
@@ -652,12 +656,16 @@ infrastructure.delete:
 infrastructure.access-services.delete:
 	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/bastion-server/ delete
 	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/nat-gateway/ delete
+	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/vpc-endpoints/ delete
 
 infrastructure.access-services.bastion-server.delete:
 	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/bastion-server/ delete
 
 infrastructure.access-services.nat-gateway.delete:
 	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/nat-gateway/ delete
+
+infrastructure.access-services.vpc-endpoints.delete:
+	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/vpc-endpoints/ delete
 
 infrastructure.delete-endpoint: #=> service=<string>
 	$(MAKE) -C ${APP_NAME}/infrastructure/ service.delete.delete-endpoint service=$$service

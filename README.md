@@ -174,14 +174,12 @@ The following resources are required to deploy the application depending on the 
     * Public Subnet
     * Private Subnet
 
+## Quick Start
 **Note**: If using Rancher Desktop, set the `DOCKER_HOST` variable to use the correct file. [Ref](https://github.com/aws/aws-sam-cli/issues/3715#issuecomment-1962126068)
 
 ```
 export DOCKER_HOST="unix://$HOME/.rd/docker.sock"
 ```
-
-
-## Quick Start
 
 ### Private deployments using existing VPC and VPC Endpoints
 Follow these steps to deploy gfe-db to an existing private subnet and VPC.
@@ -189,13 +187,17 @@ Follow these steps to deploy gfe-db to an existing private subnet and VPC.
 - Create and configure the following resources before deploying the stacks:
     - VPC
     - NAT Gateway
-    - Private Subnet (with a route to the NAT Gateway instead of an Internet Gateway)
+    - Private Subnet with a route to the NAT Gateway (instead of an Internet Gateway)
     - VPC Endpoints:
-        - com.amazonaws.us-east-1.s3
-        - com.amazonaws.us-east-1.ssm
-        - com.amazonaws.us-east-1.secretsmanager
-        - com.amazonaws.us-east-1.ec2messages
-        - com.amazonaws.us-east-1.ssmmessages
+        - com.amazonaws.us-east-1.s3 (associate with Neo4jDatabaseSecurityGroup and BuildServerSG)
+        - com.amazonaws.us-east-1.ssm (associate with Neo4jDatabaseSecurityGroup and BuildServerSG)
+        - com.amazonaws.us-east-1.secretsmanager (associate with Neo4jDatabaseSecurityGroup and BuildServerSG)
+        - com.amazonaws.us-east-1.ec2messages (associate with Neo4jDatabaseSecurityGroup and BuildServerSG)
+        - com.amazonaws.us-east-1.ssmmessages (associate with Neo4jDatabaseSecurityGroup and BuildServerSG)
+        - com.amazonaws.us-east-1.logs (associate with BuildServerSG)
+        - com.amazonaws.us-east-1.ecr.dkr (associate with BuildServerSG)
+        - com.amazonaws.us-east-1.ecr.api (associate with BuildServerSG)
+        - com.amazonaws.us-east-1.ecs (associate with BuildServerSG)
 - Define the environment variables in `.env.<stage>`.
 ```bash
 AWS_PROFILE=default
@@ -229,7 +231,6 @@ DOCKER_PASSWORD=<password>
 - If `SKIP_CONFIGURE_VPC_ENDPOINTS=true`, all VPC endpoints should be modified to be associated with the Neo4j security group once the infrastructure stack is deployed.
 - After deployment is complete run `STAGE=dev make database.load.run releases="3560"` to load the database with the IMGT/HLA release version 3560.
                                                    
-
 ## Application Environment
 
 ### AWS Credentials

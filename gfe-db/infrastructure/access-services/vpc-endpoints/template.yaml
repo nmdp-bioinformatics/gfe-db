@@ -1,0 +1,120 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Deploys a VPC Endpoints for gfe-db
+
+Parameters:
+  Stage:
+    Type: String
+    Description: Stage of production
+  AppName:
+    Type: String
+    Description: Application name
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID
+  
+Resources:
+  S3InterfaceVpcEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      SecurityGroupIds: 
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/BuildServerSecurityGroupId}}'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      SubnetIds: 
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
+      VpcEndpointType: Interface
+      VpcId: !Ref VpcId
+
+  SsmInterfaceVpcEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      SecurityGroupIds: 
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/BuildServerSecurityGroupId}}'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ssm'
+      SubnetIds: 
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
+      VpcEndpointType: Interface
+      VpcId: !Ref VpcId
+
+  SecretsManagerInterfaceVpcEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      SecurityGroupIds: 
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/BuildServerSecurityGroupId}}'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.secretsmanager'
+      SubnetIds: 
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
+      VpcEndpointType: Interface
+      VpcId: !Ref VpcId
+
+  Ec2MessagesInterfaceVpcEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      SecurityGroupIds: 
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/BuildServerSecurityGroupId}}'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ec2messages'
+      SubnetIds: 
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
+      VpcEndpointType: Interface
+      VpcId: !Ref VpcId
+
+  SsmMessagesInterfaceVpcEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      SecurityGroupIds: 
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId}}'
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/BuildServerSecurityGroupId}}'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ssmmessages'
+      SubnetIds: 
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
+      VpcEndpointType: Interface
+      VpcId: !Ref VpcId
+
+  LogsInterfaceVpcEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      SecurityGroupIds: 
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/BuildServerSecurityGroupId}}'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.logs'
+      SubnetIds: 
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
+      VpcEndpointType: Interface
+      VpcId: !Ref VpcId
+
+  EcrDkrInterfaceVpcEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      SecurityGroupIds: 
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/BuildServerSecurityGroupId}}'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.dkr'
+      SubnetIds: 
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
+      VpcEndpointType: Interface
+      VpcId: !Ref VpcId
+
+  EcrApiInterfaceVpcEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      SecurityGroupIds: 
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/BuildServerSecurityGroupId}}'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.api'
+      SubnetIds: 
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
+      VpcEndpointType: Interface
+      VpcId: !Ref VpcId
+
+  EcsInterfaceVpcEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      SecurityGroupIds: 
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/BuildServerSecurityGroupId}}'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecs'
+      SubnetIds: 
+        - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
+      VpcEndpointType: Interface
+      VpcId: !Ref VpcId
+
+  

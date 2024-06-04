@@ -87,7 +87,6 @@ service.revoke-security-group-ingress:
 		--source-group "$$bastion_host_security_group_id" 2>&1 | tee -a $$CFN_LOG_PATH || true
 
 service.delete: service.revoke-security-group-ingress
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting Bastion EC2 instance" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws cloudformation delete-stack \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
 	aws cloudformation wait stack-delete-complete \
