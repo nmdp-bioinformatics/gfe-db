@@ -91,28 +91,28 @@ Conditions:
   # UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
 
 Resources:
-  BuildServerSG:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupName: !Sub '${Stage}-${AppName}-build-server-sg'
-      GroupDescription: !Sub 'Security group for the ${Stage}-${AppName} build server'
-      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}'
-      # SecurityGroupIngress: # Uncomment to allow SSH access to build instance
-      #   - CidrIp: 0.0.0.0/0
-      #     FromPort: 22
-      #     IpProtocol: tcp
-      #     ToPort: 22
-      Tags:
-        - Key: Name
-          Value: !Sub '${Stage}-${AppName}-build-server-sg'
+  # BuildServerSG:
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties:
+  #     GroupName: !Sub '${Stage}-${AppName}-build-server-sg'
+  #     GroupDescription: !Sub 'Security group for the ${Stage}-${AppName} build server'
+  #     VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}'
+  #     # SecurityGroupIngress: # Uncomment to allow SSH access to build instance
+  #     #   - CidrIp: 0.0.0.0/0
+  #     #     FromPort: 22
+  #     #     IpProtocol: tcp
+  #     #     ToPort: 22
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub '${Stage}-${AppName}-build-server-sg'
     
-  BuildServerSecurityGroupIdParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/BuildServerSecurityGroupId'
-      Description: "ID of the security group for the build server"
-      Value: !Ref BuildServerSG
+  # BuildServerSecurityGroupIdParameter:
+  #   Type: AWS::SSM::Parameter
+  #   Properties:
+  #     Type: String
+  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/BuildServerSecurityGroupId'
+  #     Description: "ID of the security group for the build server"
+  #     Value: !Ref BuildServerSG
 
   BatchServiceRole:
     Type: AWS::IAM::Role
@@ -260,7 +260,7 @@ Resources:
         Subnets:
           - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
         SecurityGroupIds:
-          - !Ref BuildServerSG
+          - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/BuildServerSecurityGroupId}}'
         InstanceRole: !Ref BatchWorkerInstanceProfile
         LaunchTemplate:
           LaunchTemplateId: !Ref BuildLaunchTemplate
@@ -280,7 +280,7 @@ Resources:
         Monitoring:
           Enabled: true
         SecurityGroupIds:
-          - !Ref BuildServerSG
+          - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/BuildServerSecurityGroupId}}'
         UserData:
           Fn::Base64: |
             MIME-Version: 1.0

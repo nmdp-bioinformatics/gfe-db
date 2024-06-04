@@ -49,7 +49,7 @@ Conditions:
   # UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
   # UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
   UsePrivateSubnet: !Equals [!Ref usePrivateSubnet, 'true']
-  UsePrivateSubnetDeployNatGateway: !And [!Equals [!Ref usePrivateSubnet, 'true'], !Equals [!Ref deployNatGateway, 'true']]
+  # UsePrivateSubnetDeployNatGateway: !And [!Equals [!Ref usePrivateSubnet, 'true'], !Equals [!Ref deployNatGateway, 'true']]
   UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
   # UseExternalNatGateway: !Equals [!Ref deployNatGateway, 'false']
 
@@ -270,7 +270,30 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataBucketRegionalDomainName'
       Description: "S3 Bucket Regional Domain name for application bucket"
       Value: !GetAtt DataBucket.RegionalDomainName
-  
+
+  BuildServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${Stage}-${AppName}-build-server-sg'
+      GroupDescription: !Sub 'Security group for the ${Stage}-${AppName} build server'
+      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}'
+      # SecurityGroupIngress: # Uncomment to allow SSH access to build instance
+      #   - CidrIp: 0.0.0.0/0
+      #     FromPort: 22
+      #     IpProtocol: tcp
+      #     ToPort: 22
+      Tags:
+        - Key: Name
+          Value: !Sub '${Stage}-${AppName}-build-server-sg'
+    
+  BuildServerSecurityGroupIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/BuildServerSecurityGroupId'
+      Description: "ID of the security group for the build server"
+      Value: !Ref BuildServerSecurityGroup
+
   Neo4jDatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
