@@ -24,24 +24,25 @@ export PURGE_LOGS ?= false
 # Conditionally required variable defaults
 export CREATE_VPC ?= false
 export USE_PRIVATE_SUBNET ?= false
-export DEPLOY_NAT_GATEWAY ?=
 export SKIP_CHECK_DEPENDENCIES ?= false
-export SKIP_VALIDATE_NAT_GATEWAY ?= false
-export SKIP_CONFIGURE_VPC_ENDPOINTS ?= false
+export DEPLOY_NAT_GATEWAY ?=
+# export SKIP_VALIDATE_NAT_GATEWAY ?= false
+# export SKIP_CONFIGURE_VPC_ENDPOINTS ?= false
 export DEPLOY_BASTION_SERVER ?=
-export CREATE_SSM_VPC_ENDPOINT ?=
-export CREATE_SECRETSMANAGER_VPC_ENDPOINT ?=
-export CREATE_S3_VPC_ENDPOINT ?=
-export SSM_VPC_ENDPOINT_ID ?=
-export SECRETSMANAGER_VPC_ENDPOINT_ID ?=
-export S3_VPC_ENDPOINT_ID ?=
+export DEPLOY_VPC_ENDPOINTS ?=
+# export CREATE_SSM_VPC_ENDPOINT ?=
+# export CREATE_SECRETSMANAGER_VPC_ENDPOINT ?=
+# export CREATE_S3_VPC_ENDPOINT ?=
+# export SSM_VPC_ENDPOINT_ID ?=
+# export SECRETSMANAGER_VPC_ENDPOINT_ID ?=
+# export S3_VPC_ENDPOINT_ID ?=
 export VPC_ID ?=
 export PUBLIC_SUBNET_ID ?=
 export HOST_DOMAIN ?=
 export SUBDOMAIN ?=
 export PRIVATE_SUBNET_ID ?=
 export ADMIN_IP ?=
-export UBUNTU_AMI_ID ?= ami-0fc5d935ebf8bc3bc
+# export UBUNTU_AMI_ID ?= ami-0fc5d935ebf8bc3bc
 export DATABASE_VOLUME_SIZE ?= 64
 
 # Resource identifiers
@@ -66,10 +67,9 @@ export NEO4J_DATABASE_NAME ?= gfedb
 # Required environment variables
 REQUIRED_VARS := STAGE APP_NAME AWS_ACCOUNT AWS_REGION AWS_PROFILE SUBSCRIBE_EMAILS \
 	GITHUB_REPOSITORY_OWNER GITHUB_REPOSITORY_NAME GITHUB_PERSONAL_ACCESS_TOKEN \
-	ADMIN_EMAIL UBUNTU_AMI_ID NEO4J_PASSWORD GDS_VERSION
+	ADMIN_EMAIL NEO4J_PASSWORD GDS_VERSION
 
-BOOLEAN_VARS := CREATE_VPC USE_PRIVATE_SUBNET CREATE_SSM_VPC_ENDPOINT CREATE_SECRETSMANAGER_VPC_ENDPOINT \
-	DEPLOY_NAT_GATEWAY DEPLOY_BASTION_SERVER SKIP_VALIDATE_NAT_GATEWAY SKIP_CHECK_DEPENDENCIES
+BOOLEAN_VARS := CREATE_VPC USE_PRIVATE_SUBNET DEPLOY_NAT_GATEWAY DEPLOY_BASTION_SERVER SKIP_CHECK_DEPENDENCIES
 
 # stdout colors
 # blue: runtime message, no action required
@@ -237,6 +237,10 @@ ifeq ($(DEPLOY_BASTION_SERVER),)
 	$(call red, "\`DEPLOY_BASTION_SERVER\` must be set when \`USE_PRIVATE_SUBNET\` is \`true\`")
 	@exit 1
 endif
+ifeq ($(DEPLOY_VPC_ENDPOINTS),)
+	$(call red, "\`DEPLOY_VPC_ENDPOINTS\` must be set when \`USE_PRIVATE_SUBNET\` is \`true\`")
+	@exit 1
+endif
 ifeq ($(CREATE_VPC),false)
 ifeq ($(PUBLIC_SUBNET_ID),)
 	$(call red, "\`PUBLIC_SUBNET_ID\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`true\`")
@@ -250,44 +254,44 @@ ifeq ($(PRIVATE_SUBNET_ID),)
 else
 	$(call green, "Found PRIVATE_SUBNET_ID: ${PRIVATE_SUBNET_ID}")
 endif
-ifeq ($(DEPLOY_NAT_GATEWAY),)
-	$(call red, "\`DEPLOY_NAT_GATEWAY\` must be set when \`CREATE_VPC\` is \`false\` and \`USE_PRIVATE_SUBNET\` is \`true\`")
-	@exit 1
-else ifneq ($(DEPLOY_NAT_GATEWAY),)
-ifeq ($(SKIP_VALIDATE_NAT_GATEWAY),false)
-	$(MAKE) env.validate.external-nat-gateway
-else
-	$(call blue, "Skipping NAT Gateway validation...")
-endif
-ifeq ($(SKIP_CONFIGURE_VPC_ENDPOINTS),false)
-ifeq ($(CREATE_SSM_VPC_ENDPOINT),false)
-ifeq ($(SSM_VPC_ENDPOINT_ID),)
-	$(call red, "\`SSM_VPC_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`true\` and \`CREATE_SSM_VPC_ENDPOINT\` is \`false\`")
-	@exit 1
-else
-	$(call green, "Found SSM_VPC_ENDPOINT_ID: ${SSM_VPC_ENDPOINT_ID}")
-endif
-endif
-ifeq ($(CREATE_SECRETSMANAGER_VPC_ENDPOINT),false)
-ifeq ($(SECRETSMANAGER_VPC_ENDPOINT_ID),)
-	$(call red, "\`SECRETSMANAGER_VPC_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`true\` and \`CREATE_SSM_VPC_ENDPOINT\` is \`false\`")
-	@exit 1
-else
-	$(call green, "Found SECRETSMANAGER_VPC_ENDPOINT_ID: ${SECRETSMANAGER_VPC_ENDPOINT_ID}")
-endif
-endif
-ifeq ($(CREATE_S3_VPC_ENDPOINT),false)
-ifeq ($(S3_VPC_ENDPOINT_ID),)
-	$(call red, "\`S3_VPC_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`true\` and \`CREATE_SSM_VPC_ENDPOINT\` is \`false\`")
-	@exit 1
-else
-	$(call green, "Found S3_VPC_ENDPOINT_ID: ${S3_VPC_ENDPOINT_ID}")
-endif
-endif
-else
-	$(call blue, "Skipping VPC endpoint validation...")
-	$(call yellow, "Please remember to add the database security group to your VPC endpoints.")
-endif
+# ifeq ($(DEPLOY_NAT_GATEWAY),)
+# 	$(call red, "\`DEPLOY_NAT_GATEWAY\` must be set when \`CREATE_VPC\` is \`false\` and \`USE_PRIVATE_SUBNET\` is \`true\`")
+# 	@exit 1
+# else ifneq ($(DEPLOY_NAT_GATEWAY),)
+# ifeq ($(SKIP_VALIDATE_NAT_GATEWAY),false)
+# 	$(MAKE) env.validate.external-nat-gateway
+# else
+# 	$(call blue, "Skipping NAT Gateway validation...")
+# endif
+# ifeq ($(SKIP_CONFIGURE_VPC_ENDPOINTS),false)
+# ifeq ($(CREATE_SSM_VPC_ENDPOINT),false)
+# ifeq ($(SSM_VPC_ENDPOINT_ID),)
+# 	$(call red, "\`SSM_VPC_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`true\` and \`CREATE_SSM_VPC_ENDPOINT\` is \`false\`")
+# 	@exit 1
+# else
+# 	$(call green, "Found SSM_VPC_ENDPOINT_ID: ${SSM_VPC_ENDPOINT_ID}")
+# endif
+# endif
+# ifeq ($(CREATE_SECRETSMANAGER_VPC_ENDPOINT),false)
+# ifeq ($(SECRETSMANAGER_VPC_ENDPOINT_ID),)
+# 	$(call red, "\`SECRETSMANAGER_VPC_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`true\` and \`CREATE_SSM_VPC_ENDPOINT\` is \`false\`")
+# 	@exit 1
+# else
+# 	$(call green, "Found SECRETSMANAGER_VPC_ENDPOINT_ID: ${SECRETSMANAGER_VPC_ENDPOINT_ID}")
+# endif
+# endif
+# ifeq ($(CREATE_S3_VPC_ENDPOINT),false)
+# ifeq ($(S3_VPC_ENDPOINT_ID),)
+# 	$(call red, "\`S3_VPC_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`true\` and \`CREATE_SSM_VPC_ENDPOINT\` is \`false\`")
+# 	@exit 1
+# else
+# 	$(call green, "Found S3_VPC_ENDPOINT_ID: ${S3_VPC_ENDPOINT_ID}")
+# endif
+# endif
+# else
+# 	$(call blue, "Skipping VPC endpoint validation...")
+# 	$(call yellow, "Please remember to add the database security group to your VPC endpoints.")
+# endif
 else ifeq ($(CREATE_VPC),true)
 ifneq ($(DEPLOY_NAT_GATEWAY),true)
 	$(call red, "\`DEPLOY_NAT_GATEWAY\` must be set to \`true\` when \`CREATE_VPC\` is \`true\` and \`USE_PRIVATE_SUBNET\` is \`true\`")
@@ -354,22 +358,21 @@ endif
 endif
 endif
 
-env.validate.external-nat-gateway:
-ifeq ($(DEPLOY_NAT_GATEWAY),false)
-ifeq ($(EXTERNAL_NAT_GATEWAY_ID),)
-	$(call red, "\`EXTERNAL_NAT_GATEWAY_ID\` must be set as an environment variable when \`DEPLOY_NAT_GATEWAY\` is \`false\`")
-	@exit 1
-else
-	$(call green, "Found EXTERNAL_NAT_GATEWAY_ID: ${EXTERNAL_NAT_GATEWAY_ID}")
-	$(call blue, Validating NAT Gateway configuration...)
-	@res=$$(aws ec2 describe-route-tables \
-		--filters "Name=vpc-id,Values=${VPC_ID}" | jq -r --arg SUBNET_ID "${PRIVATE_SUBNET_ID}" --arg NAT_ID "${EXTERNAL_NAT_GATEWAY_ID}" '.RouteTables[] \
-			| select(.Associations[]? | .SubnetId == $$SUBNET_ID) | {RouteTableId: .RouteTableId, Routes: .Routes, IsNATGatewayRoutePresent: any(.Routes[]; .NatGatewayId == $$NAT_ID)}' \
-	| jq -r '.IsNATGatewayRoutePresent') && \
-	[[ $$res = "true" ]] && echo "\033[0;34mFound NAT Gateway route\033[0m" || (echo "\033[0;31mERROR: No NAT Gateway route found\033[0m" && exit 1)
-endif
-endif
-endif
+# env.validate.external-nat-gateway:
+# ifeq ($(DEPLOY_NAT_GATEWAY),false)
+# ifeq ($(EXTERNAL_NAT_GATEWAY_ID),)
+# 	$(call red, "\`EXTERNAL_NAT_GATEWAY_ID\` must be set as an environment variable when \`DEPLOY_NAT_GATEWAY\` is \`false\`")
+# 	@exit 1
+# else
+# 	$(call green, "Found EXTERNAL_NAT_GATEWAY_ID: ${EXTERNAL_NAT_GATEWAY_ID}")
+# 	$(call blue, Validating NAT Gateway configuration...)
+# 	@res=$$(aws ec2 describe-route-tables \
+# 		--filters "Name=vpc-id,Values=${VPC_ID}" | jq -r --arg SUBNET_ID "${PRIVATE_SUBNET_ID}" --arg NAT_ID "${EXTERNAL_NAT_GATEWAY_ID}" '.RouteTables[] \
+# 			| select(.Associations[]? | .SubnetId == $$SUBNET_ID) | {RouteTableId: .RouteTableId, Routes: .Routes, IsNATGatewayRoutePresent: any(.Routes[]; .NatGatewayId == $$NAT_ID)}' \
+# 	| jq -r '.IsNATGatewayRoutePresent') && \
+# 	[[ $$res = "true" ]] && echo "\033[0;34mFound NAT Gateway route\033[0m" || (echo "\033[0;31mERROR: No NAT Gateway route found\033[0m" && exit 1)
+# endif
+# endif
 
 env.validate.create-neo4j-users:
 	@if [ -n "${CREATE_NEO4J_USERS}" ]; then \
@@ -416,8 +419,6 @@ endif
 ifeq ($(PUBLIC_SUBNET_ID),)
 	$(call red, "\`PUBLIC_SUBNET_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`false\`")
 	@exit 1
-else
-	$(call green, "Found PUBLIC_SUBNET_ID: ${PUBLIC_SUBNET_ID}")
 endif
 else ifeq ($(CREATE_VPC),true)
 	$(call blue, "**** This deployment includes a VPC ****")
@@ -720,26 +721,26 @@ define HELP_MESSAGE
 	USE_PRIVATE_SUBNET: "${USE_PRIVATE_SUBNET}"
 		Description: (boolean) Use a private subnet for Neo4j
 
-	CREATE_SSM_VPC_ENDPOINT: "${CREATE_SSM_VPC_ENDPOINT}"
-		Description: (boolean) Create a new SSM VPC Endpoint or use an existing one
+	# CREATE_SSM_VPC_ENDPOINT: "${CREATE_SSM_VPC_ENDPOINT}"
+	# 	Description: (boolean) Create a new SSM VPC Endpoint or use an existing one
 
-	SSM_VPC_ENDPOINT_ID: "${SSM_VPC_ENDPOINT_ID}"
-		Description: (string) ID of an existing SSM VPC Endpoint, required when CREATE_SSM_VPC_ENDPOINT is false
-		and USE_PRIVATE_SUBNET is true
+	# SSM_VPC_ENDPOINT_ID: "${SSM_VPC_ENDPOINT_ID}"
+	# 	Description: (string) ID of an existing SSM VPC Endpoint, required when CREATE_SSM_VPC_ENDPOINT is false
+	# 	and USE_PRIVATE_SUBNET is true
 
-	CREATE_SECRETSMANAGER_VPC_ENDPOINT: "${CREATE_SECRETSMANAGER_VPC_ENDPOINT}"
-		Description: (boolean) Create a new SecretsManager VPC Endpoint or use an existing one
+	# CREATE_SECRETSMANAGER_VPC_ENDPOINT: "${CREATE_SECRETSMANAGER_VPC_ENDPOINT}"
+	# 	Description: (boolean) Create a new SecretsManager VPC Endpoint or use an existing one
 
-	SECRETSMANAGER_VPC_ENDPOINT_ID: "${SECRETSMANAGER_VPC_ENDPOINT_ID}"
-		Description: (string) ID of an existing SecretsManager VPC Endpoint, required when CREATE_SECRETSMANAGER_VPC_ENDPOINT is false
-		and USE_PRIVATE_SUBNET is true
+	# SECRETSMANAGER_VPC_ENDPOINT_ID: "${SECRETSMANAGER_VPC_ENDPOINT_ID}"
+	# 	Description: (string) ID of an existing SecretsManager VPC Endpoint, required when CREATE_SECRETSMANAGER_VPC_ENDPOINT is false
+	# 	and USE_PRIVATE_SUBNET is true
 
-	CREATE_S3_VPC_ENDPOINT: "${CREATE_S3_VPC_ENDPOINT}"
-		Description: (boolean) Create a new S3 VPC Endpoint or use an existing one, required when USE_PRIVATE_SUBNET is true
+	# CREATE_S3_VPC_ENDPOINT: "${CREATE_S3_VPC_ENDPOINT}"
+	# 	Description: (boolean) Create a new S3 VPC Endpoint or use an existing one, required when USE_PRIVATE_SUBNET is true
 
-	S3_VPC_ENDPOINT_ID: "${S3_VPC_ENDPOINT_ID}"
-		Description: (string) ID of an existing S3 VPC Endpoint, required when CREATE_S3_VPC_ENDPOINT is false
-		and USE_PRIVATE_SUBNET is true
+	# S3_VPC_ENDPOINT_ID: "${S3_VPC_ENDPOINT_ID}"
+	# 	Description: (string) ID of an existing S3 VPC Endpoint, required when CREATE_S3_VPC_ENDPOINT is false
+	# 	and USE_PRIVATE_SUBNET is true
 
 	DEPLOY_NAT_GATEWAY: "${DEPLOY_NAT_GATEWAY}"
 		Description: (boolean) Deploy a NAT Gateway or use an existing one, required when USE_PRIVATE_SUBNET is true
@@ -779,8 +780,8 @@ define HELP_MESSAGE
 		Description: (string) ID of an existing private subnet, required when CREATE_VPC is false
 		and USE_PRIVATE_SUBNET is true
 
-	UBUNTU_AMI_ID: "${UBUNTU_AMI_ID}"
-		Description: (string) ID of an existing AMI for Ubuntu 22.04
+	# UBUNTU_AMI_ID: "${UBUNTU_AMI_ID}"
+	# 	Description: (string) ID of an existing AMI for Ubuntu 22.04
 
 	APOC_VERSION: "${APOC_VERSION}"
 		Description: (string) Version of APOC to install

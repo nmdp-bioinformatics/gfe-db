@@ -40,52 +40,51 @@ deploy:
 	$(MAKE) service.deploy
 ifeq ($(USE_PRIVATE_SUBNET),true)
 	$(MAKE) service.access-services.deploy
-endif
-ifeq ($(USE_PRIVATE_SUBNET),false)
+else ifeq ($(USE_PRIVATE_SUBNET),false)
 	$(MAKE) service.deploy.update-dns
-else ifeq ($(USE_PRIVATE_SUBNET),true)
-ifeq ($(HAS_STAGE),null)
-ifeq ($(SKIP_CONFIGURE_VPC_ENDPOINTS),false)
-ifeq ($(CREATE_SSM_VPC_ENDPOINT),true)
-	$(call blue, Creating Systems Manager VPC endpoint...)
-	$(MAKE) service.deploy.create-endpoint service=ssm
-else 
-	$(MAKE) service.deploy.create-endpoint-id-parameter service=ssm vpce_id=${SSM_VPC_ENDPOINT_ID}
-	@vpce_type=$$(aws ec2 describe-vpc-endpoints --query "VpcEndpoints[?VpcEndpointId=='${SSM_VPC_ENDPOINT_ID}'].VpcEndpointType" | jq -r '.[]') && \
-	echo "vpce_type: $$vpce_type" && \
-	if [ "$$vpce_type" = "Interface" ]; then \
-		echo "\033[0;34mAdding Neo4j Security Group to existing Systems Manager VPC Interface endpoint...\033[0m" && \
-		$(MAKE) service.deploy.modify-endpoint service=ssm; \
-	fi
-endif
-ifeq ($(CREATE_SECRETSMANAGER_VPC_ENDPOINT),true)
-	$(call blue, Creating SecretsManager VPC endpoint...)
-	$(MAKE) service.deploy.create-endpoint service=secretsmanager
-else 
-	$(MAKE) service.deploy.create-endpoint-id-parameter service=secretsmanager vpce_id=${SECRETSMANAGER_VPC_ENDPOINT_ID}
-	@vpce_type=$$(aws ec2 describe-vpc-endpoints --query "VpcEndpoints[?VpcEndpointId=='${SECRETSMANAGER_VPC_ENDPOINT_ID}'].VpcEndpointType" | jq -r '.[]') && \
-	echo "vpce_type: $$vpce_type" && \
-	if [ "$$vpce_type" = "Interface" ]; then \
-		echo "\033[0;34mAdding Neo4j Security Group to existing SecretsManager VPC Interface endpoint...\033[0m" && \
-		$(MAKE) service.deploy.modify-endpoint service=secretsmanager; \
-	fi
-endif
-ifeq ($(CREATE_S3_VPC_ENDPOINT),true)
-	$(call blue, Creating S3 VPC endpoint...)
-	$(MAKE) service.deploy.create-endpoint service=s3
-else
-	$(MAKE) service.deploy.create-endpoint-id-parameter service=s3 vpce_id=${S3_VPC_ENDPOINT_ID}
-	@vpce_type=$$(aws ec2 describe-vpc-endpoints --query "VpcEndpoints[?VpcEndpointId=='${S3_VPC_ENDPOINT_ID}'].VpcEndpointType" | jq -r '.[]') && \
-	echo "vpce_type: $$vpce_type" && \
-	if [ "$$vpce_type" = "Interface" ]; then \
-		echo "\033[0;34mAdding Neo4j Security Group to existing S3 VPC Interface endpoint...\033[0m" && \
-		$(MAKE) service.deploy.modify-endpoint service=s3; \
-	fi
-endif
-else
-	$(call blue, Skipping VPC endpoint configuration...)
-endif
-endif
+# else ifeq ($(USE_PRIVATE_SUBNET),true)
+# ifeq ($(HAS_STAGE),null)
+# ifeq ($(SKIP_CONFIGURE_VPC_ENDPOINTS),false)
+# ifeq ($(CREATE_SSM_VPC_ENDPOINT),true)
+# 	$(call blue, Creating Systems Manager VPC endpoint...)
+# 	$(MAKE) service.deploy.create-endpoint service=ssm
+# else 
+# 	$(MAKE) service.deploy.create-endpoint-id-parameter service=ssm vpce_id=${SSM_VPC_ENDPOINT_ID}
+# 	@vpce_type=$$(aws ec2 describe-vpc-endpoints --query "VpcEndpoints[?VpcEndpointId=='${SSM_VPC_ENDPOINT_ID}'].VpcEndpointType" | jq -r '.[]') && \
+# 	echo "vpce_type: $$vpce_type" && \
+# 	if [ "$$vpce_type" = "Interface" ]; then \
+# 		echo "\033[0;34mAdding Neo4j Security Group to existing Systems Manager VPC Interface endpoint...\033[0m" && \
+# 		$(MAKE) service.deploy.modify-endpoint service=ssm; \
+# 	fi
+# endif
+# ifeq ($(CREATE_SECRETSMANAGER_VPC_ENDPOINT),true)
+# 	$(call blue, Creating SecretsManager VPC endpoint...)
+# 	$(MAKE) service.deploy.create-endpoint service=secretsmanager
+# else 
+# 	$(MAKE) service.deploy.create-endpoint-id-parameter service=secretsmanager vpce_id=${SECRETSMANAGER_VPC_ENDPOINT_ID}
+# 	@vpce_type=$$(aws ec2 describe-vpc-endpoints --query "VpcEndpoints[?VpcEndpointId=='${SECRETSMANAGER_VPC_ENDPOINT_ID}'].VpcEndpointType" | jq -r '.[]') && \
+# 	echo "vpce_type: $$vpce_type" && \
+# 	if [ "$$vpce_type" = "Interface" ]; then \
+# 		echo "\033[0;34mAdding Neo4j Security Group to existing SecretsManager VPC Interface endpoint...\033[0m" && \
+# 		$(MAKE) service.deploy.modify-endpoint service=secretsmanager; \
+# 	fi
+# endif
+# ifeq ($(CREATE_S3_VPC_ENDPOINT),true)
+# 	$(call blue, Creating S3 VPC endpoint...)
+# 	$(MAKE) service.deploy.create-endpoint service=s3
+# else
+# 	$(MAKE) service.deploy.create-endpoint-id-parameter service=s3 vpce_id=${S3_VPC_ENDPOINT_ID}
+# 	@vpce_type=$$(aws ec2 describe-vpc-endpoints --query "VpcEndpoints[?VpcEndpointId=='${S3_VPC_ENDPOINT_ID}'].VpcEndpointType" | jq -r '.[]') && \
+# 	echo "vpce_type: $$vpce_type" && \
+# 	if [ "$$vpce_type" = "Interface" ]; then \
+# 		echo "\033[0;34mAdding Neo4j Security Group to existing S3 VPC Interface endpoint...\033[0m" && \
+# 		$(MAKE) service.deploy.modify-endpoint service=s3; \
+# 	fi
+# endif
+# else
+# 	$(call blue, Skipping VPC endpoint configuration...)
+# endif
+# endif
 endif
 	$(MAKE) service.monitoring.create-subscriptions
 
@@ -225,23 +224,27 @@ service.deploy:
 			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN"
 
 service.access-services.deploy:
-	$(MAKE) service.access-services.nat-gateway.deploy
-	$(MAKE) service.access-services.bastion-server.deploy
-	$(MAKE) service.access-services.vpc-endpoints.deploy
-
-service.access-services.nat-gateway.deploy:
 ifeq ($(DEPLOY_NAT_GATEWAY),true)
-	$(MAKE) -C access-services/nat-gateway deploy
+	$(MAKE) service.access-services.nat-gateway.deploy
 else
 	$(call blue, \`DEPLOY_NAT_GATEWAY\` is set to \`false\`. Update \`DEPLOY_NAT_GATEWAY\` to \`true\` to deploy.)
 endif
-
-service.access-services.bastion-server.deploy:
+ifeq ($(DEPLOY_VPC_ENDPOINTS),true)
+	$(MAKE) service.access-services.vpc-endpoints.deploy
+else
+	$(call blue, \`DEPLOY_VPC_ENDPOINTS\` is set to \`false\`. Update \`DEPLOY_VPC_ENDPOINTS\` to \`true\` to deploy.)
+endif
 ifeq ($(DEPLOY_BASTION_SERVER),true)
-	$(MAKE) -C access-services/bastion-server deploy
+	$(MAKE) service.access-services.bastion-server.deploy
 else 
 	$(call blue, \`DEPLOY_BASTION_SERVER\` is set to \`false\`. Update \`DEPLOY_BASTION_SERVER\` to \`true\` to deploy.)
 endif
+
+service.access-services.nat-gateway.deploy:
+	$(MAKE) -C access-services/nat-gateway deploy
+
+service.access-services.bastion-server.deploy:
+	$(MAKE) -C access-services/bastion-server deploy
 
 service.access-services.bastion-server.connect:
 	$(MAKE) -C access-services/bastion-server service.bastion-server.connect
@@ -286,24 +289,27 @@ ifeq ($(USE_PRIVATE_SUBNET),true)
 ifeq ($(DEPLOY_NAT_GATEWAY),true)
 	$(MAKE) service.access-services.nat-gateway.delete
 endif
+ifeq ($(DEPLOY_VPC_ENDPOINTS),true)
+	$(MAKE) service.access-services.vpc-endpoints.delete
+endif
 ifeq ($(DEPLOY_BASTION_SERVER),true)
 	$(MAKE) service.access-services.bastion-server.delete
 endif
-ifeq ($(CREATE_SSM_VPC_ENDPOINT),true)
-	$(MAKE) service.delete.delete-endpoint service=ssm
-else
-	$(MAKE) service.delete.modify-endpoint service=ssm
-endif
-ifeq ($(CREATE_SECRETSMANAGER_VPC_ENDPOINT),true)
-	$(MAKE) service.delete.delete-endpoint service=secretsmanager
-else
-	$(MAKE) service.delete.modify-endpoint service=secretsmanager
-endif
-ifeq ($(CREATE_S3_VPC_ENDPOINT),true)
-	$(MAKE) service.delete.delete-endpoint service=s3
-else
-	$(MAKE) service.delete.modify-endpoint service=s3
-endif
+# ifeq ($(CREATE_SSM_VPC_ENDPOINT),true)
+# 	$(MAKE) service.delete.delete-endpoint service=ssm
+# else
+# 	$(MAKE) service.delete.modify-endpoint service=ssm
+# endif
+# ifeq ($(CREATE_SECRETSMANAGER_VPC_ENDPOINT),true)
+# 	$(MAKE) service.delete.delete-endpoint service=secretsmanager
+# else
+# 	$(MAKE) service.delete.modify-endpoint service=secretsmanager
+# endif
+# ifeq ($(CREATE_S3_VPC_ENDPOINT),true)
+# 	$(MAKE) service.delete.delete-endpoint service=s3
+# else
+# 	$(MAKE) service.delete.modify-endpoint service=s3
+# endif
 endif
 	$(MAKE) service.delete
 	$(MAKE) service.key-pair.delete
