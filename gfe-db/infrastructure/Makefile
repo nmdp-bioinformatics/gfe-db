@@ -224,15 +224,15 @@ service.deploy:
 			GitHubPersonalAccessToken="$$GITHUB_PERSONAL_ACCESS_TOKEN"
 
 service.access-services.deploy:
-ifeq ($(DEPLOY_NAT_GATEWAY),true)
-	$(MAKE) service.access-services.nat-gateway.deploy
-else
-	$(call blue, \`DEPLOY_NAT_GATEWAY\` is set to \`false\`. Update \`DEPLOY_NAT_GATEWAY\` to \`true\` to deploy.)
-endif
 ifeq ($(DEPLOY_VPC_ENDPOINTS),true)
 	$(MAKE) service.access-services.vpc-endpoints.deploy
 else
 	$(call blue, \`DEPLOY_VPC_ENDPOINTS\` is set to \`false\`. Update \`DEPLOY_VPC_ENDPOINTS\` to \`true\` to deploy.)
+endif
+ifeq ($(DEPLOY_NAT_GATEWAY),true)
+	$(MAKE) service.access-services.nat-gateway.deploy
+else
+	$(call blue, \`DEPLOY_NAT_GATEWAY\` is set to \`false\`. Update \`DEPLOY_NAT_GATEWAY\` to \`true\` to deploy.)
 endif
 ifeq ($(DEPLOY_BASTION_SERVER),true)
 	$(MAKE) service.access-services.bastion-server.deploy

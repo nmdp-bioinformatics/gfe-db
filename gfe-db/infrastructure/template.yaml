@@ -135,25 +135,26 @@ Resources:
     Properties:
       VpcId: !Ref CreateVpcConditionVpc
   
-  # Required for NAT Gateway
-  UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable:
-    Type: AWS::EC2::RouteTable
-    Condition: UsePrivateSubnetDeployNatGateway
-    Properties:
-      VpcId: !If
-        - CreateVpc
-        - !Ref CreateVpcConditionVpc
-        - !Ref VpcId
+  # # Required for NAT Gateway
+  # UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable:
+  #   Type: AWS::EC2::RouteTable
+  #   Condition: UsePrivateSubnetDeployNatGateway
+  #   Properties:
+  #     VpcId: !If
+  #       - CreateVpc
+  #       - !Ref CreateVpcConditionVpc
+  #       - !Ref VpcId
 
-  # Required for NAT Gateway
-  UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTableParameter:
-    Type: AWS::SSM::Parameter
-    Condition: UsePrivateSubnetDeployNatGateway
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PrivateRouteTableId'
-      Description: !Sub "ID of the private route table for ${AppName}"
-      Value: !Ref UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable
+  # # TODO Move to NAT Gateway stack
+  # # Required for NAT Gateway
+  # UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTableParameter:
+  #   Type: AWS::SSM::Parameter
+  #   Condition: UsePrivateSubnetDeployNatGateway
+  #   Properties:
+  #     Type: String
+  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PrivateRouteTableId'
+  #     Description: !Sub "ID of the private route table for ${AppName}"
+  #     Value: !Ref UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable
   
   CreateVpcConditionVpcGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -179,16 +180,16 @@ Resources:
       RouteTableId: !Ref CreateVpcConditionPublicRouteTable
       SubnetId: !Ref CreateVpcConditionPublicSubnet
 
-  # Required for NAT Gateway  
-  UsePrivateSubnetDeployNatGatewayConditionPrivateSubnetRouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: UsePrivateSubnetDeployNatGateway
-    Properties:
-      RouteTableId: !Ref UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable
-      SubnetId: !If
-        - CreateVpcPrivate
-        - !Ref CreateVpcPrivateConditionPrivateSubnet
-        - !Ref PrivateSubnetId
+  # # Required for NAT Gateway  
+  # UsePrivateSubnetDeployNatGatewayConditionPrivateSubnetRouteTableAssociation:
+  #   Type: AWS::EC2::SubnetRouteTableAssociation
+  #   Condition: UsePrivateSubnetDeployNatGateway
+  #   Properties:
+  #     RouteTableId: !Ref UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable
+  #     SubnetId: !If
+  #       - CreateVpcPrivate
+  #       - !Ref CreateVpcPrivateConditionPrivateSubnet
+  #       - !Ref PrivateSubnetId
         
   VpcIdParameter:
     Type: AWS::SSM::Parameter
