@@ -160,6 +160,11 @@ Please refer to the respective documentation for specific installation instructi
 * jq
 * Python 3.10+
 
+**Note**: If using Rancher Desktop, set the `DOCKER_HOST` variable to use the correct file. [Ref](https://github.com/aws/aws-sam-cli/issues/3715#issuecomment-1962126068)
+```
+export DOCKER_HOST="unix://$HOME/.rd/docker.sock"
+```
+
 ### AWS Resources
 The following resources are required to deploy the application depending on the chosen configuration.
 * Public deployments with VPC
@@ -174,51 +179,55 @@ The following resources are required to deploy the application depending on the 
     * Public Subnet
     * Private Subnet
 
-**Note**: If using Rancher Desktop, set the `DOCKER_HOST` variable to use the correct file. [Ref](https://github.com/aws/aws-sam-cli/issues/3715#issuecomment-1962126068)
-
-```
-export DOCKER_HOST="unix://$HOME/.rd/docker.sock"
-```
-
-
 ## Quick Start
 
-### Private deployments using existing VPC and VPC Endpoints
+### *(Option 1)* Private Subnet Deployment with VPC
+Follow these steps to deploy gfe-db to a new VPC and private subnet.
+- Configure [AWS Credentials](#aws-credentials).
+- Define the environment variables in `.env.dev`.
+```bash
+# .env.dev
+ADMIN_EMAIL=<email>
+SUBSCRIBE_EMAILS=<email1,email2,email3,...>
+GITHUB_PERSONAL_ACCESS_TOKEN=<token>
+FEATURE_SERVICE_URL=https://feature.b12x.org
+DOCKER_USERNAME=<username>
+DOCKER_PASSWORD=<password>
+```
+- For the stage `dev`, run `STAGE=dev make deploy` to deploy the architecture.
+- After deployment is complete run `STAGE=dev make database.load.run releases="3560"` to load the database with the IMGT/HLA release version 3560.
+
+### *(Option 2)* Private deployment using existing VPC, NAT Gateway and VPC Endpoints
 Follow these steps to deploy gfe-db to an existing private subnet and VPC.
 - Configure [AWS Credentials](#aws-credentials).
 - Create and configure the following resources before deploying the stacks:
     - VPC
     - NAT Gateway
-    - Private Subnet (with a route to the NAT Gateway instead of an Internet Gateway)
+    - Private Subnet with a route to the NAT Gateway (instead of an Internet Gateway)
     - VPC Endpoints:
-        - com.amazonaws.us-east-1.s3
-        - com.amazonaws.us-east-1.ssm
-        - com.amazonaws.us-east-1.secretsmanager
-        - com.amazonaws.us-east-1.ec2messages
-        - com.amazonaws.us-east-1.ssmmessages
-- Define the environment variables in `.env.<stage>`.
+        - com.amazonaws.us-east-1.s3 (associate with Neo4jDatabaseSecurityGroup and BuildServerSecurityGroup)
+        - com.amazonaws.us-east-1.ssm (associate with Neo4jDatabaseSecurityGroup and BuildServerSecurityGroup)
+        - com.amazonaws.us-east-1.secretsmanager (associate with Neo4jDatabaseSecurityGroup and BuildServerSecurityGroup)
+        - com.amazonaws.us-east-1.ec2messages (associate with Neo4jDatabaseSecurityGroup and BuildServerSecurityGroup)
+        - com.amazonaws.us-east-1.ssmmessages (associate with Neo4jDatabaseSecurityGroup and BuildServerSecurityGroup)
+        - com.amazonaws.us-east-1.logs (associate with BuildServerSecurityGroup)
+        - com.amazonaws.us-east-1.ecr.dkr (associate with BuildServerSecurityGroup)
+        - com.amazonaws.us-east-1.ecr.api (associate with BuildServerSecurityGroup)
+        - com.amazonaws.us-east-1.ecs (associate with BuildServerSecurityGroup)
+- Define the environment variables in `.env.dev`.
 ```bash
+# .env.dev
 AWS_PROFILE=default
-APP_NAME=gfe-db
-AWS_REGION=us-east-1
-SKIP_CHECK_DEPENDENCIES=true
-SKIP_CONFIGURE_VPC_ENDPOINTS=true
-SKIP_NAT_GATEWAY_VALIDATION=true
 CREATE_VPC=false
-USE_PRIVATE_SUBNET=true
+DEPLOY_NAT_GATEWAY=false
+DEPLOY_VPC_ENDPOINTS=false
 DEPLOY_BASTION_SERVER=false
-ADMIN_IP=0.0.0.0/0
 ADMIN_EMAIL=<email>
 SUBSCRIBE_EMAILS=<email1,email2,email3,...>
-GITHUB_REPOSITORY_OWNER=ANHIG
-GITHUB_REPOSITORY_NAME=IMGTHLA
 VPC_ID=vpc-xxxxxxxx
 PUBLIC_SUBNET_ID=subnet-xxxxxxxx
 PRIVATE_SUBNET_ID=subnet-xxxxxxxx
 NEO4J_AMI_ID=<ami_id>
-NEO4J_PASSWORD=<password>
-APOC_VERSION=5.15.0
-GDS_VERSION=2.5.6
 CREATE_NEO4J_USERS=<username1:password,username2:password,...>
 GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxxxxxxxxxxxxx
 FEATURE_SERVICE_URL=https://feature.b12x.org
@@ -226,10 +235,8 @@ DOCKER_USERNAME=<username>
 DOCKER_PASSWORD=<password>
 ```
 - For the stage `dev`, run `STAGE=dev make deploy` to deploy the architecture.
-- If `SKIP_CONFIGURE_VPC_ENDPOINTS=true`, all VPC endpoints should be modified to be associated with the Neo4j security group once the infrastructure stack is deployed.
 - After deployment is complete run `STAGE=dev make database.load.run releases="3560"` to load the database with the IMGT/HLA release version 3560.
                                                    
-
 ## Application Environment
 
 ### AWS Credentials
@@ -269,43 +276,36 @@ These variables must be defined before running Make. The best way to set these v
 
 ***Important:*** Using `.env.<stage>` allows for multiple deployments to different environments. Make sure to update `.gitignore` with `.env*` to avoid pushing sensitive data to public repositories. For example, if your deployment stage is labeled `dev` your .env file should be named `.env.dev` and you would deploy by calling `STAGE=dev make deploy`.
 
-| Variable                           | Data Type | Example Value           | Required    | Notes                                                             |
-| ---------------------------------- | --------- | ----------------------- | ----------- | ----------------------------------------------------------------- |
-| AWS_PROFILE                        | string    | default                 | Yes         | AWS account profile name                                          |
-| APP_NAME                           | string    | my-app                  | Yes         | Application name                                                  |
-| AWS_REGION                         | string    | us-east-1               | Yes         | AWS region                                                        |
-| SKIP_CHECK_DEPENDENCIES            | bool      | true/false              | No          | Skips checking dependencies when running `make deploy`            |
-| SKIP_VALIDATE_NAT_GATEWAY          | bool      | true/false              | No          | Skips NAT Gateway validation                                      |
-| SKIP_CONFIGURE_VPC_ENDPOINTS       | bool      | true/false              | No          | Skips VPC endpoint creation and validation                        |
-| CREATE_VPC                         | bool      | true/false              | Yes         | Whether to create a VPC                                           |
-| USE_PRIVATE_SUBNET                 | bool      | true/false              | Yes         | Use private subnet if true                                        |
-| PUBLIC_SUBNET_ID                   | string    | subnet-xxxxxxxx         | Conditional | Required if CREATE_VPC=false                                      |
-| PRIVATE_SUBNET_ID                  | string    | subnet-xxxxxxxx         | Conditional | Required if CREATE_VPC=false and USE_PRIVATE_SUBNET=true          |
-| ADMIN_EMAIL                        | string    | admin@example.com       | Yes         | Administrator's email                                             |
-| SUBSCRIBE_EMAILS                   | string    | notify@example.com      | Yes         | Emails for subscription                                           |
-| GITHUB_REPOSITORY_OWNER            | string    | ANHIG                   | Yes         | Owner of the GitHub repository                                    |
-| GITHUB_REPOSITORY_NAME             | string    | IMGTHLA                 | Yes         | Name of the GitHub repository                                     |
-| NEO4J_AMI_ID                       | string    | ami-xxxxxxxxxxxxxxx     | Yes         | Amazon Linux 2 AMI ID                                             |
-| NEO4J_PASSWORD                     | string    | **********              | Yes         | Password for Neo4j                                                |
-| APOC_VERSION                       | string    | 5.15.0                  | Yes         | Version of APOC                                                   |
-| GDS_VERSION                        | string    | 2.5.6                   | Yes         | Version of GDS                                                    |
-| GITHUB_PERSONAL_ACCESS_TOKEN       | string    | ghp_xxxxxxxxxxxxxx      | Yes         | GitHub personal access token                                      |
-| FEATURE_SERVICE_URL                | string    | https://api.example.com | Yes         | URL of the Feature service                                        |
-| HOST_DOMAIN                        | string    | example.com             | Conditional | Required if USE_PRIVATE_SUBNET=false                              |
-| SUBDOMAIN                          | string    | sub.example.com         | Conditional | Required if USE_PRIVATE_SUBNET=false                              |
-| HOSTED_ZONE_ID                     | string    | ZXXXXXXXXXXXXX          | Conditional | Required if USE_PRIVATE_SUBNET=false                              |
-| VPC_ID                             | string    | vpc-xxxxxxxx            | Conditional | Required if CREATE_VPC=false                                      |
-| CREATE_SSM_VPC_ENDPOINT            | bool      | true/false              | Conditional | Required if USE_PRIVATE_SUBNET=true                               |
-| SSM_VPC_ENDPOINT_ID                | string    | vpce-xxxxxxxx           | Conditional | Required if CREATE_SSM_VPC_ENDPOINT=true                          |
-| CREATE_SECRETSMANAGER_VPC_ENDPOINT | bool      | true/false              | Conditional | Required if USE_PRIVATE_SUBNET=true                               |
-| SECRETSMANAGER_VPC_ENDPOINT_ID     | string    | vpce-xxxxxxxx           | Conditional | Required if CREATE_SECRETSMANAGER_VPC_ENDPOINT=true               |
-| CREATE_S3_VPC_ENDPOINT             | bool      | true/false              | Conditional | Required if USE_PRIVATE_SUBNET=true                               |
-| S3_VPC_ENDPOINT_ID                 | string    | vpce-xxxxxxxx           | Conditional | Required if CREATE_S3_VPC_ENDPOINT=true                           |
-| DEPLOY_NAT_GATEWAY                 | bool      | true/false              | Conditional | Required if USE_PRIVATE_SUBNET=true                               |
-| EXTERNAL_NAT_GATEWAY_ID            | string    | nat-xxxxxxxx            | Conditional | Required if DEPLOY_NAT_GATEWAY=false                              |
-| SKIP_VALIDATE_NAT_GATEWAY          | bool      | true/false              | Conditional | Skips NAT Gateway validation, Optional if USE_PRIVATE_SUBNET=true |
-| DEPLOY_BASTION_SERVER              | bool      | true/false              | Conditional | Optional if USE_PRIVATE_SUBNET=true                               |
-| ADMIN_IP                           | string    | 192.168.1.1/32          | Conditional | Required if DEPLOY_BASTION_SERVER=true                            |
+| Variable                     | Data Type | Example Value           | Required    | Notes                                                               |
+| ---------------------------- | --------- | ----------------------- | ----------- | ------------------------------------------------------------------- |
+| AWS_PROFILE                  | string    | default                 | Yes         | AWS account profile name                                            |
+| APP_NAME                     | string    | my-app                  | Yes         | Application name                                                    |
+| AWS_REGION                   | string    | us-east-1               | Yes         | AWS region                                                          |
+| SKIP_CHECK_DEPENDENCIES      | bool      | true/false              | No          | Skips checking dependencies when running `make deploy`              |
+| CREATE_VPC                   | bool      | true/false              | Yes         | Whether to create a VPC                                             |
+| DEPLOY_NAT_GATEWAY           | bool      | trure/false             | Conditional | Optionally deploy a NAT Gateway and associated networking resources |
+| DEPLOY_VPC_ENDPOINTS         | bool      | trure/false             | Conditional | Optionally deploy VPC endpoints required for services               |
+| DEPLOY_BASTION_SERVER        | bool      | trure/false             | Conditional | Optionally deploy a bastion server                                  |
+| USE_PRIVATE_SUBNET           | bool      | true/false              | Yes         | Use private subnet if true                                          |
+| PUBLIC_SUBNET_ID             | string    | subnet-xxxxxxxx         | Conditional | Required if CREATE_VPC=false                                        |
+| PRIVATE_SUBNET_ID            | string    | subnet-xxxxxxxx         | Conditional | Required if CREATE_VPC=false and USE_PRIVATE_SUBNET=true            |
+| ADMIN_EMAIL                  | string    | admin@example.com       | Yes         | Administrator's email                                               |
+| SUBSCRIBE_EMAILS             | string    | notify@example.com      | Yes         | Emails for subscription                                             |
+| GITHUB_REPOSITORY_OWNER      | string    | ANHIG                   | Yes         | Owner of the GitHub repository                                      |
+| GITHUB_REPOSITORY_NAME       | string    | IMGTHLA                 | Yes         | Name of the GitHub repository                                       |
+| NEO4J_AMI_ID                 | string    | ami-xxxxxxxxxxxxxxx     | Yes         | Amazon Linux 2 AMI ID                                               |
+| NEO4J_PASSWORD               | string    | **********              | Yes         | Password for Neo4j                                                  |
+| APOC_VERSION                 | string    | 5.15.0                  | Yes         | Version of APOC                                                     |
+| GDS_VERSION                  | string    | 2.5.6                   | Yes         | Version of GDS                                                      |
+| GITHUB_PERSONAL_ACCESS_TOKEN | string    | ghp_xxxxxxxxxxxxxx      | Yes         | GitHub personal access token                                        |
+| FEATURE_SERVICE_URL          | string    | https://api.example.com | Yes         | URL of the Feature service                                          |
+| HOST_DOMAIN                  | string    | example.com             | Conditional | Required if USE_PRIVATE_SUBNET=false                                |
+| SUBDOMAIN                    | string    | sub.example.com         | Conditional | Required if USE_PRIVATE_SUBNET=false                                |
+| HOSTED_ZONE_ID               | string    | ZXXXXXXXXXXXXX          | Conditional | Required if USE_PRIVATE_SUBNET=false                                |
+| VPC_ID                       | string    | vpc-xxxxxxxx            | Conditional | Required if CREATE_VPC=false                                        |
+| ADMIN_IP                     | string    | 192.168.1.1/32          | Conditional | Required if DEPLOY_BASTION_SERVER=true                              |
+| DOCKER_USERNAME              | string    | username                | Yes         | Required to build the Docker image from gfe-db                      |
+| DOCKER_PASSWORD              | string    | password                | Yes         | Required to build the Docker image from gfe-db                      |
 
 *Note:* "Conditional" in the "Required" column indicates that the requirement of the variable depends on specific configurations or conditions.
 
