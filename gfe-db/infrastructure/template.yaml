@@ -276,7 +276,10 @@ Resources:
     Properties:
       GroupName: !Sub '${Stage}-${AppName}-build-server-sg'
       GroupDescription: !Sub 'Security group for the ${Stage}-${AppName} build server'
-      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}'
+      VpcId: !If
+        - CreateVpc
+        - !Ref CreateVpcConditionVpc
+        - !Ref VpcId      
       # SecurityGroupIngress: # Uncomment to allow SSH access to build instance
       #   - CidrIp: 0.0.0.0/0
       #     FromPort: 22
