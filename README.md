@@ -181,7 +181,23 @@ The following resources are required to deploy the application depending on the 
 
 ## Quick Start
 
-### Private deployment using existing VPC, NAT Gateway and VPC Endpoints
+### *(Option 1)* Private Subnet Deployment with VPC
+Follow these steps to deploy gfe-db to a new VPC and private subnet.
+- Configure [AWS Credentials](#aws-credentials).
+- Define the environment variables in `.env.dev`.
+```bash
+# .env.dev
+ADMIN_EMAIL=<email>
+SUBSCRIBE_EMAILS=<email1,email2,email3,...>
+GITHUB_PERSONAL_ACCESS_TOKEN=<token>
+FEATURE_SERVICE_URL=https://feature.b12x.org
+DOCKER_USERNAME=<username>
+DOCKER_PASSWORD=<password>
+```
+- For the stage `dev`, run `STAGE=dev make deploy` to deploy the architecture.
+- After deployment is complete run `STAGE=dev make database.load.run releases="3560"` to load the database with the IMGT/HLA release version 3560.
+
+### *(Option 2)* Private deployment using existing VPC, NAT Gateway and VPC Endpoints
 Follow these steps to deploy gfe-db to an existing private subnet and VPC.
 - Configure [AWS Credentials](#aws-credentials).
 - Create and configure the following resources before deploying the stacks:
@@ -202,25 +218,16 @@ Follow these steps to deploy gfe-db to an existing private subnet and VPC.
 ```bash
 # .env.dev
 AWS_PROFILE=default
-APP_NAME=gfe-db
-AWS_REGION=us-east-1
-SKIP_CHECK_DEPENDENCIES=false
 CREATE_VPC=false
-USE_PRIVATE_SUBNET=true
 DEPLOY_NAT_GATEWAY=false
 DEPLOY_VPC_ENDPOINTS=false
 DEPLOY_BASTION_SERVER=false
 ADMIN_EMAIL=<email>
 SUBSCRIBE_EMAILS=<email1,email2,email3,...>
-GITHUB_REPOSITORY_OWNER=ANHIG
-GITHUB_REPOSITORY_NAME=IMGTHLA
 VPC_ID=vpc-xxxxxxxx
 PUBLIC_SUBNET_ID=subnet-xxxxxxxx
 PRIVATE_SUBNET_ID=subnet-xxxxxxxx
 NEO4J_AMI_ID=<ami_id>
-NEO4J_PASSWORD=<password>
-APOC_VERSION=5.15.0
-GDS_VERSION=2.5.6
 CREATE_NEO4J_USERS=<username1:password,username2:password,...>
 GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxxxxxxxxxxxxx
 FEATURE_SERVICE_URL=https://feature.b12x.org
@@ -228,7 +235,6 @@ DOCKER_USERNAME=<username>
 DOCKER_PASSWORD=<password>
 ```
 - For the stage `dev`, run `STAGE=dev make deploy` to deploy the architecture.
-- If `SKIP_CONFIGURE_VPC_ENDPOINTS=true`, all VPC endpoints should be modified to be associated with the Neo4j security group once the infrastructure stack is deployed.
 - After deployment is complete run `STAGE=dev make database.load.run releases="3560"` to load the database with the IMGT/HLA release version 3560.
                                                    
 ## Application Environment
