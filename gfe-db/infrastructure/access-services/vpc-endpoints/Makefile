@@ -17,9 +17,7 @@ service.deploy:
 		--capabilities CAPABILITY_IAM \
 		--parameter-overrides \
 			Stage="$${STAGE}" \
-			AppName="$${APP_NAME}" \
-			VpcId="$${VPC_ID}"
-
+			AppName="$${APP_NAME}"
 delete: ##=> Delete resources
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
 	$(MAKE) service.delete

@@ -8,9 +8,6 @@ Parameters:
   AppName:
     Type: String
     Description: Application name
-  VpcId:
-    Type: AWS::EC2::VPC::Id
-    Description: VPC ID
   
 Resources:
   S3InterfaceVpcEndpoint:
@@ -23,7 +20,7 @@ Resources:
       SubnetIds: 
         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
       VpcEndpointType: Interface
-      VpcId: !Ref VpcId
+      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}'
 
   SsmInterfaceVpcEndpoint:
     Type: AWS::EC2::VPCEndpoint
@@ -35,7 +32,7 @@ Resources:
       SubnetIds: 
         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
       VpcEndpointType: Interface
-      VpcId: !Ref VpcId
+      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}'
 
   SecretsManagerInterfaceVpcEndpoint:
     Type: AWS::EC2::VPCEndpoint
@@ -47,7 +44,7 @@ Resources:
       SubnetIds: 
         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
       VpcEndpointType: Interface
-      VpcId: !Ref VpcId
+      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}'
 
   Ec2MessagesInterfaceVpcEndpoint:
     Type: AWS::EC2::VPCEndpoint
@@ -59,7 +56,7 @@ Resources:
       SubnetIds: 
         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
       VpcEndpointType: Interface
-      VpcId: !Ref VpcId
+      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}'
 
   SsmMessagesInterfaceVpcEndpoint:
     Type: AWS::EC2::VPCEndpoint
@@ -71,7 +68,7 @@ Resources:
       SubnetIds: 
         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
       VpcEndpointType: Interface
-      VpcId: !Ref VpcId
+      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}'
 
   LogsInterfaceVpcEndpoint:
     Type: AWS::EC2::VPCEndpoint
@@ -82,7 +79,7 @@ Resources:
       SubnetIds: 
         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
       VpcEndpointType: Interface
-      VpcId: !Ref VpcId
+      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}'
 
   EcrDkrInterfaceVpcEndpoint:
     Type: AWS::EC2::VPCEndpoint
@@ -93,7 +90,7 @@ Resources:
       SubnetIds: 
         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
       VpcEndpointType: Interface
-      VpcId: !Ref VpcId
+      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}'
 
   EcrApiInterfaceVpcEndpoint:
     Type: AWS::EC2::VPCEndpoint
@@ -104,7 +101,7 @@ Resources:
       SubnetIds: 
         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
       VpcEndpointType: Interface
-      VpcId: !Ref VpcId
+      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}'
 
   EcsInterfaceVpcEndpoint:
     Type: AWS::EC2::VPCEndpoint
@@ -115,6 +112,6 @@ Resources:
       SubnetIds: 
         - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
       VpcEndpointType: Interface
-      VpcId: !Ref VpcId
+      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}'
 
   
