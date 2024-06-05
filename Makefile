@@ -220,10 +220,6 @@ env.validate.subdomain:
 
 env.validate.use-private-subnet.vars:
 ifeq ($(USE_PRIVATE_SUBNET),true)
-ifeq ($(ADMIN_IP),)
-	$(call red, "\`ADMIN_IP\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`true\`")
-	@exit 1
-endif
 ifeq ($(DEPLOY_NAT_GATEWAY),)
 	$(call red, "\`DEPLOY_NAT_GATEWAY\` must be set when \`USE_PRIVATE_SUBNET\` is \`true\`")
 	@exit 1
@@ -231,6 +227,11 @@ endif
 ifeq ($(DEPLOY_BASTION_SERVER),)
 	$(call red, "\`DEPLOY_BASTION_SERVER\` must be set when \`USE_PRIVATE_SUBNET\` is \`true\`")
 	@exit 1
+else ifeq ($(DEPLOY_BASTION_SERVER),true)
+ifeq ($(ADMIN_IP),)
+	$(call red, "\`ADMIN_IP\` must be set as an environment variable when \`DEPLOY_BASTION_SERVER\` is \`true\`")
+	@exit 1
+endif
 endif
 ifeq ($(DEPLOY_VPC_ENDPOINTS),)
 	$(call red, "\`DEPLOY_VPC_ENDPOINTS\` must be set when \`USE_PRIVATE_SUBNET\` is \`true\`")
