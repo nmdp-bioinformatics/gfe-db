@@ -8,11 +8,6 @@ SPLASH_FONT := slant
 export AWS_ACCOUNT = $(shell aws sts get-caller-identity \
 	--query Account \
 	--output text)
-export HAS_STAGE = $(shell aws ssm get-parameters \
-		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Stage" \
-		--output json \
-		| jq -r '.Parameters[0].Value')
-
 export ROOT_DIR = $(shell pwd)
 export INFRA_DIR = ${ROOT_DIR}/${APP_NAME}/infrastructure
 export DATABASE_DIR = ${ROOT_DIR}/${APP_NAME}/database
@@ -254,44 +249,6 @@ ifeq ($(PRIVATE_SUBNET_ID),)
 else
 	$(call green, "Found PRIVATE_SUBNET_ID: ${PRIVATE_SUBNET_ID}")
 endif
-# ifeq ($(DEPLOY_NAT_GATEWAY),)
-# 	$(call red, "\`DEPLOY_NAT_GATEWAY\` must be set when \`CREATE_VPC\` is \`false\` and \`USE_PRIVATE_SUBNET\` is \`true\`")
-# 	@exit 1
-# else ifneq ($(DEPLOY_NAT_GATEWAY),)
-# ifeq ($(SKIP_VALIDATE_NAT_GATEWAY),false)
-# 	$(MAKE) env.validate.external-nat-gateway
-# else
-# 	$(call blue, "Skipping NAT Gateway validation...")
-# endif
-# ifeq ($(SKIP_CONFIGURE_VPC_ENDPOINTS),false)
-# ifeq ($(CREATE_SSM_VPC_ENDPOINT),false)
-# ifeq ($(SSM_VPC_ENDPOINT_ID),)
-# 	$(call red, "\`SSM_VPC_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`true\` and \`CREATE_SSM_VPC_ENDPOINT\` is \`false\`")
-# 	@exit 1
-# else
-# 	$(call green, "Found SSM_VPC_ENDPOINT_ID: ${SSM_VPC_ENDPOINT_ID}")
-# endif
-# endif
-# ifeq ($(CREATE_SECRETSMANAGER_VPC_ENDPOINT),false)
-# ifeq ($(SECRETSMANAGER_VPC_ENDPOINT_ID),)
-# 	$(call red, "\`SECRETSMANAGER_VPC_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`true\` and \`CREATE_SSM_VPC_ENDPOINT\` is \`false\`")
-# 	@exit 1
-# else
-# 	$(call green, "Found SECRETSMANAGER_VPC_ENDPOINT_ID: ${SECRETSMANAGER_VPC_ENDPOINT_ID}")
-# endif
-# endif
-# ifeq ($(CREATE_S3_VPC_ENDPOINT),false)
-# ifeq ($(S3_VPC_ENDPOINT_ID),)
-# 	$(call red, "\`S3_VPC_ENDPOINT_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`true\` and \`CREATE_SSM_VPC_ENDPOINT\` is \`false\`")
-# 	@exit 1
-# else
-# 	$(call green, "Found S3_VPC_ENDPOINT_ID: ${S3_VPC_ENDPOINT_ID}")
-# endif
-# endif
-# else
-# 	$(call blue, "Skipping VPC endpoint validation...")
-# 	$(call yellow, "Please remember to add the database security group to your VPC endpoints.")
-# endif
 else ifeq ($(CREATE_VPC),true)
 ifneq ($(DEPLOY_NAT_GATEWAY),true)
 	$(call red, "\`DEPLOY_NAT_GATEWAY\` must be set to \`true\` when \`CREATE_VPC\` is \`true\` and \`USE_PRIVATE_SUBNET\` is \`true\`")
@@ -357,22 +314,6 @@ ifneq ($(PRIVATE_SUBNET_ID),)
 endif
 endif
 endif
-
-# env.validate.external-nat-gateway:
-# ifeq ($(DEPLOY_NAT_GATEWAY),false)
-# ifeq ($(EXTERNAL_NAT_GATEWAY_ID),)
-# 	$(call red, "\`EXTERNAL_NAT_GATEWAY_ID\` must be set as an environment variable when \`DEPLOY_NAT_GATEWAY\` is \`false\`")
-# 	@exit 1
-# else
-# 	$(call green, "Found EXTERNAL_NAT_GATEWAY_ID: ${EXTERNAL_NAT_GATEWAY_ID}")
-# 	$(call blue, Validating NAT Gateway configuration...)
-# 	@res=$$(aws ec2 describe-route-tables \
-# 		--filters "Name=vpc-id,Values=${VPC_ID}" | jq -r --arg SUBNET_ID "${PRIVATE_SUBNET_ID}" --arg NAT_ID "${EXTERNAL_NAT_GATEWAY_ID}" '.RouteTables[] \
-# 			| select(.Associations[]? | .SubnetId == $$SUBNET_ID) | {RouteTableId: .RouteTableId, Routes: .Routes, IsNATGatewayRoutePresent: any(.Routes[]; .NatGatewayId == $$NAT_ID)}' \
-# 	| jq -r '.IsNATGatewayRoutePresent') && \
-# 	[[ $$res = "true" ]] && echo "\033[0;34mFound NAT Gateway route\033[0m" || (echo "\033[0;31mERROR: No NAT Gateway route found\033[0m" && exit 1)
-# endif
-# endif
 
 env.validate.create-neo4j-users:
 	@if [ -n "${CREATE_NEO4J_USERS}" ]; then \
@@ -445,9 +386,6 @@ infrastructure.deploy:
 
 infrastructure.service.deploy:
 	$(MAKE) -C ${APP_NAME}/infrastructure/ service.deploy
-
-infrastructure.create-endpoint:
-	$(MAKE) -C ${APP_NAME}/infrastructure/ service.deploy.create-endpoint service=$$service
 
 infrastructure.access-services.deploy:
 	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/nat-gateway/ deploy
@@ -668,9 +606,6 @@ infrastructure.access-services.nat-gateway.delete:
 infrastructure.access-services.vpc-endpoints.delete:
 	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/vpc-endpoints/ delete
 
-infrastructure.delete-endpoint: #=> service=<string>
-	$(MAKE) -C ${APP_NAME}/infrastructure/ service.delete.delete-endpoint service=$$service
-
 database.delete:
 	$(MAKE) -C ${APP_NAME}/database/ delete
 
@@ -706,11 +641,14 @@ define HELP_MESSAGE
 	STAGE: "${STAGE}"
 		Description: (string) Feature branch name used as part of stacks name
 
+	APP_NAME: "${APP_NAME}"
+		Description: (string) Stack Name already deployed
+
 	AWS_PROFILE: "${AWS_PROFILE}"
 		Description: (string) AWS profile to use for deployment
 
-	APP_NAME: "${APP_NAME}"
-		Description: (string) Stack Name already deployed
+	AWS_ACCOUNT: "${AWS_ACCOUNT}":
+		Description: AWS account ID for deployment
 
 	AWS_REGION: "${AWS_REGION}":
 		Description: (string) AWS region for deployment
@@ -721,33 +659,11 @@ define HELP_MESSAGE
 	USE_PRIVATE_SUBNET: "${USE_PRIVATE_SUBNET}"
 		Description: (boolean) Use a private subnet for Neo4j
 
-	# CREATE_SSM_VPC_ENDPOINT: "${CREATE_SSM_VPC_ENDPOINT}"
-	# 	Description: (boolean) Create a new SSM VPC Endpoint or use an existing one
-
-	# SSM_VPC_ENDPOINT_ID: "${SSM_VPC_ENDPOINT_ID}"
-	# 	Description: (string) ID of an existing SSM VPC Endpoint, required when CREATE_SSM_VPC_ENDPOINT is false
-	# 	and USE_PRIVATE_SUBNET is true
-
-	# CREATE_SECRETSMANAGER_VPC_ENDPOINT: "${CREATE_SECRETSMANAGER_VPC_ENDPOINT}"
-	# 	Description: (boolean) Create a new SecretsManager VPC Endpoint or use an existing one
-
-	# SECRETSMANAGER_VPC_ENDPOINT_ID: "${SECRETSMANAGER_VPC_ENDPOINT_ID}"
-	# 	Description: (string) ID of an existing SecretsManager VPC Endpoint, required when CREATE_SECRETSMANAGER_VPC_ENDPOINT is false
-	# 	and USE_PRIVATE_SUBNET is true
-
-	# CREATE_S3_VPC_ENDPOINT: "${CREATE_S3_VPC_ENDPOINT}"
-	# 	Description: (boolean) Create a new S3 VPC Endpoint or use an existing one, required when USE_PRIVATE_SUBNET is true
-
-	# S3_VPC_ENDPOINT_ID: "${S3_VPC_ENDPOINT_ID}"
-	# 	Description: (string) ID of an existing S3 VPC Endpoint, required when CREATE_S3_VPC_ENDPOINT is false
-	# 	and USE_PRIVATE_SUBNET is true
-
+	DEPLOY_VPC_ENDPOINTS: "${DEPLOY_VPC_ENDPOINTS}"
+		Description: (boolean) Deploy VPC endpoints for S3 and DynamoDB
+	
 	DEPLOY_NAT_GATEWAY: "${DEPLOY_NAT_GATEWAY}"
 		Description: (boolean) Deploy a NAT Gateway or use an existing one, required when USE_PRIVATE_SUBNET is true
-
-	EXTERNAL_NAT_GATEWAY_ID: "${EXTERNAL_NAT_GATEWAY_ID}"
-		Description: (string) ID of an existing NAT Gateway, required when DEPLOY_NAT_GATEWAY is false
-		and USE_PRIVATE_SUBNET is true
 
 	DEPLOY_BASTION_SERVER: "${DEPLOY_BASTION_SERVER}"
 		Description: (boolean) Deploy a Bastion Server or use an existing one, required when USE_PRIVATE_SUBNET is true
@@ -780,9 +696,6 @@ define HELP_MESSAGE
 		Description: (string) ID of an existing private subnet, required when CREATE_VPC is false
 		and USE_PRIVATE_SUBNET is true
 
-	# UBUNTU_AMI_ID: "${UBUNTU_AMI_ID}"
-	# 	Description: (string) ID of an existing AMI for Ubuntu 22.04
-
 	APOC_VERSION: "${APOC_VERSION}"
 		Description: (string) Version of APOC to install
 
@@ -801,18 +714,12 @@ define HELP_MESSAGE
 	FEATURE_SERVICE_URL: "${FEATURE_SERVICE_URL}"
 		Description: (string) URL of the Feature Service API
 
-	AWS_ACCOUNT: "${AWS_ACCOUNT}":
-		Description: AWS account ID for deployment
-
 	*************************
 	* Application variables *
 	*************************
 
 	AWS_ACCOUNT: "${AWS_ACCOUNT}"
 		Description: AWS account ID for deployment
-
-	HAS_STAGE: "${HAS_STAGE}"
-		Description: (boolean) Whether or not the stack has a stage already deployed
 
 	ROOT_DIR: "${ROOT_DIR}"
 		Description: Root directory of the project
@@ -868,12 +775,6 @@ define HELP_MESSAGE
 
 	...::: Update only the infrastructure CloudFormation :::...
 	$ make infrastructure.service.deploy
-
-	...::: Create an endpoint :::...
-	$ make infrastructure.create-endpoint service=<ssm|secretmanager|s3>
-
-	...::: Delete an endpoint :::...
-	$ make infrastructure.delete-endpoint service=<ssm|secretmanager|s3>
 
 	...::: Deploy all access services :::...
 	$ make infrastructure.access-services.deploy
