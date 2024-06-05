@@ -49,7 +49,7 @@ Conditions:
   # UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
   # UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
   UsePrivateSubnet: !Equals [!Ref usePrivateSubnet, 'true']
-  UsePrivateSubnetDeployNatGateway: !And [!Equals [!Ref usePrivateSubnet, 'true'], !Equals [!Ref deployNatGateway, 'true']]
+  # UsePrivateSubnetDeployNatGateway: !And [!Equals [!Ref usePrivateSubnet, 'true'], !Equals [!Ref deployNatGateway, 'true']]
   UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
   # UseExternalNatGateway: !Equals [!Ref deployNatGateway, 'false']
 
@@ -135,25 +135,26 @@ Resources:
     Properties:
       VpcId: !Ref CreateVpcConditionVpc
   
-  # Required for NAT Gateway
-  UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable:
-    Type: AWS::EC2::RouteTable
-    Condition: UsePrivateSubnetDeployNatGateway
-    Properties:
-      VpcId: !If
-        - CreateVpc
-        - !Ref CreateVpcConditionVpc
-        - !Ref VpcId
+  # # Required for NAT Gateway
+  # UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable:
+  #   Type: AWS::EC2::RouteTable
+  #   Condition: UsePrivateSubnetDeployNatGateway
+  #   Properties:
+  #     VpcId: !If
+  #       - CreateVpc
+  #       - !Ref CreateVpcConditionVpc
+  #       - !Ref VpcId
 
-  # Required for NAT Gateway
-  UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTableParameter:
-    Type: AWS::SSM::Parameter
-    Condition: UsePrivateSubnetDeployNatGateway
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PrivateRouteTableId'
-      Description: !Sub "ID of the private route table for ${AppName}"
-      Value: !Ref UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable
+  # # TODO Move to NAT Gateway stack
+  # # Required for NAT Gateway
+  # UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTableParameter:
+  #   Type: AWS::SSM::Parameter
+  #   Condition: UsePrivateSubnetDeployNatGateway
+  #   Properties:
+  #     Type: String
+  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PrivateRouteTableId'
+  #     Description: !Sub "ID of the private route table for ${AppName}"
+  #     Value: !Ref UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable
   
   CreateVpcConditionVpcGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -179,16 +180,16 @@ Resources:
       RouteTableId: !Ref CreateVpcConditionPublicRouteTable
       SubnetId: !Ref CreateVpcConditionPublicSubnet
 
-  # Required for NAT Gateway  
-  UsePrivateSubnetDeployNatGatewayConditionPrivateSubnetRouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: UsePrivateSubnetDeployNatGateway
-    Properties:
-      RouteTableId: !Ref UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable
-      SubnetId: !If
-        - CreateVpcPrivate
-        - !Ref CreateVpcPrivateConditionPrivateSubnet
-        - !Ref PrivateSubnetId
+  # # Required for NAT Gateway  
+  # UsePrivateSubnetDeployNatGatewayConditionPrivateSubnetRouteTableAssociation:
+  #   Type: AWS::EC2::SubnetRouteTableAssociation
+  #   Condition: UsePrivateSubnetDeployNatGateway
+  #   Properties:
+  #     RouteTableId: !Ref UsePrivateSubnetDeployNatGatewayConditionPrivateRouteTable
+  #     SubnetId: !If
+  #       - CreateVpcPrivate
+  #       - !Ref CreateVpcPrivateConditionPrivateSubnet
+  #       - !Ref PrivateSubnetId
         
   VpcIdParameter:
     Type: AWS::SSM::Parameter
@@ -269,7 +270,33 @@ Resources:
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataBucketRegionalDomainName'
       Description: "S3 Bucket Regional Domain name for application bucket"
       Value: !GetAtt DataBucket.RegionalDomainName
-  
+
+  BuildServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${Stage}-${AppName}-build-server-sg'
+      GroupDescription: !Sub 'Security group for the ${Stage}-${AppName} build server'
+      VpcId: !If
+        - CreateVpc
+        - !Ref CreateVpcConditionVpc
+        - !Ref VpcId      
+      # SecurityGroupIngress: # Uncomment to allow SSH access to build instance
+      #   - CidrIp: 0.0.0.0/0
+      #     FromPort: 22
+      #     IpProtocol: tcp
+      #     ToPort: 22
+      Tags:
+        - Key: Name
+          Value: !Sub '${Stage}-${AppName}-build-server-sg'
+    
+  BuildServerSecurityGroupIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/BuildServerSecurityGroupId'
+      Description: "ID of the security group for the build server"
+      Value: !Ref BuildServerSecurityGroup
+
   Neo4jDatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:

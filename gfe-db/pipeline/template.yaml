@@ -78,6 +78,8 @@ Parameters:
     Type: String
   FeatureServiceUrl:
     Type: String
+  Ec2KeyPairName:
+    Type: String
 
 Conditions:
   # Important: All stacks (infra, database, pipeline) should use the same conditions
@@ -89,20 +91,28 @@ Conditions:
   # UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
 
 Resources:
-  BuildServerSG:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupName: !Sub '${Stage}-${AppName}-build-server-sg'
-      GroupDescription: !Sub 'Security group for the ${Stage}-${AppName} build server'
-      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}'
-      # SecurityGroupIngress: # Uncomment to allow SSH access to build instance
-      #   - CidrIp: 0.0.0.0/0
-      #     FromPort: 22
-      #     IpProtocol: tcp
-      #     ToPort: 22
-      Tags:
-        - Key: Name
-          Value: !Sub '${Stage}-${AppName}-build-server-sg'
+  # BuildServerSG:
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties:
+  #     GroupName: !Sub '${Stage}-${AppName}-build-server-sg'
+  #     GroupDescription: !Sub 'Security group for the ${Stage}-${AppName} build server'
+  #     VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}'
+  #     # SecurityGroupIngress: # Uncomment to allow SSH access to build instance
+  #     #   - CidrIp: 0.0.0.0/0
+  #     #     FromPort: 22
+  #     #     IpProtocol: tcp
+  #     #     ToPort: 22
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub '${Stage}-${AppName}-build-server-sg'
+    
+  # BuildServerSecurityGroupIdParameter:
+  #   Type: AWS::SSM::Parameter
+  #   Properties:
+  #     Type: String
+  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/BuildServerSecurityGroupId'
+  #     Description: "ID of the security group for the build server"
+  #     Value: !Ref BuildServerSG
 
   BatchServiceRole:
     Type: AWS::IAM::Role
@@ -239,17 +249,18 @@ Resources:
       Type: MANAGED
       ComputeResources:
         Type: EC2
+        AllocationStrategy: BEST_FIT_PROGRESSIVE
         # # Testing only, comment before production deployment
-        # Ec2KeyPair: !Ref EC2KeyPairName
+        Ec2KeyPair: !Ref Ec2KeyPairName
         MinvCpus: 0
         DesiredvCpus: 0
         MaxvCpus: 32
         InstanceTypes:
           - c5d.2xlarge
         Subnets:
-          - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetId}}'
+          - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
         SecurityGroupIds:
-          - !Ref BuildServerSG
+          - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/BuildServerSecurityGroupId}}'
         InstanceRole: !Ref BatchWorkerInstanceProfile
         LaunchTemplate:
           LaunchTemplateId: !Ref BuildLaunchTemplate
@@ -269,7 +280,7 @@ Resources:
         Monitoring:
           Enabled: true
         SecurityGroupIds:
-          - !Ref BuildServerSG
+          - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/BuildServerSecurityGroupId}}'
         UserData:
           Fn::Base64: |
             MIME-Version: 1.0
@@ -520,6 +531,7 @@ Resources:
               Resource:
                 - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${Stage}-${AppName}-database-Neo4jBackupDocument*'
                 - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId}}'
+                # - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*'
             - Effect: "Allow"
               Action: 
                 - "ssm:GetParameters"
@@ -561,6 +573,7 @@ Resources:
               Resource:
                 - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${Neo4jLoadQueryDocument}'
                 - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId}}'
+                # - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*'
             - Effect: "Allow"
               Action: 
                 - "ssm:GetParameters"
@@ -691,11 +704,10 @@ Resources:
     Type: AWS::StepFunctions::Activity
     Properties: 
       Name: !Sub "${AppName}-${Stage}-load-Neo4j"
-
   UpdatePipelineLogGroup:
     Type: AWS::Logs::LogGroup
-    UpdateReplacePolicy: Retain
-    DeletionPolicy: Retain
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
     Properties:
       LogGroupName: !Sub "${Stage}-${AppName}-pipeline-execution-logs"
 
