@@ -5,6 +5,9 @@ export
 
 SPLASH_FONT := slant
 
+export APP_NAME ?= gfe-db
+export AWS_PROFILE ?= default
+export AWS_REGION ?= us-east-1
 export AWS_ACCOUNT = $(shell aws sts get-caller-identity \
 	--query Account \
 	--output text)
@@ -17,27 +20,19 @@ export CFN_LOG_PATH = $(shell echo "${LOGS_DIR}/cfn/logs.txt")
 export PURGE_LOGS ?= false
 
 # Conditionally required variable defaults
-export CREATE_VPC ?= false
-export USE_PRIVATE_SUBNET ?= false
+export CREATE_VPC ?= true
+export USE_PRIVATE_SUBNET ?= true
 export SKIP_CHECK_DEPENDENCIES ?= false
-export DEPLOY_NAT_GATEWAY ?=
-# export SKIP_VALIDATE_NAT_GATEWAY ?= false
-# export SKIP_CONFIGURE_VPC_ENDPOINTS ?= false
-export DEPLOY_BASTION_SERVER ?=
-export DEPLOY_VPC_ENDPOINTS ?=
-# export CREATE_SSM_VPC_ENDPOINT ?=
-# export CREATE_SECRETSMANAGER_VPC_ENDPOINT ?=
-# export CREATE_S3_VPC_ENDPOINT ?=
-# export SSM_VPC_ENDPOINT_ID ?=
-# export SECRETSMANAGER_VPC_ENDPOINT_ID ?=
-# export S3_VPC_ENDPOINT_ID ?=
+export DEPLOY_NAT_GATEWAY ?= true
+export DEPLOY_BASTION_SERVER ?= true
+export DEPLOY_VPC_ENDPOINTS ?= true
 export VPC_ID ?=
 export PUBLIC_SUBNET_ID ?=
 export HOST_DOMAIN ?=
 export SUBDOMAIN ?=
 export PRIVATE_SUBNET_ID ?=
-export ADMIN_IP ?=
-# export UBUNTU_AMI_ID ?= ami-0fc5d935ebf8bc3bc
+export ADMIN_IP ?= 0.0.0.0/0
+export NEO4J_AMI_ID ?= ami-091c474108fca1315
 export DATABASE_VOLUME_SIZE ?= 64
 
 # Resource identifiers
@@ -49,6 +44,9 @@ export INSTANCE_ID = $(shell aws ssm get-parameters \
 	--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseInstanceId" \
 	--output json \
 	| jq -r '.Parameters[0].Value')
+export GITHUB_REPOSITORY_OWNER ?= ANHIG
+export GITHUB_REPOSITORY_NAME ?= IMGTHLA
+export FEATURE_SERVICE_URL ?= https://feature.b12x.org
 
 # S3 paths
 export PIPELINE_STATE_PATH = config/IMGTHLA-repository-state.json
@@ -57,6 +55,11 @@ export FUNCTIONS_PATH = ${PIPELINE_DIR}/functions
 
 # Neo4j
 export NEO4J_DATABASE_NAME ?= gfedb
+export NEO4J_PASSWORD ?= L6jk9pPvi2idie1
+export APOC_VERSION ?= 5.15.0
+export GDS_VERSION ?= 2.5.6
+# User cannot be `neo4j` or `admin`
+export CREATE_NEO4J_USERS ?= "gfedb:7b26OqomunEQvpPG"
 
 
 # Required environment variables
@@ -64,7 +67,7 @@ REQUIRED_VARS := STAGE APP_NAME AWS_ACCOUNT AWS_REGION AWS_PROFILE SUBSCRIBE_EMA
 	GITHUB_REPOSITORY_OWNER GITHUB_REPOSITORY_NAME GITHUB_PERSONAL_ACCESS_TOKEN \
 	ADMIN_EMAIL NEO4J_PASSWORD GDS_VERSION
 
-BOOLEAN_VARS := CREATE_VPC USE_PRIVATE_SUBNET DEPLOY_NAT_GATEWAY DEPLOY_BASTION_SERVER SKIP_CHECK_DEPENDENCIES
+BOOLEAN_VARS := CREATE_VPC USE_PRIVATE_SUBNET DEPLOY_NAT_GATEWAY DEPLOY_BASTION_SERVER DEPLOY_VPC_ENDPOINTS SKIP_CHECK_DEPENDENCIES
 
 # stdout colors
 # blue: runtime message, no action required
@@ -133,7 +136,7 @@ env.print:
 deploy: splash-screen logs.purge env.validate ##=> Deploy all services
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) env.print
-	@echo "Deploy stack to the \`${STAGE}\` environment? [y/N] \c " && read ans && [ $${ans:-N} = y ]
+	@echo "Deploy stack to the \`${STAGE}\` environment in account ${AWS_ACCOUNT}? [y/N] \c " && read ans && [ $${ans:-N} = y ]
 	$(MAKE) infrastructure.deploy 
 	$(MAKE) database.deploy
 	$(MAKE) pipeline.deploy
