@@ -12,11 +12,11 @@ Parameters:
   #   AllowedValues:
   #     - 'true'
   #     - 'false'
-  usePrivateSubnet:
-    Type: String
-    AllowedValues:
-      - 'true'
-      - 'false'
+  # usePrivateSubnet:
+  #   Type: String
+  #   AllowedValues:
+  #     - 'true'
+  #     - 'false'
   DataBucketName:
     Type: String
   Neo4jAmiId:
@@ -45,13 +45,13 @@ Parameters:
     Type: String
   GDSVersion:
     Type: String
-Conditions:
-  UsePrivateSubnet: !Equals
-    - !Ref usePrivateSubnet
-    - 'true'
-  UsePublicSubnet: !Equals
-    - !Ref usePrivateSubnet
-    - 'false'
+# Conditions:
+  # UsePrivateSubnet: !Equals
+  #   - !Ref usePrivateSubnet
+  #   - 'true'
+  # UsePublicSubnet: !Equals
+  #   - !Ref usePrivateSubnet
+  #   - 'false'
 Resources:
   Neo4jCredentialsSecret:
     Type: AWS::SecretsManager::Secret
@@ -70,9 +70,9 @@ Resources:
       Value: !Ref Neo4jCredentialsSecret
   Neo4jDatabaseInstance:
     Type: AWS::EC2::Instance
-    CreationPolicy:
-      ResourceSignal:
-        Timeout: PT5M
+    # CreationPolicy:
+    #   ResourceSignal:
+    #     Timeout: PT10M
     Properties:
       KeyName: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}'
       DisableApiTermination: false
@@ -164,8 +164,8 @@ Resources:
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
           [ $(amazon-cloudwatch-agent-ctl -a status | jq -r '.status') = running ] && echo "INFO: CloudWatch Logs Agent is running" || \
             (msg="ERROR: CloudWatch Logs Agent did not initialize correctly" && echo $msg && cfn_signal 1 "$msg" && exit 1)
-          # Set NEO4J_URI
-          export USE_PRIVATE_SUBNET=${usePrivateSubnet}
+          # TODO Set NEO4J_URI for private subnet only
+          export USE_PRIVATE_SUBNET=true
           if [ "$USE_PRIVATE_SUBNET" = true ]; then
             export NEO4J_URI=bolt://127.0.0.1:7687
             export NEO4J_ENCRYPTION=false
@@ -446,18 +446,15 @@ Resources:
       Type: String
       Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jUri
       Description: Connection URI for Neo4j
-      Value: !If
-        - UsePrivateSubnet
-        - !Sub bolt://${Neo4jDatabaseInstance.PrivateIp}:7687
-        - !Sub neo4j+s://${Subdomain}.${HostDomain}:7687
-  UsePublicSubnetConditionNeo4jBrowserUrlParameter:
-    Type: AWS::SSM::Parameter
-    Condition: UsePublicSubnet
-    Properties:
-      Type: String
-      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jBrowserUrl
-      Description: Connection URI for Neo4j
-      Value: !Sub https://${Subdomain}.${HostDomain}:7473/browser/
+      Value: !Sub bolt://${Neo4jDatabaseInstance.PrivateIp}:7687
+  # UsePublicSubnetConditionNeo4jBrowserUrlParameter:
+  #   Type: AWS::SSM::Parameter
+  #   Condition: UsePublicSubnet
+  #   Properties:
+  #     Type: String
+  #     Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jBrowserUrl
+  #     Description: Connection URI for Neo4j
+  #     Value: !Sub https://${Subdomain}.${HostDomain}:7473/browser/
   Neo4jPrivateIpParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -465,14 +462,14 @@ Resources:
       Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jPrivateIp
       Description: Private IP for Neo4j
       Value: !Sub ${Neo4jDatabaseInstance.PrivateIp}
-  Neo4jPublicIpParameter:
-    Type: AWS::SSM::Parameter
-    Condition: UsePublicSubnet
-    Properties:
-      Type: String
-      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jPublicIp
-      Description: Public IP for Neo4j
-      Value: !Sub ${Neo4jDatabaseInstance.PublicIp}
+  # Neo4jPublicIpParameter:
+  #   Type: AWS::SSM::Parameter
+  #   Condition: UsePublicSubnet
+  #   Properties:
+  #     Type: String
+  #     Name: !Sub /${AppName}/${Stage}/${AWS::Region}/Neo4jPublicIp
+  #     Description: Public IP for Neo4j
+  #     Value: !Sub ${Neo4jDatabaseInstance.PublicIp}
   Neo4jBackupDocument:
     Type: AWS::SSM::Document
     Properties:
