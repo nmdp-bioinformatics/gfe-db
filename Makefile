@@ -21,7 +21,7 @@ export PURGE_LOGS ?= false
 
 # Conditionally required variable defaults
 export CREATE_VPC ?= true
-export USE_PRIVATE_SUBNET ?= true
+# export USE_PRIVATE_SUBNET ?= true
 export SKIP_CHECK_DEPENDENCIES ?= false
 export DEPLOY_NAT_GATEWAY ?= true
 export DEPLOY_BASTION_SERVER ?= true
@@ -39,7 +39,7 @@ export DATABASE_VOLUME_SIZE ?= 64
 export DATA_BUCKET_NAME ?= ${STAGE}-${APP_NAME}-${AWS_ACCOUNT}-${AWS_REGION}
 export ECR_BASE_URI := ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com
 export BUILD_REPOSITORY_NAME ?= ${STAGE}-${APP_NAME}-build-service
-export EC2_KEY_PAIR_NAME := $${STAGE}-$${APP_NAME}-$${AWS_REGION}-neo4j-key
+export EC2_KEY_PAIR_NAME := ${STAGE}-${APP_NAME}-${AWS_REGION}-neo4j-key
 export INSTANCE_ID = $(shell aws ssm get-parameters \
 	--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseInstanceId" \
 	--output json \

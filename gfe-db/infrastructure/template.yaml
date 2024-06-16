@@ -12,11 +12,11 @@ Parameters:
     AllowedValues:
       - "true"
       - "false"
-  usePrivateSubnet:
-    Type: String
-    AllowedValues:
-      - "true"
-      - "false"
+  # usePrivateSubnet:
+  #   Type: String
+  #   AllowedValues:
+  #     - "true"
+  #     - "false"
   deployNatGateway:
     Type: String
     AllowedValues:
@@ -44,13 +44,13 @@ Conditions:
   # Important: All stacks (infra, database, pipeline) should use the same conditions
   CreateVpc: !Equals [!Ref createVpc, 'true']
   # CreateVpcPublic: !And [!Equals [!Ref createVpc, 'true'], !Equals [!Ref usePrivateSubnet, 'false']]
-  CreateVpcPrivate: !And [!Equals [!Ref createVpc, 'true'], !Equals [!Ref usePrivateSubnet, 'true']]
+  # CreateVpcPrivate: !And [!Equals [!Ref createVpc, 'true'], !Equals [!Ref usePrivateSubnet, 'true']]
   # UseExternalVpc: !Equals [!Ref createVpc, 'false']
   # UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
   # UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
-  UsePrivateSubnet: !Equals [!Ref usePrivateSubnet, 'true']
+  # UsePrivateSubnet: !Equals [!Ref usePrivateSubnet, 'true']
   # UsePrivateSubnetDeployNatGateway: !And [!Equals [!Ref usePrivateSubnet, 'true'], !Equals [!Ref deployNatGateway, 'true']]
-  UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
+  # UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
   # UseExternalNatGateway: !Equals [!Ref deployNatGateway, 'false']
 
 Mappings:
@@ -117,9 +117,9 @@ Resources:
       AvailabilityZone: !FindInMap [AvailabilityZoneMap, !Ref AWS::Region, AvailabilityZone]
       MapPublicIpOnLaunch: true
   
-  CreateVpcPrivateConditionPrivateSubnet:
+  CreateVpcConditionPrivateSubnet:
     Type: AWS::EC2::Subnet
-    Condition: CreateVpcPrivate
+    Condition: CreateVpc
     Properties:
       CidrBlock: 10.0.1.0/24
       VpcId: !Ref CreateVpcConditionVpc
@@ -213,16 +213,15 @@ Resources:
         - !Ref CreateVpcConditionPublicSubnet
         - !Ref PublicSubnetId
   
-  UsePrivateSubnetConditionPrivateSubnetIdParameter:
+  PrivateSubnetIdParameter:
     Type: AWS::SSM::Parameter
-    Condition: UsePrivateSubnet
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId'
       Description: !Sub "Private Subnet for the ${AppName} Neo4j server"
       Value: !If
-        - CreateVpcPrivate
-        - !Ref CreateVpcPrivateConditionPrivateSubnet
+        - CreateVpc
+        - !Ref CreateVpcConditionPrivateSubnet
         - !Ref PrivateSubnetId
   
   Neo4jSubnetIdParameter:
@@ -230,17 +229,8 @@ Resources:
     Properties:
       Type: String
       Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jSubnetId'
-      Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
-      Value: !If
-        - CreateVpc
-        - !If
-          - UsePrivateSubnet
-          - !Ref CreateVpcPrivateConditionPrivateSubnet
-          - !Ref CreateVpcConditionPublicSubnet
-        - !If
-          - UsePrivateSubnet
-          - !Ref PrivateSubnetId
-          - !Ref PublicSubnetId
+      Description: !Sub "Subnet for the ${AppName} Neo4j server"
+      Value: !GetAtt PrivateSubnetIdParameter.Value
   
   DataBucket:
     Type: AWS::S3::Bucket
@@ -358,32 +348,32 @@ Resources:
       Description: GitHub Personal Access Token for repository access
       SecretString: !Sub '{"personal_access_token":"${GitHubPersonalAccessToken}"}'
 
-  UsePublicSubnetConditionNeo4jDatabaseElasticIp:
-    Type: AWS::EC2::EIP
-    Condition: UsePublicSubnet
-    Properties:
-      Domain: vpc
-      Tags:
-        - Key: Name
-          Value: !Sub '${Stage}-${AppName}-neo4j'
+  # UsePublicSubnetConditionNeo4jDatabaseElasticIp:
+  #   Type: AWS::EC2::EIP
+  #   Condition: UsePublicSubnet
+  #   Properties:
+  #     Domain: vpc
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub '${Stage}-${AppName}-neo4j'
 
-  UsePublicSubnetConditionNeo4jDatabaseEndpointParameter:
-    Type: AWS::SSM::Parameter
-    Condition: UsePublicSubnet
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint'
-      Description: !Sub 'Endpoint for ${AppName} Neo4j server'
-      Value: !Ref UsePublicSubnetConditionNeo4jDatabaseElasticIp
+  # UsePublicSubnetConditionNeo4jDatabaseEndpointParameter:
+  #   Type: AWS::SSM::Parameter
+  #   Condition: UsePublicSubnet
+  #   Properties:
+  #     Type: String
+  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint'
+  #     Description: !Sub 'Endpoint for ${AppName} Neo4j server'
+  #     Value: !Ref UsePublicSubnetConditionNeo4jDatabaseElasticIp
 
-  UsePublicSubnetConditionNeo4jDatabaseEndpointAllocationIdParameter:
-    Type: AWS::SSM::Parameter
-    Condition: UsePublicSubnet
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId'
-      Description: !Sub 'AllocationId for ${AppName} Neo4j server static IP'
-      Value: !GetAtt UsePublicSubnetConditionNeo4jDatabaseElasticIp.AllocationId
+  # UsePublicSubnetConditionNeo4jDatabaseEndpointAllocationIdParameter:
+  #   Type: AWS::SSM::Parameter
+  #   Condition: UsePublicSubnet
+  #   Properties:
+  #     Type: String
+  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId'
+  #     Description: !Sub 'AllocationId for ${AppName} Neo4j server static IP'
+  #     Value: !GetAtt UsePublicSubnetConditionNeo4jDatabaseElasticIp.AllocationId
 
   DataPipelineErrorsTopicPolicy:
     Type: AWS::SNS::TopicPolicy

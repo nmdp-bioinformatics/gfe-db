@@ -38,11 +38,11 @@ deploy:
 	@echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} services\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
 	$(MAKE) service.key-pair.create
 	$(MAKE) service.deploy
-ifeq ($(USE_PRIVATE_SUBNET),true)
+# ifeq ($(USE_PRIVATE_SUBNET),true)
 	$(MAKE) service.access-services.deploy
-else ifeq ($(USE_PRIVATE_SUBNET),false)
-	$(MAKE) service.deploy.update-dns
-endif
+# else ifeq ($(USE_PRIVATE_SUBNET),false)
+# 	$(MAKE) service.deploy.update-dns
+# endif
 	$(MAKE) service.monitoring.create-subscriptions
 
 service.deploy.update-dns:
@@ -90,7 +90,6 @@ service.deploy:
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
 			createVpc="$${CREATE_VPC}" \
-			usePrivateSubnet="$${USE_PRIVATE_SUBNET}" \
 			deployNatGateway="$${DEPLOY_NAT_GATEWAY}" \
 			AdminEmail="$${ADMIN_EMAIL}" \
 			DataBucketName="$$DATA_BUCKET_NAME" \
