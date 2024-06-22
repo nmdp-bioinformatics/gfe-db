@@ -21,10 +21,9 @@ export PURGE_LOGS ?= false
 
 # Conditionally required variable defaults
 export CREATE_VPC ?= true
-# export USE_PRIVATE_SUBNET ?= true
 export SKIP_CHECK_DEPENDENCIES ?= false
 export DEPLOY_NAT_GATEWAY ?= true
-export DEPLOY_BASTION_SERVER ?= true
+export DEPLOY_BASTION_SERVER ?= false
 export DEPLOY_VPC_ENDPOINTS ?= true
 export VPC_ID ?=
 export PUBLIC_SUBNET_ID ?=
@@ -67,7 +66,7 @@ REQUIRED_VARS := STAGE APP_NAME AWS_ACCOUNT AWS_REGION AWS_PROFILE SUBSCRIBE_EMA
 	GITHUB_REPOSITORY_OWNER GITHUB_REPOSITORY_NAME GITHUB_PERSONAL_ACCESS_TOKEN \
 	ADMIN_EMAIL NEO4J_PASSWORD GDS_VERSION
 
-BOOLEAN_VARS := CREATE_VPC USE_PRIVATE_SUBNET DEPLOY_NAT_GATEWAY DEPLOY_BASTION_SERVER DEPLOY_VPC_ENDPOINTS SKIP_CHECK_DEPENDENCIES
+BOOLEAN_VARS := CREATE_VPC DEPLOY_NAT_GATEWAY DEPLOY_BASTION_SERVER DEPLOY_VPC_ENDPOINTS SKIP_CHECK_DEPENDENCIES
 
 # stdout colors
 # blue: runtime message, no action required
@@ -222,13 +221,12 @@ env.validate.subdomain:
 	[[ $$res = "" ]] && echo "\033[0;31mERROR: No Route53 domain found for $$fqdn\033[0m" && exit 1 || true
 
 env.validate.use-private-subnet.vars:
-ifeq ($(USE_PRIVATE_SUBNET),true)
 ifeq ($(DEPLOY_NAT_GATEWAY),)
-	$(call red, "\`DEPLOY_NAT_GATEWAY\` must be set when \`USE_PRIVATE_SUBNET\` is \`true\`")
+	$(call red, "\`DEPLOY_NAT_GATEWAY\` must be set.")
 	@exit 1
 endif
 ifeq ($(DEPLOY_BASTION_SERVER),)
-	$(call red, "\`DEPLOY_BASTION_SERVER\` must be set when \`USE_PRIVATE_SUBNET\` is \`true\`")
+	$(call red, "\`DEPLOY_BASTION_SERVER\` must be set.")
 	@exit 1
 else ifeq ($(DEPLOY_BASTION_SERVER),true)
 ifeq ($(ADMIN_IP),)
@@ -237,85 +235,26 @@ ifeq ($(ADMIN_IP),)
 endif
 endif
 ifeq ($(DEPLOY_VPC_ENDPOINTS),)
-	$(call red, "\`DEPLOY_VPC_ENDPOINTS\` must be set when \`USE_PRIVATE_SUBNET\` is \`true\`")
+	$(call red, "\`DEPLOY_VPC_ENDPOINTS\` must be set.")
 	@exit 1
 endif
 ifeq ($(CREATE_VPC),false)
 ifeq ($(PUBLIC_SUBNET_ID),)
-	$(call red, "\`PUBLIC_SUBNET_ID\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`true\`")
+	$(call red, "\`PUBLIC_SUBNET_ID\` must be set as an environment variable.")
 	@exit 1
 else
 	$(call green, "Found PUBLIC_SUBNET_ID: ${PUBLIC_SUBNET_ID}")
 endif
 ifeq ($(PRIVATE_SUBNET_ID),)
-	$(call red, "\`PRIVATE_SUBNET_ID\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`true\`")
+	$(call red, "\`PRIVATE_SUBNET_ID\` must be set as an environment variable.")
 	@exit 1
 else
 	$(call green, "Found PRIVATE_SUBNET_ID: ${PRIVATE_SUBNET_ID}")
 endif
 else ifeq ($(CREATE_VPC),true)
 ifneq ($(DEPLOY_NAT_GATEWAY),true)
-	$(call red, "\`DEPLOY_NAT_GATEWAY\` must be set to \`true\` when \`CREATE_VPC\` is \`true\` and \`USE_PRIVATE_SUBNET\` is \`true\`")
+	$(call red, "\`DEPLOY_NAT_GATEWAY\` must be set to \`true\` when \`CREATE_VPC\` is \`true\`.")
 	@exit 1
-endif
-endif
-else ifeq ($(USE_PRIVATE_SUBNET),false)
-	$(call blue, "**** This deployment uses a public subnet for Neo4j ****")
-ifneq ($(DEPLOY_NAT_GATEWAY),)
-	$(call red, "\`DEPLOY_NAT_GATEWAY\` must not be set when \`USE_PRIVATE_SUBNET\` is \`false\`")
-	@exit 1
-endif
-ifneq ($(DEPLOY_BASTION_SERVER),)
-	$(call red, "\`DEPLOY_BASTION_SERVER\` must not be set when \`USE_PRIVATE_SUBNET\` is \`false\`")
-	@exit 1
-endif
-ifeq ($(HOST_DOMAIN),)
-	$(call red, "\`HOST_DOMAIN\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`false\`")
-	@exit 1
-else
-	$(call green, "Found HOST_DOMAIN: ${HOST_DOMAIN}")
-endif
-ifeq ($(SUBDOMAIN),)
-	$(call red, "\`SUBDOMAIN\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`false\`")
-	@exit 1
-else
-	$(call green, "Found SUBDOMAIN: ${SUBDOMAIN}")
-endif
-ifeq ($(HOSTED_ZONE_ID),)
-	$(call red, "\`HOSTED_ZONE_ID\` must be set as an environment variable when \`USE_PRIVATE_SUBNET\` is \`false\`")
-	@exit 1
-else
-	$(call green, "Found HOSTED_ZONE_ID: ${HOSTED_ZONE_ID}")
-endif
-	$(call blue, Validating Route53 configuration...)
-	$(MAKE) env.validate.subdomain fqdn="${SUBDOMAIN}.${HOST_DOMAIN}."
-	$(call green, Found configuration for ${SUBDOMAIN}.${HOST_DOMAIN})
-ifeq ($(CREATE_VPC),false)
-ifeq ($(VPC_ID),)
-	$(call red, "\`VPC_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`false\`")
-	@exit 1
-endif
-ifeq ($(PUBLIC_SUBNET_ID),)
-	$(call red, "\`PUBLIC_SUBNET_ID\` must be set as an environment variable when \`CREATE_VPC\` is \`false\`")
-	@exit 1
-endif
-ifneq ($(PRIVATE_SUBNET_ID),)
-	$(call red, "\`PRIVATE_SUBNET_ID\` must not be set when \`CREATE_VPC\` is \`false\`")
-	@exit 1
-endif
-else ifeq ($(CREATE_VPC),true)
-ifneq ($(VPC_ID),)
-	$(call red, "\`VPC_ID\` must not be set as an environment variable when \`CREATE_VPC\` is \`true\`")
-	@exit 1
-endif
-ifneq ($(PUBLIC_SUBNET_ID),)
-	$(call red, "\`PUBLIC_SUBNET_ID\` must not be set as an environment variable when \`CREATE_VPC\` is \`true\`")
-	@exit 1
-endif
-ifneq ($(PRIVATE_SUBNET_ID),)
-	$(call red, "\`PRIVATE_SUBNET_ID\` must not be set when \`CREATE_VPC\` is \`false\`")
-	@exit 1
-endif
 endif
 endif
 
@@ -421,18 +360,10 @@ database.service.deploy:
 	$(MAKE) -C ${APP_NAME}/database/ service.deploy
 
 database.connect:
-ifeq ($(USE_PRIVATE_SUBNET),true)
 	$(MAKE) infrastructure.access-services.bastion-server.connect
-else
-	$(MAKE) -C ${APP_NAME}/database/ service.connect
-endif
 
 database.ui.connect:
-ifeq ($(USE_PRIVATE_SUBNET),true)
 	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/bastion-server/ service.ui.connect
-else ifeq ($(USE_PRIVATE_SUBNET),false)
-	$(MAKE) database.get.endpoint
-endif
 
 pipeline.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ deploy
@@ -549,11 +480,7 @@ database.status:
 		jq --arg iid "${INSTANCE_ID}" '.Reservations[].Instances[] | (.InstanceId == $$iid) | {InstanceId, InstanceType, "Status": .State.Name, StateTransitionReason, ImageId}'
 
 database.get.endpoint:
-ifeq ($(USE_PRIVATE_SUBNET),true)
 	@echo "http://localhost:7474/browser/"
-else ifeq ($(USE_PRIVATE_SUBNET),false)
-	@echo "https://${SUBDOMAIN}.${HOST_DOMAIN}:7473/browser/"
-endif
 
 database.get.credentials:
 	@secret_string=$$(aws secretsmanager get-secret-value --secret-id /${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials | jq -r '.SecretString') && \
@@ -566,13 +493,6 @@ database.get.private-ip:
 		--output json \
 		| jq -r '.Parameters[0].Value') && \
 	echo "$${private_ip}"
-
-# database.get.public-ip:
-# 	@public_ip=$$(aws ssm get-parameters \
-# 		--names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jPublicIp" \
-# 		--output json \
-# 		| jq -r '.Parameters[0].Value') && \
-# 	echo "$${public_ip}"
 
 database.get.instance-id:
 	@echo "${INSTANCE_ID}"
@@ -660,35 +580,23 @@ define HELP_MESSAGE
 	CREATE_VPC: "${CREATE_VPC}"
 		Description: (boolean) Create a new VPC or use an existing one
 
-	USE_PRIVATE_SUBNET: "${USE_PRIVATE_SUBNET}"
-		Description: (boolean) Use a private subnet for Neo4j
-
 	DEPLOY_VPC_ENDPOINTS: "${DEPLOY_VPC_ENDPOINTS}"
 		Description: (boolean) Deploy VPC endpoints for S3 and DynamoDB
 	
 	DEPLOY_NAT_GATEWAY: "${DEPLOY_NAT_GATEWAY}"
-		Description: (boolean) Deploy a NAT Gateway or use an existing one, required when USE_PRIVATE_SUBNET is true
+		Description: (boolean) Deploy a NAT Gateway or use an existing one
 
 	DEPLOY_BASTION_SERVER: "${DEPLOY_BASTION_SERVER}"
-		Description: (boolean) Deploy a Bastion Server or use an existing one, required when USE_PRIVATE_SUBNET is true
+		Description: (boolean) Deploy a Bastion Server or use an existing one
 		
 	ADMIN_IP: "${ADMIN_IP}"
 		Description: (string) IP address to allow SSH access to the Bastion Server, required when DEPLOY_BASTION_SERVER is true
 
 	ADMIN_EMAIL: "${ADMIN_EMAIL}"
-		Description: (string) Admin email address for Neo4j server SSL certificate management, required when USE_PRIVATE_SUBNET is false
+		Description: (string) Admin email address for Neo4j server SSL certificate management
 
 	SUBSCRIBE_EMAILS: "${SUBSCRIBE_EMAILS}"
 		Description: (string) Comma separated list of email addresses to subscribe to CloudWatch notifications
-
-	HOST_DOMAIN: "${HOST_DOMAIN}"
-		Description: (string) Domain name for the Neo4j server, required when USE_PRIVATE_SUBNET is false
-
-	SUBDOMAIN: "${SUBDOMAIN}"
-		Description: (string) Subdomain name for the Neo4j server, required when USE_PRIVATE_SUBNET is false
-
-	HOSTED_ZONE_ID: "${HOSTED_ZONE_ID}"
-		Description: (string) Route53 hosted zone ID, required when USE_PRIVATE_SUBNET is false
 
 	VPC_ID: "${VPC_ID}"
 		Description: (string) ID of an existing VPC, required when CREATE_VPC is false
@@ -698,7 +606,6 @@ define HELP_MESSAGE
 
 	PRIVATE_SUBNET_ID: "${PRIVATE_SUBNET_ID}"
 		Description: (string) ID of an existing private subnet, required when CREATE_VPC is false
-		and USE_PRIVATE_SUBNET is true
 
 	APOC_VERSION: "${APOC_VERSION}"
 		Description: (string) Version of APOC to install

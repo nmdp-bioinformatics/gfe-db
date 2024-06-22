@@ -75,8 +75,6 @@ echo "****** End Cypher ******"
 # Run Cypher load query
 echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Loading data for release $RELEASE into Neo4j..."
 
-# if [[ "$USE_PRIVATE_SUBNET" = true ]]; then
-
 # With SSL/TLS policy disabled for private instance
 cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp | \
     $NEO4J_HOME/bin/cypher-shell \
@@ -86,20 +84,6 @@ cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp | \
         --password $NEO4J_PASSWORD \
         --format verbose
 LOAD_EXIT_STATUS=$?
-
-# else
-
-#     # With SSL/TLS policy enabled
-#     cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp | \
-#         $NEO4J_HOME/bin/cypher-shell \
-#             --address neo4j://$SUBDOMAIN.$HOST_DOMAIN:7687 \
-#             --encryption true \
-#             --username $NEO4J_USERNAME \
-#             --password $NEO4J_PASSWORD \
-#             --format verbose
-#     LOAD_EXIT_STATUS=$?
-
-# fi
 
 if [[ $LOAD_EXIT_STATUS -eq 0 ]]; then
     echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Load complete"

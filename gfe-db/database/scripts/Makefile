@@ -30,21 +30,11 @@ env.validate.vars:
 		$(if $(value $(var)),,$(error $(var) is not set. Please add $(var) to the environment variables.)))
 	@echo "$$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Found environment variables" 2>&1
 
-# bootstrap: env.validate.vars
-# ifeq ($(USE_PRIVATE_SUBNET),false)
-# 	$(MAKE) eip.waiter
-# 	$(MAKE) ssl.create-cert
-# endif
-
 neo4j: env.validate.vars
 	$(MAKE) neo4j.plugins.install-gds
 	$(MAKE) neo4j.restart
 	$(MAKE) neo4j.init
 	$(MAKE) copy-logs
-
-# # eip
-# eip.waiter:
-# 	@bash ${EC2_USER_HOME}/init/eip_assoc_waiter.sh
 
 neo4j.credentials.show:
 	@echo "Username: ${NEO4J_USERNAME}"
@@ -101,14 +91,7 @@ neo4j.init.download-scripts:
 
 neo4j.query.init: # public: neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687; private: bolt://<private_ip>:7687
 	@echo "Executing initialization queries"
-# ifeq ($(USE_PRIVATE_SUBNET),true)
 	$(MAKE) neo4j.query.init.no-ssl
-# else ifeq ($(USE_PRIVATE_SUBNET),false)
-# 	$(MAKE) neo4j.query.init.ssl
-# endif
-
-# neo4j.query.init.ssl:
-# 	@cat ${NEO4J_HOME}/cypher/init.cyp | ${NEO4J_HOME}/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 
 neo4j.query.init.no-ssl:
 	@cat ${NEO4J_HOME}/cypher/init.cyp | ${NEO4J_HOME}/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
@@ -118,38 +101,13 @@ neo4j.query.create-users: #=> users=<username:password,...>
 	@bash init/create_users.sh "$$users"
 
 neo4j.query: #=> query=<cypher string>
-# ifeq ($(USE_PRIVATE_SUBNET),true)
 	@echo "$$query" | ${NEO4J_HOME}/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
-# else ifeq ($(USE_PRIVATE_SUBNET),false)
-# 	@echo "$$query" | ${NEO4J_HOME}/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
-# endif
 
 neo4j.query.show-constraints: # public: neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687; private: bolt://<private_ip>:7687
-# ifeq ($(USE_PRIVATE_SUBNET),true)
 	@echo "SHOW CONSTRAINTS;" | ${NEO4J_HOME}/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
-# else ifeq ($(USE_PRIVATE_SUBNET),false)
-# 	@echo "SHOW CONSTRAINTS;" | ${NEO4J_HOME}/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
-# endif
 
 neo4j.waiter:
-# ifeq ($(USE_PRIVATE_SUBNET),true)
 	$(MAKE) neo4j.waiter.no-ssl
-# else ifeq ($(USE_PRIVATE_SUBNET),false)
-# 	$(MAKE) neo4j.waiter.ssl
-# endif
-
-# neo4j.waiter.ssl:
-# 	@timeout=120 && \
-# 	counter=0 && \
-# 	echo "Waiting for response from Neo4j at https://${SUBDOMAIN}.${HOST_DOMAIN}:7473..." && \
-# 	until $$(curl --output /dev/null --silent --head --fail https://${SUBDOMAIN}.${HOST_DOMAIN}:7473) ; do \
-# 		printf '.' ; \
-# 		sleep 1 ; \
-# 		counter=$$((counter + 1)) ; \
-# 		[ $$counter -eq $$timeout ] && break || true ; \
-# 	done && \
-# 	printf "%s\n" " " && \
-# 	[ $$counter -eq $$timeout ] && echo "Operation timed out!" || echo "Neo4j is ready"
 
 neo4j.waiter.no-ssl:
 	@timeout=120 && \
@@ -205,12 +163,6 @@ neo4j.restore: #from_path=s3://<backup path>.zip
 # neo4j.create-report:
 # 	@mkdir -p ${REPORTS_DIR}
 # 	@${NEO4J_HOME}/bin/neo4j-admin check-consistency --database=neo4j --verbose=true --report-dir=reports > reports/consistency_check.txt
-
-# ssl.create-cert:
-# 	@bash init/create_cert.sh "${SUBDOMAIN}.${HOST_DOMAIN}" ${ADMIN_EMAIL}
-
-# ssl.renew-cert:
-# 	@bash init/renew_cert.sh "${SUBDOMAIN}.${HOST_DOMAIN}"
 
 copy-logs:
 	@mkdir -p ${LOGS_DIR}/var/logs
