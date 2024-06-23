@@ -38,31 +38,8 @@ deploy:
 	@echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying ${SERVICE} services\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
 	$(MAKE) service.key-pair.create
 	$(MAKE) service.deploy
-ifeq ($(USE_PRIVATE_SUBNET),true)
 	$(MAKE) service.access-services.deploy
-else ifeq ($(USE_PRIVATE_SUBNET),false)
-	$(MAKE) service.deploy.update-dns
-endif
 	$(MAKE) service.monitoring.create-subscriptions
-
-service.deploy.update-dns:
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Updating DNS records" 2>&1 | tee -a $${CFN_LOG_PATH}
-	@config_path=${INFRA_DIR}/change-batch.json && \
-	elastic_ip=$$(aws ssm get-parameters \
-		--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseEndpoint" \
-		--with-decryption \
-		--query "Parameters[0].Value" \
-		--output text) && \
-	sed -e "s/<domain_name>/${SUBDOMAIN}.${HOST_DOMAIN}./g" -e "s/<elastic_ip>/$$elastic_ip/g" $$config_path > $$config_path.tmp && \
-	echo "Updating DNS records with:" && \
-	cat $$config_path.tmp | jq -r && \
-	res=$$(aws route53 change-resource-record-sets --hosted-zone-id $${HOSTED_ZONE_ID} --change-batch file://$$config_path.tmp) && \
-	echo && \
-	echo "Waiting for update to complete:" && \
-	echo $$res | jq -r && \
-	aws route53 wait resource-record-sets-changed --id $$(echo $$res | jq -r '.ChangeInfo.Id') && \
-	echo && \
-	echo "Successfully updated DNS records"
 
 service.key-pair.create: ##=> Checks if the key pair already exists and creates it if it does not
 	@echo "\033[0;34m$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Creating EC2 key pair\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
@@ -90,7 +67,6 @@ service.deploy:
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
 			createVpc="$${CREATE_VPC}" \
-			usePrivateSubnet="$${USE_PRIVATE_SUBNET}" \
 			deployNatGateway="$${DEPLOY_NAT_GATEWAY}" \
 			AdminEmail="$${ADMIN_EMAIL}" \
 			DataBucketName="$$DATA_BUCKET_NAME" \
@@ -163,7 +139,6 @@ ifeq ($(data),true)
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting data in $${DATA_BUCKET_NAME}" 2>&1 | tee -a $${CFN_LOG_PATH}
 	@aws s3 rm --recursive s3://$${DATA_BUCKET_NAME}/
 endif
-ifeq ($(USE_PRIVATE_SUBNET),true)
 ifeq ($(DEPLOY_BASTION_SERVER),true)
 	$(MAKE) service.access-services.bastion-server.delete
 endif
@@ -173,7 +148,7 @@ endif
 ifeq ($(DEPLOY_VPC_ENDPOINTS),true)
 	$(MAKE) service.access-services.vpc-endpoints.delete
 endif
-endif
+# endif
 	$(MAKE) service.delete
 	$(MAKE) service.key-pair.delete
 	$(MAKE) service.parameters.delete

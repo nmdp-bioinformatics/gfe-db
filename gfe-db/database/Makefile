@@ -71,7 +71,6 @@ service.deploy:
 			Stage="$${STAGE}" \
 			AppName="$${APP_NAME}" \
 			createVpc="$${CREATE_VPC}" \
-			usePrivateSubnet="$${USE_PRIVATE_SUBNET}" \
 			DataBucketName="$${DATA_BUCKET_NAME}" \
 			Neo4jAmiId="$${NEO4J_AMI_ID}" \
 			Neo4jDatabaseName="$${NEO4J_DATABASE_NAME}" \
