@@ -37,6 +37,7 @@ Conditions:
     - !Ref usePrivateSubnet
     - "true"
 Resources:
+# TODO duplicate in infrastructure layer
   GitHubPersonalAccessTokenSecret:
     Type: AWS::SecretsManager::Secret
     UpdateReplacePolicy: Delete
