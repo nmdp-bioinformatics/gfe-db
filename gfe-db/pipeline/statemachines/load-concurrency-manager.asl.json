@@ -5,7 +5,25 @@
             "Type": "Task",
             "Resource": "${InvokeBackupScriptFunctionArn}",
             "ResultPath": "$.backups.pre",
-            "Next": "Receive SQS Message"
+            "Next": "Receive SQS Message",
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "IntervalSeconds": 5,
+                    "MaxAttempts": 2,
+                    "BackoffRate": 1.5
+                }
+            ],
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "Next": "Receive SQS Message"
+                }
+            ]            
         },
         "Receive SQS Message": {
             "Type": "Task",
@@ -216,6 +234,16 @@
             "Type": "Task",
             "Resource": "${InvokeBackupScriptFunctionArn}",
             "ResultPath": "$.backups.post",
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "IntervalSeconds": 5,
+                    "MaxAttempts": 2,
+                    "BackoffRate": 1.5
+                }
+            ],
             "End": true
         }
     }
