@@ -33,7 +33,7 @@ Resources:
     Properties:
       InstanceType: t2.micro
       KeyName: !Ref Ec2KeyPairName
-      ImageId: !Sub '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}'
+      ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}'
       SubnetId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetId}}'
       SecurityGroupIds:
         - !Ref BastionHostSecurityGroup

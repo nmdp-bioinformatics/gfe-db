@@ -15,23 +15,6 @@ service.config.scripts.deploy:
 		| tee -a $$CFN_LOG_PATH && \
 	aws s3 cp --recursive --quiet scripts/ $$config_s3_path
 
-service.config.cloudwatch-agent.deploy:
-	@mkdir -p amazon-cloudwatch-agent/tmp/ 
-	@cat amazon-cloudwatch-agent/amazon-cloudwatch-agent.json | sed "s/STAGE/$${STAGE}/g" | sed "s/APP_NAME/$${APP_NAME}/g" > amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json
-	@config_s3_path=s3://${DATA_BUCKET_NAME}/${CONFIG_S3_PATH}/${SERVICE}/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json && \
-	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying CloudWatch Logs Agent config to $$config_s3_path" 2>&1 \
-		| tee -a $$CFN_LOG_PATH && \
-	aws s3 cp --quiet amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json $$config_s3_path
-	@rm -rf amazon-cloudwatch-agent/tmp/
-
-service.config.neo4j.deploy:
-	@config_s3_path=s3://$$DATA_BUCKET_NAME/${CONFIG_S3_PATH}/${SERVICE}/neo4j/cypher/ && \
-	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Neo4j cypher scripts to $$config_s3_path" 2>&1 \
-		| tee -a $$CFN_LOG_PATH && \
-	aws s3 cp --recursive --quiet neo4j/cypher/ $$config_s3_path
-
-service.config.deploy: service.config.scripts.deploy service.config.cloudwatch-agent.deploy service.config.neo4j.deploy
-
 service.config.scripts.sync: service.config.scripts.deploy service.config.neo4j.deploy
 	@document_name="$$(aws ssm get-parameter \
 		--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/DatabaseSyncScriptsDocumentName" | jq -r '.Parameter.Value')" && \
@@ -46,12 +29,26 @@ service.config.scripts.sync: service.config.scripts.deploy service.config.neo4j.
 		--instance-id "${INSTANCE_ID}" && \
 	aws ssm get-command-invocation \
 		--command-id "$$command_id" \
-		--instance-id "${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
+		--instance-id "$${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
+
+service.config.cloudwatch-agent.deploy:
+	@mkdir -p amazon-cloudwatch-agent/tmp/ 
+	@cat amazon-cloudwatch-agent/amazon-cloudwatch-agent.json | sed "s/STAGE/$${STAGE}/g" | sed "s/APP_NAME/$${APP_NAME}/g" > amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json
+	@config_s3_path=s3://$$DATA_BUCKET_NAME/config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json && \
+	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying amazon-cloudwatch-agent config to $$config_s3_path" 2>&1 \
+		| tee -a $$CFN_LOG_PATH && \
+	aws s3 cp amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json $$config_s3_path
+	@rm -rf amazon-cloudwatch-agent/tmp/
+
+service.config.neo4j.deploy:
+	@aws s3 cp --recursive --quiet neo4j/cypher/ s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
+
+service.config.deploy: service.config.scripts.deploy service.config.cloudwatch-agent.deploy service.config.neo4j.deploy
 
 service.ssl.renew-cert:
 	@res=$$(aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
-		--parameters "commands=[cd /home/ubuntu && sudo make ssl.renew-cert]" \
+		--parameters "commands=[cd /home/ec2-user && sudo make ssl.renew-cert]" \
 		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
 		--comment "${STAGE}-${APP_NAME} SSL certificate renewal utility") && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
@@ -63,7 +60,7 @@ service.ssl.renew-cert:
 		--instance-id "$${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
 
 service.deploy:
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Neo4j to EC2 with ${UBUNTU_AMI_ID}" 2>&1 | tee -a $$CFN_LOG_PATH
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying Neo4j to EC2" 2>&1 | tee -a $$CFN_LOG_PATH
 	@aws cloudformation deploy \
 		--region $${AWS_REGION} \
 		--template-file template.yaml \
@@ -76,11 +73,9 @@ service.deploy:
 			createVpc="$${CREATE_VPC}" \
 			usePrivateSubnet="$${USE_PRIVATE_SUBNET}" \
 			DataBucketName="$${DATA_BUCKET_NAME}" \
-			UbuntuAmiId="$${UBUNTU_AMI_ID}" \
+			Neo4jAmiId="$${NEO4J_AMI_ID}" \
 			Neo4jDatabaseName="$${NEO4J_DATABASE_NAME}" \
 			Neo4jPassword="$${NEO4J_PASSWORD}" \
-			ServiceName="${SERVICE}" \
-			ConfigS3Path="$${CONFIG_S3_PATH}" \
 			CreateNeo4jUsers="$${CREATE_NEO4J_USERS}" \
 			DatabaseVolumeSize="$${DATABASE_VOLUME_SIZE}" \
 			HostDomain="$${HOST_DOMAIN}" \
@@ -92,7 +87,7 @@ service.deploy:
 service.backup:
 	@res=$$(aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
-		--parameters "commands=[cd /home/ubuntu && sudo make neo4j.backup]" \
+		--parameters "commands=[cd /home/ec2-user && sudo make neo4j.backup]" \
 		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
 		--comment "${STAGE}=${APP_NAME} backup service") && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
@@ -119,7 +114,7 @@ service.restore: #from_path=s3://<backup path>
 	@echo "Restoring Neo4j database..." && \
 	res=$$(aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
-		--parameters "commands=[cd /home/ubuntu && sudo make neo4j.restore from_path=$$from_path]" \
+		--parameters "commands=[cd /home/ec2-user && sudo make neo4j.restore from_path=$$from_path]" \
 		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
 		--comment "${STAGE}=${APP_NAME} restore service") && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
@@ -142,7 +137,7 @@ service.connect:
 	@instance_ip=$$(aws ssm get-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/Neo4jDatabaseEndpoint" | jq -r '.Parameter.Value') && \
 	echo "Connecting to Neo4j EC2 instance at $$instance_ip" && \
-	ssh -o "IdentitiesOnly yes" -tt -i ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem ubuntu@$$instance_ip
+	ssh -o "IdentitiesOnly yes" -tt -i ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem ec2-user@$$instance_ip
 
 
 delete: ##=> Delete resources

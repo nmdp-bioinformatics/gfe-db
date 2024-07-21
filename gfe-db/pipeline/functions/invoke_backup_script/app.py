@@ -55,7 +55,7 @@ def lambda_handler(event, context):
                 )
             except WaiterError as e:
                 logger.error(str(e))
-                retries  = 1
+                retries += 1
 
             if retries >= max_retries:
                 logger.error(f"Failed to wait for command to complete after {max_retries} retries")

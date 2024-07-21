@@ -1,17 +1,19 @@
 # This Makefile only orchestrates process that are run on the EC2 database instance, it is deployed and called on the server
 # Must be run as root
+# TODO make sure commands are idempotent
 SERVICE := database
 
 # Application specific environment variables
+# env.sh is created by the EC2 User Data in CloudFormation template
 include env.sh
 export
 
 export LOGS_DIR := /tmp/logs
-export REPORTS_DIR := ${UBUNTU_HOME}/reports
+export REPORTS_DIR := ${EC2_USER_HOME}/reports
 export NEO4J_USERNAME=$(shell aws secretsmanager get-secret-value --secret-id "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials" | jq -r '.SecretString' | jq -r '.NEO4J_USERNAME')
 export NEO4J_PASSWORD=$(shell aws secretsmanager get-secret-value --secret-id "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials" | jq -r '.SecretString' | jq -r '.NEO4J_PASSWORD')
 
-REQUIRED_VARS := UBUNTU_HOME NEO4J_HOME INSTANCE_ID DATA_BUCKET_NAME NEO4J_USERNAME NEO4J_PASSWORD NEO4J_DATABASE_NAME ADMIN_EMAIL GDS_VERSION NEO4J_URI NEO4J_ENCRYPTION
+REQUIRED_VARS := APP_NAME STAGE AWS_REGION SERVICE EC2_USER_HOME NEO4J_HOME INSTANCE_ID DATA_BUCKET_NAME NEO4J_USERNAME NEO4J_PASSWORD NEO4J_DATABASE_NAME ADMIN_EMAIL GDS_VERSION NEO4J_URI NEO4J_ENCRYPTION
 
 target:
 	$(info ${HELP_MESSAGE})
@@ -37,13 +39,13 @@ endif
 
 neo4j: bootstrap
 	$(MAKE) neo4j.plugins.install-gds
-	$(MAKE) neo4j.start
+	$(MAKE) neo4j.restart
 	$(MAKE) neo4j.init
 	$(MAKE) copy-logs
 
 # eip
 eip.waiter:
-	@bash ${UBUNTU_HOME}/init/eip_assoc_waiter.sh
+	@bash ${EC2_USER_HOME}/init/eip_assoc_waiter.sh
 
 neo4j.credentials.show:
 	@echo "Username: ${NEO4J_USERNAME}"
@@ -76,6 +78,7 @@ neo4j.plugins.install-apoc-extended:
 
 # https://graphdatascience.ninja/neo4j-graph-data-science-2.5.5.zip
 neo4j.plugins.install-gds:
+	@rm -f ${NEO4J_HOME}/plugins/neo4j-graph-data-science-*.jar
 	@echo "Downloading Neo4j Graph Data Science plugin..."
 	@curl -L https://graphdatascience.ninja/neo4j-graph-data-science-${GDS_VERSION}.zip -O
 	@unzip neo4j-graph-data-science-${GDS_VERSION}.zip
@@ -91,7 +94,7 @@ neo4j.update-permissions:
 	@chown -R neo4j:neo4j ${NEO4J_HOME}/*
 
 neo4j.init.download-scripts:
-	@mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
+	@sudo -u neo4j mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
 	@echo "Fetching Cypher scripts from S3..."
 	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/${CONFIG_S3_PATH}/${SERVICE}/neo4j/cypher/ ${NEO4J_HOME}/cypher/
 
@@ -104,10 +107,14 @@ else ifeq ($(USE_PRIVATE_SUBNET),false)
 endif
 
 neo4j.query.init.ssl:
-	@cat ${NEO4J_HOME}/cypher/init.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
+	@cat ${NEO4J_HOME}/cypher/init.cyp | ${NEO4J_HOME}/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 
 neo4j.query.init.no-ssl:
-	@cat ${NEO4J_HOME}/cypher/init.cyp | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
+	@cat ${NEO4J_HOME}/cypher/init.cyp | ${NEO4J_HOME}/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
+
+neo4j.query.create-users: #=> users=<username:password,...>
+	@echo "Creating users"
+	@bash init/create_users.sh "$$users"
 
 neo4j.query.create-users: #=> users=<username:password,...>
 	@echo "Creating users"
@@ -115,16 +122,16 @@ neo4j.query.create-users: #=> users=<username:password,...>
 
 neo4j.query: #=> query=<cypher string>
 ifeq ($(USE_PRIVATE_SUBNET),true)
-	@echo "$$query" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
+	@echo "$$query" | ${NEO4J_HOME}/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
 else ifeq ($(USE_PRIVATE_SUBNET),false)
-	@echo "$$query" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
+	@echo "$$query" | ${NEO4J_HOME}/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 endif
 
 neo4j.query.show-constraints: # public: neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687; private: bolt://<private_ip>:7687
 ifeq ($(USE_PRIVATE_SUBNET),true)
-	@echo "SHOW CONSTRAINTS;" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
+	@echo "SHOW CONSTRAINTS;" | ${NEO4J_HOME}/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://127.0.0.1:7687 --encryption false
 else ifeq ($(USE_PRIVATE_SUBNET),false)
-	@echo "SHOW CONSTRAINTS;" | cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
+	@echo "SHOW CONSTRAINTS;" | ${NEO4J_HOME}/bin/cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687
 endif
 
 neo4j.waiter:
@@ -165,14 +172,20 @@ neo4j.backup:
 	$(MAKE) neo4j.stop
 	@cd ${NEO4J_HOME} && \
 	sudo -u neo4j mkdir -p ${NEO4J_HOME}/backups/system ${NEO4J_HOME}/backups/${NEO4J_DATABASE_NAME} && \
-	sudo -u neo4j neo4j-admin database dump system --to-path=${NEO4J_HOME}/backups/system/ --overwrite-destination=true --verbose && \
-	sudo -u neo4j neo4j-admin database dump ${NEO4J_DATABASE_NAME} --to-path=${NEO4J_HOME}/backups/${NEO4J_DATABASE_NAME}/ --overwrite-destination=true --verbose && \
+	sudo -u neo4j ${NEO4J_HOME}/bin/neo4j-admin database dump system --to-path=${NEO4J_HOME}/backups/system/ --overwrite-destination=true --verbose && \
+	sudo -u neo4j ${NEO4J_HOME}/bin/neo4j-admin database dump ${NEO4J_DATABASE_NAME} --to-path=${NEO4J_HOME}/backups/${NEO4J_DATABASE_NAME}/ --overwrite-destination=true --verbose && \
 	archive_path=$$(date +%Y/%m/%d/%H/%M)/${NEO4J_DATABASE_NAME}.zip && \
 	echo "Uploading archive to S3: s3://${DATA_BUCKET_NAME}/backups/${SERVICE}/${NEO4J_DATABASE_NAME}/$$archive_path" && \
 	sudo -u neo4j zip -r - backups | aws s3 cp - s3://${DATA_BUCKET_NAME}/backups/${SERVICE}/${NEO4J_DATABASE_NAME}/$$archive_path && \
 	echo "Updating SSM Parameter for current backup S3 path" && \
-	res=$$(aws ssm put-parameter --name "/${APP_NAME}/${STAGE}/${AWS_REGION}/CurrentBackupS3Path" --value "s3://${DATA_BUCKET_NAME}/backups/${SERVICE}/${NEO4J_DATABASE_NAME}/$$archive_path" --type String --overwrite) && \
-	echo $$res | jq -r && \
+	echo "AWS region: ${AWS_REGION}" && \
+	res=$$(aws ssm put-parameter \
+		--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/CurrentBackupS3Path" \
+		--value "s3://${DATA_BUCKET_NAME}/backups/${SERVICE}/${NEO4J_DATABASE_NAME}/$$archive_path" \
+		--type String \
+		--overwrite \
+		--region ${AWS_REGION}) && \
+	echo $$res && \
 	echo "Cleaning up" && \
 	sudo -u neo4j rm -rf ${NEO4J_HOME}/backups/*
 	$(MAKE) neo4j.start
@@ -186,15 +199,15 @@ neo4j.restore: #from_path=s3://<backup path>.zip
 	@mkdir -p /tmp/restore
 	@aws s3 cp $$from_path /tmp/restore/${NEO4J_DATABASE_NAME}.zip && chown neo4j:neo4j /tmp/restore/${NEO4J_DATABASE_NAME}.zip
 	@sudo -u neo4j unzip -o /tmp/restore/${NEO4J_DATABASE_NAME}.zip -d ${NEO4J_HOME}/
-	@sudo -u neo4j neo4j-admin database load --from-path=${NEO4J_HOME}/backups/system system --overwrite-destination=true
-	@sudo -u neo4j neo4j-admin database load --from-path=${NEO4J_HOME}/backups/${NEO4J_DATABASE_NAME} ${NEO4J_DATABASE_NAME} --overwrite-destination=true
+	@sudo -u neo4j ${NEO4J_HOME}/bin/neo4j-admin database load --from-path=${NEO4J_HOME}/backups/system system --overwrite-destination=true
+	@sudo -u neo4j ${NEO4J_HOME}/bin/neo4j-admin database load --from-path=${NEO4J_HOME}/backups/${NEO4J_DATABASE_NAME} ${NEO4J_DATABASE_NAME} --overwrite-destination=true
 	@rm -r /tmp/restore
 	$(MAKE) neo4j.start
 
 # # TODO update for Neo4j 5
 # neo4j.create-report:
 # 	@mkdir -p ${REPORTS_DIR}
-# 	@neo4j-admin check-consistency --database=neo4j --verbose=true --report-dir=reports > reports/consistency_check.txt
+# 	@${NEO4J_HOME}/bin/neo4j-admin check-consistency --database=neo4j --verbose=true --report-dir=reports > reports/consistency_check.txt
 
 ssl.create-cert:
 	@bash init/create_cert.sh "${SUBDOMAIN}.${HOST_DOMAIN}" ${ADMIN_EMAIL}
@@ -228,7 +241,7 @@ define HELP_MESSAGE
 
 	Environment variables:
 
-	UBUNTU_HOME: "${UBUNTU_HOME}"
+	EC2_USER_HOME: "${EC2_USER_HOME}"
 		Description: Root directory where the Makefile resides
 	
 	NEO4J_HOME: "${NEO4J_HOME}"

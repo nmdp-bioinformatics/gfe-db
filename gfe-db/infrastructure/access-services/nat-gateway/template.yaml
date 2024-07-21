@@ -9,7 +9,28 @@ Parameters:
     Type: String
     Description: Application name
   
-Resources:
+Resources: 
+  # Required for NAT Gateway
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}'
+
+  # Required for NAT Gateway
+  PrivateRouteTableParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PrivateRouteTableId'
+      Description: !Sub "ID of the private route table for ${AppName}"
+      Value: !Ref PrivateRouteTable
+
+  # Required for NAT Gateway  
+  PrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
 
   NatGatewayElasticIp:
     Type: AWS::EC2::EIP
@@ -55,6 +76,7 @@ Resources:
   PrivateRoute:
     Type: AWS::EC2::Route
     Properties:
-      RouteTableId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateRouteTableId}}'
+      # RouteTableId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateRouteTableId}}'
+      RouteTableId: !Ref PrivateRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NatGateway

@@ -8,9 +8,11 @@ Parameters:
   AppName:
     Type: String
     Description: Application name
-  ServiceName:
-    Type: String
-    Description: Service name
+  # createVpc:
+  #   Type: String
+  #   AllowedValues:
+  #     - "true"
+  #     - "false"
   usePrivateSubnet:
     Type: String
     AllowedValues:
@@ -32,12 +34,12 @@ Parameters:
     Type: String
   FeatureServiceUrl:
     Type: String
-Conditions:
-  UsePrivateSubnet: !Equals
-    - !Ref usePrivateSubnet
-    - "true"
+# Conditions:
+#   UsePrivateSubnet: !Equals
+#     - !Ref usePrivateSubnet
+#     - "true"
 Resources:
-# TODO duplicate in infrastructure layer
+  # TODO duplicate in infrastructure layer
   GitHubPersonalAccessTokenSecret:
     Type: AWS::SecretsManager::Secret
     UpdateReplacePolicy: Delete
@@ -123,15 +125,51 @@ Resources:
             "created_utc",
             "updated_utc"
         ]
-  BuildServerSG:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupName: !Sub ${Stage}-${AppName}-build-server-sg
-      GroupDescription: !Sub Security group for the ${Stage}-${AppName} build server
-      VpcId: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}"
-      Tags:
-        - Key: Name
-          Value: !Sub ${Stage}-${AppName}-build-server-sg
+  # BuildServerSG:
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties:
+  #     GroupName: !Sub ${Stage}-${AppName}-build-server-sg
+  #     GroupDescription: !Sub Security group for the ${Stage}-${AppName} build server
+  #     VpcId: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}"
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub ${Stage}-${AppName}-build-server-sg
+  # Ec2KeyPairName:
+  #   Type: String
+
+# Conditions:
+  # Important: All stacks (infra, database, pipeline) should use the same conditions
+  # CreateVpc: !Equals [!Ref createVpc, 'true']
+  # UseExternalVpc: !Equals [!Ref createVpc, 'false']
+  # UseExternalVpcPublic: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'false']]
+  # UseExternalVpcPrivate: !And [!Equals [!Ref createVpc, 'false'], !Equals [!Ref usePrivateSubnet, 'true']]
+  # UsePrivateSubnet: !Equals [!Ref usePrivateSubnet, 'true']
+  # UsePublicSubnet: !Equals [!Ref usePrivateSubnet, 'false']
+
+# Resources:
+  # BuildServerSG:
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties:
+  #     GroupName: !Sub '${Stage}-${AppName}-build-server-sg'
+  #     GroupDescription: !Sub 'Security group for the ${Stage}-${AppName} build server'
+  #     VpcId: !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/VpcId}}'
+  #     # SecurityGroupIngress: # Uncomment to allow SSH access to build instance
+  #     #   - CidrIp: 0.0.0.0/0
+  #     #     FromPort: 22
+  #     #     IpProtocol: tcp
+  #     #     ToPort: 22
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub '${Stage}-${AppName}-build-server-sg'
+    
+  # BuildServerSecurityGroupIdParameter:
+  #   Type: AWS::SSM::Parameter
+  #   Properties:
+  #     Type: String
+  #     Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/BuildServerSecurityGroupId'
+  #     Description: "ID of the security group for the build server"
+  #     Value: !Ref BuildServerSG
+
   BatchServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -211,6 +249,20 @@ Resources:
                 # TODO tighten permissions
                 Resource: 
                   - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${Stage}/${AWS::Region}/*'
+        # - PolicyName: !Sub '${Stage}-${AppName}-SQSPolicy'
+        #   PolicyDocument:
+        #     Version: '2012-10-17' 
+        #     Statement:
+        #       - Effect: Allow
+        #         Action:
+        #           - "sqs:GetQueueAttributes"
+        #           - "sqs:SendMessageBatch"
+        #           - "sqs:SendMessage"
+        #           - "sqs:ReceiveMessage"
+        #           - "sqs:DeleteMessage"
+        #         Resource:
+        #           - !GetAtt FailedAllelesQueue.Arn
+
   BuildJobDefinition:
     Type: AWS::Batch::JobDefinition
     Properties:
@@ -252,15 +304,18 @@ Resources:
       Type: MANAGED
       ComputeResources:
         Type: EC2
+        AllocationStrategy: BEST_FIT_PROGRESSIVE
+        # # Testing only, comment before production deployment
+        Ec2KeyPair: !Ref Ec2KeyPairName
         MinvCpus: 0
         DesiredvCpus: 0
         MaxvCpus: 32
         InstanceTypes:
           - c5d.2xlarge
         Subnets:
-          - !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PublicSubnetId}}"
+          - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId}}'
         SecurityGroupIds:
-          - !Ref BuildServerSG
+          - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/BuildServerSecurityGroupId}}'
         InstanceRole: !Ref BatchWorkerInstanceProfile
         LaunchTemplate:
           LaunchTemplateId: !Ref BuildLaunchTemplate
@@ -280,7 +335,7 @@ Resources:
         Monitoring:
           Enabled: true
         SecurityGroupIds:
-          - !Ref BuildServerSG
+          - !Sub '{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/BuildServerSecurityGroupId}}'
         UserData:
           Fn::Base64: |
             MIME-Version: 1.0
@@ -523,9 +578,9 @@ Resources:
       Description: !Sub Execute validation a queries on Neo4j for ${AppName}
       CodeUri: functions/execute_validation_queries/
       Handler: app.lambda_handler
-      Runtime: python3.10
       MemorySize: 256
       Timeout: 60
+      Runtime: python3.11
       Architectures:
         - x86_64
       Environment:
@@ -582,7 +637,7 @@ Resources:
       Description: !Sub Invoke backup for Neo4j for ${AppName}
       CodeUri: functions/invoke_backup_script/
       Handler: app.lambda_handler
-      Runtime: python3.10
+      Runtime: python3.11
       MemorySize: 256
       Timeout: 300
       Architectures:
@@ -603,6 +658,7 @@ Resources:
               Resource:
                 - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${Stage}-${AppName}-database-Neo4jBackupDocument*'
                 - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseInstanceId}}'
+                # - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*'
             - Effect: "Allow"
               Action: 
                 - "ssm:GetParameters"
@@ -789,8 +845,8 @@ Resources:
       Description: !Sub Validate build output for ${AppName}
       CodeUri: functions/validate_build_output/
       Handler: app.lambda_handler
-      Runtime: python3.10
-      MemorySize: 2048
+      Runtime: python3.11
+      MemorySize: 1024
       Timeout: 900
       Architectures:
         - x86_64
@@ -1246,7 +1302,7 @@ Resources:
       FunctionName: !Sub ${Stage}-${AppName}-disable-backup
       CodeUri: functions/disable_backup/
       Handler: app.lambda_handler
-      Runtime: python3.10
+      Runtime: python3.11
       MemorySize: 128
       Timeout: 60
       Architectures:
@@ -1363,13 +1419,13 @@ Resources:
             default:
               path: !Sub https://{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}.s3.amazonaws.com/${ConfigS3Path}/database/scripts/
           commandLine:
-            type: String
-            description: These commands are invoked by a Lambda script which sets the correct parameters (Refer to documentation).
-            default: !Sub bash start_task.sh ${AppName} ${Stage}
+            type: "String"
+            description: "These commands are invoked by a Lambda script which sets the correct parameters (Refer to documentation)."
+            default: 'make neo4j.start && bash start_task.sh'
           workingDirectory:
-            type: String
-            description: Working directory
-            default: /home/ubuntu
+            type: "String"
+            description: "Working directory"
+            default: "/home/ec2-user"
           executionTimeout:
             type: String
             description: (Optional) The time in seconds for a command to complete before it is considered to have failed. Default is 3600 (1 hour). Maximum is 28800 (8 hours).

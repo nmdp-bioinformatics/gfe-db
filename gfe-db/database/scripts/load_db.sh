@@ -1,12 +1,10 @@
 #!/bin/bash -x
 
-set -e
-
-source /home/ubuntu/env.sh
+source /home/ec2-user/env.sh
 
 # Get APP_NAME, AWS_REGION, STAGE setup on db install
-if [ -z $UBUNTU_HOME ]; then
-    echo "ERROR: UBUNTU_HOME not set"
+if [ -z $EC2_USER_HOME ]; then
+    echo "ERROR: EC2_USER_HOME not set"
     exit 1
 fi
 if [ -z $APP_NAME ]; then
@@ -106,7 +104,7 @@ if [[ "$USE_PRIVATE_SUBNET" = true ]]; then
 
     # # With SSL/TLS policy disabled for private instance
     cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp | \
-        cypher-shell \
+        $NEO4J_HOME/bin/cypher-shell \
             --address bolt://127.0.0.1:7687 \
             --encryption false \
             --username $NEO4J_USERNAME \
@@ -118,7 +116,7 @@ else
 
     # With SSL/TLS policy enabled
     cat $NEO4J_CYPHER_PATH/tmp/$RELEASE/load.$RELEASE.cyp | \
-        cypher-shell \
+        $NEO4J_HOME/bin/cypher-shell \
             --address neo4j://$SUBDOMAIN.$HOST_DOMAIN:7687 \
             --encryption true \
             --username $NEO4J_USERNAME \
