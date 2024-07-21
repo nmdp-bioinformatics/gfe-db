@@ -349,23 +349,6 @@ env.validate.create-neo4j-users:
 	    echo "\033[0;34mNo Neo4j users defined, skipping validation.\033[0m"; \
 	fi
 
-env.validate.create-neo4j-users:
-	@if [ -n "${CREATE_NEO4J_USERS}" ]; then \
-	    valid_format=1; \
-	    IFS=',' read -ra ADDR <<< "${CREATE_NEO4J_USERS}"; \
-	    for user_pass in "$${ADDR[@]}"; do \
-	        if [[ ! $$user_pass =~ ^[^:]+:[^:]+$$ ]]; then \
-	            valid_format=0; \
-	            break; \
-	        fi; \
-	    done; \
-	    if [[ $$valid_format -eq 0 ]]; then \
-	        echo "\033[0;31mERROR: Invalid Neo4j user format. Please use the format \`username:password\`.\033[0m"; \
-	    fi; \
-	else \
-	    echo "\033[0;34mNo Neo4j users defined, skipping validation.\033[0m"; \
-	fi
-
 env.validate.boolean-vars:
 	@$(foreach var,$(BOOLEAN_VARS),\
 		if [ "$(value $(var))" != "" ] && [ "$(value $(var))" != "true" ] && [ "$(value $(var))" != "false" ]; then \
