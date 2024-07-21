@@ -52,7 +52,7 @@ def lambda_handler(event, context):
     # if not has_unique_release_count_increased_by_1 and not is_release_version_already_loaded:
     #     errors.append("Unique release count has not increased by 1")
 
-    # TODO BOOKMARK 1/19/24 - Allow for the same release version to be loaded multiple times without failing the load validation
+    # TODO 1/19/24 - Allow for the same release version to be loaded multiple times without failing the load validation
     if is_release_version_already_loaded:
         is_load_successful = (
             is_release_version_loaded

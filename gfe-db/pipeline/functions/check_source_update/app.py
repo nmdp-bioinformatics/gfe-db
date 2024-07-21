@@ -6,11 +6,10 @@ The execution state table is used to track the state of the application. It uses
 - commit__sha (hash or primary key)
 - execution__version (range or sort key)
 
-There will usually be multiple commits for each release, so the script will determine the most recent commit for each and process only that.
+Only the most recent commit for the release is processed. Processing takes place if these conditions are met:
+1. There is a new commit sha for a release
+2. One of the tracked files (assets) has been changed. (Tracked files contain updates to the data, eg. `.dat`)
 
-Note: this function is only responsible for checking and processing the most recent commits. It is not responsible for 
-syncing state. If old commits are deleted on the Execution state table while the most recent commits remain, 
-this function will not reprocess the deleted commits.
 """
 import os
 if __name__ != "app":

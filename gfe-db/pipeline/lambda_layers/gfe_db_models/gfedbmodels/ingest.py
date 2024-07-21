@@ -205,7 +205,7 @@ def get_release_version_for_commit(
 
     if release_version is None:
 
-        # TODO BOOKMARK 2/12/24 save these shas (`fatal: reference is not a tree`) for debugging, need to get the file contents
+        # TODO 2/12/24 save these shas (`fatal: reference is not a tree`) for debugging, need to get the file contents
         raise Exception(f"Release version not found for commit {sha}")
 
     return int(release_version.replace(".", "")[:4])
