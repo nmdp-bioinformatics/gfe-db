@@ -45,6 +45,10 @@ Parameters:
     Type: String
   GDSVersion:
     Type: String
+  ConfigS3Path:
+    Type: String
+  ServiceName:
+    Type: String
 Conditions:
   UsePrivateSubnet: !Equals
     - !Ref usePrivateSubnet
@@ -70,9 +74,9 @@ Resources:
       Value: !Ref Neo4jCredentialsSecret
   Neo4jDatabaseInstance:
     Type: AWS::EC2::Instance
-    CreationPolicy:
-      ResourceSignal:
-        Timeout: PT5M
+    # CreationPolicy:
+    #   ResourceSignal:
+    #     Timeout: PT5M
     Properties:
       KeyName: !Sub "{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/EC2KeyPairName}}"
       DisableApiTermination: false
@@ -183,6 +187,8 @@ Resources:
           echo "NEO4J_HOME=$NEO4J_HOME" >> $EC2_USER_HOME/env.sh
           echo "STAGE=${Stage}" >> $EC2_USER_HOME/env.sh
           echo "APP_NAME=${AppName}" >> $EC2_USER_HOME/env.sh
+          echo "CONFIG_S3_PATH=${ConfigS3Path}" >> $EC2_USER_HOME/env.sh
+          echo "SERVICE_NAME=${ServiceName}" >> $EC2_USER_HOME/env.sh
           echo "USE_PRIVATE_SUBNET=$USE_PRIVATE_SUBNET" >> $EC2_USER_HOME/env.sh
           echo "AWS_REGION=us-east-1" >> $EC2_USER_HOME/env.sh
           echo "DATA_BUCKET_NAME=${DataBucketName}" >> $EC2_USER_HOME/env.sh
@@ -332,7 +338,7 @@ Resources:
           echo "INFO: Initiliazing Neo4j database"
           install_neo4j
           echo "INFO: Downloading scripts"
-          aws s3 cp --quiet --recursive s3://${!DATA_BUCKET_NAME}/config/scripts/ $EC2_USER_HOME/
+          aws s3 cp --quiet --recursive s3://${!DATA_BUCKET_NAME}/${!CONFIG_S3_PATH}/${!SERVICE_NAME}/scripts/ $EC2_USER_HOME/
           cd $EC2_USER_HOME && make neo4j
           CREATE_NEO4J_USERS=${CreateNeo4jUsers}
           if [ ! -z "$CREATE_NEO4J_USERS" ]; then
