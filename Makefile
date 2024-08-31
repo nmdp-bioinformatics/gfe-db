@@ -473,6 +473,9 @@ else
 	$(MAKE) -C ${APP_NAME}/database/ service.connect
 endif
 
+database.start-session:
+	$(MAKE) -C ${APP_NAME}/database/ service.start-session
+
 database.ui.connect:
 ifeq ($(USE_PRIVATE_SUBNET),true)
 	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/bastion-server/ service.ui.connect

@@ -141,6 +141,9 @@ service.connect:
 	echo "Connecting to Neo4j EC2 instance at $$instance_ip" && \
 	ssh -o "IdentitiesOnly yes" -tt -i ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem ec2-user@$$instance_ip
 
+service.start-session:
+	@res=$$(aws ssm get-parameters --names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseInstanceId" | jq -r '.Parameters[0].Value') && \
+	aws ssm start-session --target "$$res"
 
 delete: ##=> Delete resources
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
