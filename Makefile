@@ -505,6 +505,33 @@ pipeline.state.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.state.build
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.state.load
 
+pipeline.statemachine.update-pipeline.stop:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.statemachine.update-pipeline.stop
+
+pipeline.statemachine.load-concurrency-manager.stop:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.statemachine.load-concurrency-manager.stop
+
+pipeline.queue.gfe-db-load.purge:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.queue.gfe-db-load.purge
+
+pipeline.queue.gfe-db-processing.purge:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.queue.gfe-db-processing.purge
+
+pipeline.abort:
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Aborting pipeline execution" 2>&1 | tee -a $${CFN_LOG_PATH}
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.statemachine.update-pipeline.stop
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.statemachine.load-concurrency-manager.stop
+	@purge=$${purge:-false}; \
+	if [ "$$purge" = "true" ]; then \
+		echo "Purging queues..."; \
+		$(MAKE) -C ${APP_NAME}/pipeline/ service.queue.gfe-db-load.purge; \
+		$(MAKE) -C ${APP_NAME}/pipeline/ service.queue.gfe-db-processing.purge; \
+	else \
+		echo "\033[0;33mNote: SQS queues were not purged. To purge queues, run with 'purge=true'.\033[0m"; \
+	fi
+	@echo "\033[0;33mPipeline execution aborted\033[0m"
+
+
 config.deploy:
 	$(MAKE) database.config.deploy
 	$(MAKE) pipeline.config.deploy

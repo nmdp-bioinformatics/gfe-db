@@ -65,6 +65,70 @@ service.config.pipeline-params.deploy:
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying config to $$config_s3_path" 2>&1 | tee -a $$CFN_LOG_PATH && \
 	aws s3 cp --recursive config/ $$config_s3_path 2>&1 | tee -a $$CFN_LOG_PATH
 
+service.statemachine.update-pipeline.stop:
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Stopping UpdatePipeline state machine" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@state_machine_arn=$$(aws ssm get-parameter \
+		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/UpdatePipelineStateMachineArn" \
+		--query "Parameter.Value" \
+		--output text) && \
+	executions=$$(aws stepfunctions list-executions \
+		--state-machine-arn "$$state_machine_arn" \
+		--status-filter RUNNING \
+		--query "executions[*].executionArn" \
+		--output text) && \
+	if [ -n "$$executions" ]; then \
+		for execution in $$executions; do \
+			res=$$(aws stepfunctions stop-execution --execution-arn "$$execution") && \
+			echo "$$res" | jq -r && \
+			echo "\033[0;32mStopped execution:\033[0m" && \
+			echo "\033[0;32m$$execution\033[0m"; \
+		done; \
+	else \
+		echo "\033[0;32mNo running executions found for UpdatePipeline state machine\033[0m"; \
+	fi
+	
+service.statemachine.load-concurrency-manager.stop:
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Stopping LoadConcurrencyManager state machine" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@state_machine_arn=$$(aws ssm get-parameter \
+		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/LoadConcurrencyManagerStateMachineArn" \
+		--query "Parameter.Value" \
+		--output text) && \
+	executions=$$(aws stepfunctions list-executions \
+		--state-machine-arn "$$state_machine_arn" \
+		--status-filter RUNNING \
+		--query "executions[*].executionArn" \
+		--output text) && \
+	if [ -n "$$executions" ]; then \
+		for execution in $$executions; do \
+			res=$$(aws stepfunctions stop-execution --execution-arn "$$execution") && \
+			echo "$$res" | jq -r && \
+			echo "\033[0;32mStopped execution:\033[0m" && \
+			echo "\033[0;32m$$execution\033[0m"; \
+		done; \
+	else \
+		echo "\033[0;32mNo running executions found for LoadConcurrencyManager state machine\033[0m"; \
+	fi
+
+service.queue.gfe-db-load.purge:
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Purging GfeDbLoadQueue" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@queue_url=$$(aws ssm get-parameter \
+		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/GfeDbLoadQueueUrl" \
+		--query "Parameter.Value" \
+		--output text) && \
+	res=$$(aws sqs purge-queue --queue-url "$$queue_url") && \
+	echo "$$res" | jq -r 2>&1 | tee -a $${CFN_LOG_PATH} && \
+	echo "\033[0;32mGfeDbLoadQueue purged successfully\033[0m"
+
+service.queue.gfe-db-processing.purge:
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Purging GfeDbProcessingQueue" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@queue_url=$$(aws ssm get-parameter \
+		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/GfeDbProcessingQueueUrl" \
+		--query "Parameter.Value" \
+		--output text) && \
+	res=$$(aws sqs purge-queue --queue-url "$$queue_url") && \
+	echo "$$res" | jq -r 2>&1 | tee -a $${CFN_LOG_PATH} && \
+	echo "\033[0;32mGfeDbProcessingQueue purged successfully\033[0m"
+
 service.delete:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
 	$(MAKE) service.jobs.delete
