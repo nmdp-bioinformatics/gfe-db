@@ -531,6 +531,8 @@ pipeline.abort:
 	fi
 	@echo "\033[0;33mPipeline execution aborted\033[0m"
 
+pipeline.alarm.update-pipeline-execution.status:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.alarm.update-pipeline-execution.status
 
 config.deploy:
 	$(MAKE) database.config.deploy
