@@ -1281,6 +1281,16 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       Threshold: 0
       EvaluationPeriods: 1
+
+  UpdatePipelineStateMachineExecutionAlarmNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/UpdatePipelineStateMachineExecutionAlarmName
+      Description: !Sub 'Name of ${Stage}-${AppName} UpdatePipeline state machine execution alarm'
+      Value: !Ref UpdatePipelineStateMachineExecutionAlarm
+
+      
   LoadConcurrencyManagerLogGroup:
     Type: AWS::Logs::LogGroup
     UpdateReplacePolicy: Delete

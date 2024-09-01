@@ -129,6 +129,43 @@ service.queue.gfe-db-processing.purge:
 	echo "$$res" | jq -r 2>&1 | tee -a $${CFN_LOG_PATH} && \
 	echo "\033[0;32mGfeDbProcessingQueue purged successfully\033[0m"
 
+service.alarm.update-pipeline-execution.status:
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Fetching status of UpdatePipelineStateMachineExecutionAlarm" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@alarm_name=$$(aws ssm get-parameter \
+		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/UpdatePipelineStateMachineExecutionAlarmName" \
+		--query "Parameter.Value" \
+		--output text) && \
+	alarm_status=$$(aws cloudwatch describe-alarms \
+		--alarm-names "$$alarm_name" \
+		--query "MetricAlarms[0].StateValue" \
+		--output text) && \
+	echo "\033[0;32mUpdatePipelineStateMachineExecutionAlarm status: $$alarm_status\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH}
+
+service.alarm.update-pipeline-execution.wait: # arg: poll_interval (default: 10)
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Waiting for UpdatePipelineStateMachineExecutionAlarm status change" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@poll_interval=$${1:-10}; \
+	alarm_name=$$(aws ssm get-parameter \
+		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/UpdatePipelineStateMachineExecutionAlarmName" \
+		--query "Parameter.Value" \
+		--output text) && \
+	initial_status=$$(aws cloudwatch describe-alarms \
+		--alarm-names "$$alarm_name" \
+		--query "MetricAlarms[0].StateValue" \
+		--output text) && \
+	echo "Initial status: $$initial_status" && \
+	while true; do \
+		current_status=$$(aws cloudwatch describe-alarms \
+			--alarm-names "$$alarm_name" \
+			--query "MetricAlarms[0].StateValue" \
+			--output text) && \
+		if [ "$$current_status" != "$$initial_status" ]; then \
+			echo "\033[0;32mAlarm status changed to: $$current_status\033[0m" 2>&1 | tee -a $${CFN_LOG_PATH} && \
+			break; \
+		fi; \
+		echo "Current status: $$current_status. Waiting for $$poll_interval seconds..." && \
+		sleep $$poll_interval; \
+	done
+
 service.delete:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH
 	$(MAKE) service.jobs.delete

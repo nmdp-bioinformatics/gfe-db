@@ -529,10 +529,13 @@ pipeline.abort:
 	else \
 		echo "\033[0;33mNote: SQS queues were not purged. To purge queues, run with 'purge=true'.\033[0m"; \
 	fi
-	@echo "\033[0;33mPipeline execution aborted\033[0m"
+	@echo "\033[0;33m*** Pipeline execution aborted ***\033[0m"
 
 pipeline.alarm.update-pipeline-execution.status:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.alarm.update-pipeline-execution.status
+
+pipeline.alarm.update-pipeline-execution.wait:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.alarm.update-pipeline-execution.wait
 
 config.deploy:
 	$(MAKE) database.config.deploy
