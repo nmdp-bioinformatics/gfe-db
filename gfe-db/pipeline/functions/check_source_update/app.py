@@ -117,13 +117,13 @@ def lambda_handler(event, context):
         all_branches = list(branch_pages)
 
         repo_state = build_execution_state(all_branches, utc_now)
-        repo_state = repo_state.items
+        repo_state_items = repo_state.items
 
         # 3) Compare the app state with the repo state to find new commits
 
         # Extract commit sha, release version  into tuples from both the app and repo states for set operations
         app_state_commits = set([(item.commit.sha, item.execution.version) for item in execution_state_items])
-        repo_state_commits = set([(item.commit.sha, item.execution.version) for item in repo_state])
+        repo_state_commits = set([(item.commit.sha, item.execution.version) for item in repo_state_items])
 
         # get the difference between the two states
         new_items = []
@@ -134,7 +134,7 @@ def lambda_handler(event, context):
             logger.info(f"Updating execution state with new commits: {new_app_state_commits}")
             
             # get the new records from the repo state
-            new_items.extend([item for item in repo_state if (item.commit.sha, item.execution.version) in new_app_state_commits])
+            new_items.extend([item for item in repo_state_items if (item.commit.sha, item.execution.version) in new_app_state_commits])
 
             # insert the new records into the remote app state
             items = format_execution_state_items(new_items)

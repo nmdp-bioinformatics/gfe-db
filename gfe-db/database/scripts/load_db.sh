@@ -58,7 +58,7 @@ echo "DEBUG: About to get NEO4J_CREDENTIALS using jq"
 NEO4J_CREDENTIALS=$(aws secretsmanager get-secret-value \
     --region $AWS_REGION \
     --secret-id /${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials | jq -r '.SecretString')
-echo "DEBUG: NEO4J_CREDENTIALS result: [REDACTED]"
+echo "DEBUG: NEO4J_CREDENTIALS result: $NEO4J_CREDENTIALS"
 
 echo "DEBUG: About to get NEO4J_USERNAME using jq"
 NEO4J_USERNAME=$(echo $NEO4J_CREDENTIALS | jq -r '.NEO4J_USERNAME')
@@ -66,7 +66,7 @@ echo "DEBUG: NEO4J_USERNAME result: $NEO4J_USERNAME"
 
 echo "DEBUG: About to get NEO4J_PASSWORD using jq"
 NEO4J_PASSWORD=$(echo $NEO4J_CREDENTIALS | jq -r '.NEO4J_PASSWORD')
-echo "DEBUG: NEO4J_PASSWORD result: [REDACTED]"
+echo "DEBUG: NEO4J_PASSWORD result: $NEO4J_PASSWORD"
 
 # Get data bucket name
 echo "DEBUG: About to get DATA_BUCKET_NAME using jq"
