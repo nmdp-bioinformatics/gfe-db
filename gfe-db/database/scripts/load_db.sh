@@ -8,17 +8,17 @@ if [ -z $EC2_USER_HOME ]; then
     exit 1
 fi
 if [ -z $APP_NAME ]; then
-    echo "ERROR: APP_NAME not set"
+    echo "ERROR:  APP_NAME not set"
     exit 1
 fi
 
 if [ -z $STAGE ]; then
-    echo "ERROR: STAGE not set"
+    echo "ERROR:  STAGE not set"
     exit 1
 fi
 
 if [ -z $SERVICE_NAME ]; then
-    echo "ERROR: SERVICE_NAME not set"
+    echo "ERROR:  SERVICE_NAME not set"
     exit 1
 fi
 
@@ -41,9 +41,7 @@ S3_NEO4J_CYPHER_PATH=config/$SERVICE_NAME/neo4j/cypher
 S3_CSV_PATH=data/$RELEASE/csv
 
 if [[ -z $AWS_REGION ]]; then
-    echo "DEBUG: About to get AWS_REGION using jq"
     export AWS_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')
-    echo "DEBUG: AWS_REGION result: $AWS_REGION"
 fi
 
 if [[ -z $RELEASE ]]; then
@@ -54,27 +52,17 @@ else
 fi
 
 # Get Neo4j Credentials
-echo "DEBUG: About to get NEO4J_CREDENTIALS using jq"
 NEO4J_CREDENTIALS=$(aws secretsmanager get-secret-value \
     --region $AWS_REGION \
     --secret-id /${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jCredentials | jq -r '.SecretString')
-echo "DEBUG: NEO4J_CREDENTIALS result: $NEO4J_CREDENTIALS"
-
-echo "DEBUG: About to get NEO4J_USERNAME using jq"
 NEO4J_USERNAME=$(echo $NEO4J_CREDENTIALS | jq -r '.NEO4J_USERNAME')
-echo "DEBUG: NEO4J_USERNAME result: $NEO4J_USERNAME"
-
-echo "DEBUG: About to get NEO4J_PASSWORD using jq"
 NEO4J_PASSWORD=$(echo $NEO4J_CREDENTIALS | jq -r '.NEO4J_PASSWORD')
-echo "DEBUG: NEO4J_PASSWORD result: $NEO4J_PASSWORD"
 
 # Get data bucket name
-echo "DEBUG: About to get DATA_BUCKET_NAME using jq"
 DATA_BUCKET_NAME=$(aws ssm get-parameters \
     --region $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/\(.*\)[a-z]/\1/') \
     --names "/${APP_NAME}/${STAGE}/${AWS_REGION}/DataBucketName" \
     | jq -r '.Parameters[0].Value')
-echo "DEBUG: DATA_BUCKET_NAME result: $DATA_BUCKET_NAME"
 
 if [[ -z $DATA_BUCKET_NAME ]]; then
     echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - S3 bucket not found."
@@ -139,9 +127,9 @@ else
 fi
 
 if [[ $LOAD_EXIT_STATUS -eq 0 ]]; then
-    echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Load succeeded: $LOAD_EXIT_STATUS"
+    echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Load complete"
 else
-    echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Load failed: $LOAD_EXIT_STATUS"
+    echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Load failed"
 fi
 
 # TODO: Conditional queries for alignments, KIR (requires running separate Cypher scripts)
