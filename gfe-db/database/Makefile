@@ -21,7 +21,8 @@ service.config.scripts.sync: service.config.scripts.deploy service.config.neo4j.
 	res=$$(aws ssm send-command \
 		--document-name "$$document_name" \
 		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
-		--comment "${STAGE}-${APP_NAME} sync scripts to database server") && \
+		--comment "${STAGE}-${APP_NAME} sync scripts to database server" \
+		--cloud-watch-output-config '{"CloudWatchOutputEnabled":true}') && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
 	echo "\033[0;34mWaiting for command $$command_id to complete on server $${INSTANCE_ID}\033[0m" && \
 	aws ssm wait command-executed \
@@ -50,7 +51,8 @@ service.ssl.renew-cert:
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/ec2-user && sudo make ssl.renew-cert]" \
 		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
-		--comment "${STAGE}-${APP_NAME} SSL certificate renewal utility") && \
+		--comment "${STAGE}-${APP_NAME} SSL certificate renewal utility" \
+		--cloud-watch-output-config '{"CloudWatchOutputEnabled":true}') && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
 	aws ssm wait command-executed \
 		--command-id "$$command_id" \
@@ -91,7 +93,8 @@ service.backup:
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/ec2-user && sudo make neo4j.backup]" \
 		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
-		--comment "${STAGE}=${APP_NAME} backup service") && \
+		--comment "${STAGE}=${APP_NAME} backup service" \
+		--cloud-watch-output-config '{"CloudWatchOutputEnabled":true}') && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
 	aws ssm wait command-executed \
 		--command-id "$$command_id" \
@@ -118,7 +121,8 @@ service.restore: #from_path=s3://<backup path>
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/ec2-user && sudo make neo4j.restore from_path=$$from_path]" \
 		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
-		--comment "${STAGE}=${APP_NAME} restore service") && \
+		--comment "${STAGE}=${APP_NAME} restore service" \
+		--cloud-watch-output-config '{"CloudWatchOutputEnabled":true}') && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
 	aws ssm wait command-executed \
 		--command-id "$$command_id" \
