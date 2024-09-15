@@ -41,7 +41,7 @@ def lambda_handler(event, context):
         --document-name "dev-gfe-db-database-Neo4jLoadQueryDocument-UgYcOg48yiQB" \
         --document-version "1" \
         --targets '[{"Key":"InstanceIds","Values":["i-0f8ec07e314226283"]}]' \
-        --parameters '{"executionTimeout":["3600"],"sourceInfo":["{\"path\":\"https://<data bucket name>.s3.amazonaws.com/config/scripts/load_db.sh\"}"],"sourceType":["S3"],"workingDirectory":["/home/ec2-user"],"commandLine":["bash load_db.sh"]}' \
+        --parameters '{"executionTimeout":["3600"],"sourceInfo":["{\"path\":\"https://<data bucket name>.s3.amazonaws.com/config/database/scripts/load_db.sh\"}"],"sourceType":["S3"],"workingDirectory":["/home/ec2-user"],"commandLine":["bash load_db.sh"]}' \
         --timeout-seconds 600 \
         --max-concurrency "50" \
         --max-errors "0" \
