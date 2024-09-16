@@ -79,13 +79,24 @@ def lambda_handler(event, context):
             message = f"Command `{cmd}` invoked on instance {neo4j_database_instance_id}"
             logger.info(message)
     
+            return {
+                "message": message,
+                "data": {
+                    "command_id": response["Command"]["CommandId"],
+                    "instance_id": neo4j_database_instance_id,
+                    "document_name": neo4j_load_query_document_name,
+                    "document_parameters": neo4j_load_query_document_parameters,
+                    "command_line": cmd,
+                    "source_info": source_info_default,
+                },
+                "CommandId": response["Command"]["CommandId"],
+                "InstanceId": neo4j_database_instance_id,
+            }
+        
     except Exception as err:
         logger.error(err)
         raise err
 
-    return {
-        "message": message
-    }
 
 
 # Serializes datetime objects in JSON responses
@@ -107,7 +118,7 @@ class DatetimeEncoder(json.JSONEncoder):
 if __name__ == "__main__":
     from pathlib import Path
 
-    event_path = Path(__file__).parent / "error-event.json"
+    event_path = Path(__file__).parent / "event.json"
 
     with open(event_path, "r") as file:
         event = json.load(file)

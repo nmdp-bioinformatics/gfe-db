@@ -40,9 +40,9 @@
                     "Next": "Load Stage"
                 }
             ],
-            "Default": "Sleep 30"
+            "Default": "Wait for Message"
         },
-        "Sleep 30": {
+        "Wait for Message": {
             "Type": "Wait",
             "Seconds": 30,
             "Next": "Check Alarm State"
@@ -58,15 +58,67 @@
                         "Execute Load Query": {
                             "Type": "Task",
                             "Resource": "${InvokeLoadScriptFunctionArn}",
-                            "ResultPath": null,
+                            "ResultPath": "$",
+                            "Next": "Get Load Command Status"
+                        },
+                        "Get Load Command Status": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::aws-sdk:ssm:getCommandInvocation",
+                            "Parameters": {
+                                "CommandId.$": "$.CommandId",
+                                "InstanceId.$": "$.InstanceId"
+                            },
+                            "ResultPath": "$",
+                            "Next": "Evaluate Load Command Status"
+                        },
+                        "Evaluate Load Command Status": {
+                            "Type": "Choice",
+                            "Choices": [
+                                {
+                                    "Or": [
+                                        {
+                                            "Variable": "$.Status",
+                                            "StringEquals": "Failed"
+                                        },
+                                        {
+                                            "Variable": "$.Status",
+                                            "StringEquals": "Cancelled"
+                                        },
+                                        {
+                                            "Variable": "$.Status",
+                                            "StringEquals": "TimedOut"
+                                        }
+                                    ],
+                                    "Next": "Handle Load Command Failure"
+                                },
+                                {
+                                    "Variable": "$.Status",
+                                    "StringEquals": "Success",
+                                    "Next": "Load Success"
+                                }
+                            ],
+                            "Default": "Wait for Status"
+                        },
+                        "Handle Load Command Failure": {
+                            "Type": "Fail",
+                            "Error": "LoadCommandFailed",
+                            "Cause": "Load command execution failed"
+                        },
+                        "Wait for Status": {
+                            "Type": "Wait",
+                            "Seconds": 30,
+                            "Next": "Get Load Command Status"
+                        },
+                        "Load Success": {
+                            "Type": "Pass",
                             "End": true
                         }
                     }
                 },
                 {
-                    "StartAt": "Wait For Load 🕗",
+                    "StartAt": "Load Task",
                     "States": {
-                        "Wait For Load 🕗": {
+                        "Load Task": {
                             "Type": "Task",
                             "Resource": "${LoadReleaseActivityArn}",
                             "InputPath": "$.sqs.Body",
@@ -78,11 +130,11 @@
                                     "ErrorEquals": [
                                         "States.ALL"
                                     ],
-                                    "Next": "Handle Failure"
+                                    "Next": "Handle Load Task Failure"
                                 }
                             ]
                         },
-                        "Handle Failure": {
+                        "Handle Load Task Failure": {
                             "Type": "Pass",
                             "ResultPath": null,
                             "End": true

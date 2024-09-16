@@ -1016,6 +1016,13 @@ Resources:
                 - cloudwatch:DescribeAlarms
               Resource:
                 - !GetAtt UpdatePipelineStateMachineExecutionAlarm.Arn
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetCommandInvocation
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:*'
       Logging:
         Destinations:
           - CloudWatchLogsLogGroup:
@@ -1234,7 +1241,7 @@ Resources:
               Dimensions:
                 - Name: StateMachineArn
                   Value: !GetAtt UpdatePipelineStateMachine.Arn
-            Period: 86400
+            Period: 300
             Stat: Sum
             Unit: Count
           ReturnData: false
@@ -1246,7 +1253,7 @@ Resources:
               Dimensions:
                 - Name: StateMachineArn
                   Value: !GetAtt UpdatePipelineStateMachine.Arn
-            Period: 86400
+            Period: 300
             Stat: Sum
             Unit: Count
           ReturnData: false
@@ -1258,7 +1265,7 @@ Resources:
               Dimensions:
                 - Name: StateMachineArn
                   Value: !GetAtt UpdatePipelineStateMachine.Arn
-            Period: 86400
+            Period: 300
             Stat: Sum
             Unit: Count
           ReturnData: false
@@ -1270,7 +1277,7 @@ Resources:
               Dimensions:
                 - Name: StateMachineArn
                   Value: !GetAtt UpdatePipelineStateMachine.Arn
-            Period: 86400
+            Period: 300
             Stat: Sum
             Unit: Count
           ReturnData: false
