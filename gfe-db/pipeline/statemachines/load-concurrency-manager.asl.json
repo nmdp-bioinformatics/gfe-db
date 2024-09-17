@@ -65,11 +65,16 @@
                             "Type": "Task",
                             "Resource": "arn:aws:states:::aws-sdk:ssm:getCommandInvocation",
                             "Parameters": {
-                                "CommandId.$": "$.CommandId",
-                                "InstanceId.$": "$.InstanceId"
+                                "CommandId.$": "$.ssm.CommandId",
+                                "InstanceId.$": "$.ssm.InstanceId"
                             },
-                            "ResultPath": "$",
-                            "Next": "Evaluate Load Command Status"
+                            "Next": "Evaluate Load Command Status",
+                            "ResultSelector": {
+                                "CommandId.$": "$.CommandId",
+                                "InstanceId.$": "$.InstanceId",
+                                "Status.$": "$.Status"
+                            },
+                            "ResultPath": "$.ssm"
                         },
                         "Evaluate Load Command Status": {
                             "Type": "Choice",
@@ -77,22 +82,22 @@
                                 {
                                     "Or": [
                                         {
-                                            "Variable": "$.Status",
+                                            "Variable": "$.ssm.Status",
                                             "StringEquals": "Failed"
                                         },
                                         {
-                                            "Variable": "$.Status",
+                                            "Variable": "$.ssm.Status",
                                             "StringEquals": "Cancelled"
                                         },
                                         {
-                                            "Variable": "$.Status",
+                                            "Variable": "$.ssm.Status",
                                             "StringEquals": "TimedOut"
                                         }
                                     ],
                                     "Next": "Handle Load Command Failure"
                                 },
                                 {
-                                    "Variable": "$.Status",
+                                    "Variable": "$.ssm.Status",
                                     "StringEquals": "Success",
                                     "Next": "Load Success"
                                 }
