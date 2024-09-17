@@ -94,7 +94,7 @@
                                             "StringEquals": "TimedOut"
                                         }
                                     ],
-                                    "Next": "Handle Load Command Failure"
+                                    "Next": "Stop Execution"
                                 },
                                 {
                                     "Variable": "$.ssm.Status",
@@ -104,10 +104,13 @@
                             ],
                             "Default": "Wait for Status"
                         },
-                        "Handle Load Command Failure": {
-                            "Type": "Fail",
-                            "Error": "LoadCommandFailed",
-                            "Cause": "Load command execution failed"
+                        "Stop Execution": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::aws-sdk:sfn:stopExecution",
+                            "Parameters": {
+                                "ExecutionArn.$": "$.sqs.Body.execution_arn"
+                            },
+                            "End": true
                         },
                         "Wait for Status": {
                             "Type": "Wait",

@@ -1023,6 +1023,13 @@ Resources:
                 - ssm:GetCommandInvocation
               Resource:
                 - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:*'
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - states:StopExecution
+              Resource:
+                - !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${UpdatePipelineStateMachine.Name}:*'
       Logging:
         Destinations:
           - CloudWatchLogsLogGroup:

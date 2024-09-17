@@ -352,8 +352,17 @@
                     }
                 },
                 {
-                    "StartAt": "Queue Load",
+                    "StartAt": "Append Execution Id",
                     "States": {
+                        "Append Execution Id": {
+                            "Type": "Pass",
+                            "Parameters": {
+                                "input.$": "$.input",
+                                "execution_arn.$": "$$.Execution.Id"
+                            },
+                            "ResultPath": "$",
+                            "Next": "Queue Load"
+                        },
                         "Queue Load": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::aws-sdk:sqs:sendMessage",
