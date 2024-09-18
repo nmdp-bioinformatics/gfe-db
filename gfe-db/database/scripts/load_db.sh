@@ -8,17 +8,17 @@ if [ -z $EC2_USER_HOME ]; then
     exit 1
 fi
 if [ -z $APP_NAME ]; then
-    echo "ERROR:  APP_NAME not set"
+    echo "ERROR: APP_NAME not set"
     exit 1
 fi
 
 if [ -z $STAGE ]; then
-    echo "ERROR:  STAGE not set"
+    echo "ERROR: STAGE not set"
     exit 1
 fi
 
 if [ -z $SERVICE_NAME ]; then
-    echo "ERROR:  SERVICE_NAME not set"
+    echo "ERROR: SERVICE_NAME not set"
     exit 1
 fi
 

@@ -3,9 +3,11 @@
 # Exit immediately if a command exits with a non-zero status
 set -e
 
-# get APP_NAME and STAGE from arguments
-APP_NAME=$1
-STAGE=$2
+# source /home/ec2-user/env.sh
+
+# # get APP_NAME and STAGE from arguments
+# APP_NAME=$1
+# STAGE=$2
 ERR_MSG=null
 
 if [[ -z $APP_NAME ]]; then
