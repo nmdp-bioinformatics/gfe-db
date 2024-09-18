@@ -110,6 +110,7 @@
                             "Parameters": {
                                 "ExecutionArn.$": "$.sqs.Body.execution_arn"
                             },
+                            "ResultPath": "$.ssm",
                             "End": true
                         },
                         "Wait for Status": {
