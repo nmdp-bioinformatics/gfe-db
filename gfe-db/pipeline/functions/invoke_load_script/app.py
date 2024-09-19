@@ -19,7 +19,6 @@ logger.setLevel(logging.INFO)
 
 neo4j_load_query_document_name = pipeline.params.Neo4jLoadQueryDocumentName
 neo4j_database_instance_id = database.params.Neo4jDatabaseInstanceId
-load_release_activity_arn = pipeline.params.LoadReleaseActivityArn
 
 # Get SSM Document Neo4jLoadQuery
 ssm = session.clients["ssm"]
@@ -28,7 +27,6 @@ neo4j_load_query_document_content = json.loads(response["Content"])
 
 # Extract document parameters
 neo4j_load_query_document_parameters = neo4j_load_query_document_content["parameters"]
-command_line_default = neo4j_load_query_document_parameters["commandLine"]["default"]
 source_info_default = neo4j_load_query_document_parameters["sourceInfo"]["default"]
 
 
@@ -41,7 +39,7 @@ def lambda_handler(event, context):
         --document-name "dev-gfe-db-database-Neo4jLoadQueryDocument-UgYcOg48yiQB" \
         --document-version "1" \
         --targets '[{"Key":"InstanceIds","Values":["i-0f8ec07e314226283"]}]' \
-        --parameters '{"executionTimeout":["3600"],"sourceInfo":["{\"path\":\"https://<data bucket name>.s3.amazonaws.com/config/database/scripts/load_db.sh\"}"],"sourceType":["S3"],"workingDirectory":["/home/ec2-user"],"commandLine":["bash load_db.sh"]}' \
+        --parameters '{"executionTimeout":["3600"],"sourceInfo":["{\"path\":\"https://<data bucket name>.s3.amazonaws.com/config/database/scripts/load_db.sh\"}"],"sourceType":["S3"],"workingDirectory":["/home/ec2-user"],"LoadEvent":["{\"key\":\"value\"}"]}' \
         --timeout-seconds 600 \
         --max-concurrency "50" \
         --max-errors "0" \
@@ -55,8 +53,6 @@ def lambda_handler(event, context):
     # TODO BOOKMARK 5/31/23: Check if Neo4jLoadQueryDocument is already running, if it is exit 0 (makes service idempotent)
     # Note: Neo4jLoadQueryDocument only needs to be triggered once and it will fetch the next release until there are no more left
 
-    cmd = command_line_default
-
     try:
         response = ssm.send_command(
             InstanceIds=[
@@ -64,8 +60,11 @@ def lambda_handler(event, context):
             ],
             DocumentName=neo4j_load_query_document_name,
             Parameters={
-                "commandLine": [cmd],
+                "sourceType": ["S3"],
                 "sourceInfo": [json.dumps(source_info_default)],
+                "workingDirectory": ["/home/ec2-user"],
+                "executionTimeout": ["28800"],
+                "LoadEvent": [json.dumps(event)],
             },
             MaxConcurrency="1",
             CloudWatchOutputConfig={"CloudWatchOutputEnabled": True},
@@ -73,10 +72,10 @@ def lambda_handler(event, context):
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             logger.error(json.dumps(response, cls=DatetimeEncoder))
-            message = f"Failed to send command `{cmd}` to instance {neo4j_database_instance_id}"
+            message = f"Failed to send command to instance {neo4j_database_instance_id}"
             raise Exception("Failed to send command")
         else:
-            message = f"Command `{cmd}` invoked on instance {neo4j_database_instance_id}"
+            message = f"Command invoked on instance {neo4j_database_instance_id}"
             logger.info(message)
     
             return {

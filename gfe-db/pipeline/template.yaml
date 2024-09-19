@@ -980,7 +980,7 @@ Resources:
         InvokeBackupScriptFunctionArn: !GetAtt InvokeBackupScriptFunction.Arn
         LcmReceiveMessageFunctionArn: !GetAtt LcmReceiveMessageFunction.Arn
         UpdatePipelineStateMachineExecutionAlarmName: !Ref UpdatePipelineStateMachineExecutionAlarm
-        LoadReleaseActivityArn: !Ref LoadReleaseActivity
+        # LoadReleaseActivityArn: !Ref LoadReleaseActivity
         InvokeLoadScriptFunctionArn: !GetAtt InvokeLoadScriptFunction.Arn
         GfeDbExecutionStateTable: !Ref GfeDbExecutionStateTable
         GfeDbLoadQueueUrl: !GetAtt GfeDbLoadQueue.QueueUrl
@@ -1144,17 +1144,20 @@ Resources:
   #           Condition:
   #             ArnEquals:
   #               aws:SourceArn: !Ref GfeDbExecutionResultTopic
-  LoadReleaseActivity:
-    Type: AWS::StepFunctions::Activity
-    Properties:
-      Name: !Sub ${AppName}-${Stage}-LoadReleaseActivity
-  LoadReleaseActivityArnParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub /${AppName}/${Stage}/${AWS::Region}/LoadReleaseActivityArn
-      Description: ARN of gfe-db load release activity
-      Value: !GetAtt LoadReleaseActivity.Arn
+
+  # TODO remove
+  # LoadReleaseActivity:
+  #   Type: AWS::StepFunctions::Activity
+  #   Properties:
+  #     Name: !Sub ${AppName}-${Stage}-LoadReleaseActivity
+  # LoadReleaseActivityArnParameter:
+  #   Type: AWS::SSM::Parameter
+  #   Properties:
+  #     Type: String
+  #     Name: !Sub /${AppName}/${Stage}/${AWS::Region}/LoadReleaseActivityArn
+  #     Description: ARN of gfe-db load release activity
+  #     Value: !GetAtt LoadReleaseActivity.Arn
+
   UpdatePipelineLogGroup:
     Type: AWS::Logs::LogGroup
     UpdateReplacePolicy: Delete
@@ -1441,10 +1444,6 @@ Resources:
             description: !Sub Downloads all files under the ${AppName} scripts prefix
             default:
               path: !Sub https://{{resolve:ssm:/${AppName}/${Stage}/${AWS::Region}/DataBucketName}}.s3.amazonaws.com/${ConfigS3Path}/database/scripts/
-          commandLine:
-            type: "String"
-            description: "These commands are invoked by a Lambda script which sets the correct parameters (Refer to documentation)."
-            default: 'make neo4j.start && bash start_task.sh'
           workingDirectory:
             type: "String"
             description: "Working directory"
@@ -1453,6 +1452,9 @@ Resources:
             type: String
             description: (Optional) The time in seconds for a command to complete before it is considered to have failed. Default is 3600 (1 hour). Maximum is 28800 (8 hours).
             default: "28800"
+          LoadEvent:
+            type: String
+            description: "JSON string containing load event details"
         mainSteps:
           - action: aws:downloadContent
             name: downloadContent
@@ -1467,7 +1469,8 @@ Resources:
                 - ""
                 - directory=$(pwd)
                 - export PATH=$PATH:$directory
-                - " {{ commandLine }} "
+                - 'echo ''{{ LoadEvent }}'' > load_event.json'
+                - 'make neo4j.start && bash start_task.sh "$(cat load_event.json)"'
                 - ""
               workingDirectory: "{{ workingDirectory }}"
               timeoutSeconds: "{{ executionTimeout }}"
@@ -1495,7 +1498,6 @@ Resources:
               "/${AppName}/${Stage}/${AWS::Region}/BuildServiceRepositoryName",
               "/${AppName}/${Stage}/${AWS::Region}/GfeDbProcessingQueueUrl",
               "/${AppName}/${Stage}/${AWS::Region}/GfeDbLoadQueueUrl",
-              "/${AppName}/${Stage}/${AWS::Region}/LoadReleaseActivityArn",
               "/${AppName}/${Stage}/${AWS::Region}/UpdatePipelineStateMachineArn",
               "/${AppName}/${Stage}/${AWS::Region}/LoadConcurrencyManagerStateMachineArn",
               "/${AppName}/${Stage}/${AWS::Region}/Neo4jLoadQueryDocumentName",

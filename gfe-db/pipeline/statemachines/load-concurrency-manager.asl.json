@@ -37,7 +37,7 @@
                 {
                     "Variable": "$.sqs.MessageId",
                     "IsPresent": true,
-                    "Next": "Load Stage"
+                    "Next": "Execute Load Query"
                 }
             ],
             "Default": "Wait for Message"
@@ -47,123 +47,80 @@
             "Seconds": 30,
             "Next": "Check Alarm State"
         },
-        "Load Stage": {
-            "Type": "Parallel",
-            "OutputPath": "$",
-            "Next": "Evaluate Load Status",
-            "Branches": [
+        "Execute Load Query": {
+            "Type": "Task",
+            "Resource": "${InvokeLoadScriptFunctionArn}",
+            "ResultPath": "$",
+            "Next": "Get Load Command Status"
+        },
+        "Get Load Command Status": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::aws-sdk:ssm:getCommandInvocation",
+            "Parameters": {
+                "CommandId.$": "$.ssm.CommandId",
+                "InstanceId.$": "$.ssm.InstanceId"
+            },
+            "Next": "Evaluate Load Command Status",
+            "ResultSelector": {
+                "CommandId.$": "$.CommandId",
+                "InstanceId.$": "$.InstanceId",
+                "Status.$": "$.Status"
+            },
+            "ResultPath": "$.ssm"
+        },
+        "Evaluate Load Command Status": {
+            "Type": "Choice",
+            "Choices": [
                 {
-                    "StartAt": "Execute Load Query",
-                    "States": {
-                        "Execute Load Query": {
-                            "Type": "Task",
-                            "Resource": "${InvokeLoadScriptFunctionArn}",
-                            "ResultPath": "$",
-                            "Next": "Get Load Command Status"
+                    "Or": [
+                        {
+                            "Variable": "$.ssm.Status",
+                            "StringEquals": "Failed"
                         },
-                        "Get Load Command Status": {
-                            "Type": "Task",
-                            "Resource": "arn:aws:states:::aws-sdk:ssm:getCommandInvocation",
-                            "Parameters": {
-                                "CommandId.$": "$.ssm.CommandId",
-                                "InstanceId.$": "$.ssm.InstanceId"
-                            },
-                            "Next": "Evaluate Load Command Status",
-                            "ResultSelector": {
-                                "CommandId.$": "$.CommandId",
-                                "InstanceId.$": "$.InstanceId",
-                                "Status.$": "$.Status"
-                            },
-                            "ResultPath": "$.ssm"
+                        {
+                            "Variable": "$.ssm.Status",
+                            "StringEquals": "Cancelled"
                         },
-                        "Evaluate Load Command Status": {
-                            "Type": "Choice",
-                            "Choices": [
-                                {
-                                    "Or": [
-                                        {
-                                            "Variable": "$.ssm.Status",
-                                            "StringEquals": "Failed"
-                                        },
-                                        {
-                                            "Variable": "$.ssm.Status",
-                                            "StringEquals": "Cancelled"
-                                        },
-                                        {
-                                            "Variable": "$.ssm.Status",
-                                            "StringEquals": "TimedOut"
-                                        }
-                                    ],
-                                    "Next": "Stop Execution"
-                                },
-                                {
-                                    "Variable": "$.ssm.Status",
-                                    "StringEquals": "Success",
-                                    "Next": "Load Success"
-                                }
-                            ],
-                            "Default": "Wait for Status"
-                        },
-                        "Stop Execution": {
-                            "Type": "Task",
-                            "Resource": "arn:aws:states:::aws-sdk:sfn:stopExecution",
-                            "Parameters": {
-                                "ExecutionArn.$": "$.sqs.Body.execution_arn"
-                            },
-                            "ResultPath": "$.ssm",
-                            "End": true
-                        },
-                        "Wait for Status": {
-                            "Type": "Wait",
-                            "Seconds": 30,
-                            "Next": "Get Load Command Status"
-                        },
-                        "Load Success": {
-                            "Type": "Pass",
-                            "End": true
+                        {
+                            "Variable": "$.ssm.Status",
+                            "StringEquals": "TimedOut"
                         }
-                    }
+                    ],
+                    "Next": "Stop Execution"
                 },
                 {
-                    "StartAt": "Load Task",
-                    "States": {
-                        "Load Task": {
-                            "Type": "Task",
-                            "Resource": "${LoadReleaseActivityArn}",
-                            "InputPath": "$.sqs.Body",
-                            "HeartbeatSeconds": 60,
-                            "ResultPath": null,
-                            "End": true,
-                            "Catch": [
-                                {
-                                    "ErrorEquals": [
-                                        "States.ALL"
-                                    ],
-                                    "Next": "Handle Load Task Failure"
-                                }
-                            ]
-                        },
-                        "Handle Load Task Failure": {
-                            "Type": "Pass",
-                            "ResultPath": null,
-                            "End": true
-                        }
-                    }
+                    "Variable": "$.ssm.Status",
+                    "StringEquals": "Success",
+                    "Next": "Evaluate Load Result"
                 }
-            ]
+            ],
+            "Default": "Check Status"
         },
-        "Evaluate Load Status": {
+        "Stop Execution": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::aws-sdk:sfn:stopExecution",
+            "Parameters": {
+                "ExecutionArn.$": "$.sqs.Body.execution_arn"
+            },
+            "End": true
+        },
+        "Check Status": {
+            "Type": "Wait",
+            "Seconds": 30,
+            "Next": "Get Load Command Status"
+        },
+        "Evaluate Load Result": {
             "Type": "Choice",
             "Choices": [
                 {
                     "Variable": "$[1].Error",
                     "IsPresent": true,
-                    "Next": "Return Message"
+                    "Next": "Return Message to Load Queue"
                 }
             ],
-            "Default": "Delete Message"
+            "Default": "Delete Message from Load Queue"
         },
-        "Return Message": {
+        "Return Message to Load Queue": {
             "Type": "Task",
             "InputPath": "$[0]",
             "Resource": "arn:aws:states:::aws-sdk:sqs:changeMessageVisibility",
@@ -213,7 +170,7 @@
                 }
             }
         },
-        "Delete Message": {
+        "Delete Message from Load Queue": {
             "Type": "Task",
             "InputPath": "$[0]",
             "Resource": "arn:aws:states:::aws-sdk:sqs:deleteMessage",
