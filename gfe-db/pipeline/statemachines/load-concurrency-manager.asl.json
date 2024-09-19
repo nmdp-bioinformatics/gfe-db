@@ -91,10 +91,15 @@
                 {
                     "Variable": "$.ssm.Status",
                     "StringEquals": "Success",
-                    "Next": "Evaluate Load Result"
+                    "Next": "Delete Message from Load Queue"
                 }
             ],
             "Default": "Check Status"
+        },
+        "Check Status": {
+            "Type": "Wait",
+            "Seconds": 30,
+            "Next": "Get Load Command Status"
         },
         "Stop Execution": {
             "Type": "Task",
@@ -102,27 +107,12 @@
             "Parameters": {
                 "ExecutionArn.$": "$.sqs.Body.execution_arn"
             },
-            "End": true
-        },
-        "Check Status": {
-            "Type": "Wait",
-            "Seconds": 30,
-            "Next": "Get Load Command Status"
-        },
-        "Evaluate Load Result": {
-            "Type": "Choice",
-            "Choices": [
-                {
-                    "Variable": "$[1].Error",
-                    "IsPresent": true,
-                    "Next": "Return Message to Load Queue"
-                }
-            ],
-            "Default": "Delete Message from Load Queue"
+            "ResultPath": null,
+            "Next": "Return Message to Load Queue"
         },
         "Return Message to Load Queue": {
             "Type": "Task",
-            "InputPath": "$[0]",
+            "InputPath": "$",
             "Resource": "arn:aws:states:::aws-sdk:sqs:changeMessageVisibility",
             "Parameters": {
                 "QueueUrl": "${GfeDbLoadQueueUrl}",
@@ -135,7 +125,7 @@
         "Update Status → LOAD_FAILED": {
             "Type": "Pass",
             "Result": "LOAD_FAILED",
-            "ResultPath": "$[0].sqs.Body.state.execution.status",
+            "ResultPath": "$.sqs.Body.state.execution.status",
             "Next": "Sync State → LOAD_FAILED"
         },
         "Sync State → LOAD_FAILED": {
@@ -147,32 +137,32 @@
                 "TableName": "${GfeDbExecutionStateTable}",
                 "Key": {
                     "commit__sha": {
-                        "S.$": "$[0].sqs.Body.state.commit.sha"
+                        "S.$": "$.sqs.Body.input.commit_sha"
                     },
                     "execution__version": {
-                        "N.$": "States.Format('{}', $[0].sqs.Body.state.execution.version)"
+                        "N.$": "States.Format('{}', $.sqs.Body.input.version)"
                     }
                 },
                 "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc, error__message = :error, error__cause = :cause",
                 "ExpressionAttributeValues": {
                     ":status": {
-                        "S.$": "$[0].sqs.Body.state.execution.status"
+                        "S.$": "$.sqs.Body.state.execution.status"
                     },
                     ":updated_utc": {
                         "S.$": "$$.State.EnteredTime"
                     },
                     ":error": {
-                        "S.$": "$[1].Error"
+                        "S": "$[1].Error"
                     },
                     ":cause": {
-                        "S.$": "$[1].Cause"
+                        "S": "$[1].Cause"
                     }
                 }
             }
         },
         "Delete Message from Load Queue": {
             "Type": "Task",
-            "InputPath": "$[0]",
+            "InputPath": "$",
             "Resource": "arn:aws:states:::aws-sdk:sqs:deleteMessage",
             "Parameters": {
                 "QueueUrl": "${GfeDbLoadQueueUrl}",
@@ -184,23 +174,23 @@
         "Update Status → LOAD_COMPLETE": {
             "Type": "Pass",
             "Result": "LOAD_COMPLETE",
-            "ResultPath": "$[0].sqs.Body.state.execution.status",
+            "ResultPath": "$.sqs.Body.state.execution.status",
             "Next": "Sync State → LOAD_COMPLETE"
         },
         "Sync State → LOAD_COMPLETE": {
             "Type": "Task",
             "Resource": "arn:aws:states:::dynamodb:updateItem",
-            "InputPath": "$[0]",
+            "InputPath": "$",
             "ResultPath": null,
             "Next": "Check Alarm State",
             "Parameters": {
                 "TableName": "${GfeDbExecutionStateTable}",
                 "Key": {
                     "commit__sha": {
-                        "S.$": "$.sqs.Body.state.commit.sha"
+                        "S.$": "$.sqs.Body.input.commit_sha"
                     },
                     "execution__version": {
-                        "N.$": "States.Format('{}', $.sqs.Body.state.execution.version)"
+                        "N.$": "States.Format('{}', $.sqs.Body.input.version)"
                     }
                 },
                 "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc",
