@@ -5,6 +5,8 @@ set -e
 
 ERR_MSG=null
 
+source /home/ec2-user/env.sh
+
 if [[ -z $APP_NAME ]]; then
     ERR_MSG="APP_NAME environment variable not set"
     echo $ERR_MSG >&2
@@ -30,9 +32,12 @@ if [[ -z $1 ]]; then
 fi
 
 load_event=$1
-release=$(echo "$load_event" | jq -r '.input.version')
+# Log the load event
+echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Load event: $load_event"
+
+release=$(echo "$load_event" | jq -r '.sqs.Body.input.version')
 if [[ -z $release || "$release" == "null" || ! $release =~ ^[0-9]{1,4}$ ]]; then
-    ERR_MSG="Release version not found, is 'null', or is not a 1-4 digit integer"
+    ERR_MSG="Release version \"$release\" not found, is \"null\", or is not a 1-4 digit integer"
     echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - $ERR_MSG" >&2
     exit 1
 else
