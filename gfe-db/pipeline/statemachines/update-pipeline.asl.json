@@ -377,7 +377,7 @@
                         },
                         "Wait for Load Status": {
                             "Type": "Wait",
-                            "Seconds": 10,
+                            "Seconds": 60,
                             "Next": "Check Status"
                         },
                         "Check Status": {
