@@ -9,8 +9,7 @@ if __name__ != "app":
     sys.path.append(os.environ["GFEDBMODELS_PATH"])
 import logging
 import json
-import traceback
-from gfedbmodels.types import ExecutionPayloadItem, ExecutionStateItem
+from gfedbmodels.types import ExecutionPayloadItem
 from gfedbmodels.constants import session, pipeline
 from gfedbmodels.utils import get_utc_now
 
@@ -53,8 +52,10 @@ def lambda_handler(event, context):
         return 0
 
     except Exception as e:
-        logger.error(json.dumps(event))
-        logger.error(traceback.format_exc())
+        import traceback
+        message = f"Error updating execution state: {e}\n{traceback.format_exc()}\n{json.dumps(event)}"
+        logger.error(message)
+        raise Exception(message)
 
         return 1
 

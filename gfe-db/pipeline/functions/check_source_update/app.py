@@ -275,12 +275,10 @@ def lambda_handler(event, context):
     
     except Exception as e:
         import traceback
-
         message = f"Error processing releases: {e}\n{traceback.format_exc()}\n{json.dumps(event)}"
         logger.error(message)
         raise Exception(message)
-
-    return
+    
 
 def generate_execution_id(sha: str, timestamp: str, version: int = None) -> str:
     """Generate an execution id for the state machine execution with format:

@@ -82,9 +82,8 @@ def lambda_handler(event, context):
 
         except Exception as e:
             import traceback
-
-            msg = f'Error processing commit {message["commit_sha"]}: {e}\n{traceback.format_exc()}'
-            logger.error(msg)
+            message = f'Error processing commit {message["commit_sha"]}: {e}\n{traceback.format_exc()}'
+            logger.error(message)
             errors += 1
             continue
 
