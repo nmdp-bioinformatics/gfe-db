@@ -358,6 +358,8 @@
                             "Type": "Pass",
                             "Parameters": {
                                 "input.$": "$.input",
+                                "validations.$": "$.validations",
+                                "state.$": "$.state",
                                 "execution_arn.$": "$$.Execution.Id"
                             },
                             "ResultPath": "$",

@@ -104,8 +104,9 @@ def lambda_handler(event, context):
     
     except Exception as e:
         import traceback
-        message = f"Error evaluating query results: {e}\n{traceback.format_exc()}\n{json.dumps(event)}"
+        message = f"Error evaluating query results: {e}\n{traceback.format_exc()}"
         logger.error(message)
+        logger.error(f"Event: {json.dumps(event)}")
         raise Exception(message)
 
 if __name__ == "__main__":
