@@ -18,6 +18,7 @@ if __name__ != "app":
 import logging
 from decimal import Decimal
 from datetime import datetime, timedelta
+import time
 import json
 from pygethub import list_branches, GitHubPaginator
 from gfedbmodels.constants import session, pipeline
@@ -67,7 +68,6 @@ GITHUB_PERSONAL_ACCESS_TOKEN = pipeline.secrets.GitHubPersonalAccessToken
 s3 = session.client("s3")
 dynamodb = session.resource("dynamodb")
 queue = session.resource("sqs")
-
 gfedb_processing_queue = queue.Queue(gfedb_processing_queue_url)
 
 logger.info(
@@ -262,6 +262,9 @@ def lambda_handler(event, context):
                 MessageDeduplicationId=str(item["version"]),
                 MessageBody=json.dumps(item)
             )
+
+            # wait n seconds so that the messages are processed in order
+            time.sleep(5)
 
         message = f"Queued {len(execution_payload)} release(s) for processing"
         logger.info(message)
