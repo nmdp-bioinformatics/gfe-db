@@ -405,9 +405,7 @@ infrastructure.service.deploy:
 	$(MAKE) -C ${APP_NAME}/infrastructure/ service.deploy
 
 infrastructure.access-services.deploy:
-	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/nat-gateway/ deploy
-	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/bastion-server/ deploy
-	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/vpc-endpoints/ deploy
+	$(MAKE) -C ${APP_NAME}/infrastructure/ service.access-services.deploy
 
 infrastructure.access-services.nat-gateway.deploy:
 	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/nat-gateway/ deploy
