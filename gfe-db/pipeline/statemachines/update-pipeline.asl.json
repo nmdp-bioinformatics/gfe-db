@@ -413,7 +413,15 @@
                             "Type": "Task",
                             "Resource": "${ExecuteValidationQueriesFunctionArn}",
                             "ResultPath": "$.validations.queries.post",
-                            "Next": "Evaluate Query Results"
+                            "Next": "Evaluate Query Results",
+                            "Retry": [
+                                {
+                                    "ErrorEquals": ["States.ALL"],
+                                    "IntervalSeconds": 2,
+                                    "MaxAttempts": 3,
+                                    "BackoffRate": 2
+                                }
+                            ]
                         },
                         "Evaluate Query Results": {
                             "Type": "Task",
