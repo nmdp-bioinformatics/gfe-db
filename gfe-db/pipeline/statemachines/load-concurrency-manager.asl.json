@@ -37,7 +37,7 @@
                 {
                     "Variable": "$.sqs.MessageId",
                     "IsPresent": true,
-                    "Next": "Execute Load Query"
+                    "Next": "Handle Load Query Execution"
                 }
             ],
             "Default": "Wait for Message"
@@ -47,162 +47,213 @@
             "Seconds": 30,
             "Next": "Check Alarm State"
         },
-        "Execute Load Query": {
-            "Type": "Task",
-            "Resource": "${InvokeLoadScriptFunctionArn}",
-            "ResultPath": "$",
-            "Next": "Get Load Command Status"
-        },
-        "Get Load Command Status": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::aws-sdk:ssm:getCommandInvocation",
-            "Parameters": {
-                "CommandId.$": "$.ssm.CommandId",
-                "InstanceId.$": "$.ssm.InstanceId"
-            },
-            "Next": "Evaluate Load Command Status",
-            "ResultSelector": {
-                "CommandId.$": "$.CommandId",
-                "InstanceId.$": "$.InstanceId",
-                "Status.$": "$.Status"
-            },
-            "ResultPath": "$.ssm"
-        },
-        "Evaluate Load Command Status": {
-            "Type": "Choice",
-            "Choices": [
+        "Handle Load Query Execution": {
+            "Type": "Parallel",
+            "OutputPath": "$.[0]",
+            "Next": "Handle Load Success",
+            "Catch": [
                 {
-                    "Or": [
-                        {
-                            "Variable": "$.ssm.Status",
-                            "StringEquals": "Failed"
-                        },
-                        {
-                            "Variable": "$.ssm.Status",
-                            "StringEquals": "Cancelled"
-                        },
-                        {
-                            "Variable": "$.ssm.Status",
-                            "StringEquals": "TimedOut"
-                        }
+                    "ErrorEquals": [
+                        "States.ALL"
                     ],
-                    "Next": "Stop Execution"
-                },
-                {
-                    "Variable": "$.ssm.Status",
-                    "StringEquals": "Success",
-                    "Next": "Delete Message from Load Queue"
+                    "Next": "Handle Load Failure"
                 }
             ],
-            "Default": "Check Status"
-        },
-        "Check Status": {
-            "Type": "Wait",
-            "Seconds": 30,
-            "Next": "Get Load Command Status"
-        },
-        "Stop Execution": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::aws-sdk:sfn:stopExecution",
-            "Parameters": {
-                "ExecutionArn.$": "$.sqs.Body.execution_arn"
-            },
-            "ResultPath": null,
-            "Next": "Return Message to Load Queue"
-        },
-        "Return Message to Load Queue": {
-            "Type": "Task",
-            "InputPath": "$",
-            "Resource": "arn:aws:states:::aws-sdk:sqs:changeMessageVisibility",
-            "Parameters": {
-                "QueueUrl": "${GfeDbLoadQueueUrl}",
-                "ReceiptHandle.$": "$.sqs.ReceiptHandle",
-                "VisibilityTimeout": 0
-            },
-            "ResultPath": null,
-            "Next": "Update Status → LOAD_FAILED"
-        },
-        "Update Status → LOAD_FAILED": {
-            "Type": "Pass",
-            "Result": "LOAD_FAILED",
-            "ResultPath": "$.sqs.Body.state.execution.status",
-            "Next": "Sync State → LOAD_FAILED"
-        },
-        "Sync State → LOAD_FAILED": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::dynamodb:updateItem",
-            "ResultPath": null,
-            "Next": "Check Alarm State",
-            "Parameters": {
-                "TableName": "${GfeDbExecutionStateTable}",
-                "Key": {
-                    "commit__sha": {
-                        "S.$": "$.sqs.Body.input.commit_sha"
-                    },
-                    "execution__version": {
-                        "N.$": "States.Format('{}', $.sqs.Body.input.version)"
-                    }
-                },
-                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc, error__message = :error, error__cause = :cause",
-                "ExpressionAttributeValues": {
-                    ":status": {
-                        "S.$": "$.sqs.Body.state.execution.status"
-                    },
-                    ":updated_utc": {
-                        "S.$": "$$.State.EnteredTime"
-                    },
-                    ":error": {
-                        "S": "$[1].Error"
-                    },
-                    ":cause": {
-                        "S": "$[1].Cause"
-                    }
-                }
-            }
-        },
-        "Delete Message from Load Queue": {
-            "Type": "Task",
-            "InputPath": "$",
-            "Resource": "arn:aws:states:::aws-sdk:sqs:deleteMessage",
-            "Parameters": {
-                "QueueUrl": "${GfeDbLoadQueueUrl}",
-                "ReceiptHandle.$": "$.sqs.ReceiptHandle"
-            },
-            "ResultPath": null,
-            "Next": "Update Status → LOAD_COMPLETE"
-        },
-        "Update Status → LOAD_COMPLETE": {
-            "Type": "Pass",
-            "Result": "LOAD_COMPLETE",
-            "ResultPath": "$.sqs.Body.state.execution.status",
-            "Next": "Sync State → LOAD_COMPLETE"
-        },
-        "Sync State → LOAD_COMPLETE": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::dynamodb:updateItem",
-            "InputPath": "$",
-            "ResultPath": null,
-            "Next": "Check Alarm State",
-            "Parameters": {
-                "TableName": "${GfeDbExecutionStateTable}",
-                "Key": {
-                    "commit__sha": {
-                        "S.$": "$.sqs.Body.input.commit_sha"
-                    },
-                    "execution__version": {
-                        "N.$": "States.Format('{}', $.sqs.Body.input.version)"
-                    }
-                },
-                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc",
-                "ExpressionAttributeValues": {
-                    ":status": {
-                        "S.$": "$.sqs.Body.state.execution.status"
-                    },
-                    ":updated_utc": {
-                        "S.$": "$$.State.EnteredTime"
+            "Branches": [
+                {
+                    "StartAt": "Execute Load Query",
+                    "States": {
+                        "Execute Load Query": {
+                            "Type": "Task",
+                            "Resource": "${InvokeLoadScriptFunctionArn}",
+                            "ResultPath": "$",
+                            "Next": "Get Load Command Status"
+                        },
+                        "Get Load Command Status": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::aws-sdk:ssm:getCommandInvocation",
+                            "Parameters": {
+                                "CommandId.$": "$.ssm.CommandId",
+                                "InstanceId.$": "$.ssm.InstanceId"
+                            },
+                            "Next": "Evaluate Load Command Status",
+                            "ResultSelector": {
+                                "CommandId.$": "$.CommandId",
+                                "InstanceId.$": "$.InstanceId",
+                                "Status.$": "$.Status"
+                            },
+                            "ResultPath": "$.ssm"
+                        },
+                        "Evaluate Load Command Status": {
+                            "Type": "Choice",
+                            "Choices": [
+                                {
+                                    "Or": [
+                                        {
+                                            "Variable": "$.ssm.Status",
+                                            "StringEquals": "Failed"
+                                        },
+                                        {
+                                            "Variable": "$.ssm.Status",
+                                            "StringEquals": "Cancelled"
+                                        },
+                                        {
+                                            "Variable": "$.ssm.Status",
+                                            "StringEquals": "TimedOut"
+                                        }
+                                    ],
+                                    "Next": "Load Failed"
+                                },
+                                {
+                                    "Variable": "$.ssm.Status",
+                                    "StringEquals": "Success",
+                                    "Next": "Load Succeeded"
+                                }
+                            ],
+                            "Default": "Check Status"
+                        },
+                        "Check Status": {
+                            "Type": "Wait",
+                            "Seconds": 30,
+                            "Next": "Get Load Command Status"
+                        },
+                        "Load Failed": {
+                            "Type": "Fail"
+                        },
+                        "Load Succeeded": {
+                            "Type": "Pass",
+                            "End": true
+                        }
                     }
                 }
-            }
+            ]
+        },
+        "Handle Load Failure": {
+            "Type": "Parallel",
+            "OutputPath": "$.[0]",
+            "Next": "Check Alarm State",
+            "Branches": [
+                {
+                    "StartAt": "Stop Execution",
+                    "States": {
+                        "Stop Execution": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::aws-sdk:sfn:stopExecution",
+                            "Parameters": {
+                                "ExecutionArn.$": "$.sqs.Body.execution_arn"
+                            },
+                            "ResultPath": null,
+                            "Next": "Return Message to Load Queue"
+                        },
+                        "Return Message to Load Queue": {
+                            "Type": "Task",
+                            "InputPath": "$",
+                            "Resource": "arn:aws:states:::aws-sdk:sqs:changeMessageVisibility",
+                            "Parameters": {
+                                "QueueUrl": "${GfeDbLoadQueueUrl}",
+                                "ReceiptHandle.$": "$.sqs.ReceiptHandle",
+                                "VisibilityTimeout": 0
+                            },
+                            "ResultPath": null,
+                            "Next": "Update Status → LOAD_FAILED"
+                        },
+                        "Update Status → LOAD_FAILED": {
+                            "Type": "Pass",
+                            "Result": "LOAD_FAILED",
+                            "ResultPath": "$.sqs.Body.state.execution.status",
+                            "Next": "Sync State → LOAD_FAILED"
+                        },
+                        "Sync State → LOAD_FAILED": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::dynamodb:updateItem",
+                            "ResultPath": null,
+                            "End": true,
+                            "Parameters": {
+                                "TableName": "${GfeDbExecutionStateTable}",
+                                "Key": {
+                                    "commit__sha": {
+                                        "S.$": "$.sqs.Body.input.commit_sha"
+                                    },
+                                    "execution__version": {
+                                        "N.$": "States.Format('{}', $.sqs.Body.input.version)"
+                                    }
+                                },
+                                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc, error__message = :error, error__cause = :cause",
+                                "ExpressionAttributeValues": {
+                                    ":status": {
+                                        "S.$": "$.sqs.Body.state.execution.status"
+                                    },
+                                    ":updated_utc": {
+                                        "S.$": "$$.State.EnteredTime"
+                                    },
+                                    ":error": {
+                                        "S": "$[1].Error"
+                                    },
+                                    ":cause": {
+                                        "S": "$[1].Cause"
+                                    }
+                                }
+                            }
+                        }    
+                    }
+                }
+            ]
+        },
+        "Handle Load Success": {
+            "Type": "Parallel",
+            "OutputPath": "$.[0]",
+            "Next": "Check Alarm State",
+            "Branches": [
+                {
+                    "StartAt": "Delete Message from Load Queue",
+                    "States": {
+                        "Delete Message from Load Queue": {
+                            "Type": "Task",
+                            "InputPath": "$",
+                            "Resource": "arn:aws:states:::aws-sdk:sqs:deleteMessage",
+                            "Parameters": {
+                                "QueueUrl": "${GfeDbLoadQueueUrl}",
+                                "ReceiptHandle.$": "$.sqs.ReceiptHandle"
+                            },
+                            "ResultPath": null,
+                            "Next": "Update Status → LOAD_COMPLETE"
+                        },
+                        "Update Status → LOAD_COMPLETE": {
+                            "Type": "Pass",
+                            "Result": "LOAD_COMPLETE",
+                            "ResultPath": "$.sqs.Body.state.execution.status",
+                            "Next": "Sync State → LOAD_COMPLETE"
+                        },
+                        "Sync State → LOAD_COMPLETE": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::dynamodb:updateItem",
+                            "InputPath": "$",
+                            "ResultPath": null,
+                            "End": true,
+                            "Parameters": {
+                                "TableName": "${GfeDbExecutionStateTable}",
+                                "Key": {
+                                    "commit__sha": {
+                                        "S.$": "$.sqs.Body.input.commit_sha"
+                                    },
+                                    "execution__version": {
+                                        "N.$": "States.Format('{}', $.sqs.Body.input.version)"
+                                    }
+                                },
+                                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc",
+                                "ExpressionAttributeValues": {
+                                    ":status": {
+                                        "S.$": "$.sqs.Body.state.execution.status"
+                                    },
+                                    ":updated_utc": {
+                                        "S.$": "$$.State.EnteredTime"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
         },
         "Check Alarm State": {
             "Type": "Task",
