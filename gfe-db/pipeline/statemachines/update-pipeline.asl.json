@@ -53,9 +53,9 @@
             ],
             "Branches": [
                 {
-                    "StartAt": "Sync State → BUILD_IN_PROGRESS",
+                    "StartAt": "Sync Status → BUILD_IN_PROGRESS",
                     "States": {
-                        "Sync State → BUILD_IN_PROGRESS": {
+                        "Sync Status → BUILD_IN_PROGRESS": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
@@ -170,9 +170,9 @@
                             "Type": "Pass",
                             "Result": "BUILD_SUCCESS",
                             "ResultPath": "$.state.execution.status",
-                            "Next": "Sync State → BUILD_SUCCESS"
+                            "Next": "Sync Status → BUILD_SUCCESS"
                         },
-                        "Sync State → BUILD_SUCCESS": {
+                        "Sync Status → BUILD_SUCCESS": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
@@ -202,9 +202,9 @@
                             "Type": "Pass",
                             "Result": "BUILD_FAILURE",
                             "ResultPath": "$.state.execution.status",
-                            "Next": "Sync State → BUILD_FAILURE"
+                            "Next": "Sync Status → BUILD_FAILURE"
                         },
-                        "Sync State → BUILD_FAILURE": {
+                        "Sync Status → BUILD_FAILURE": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
@@ -268,9 +268,9 @@
                             "Type": "Pass",
                             "Result": "LOAD_SKIPPED",
                             "ResultPath": "$.state.execution.status",
-                            "Next": "Sync State → LOAD_SKIPPED"
+                            "Next": "Sync Status → LOAD_SKIPPED"
                         },
-                        "Sync State → LOAD_SKIPPED": {
+                        "Sync Status → LOAD_SKIPPED": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
@@ -321,9 +321,9 @@
             ],
             "Branches": [
                 {
-                    "StartAt": "Sync State → LOAD_IN_PROGRESS",
+                    "StartAt": "Sync Status → LOAD_IN_PROGRESS",
                     "States": {
-                        "Sync State → LOAD_IN_PROGRESS": {
+                        "Sync Status → LOAD_IN_PROGRESS": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
@@ -444,9 +444,9 @@
                             "Type": "Pass",
                             "Result": "LOAD_SUCCESS",
                             "ResultPath": "$.state.execution.status",
-                            "Next": "Sync State → LOAD_SUCCESS"
+                            "Next": "Sync Status → LOAD_SUCCESS"
                         },
-                        "Sync State → LOAD_SUCCESS": {
+                        "Sync Status → LOAD_SUCCESS": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
@@ -476,9 +476,9 @@
                             "Type": "Pass",
                             "Result": "LOAD_INVALID",
                             "ResultPath": "$.state.execution.status",
-                            "Next": "Sync State → LOAD_FAILED"
+                            "Next": "Sync Status → LOAD_INVALID"
                         },
-                        "Sync State → LOAD_FAILED": {
+                        "Sync Status → LOAD_INVALID": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
@@ -519,9 +519,9 @@
             "Next": "Format Results",
             "Branches": [
                 {
-                    "StartAt": "Get Current State",
+                    "StartAt": "Get Current Status",
                     "States": {
-                        "Get Current State": {
+                        "Get Current Status": {
                             "Type": "Task",
                             "Resource": "${GetExecutionStateFunctionArn}",
                             "ResultPath": "$.state",
@@ -544,7 +544,7 @@
                                             "StringEquals": "LOAD_FAILED"
                                         }
                                     ],
-                                    "Next": "Sync State → EXECUTION_FAILED"
+                                    "Next": "Sync Error Status"
                                 }
                             ],
                             "Default": "Update Status → EXECUTION_FAILED"
@@ -553,9 +553,9 @@
                             "Type": "Pass",
                             "Result": "EXECUTION_FAILED",
                             "ResultPath": "$.state.execution.status",
-                            "Next": "Sync State → EXECUTION_FAILED"
+                            "Next": "Sync Error Status"
                         },
-                        "Sync State → EXECUTION_FAILED": {
+                        "Sync Error Status": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,

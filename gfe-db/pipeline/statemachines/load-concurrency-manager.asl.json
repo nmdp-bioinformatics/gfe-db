@@ -50,13 +50,13 @@
         "Handle Load Query Execution": {
             "Type": "Parallel",
             "OutputPath": "$.[0]",
-            "Next": "Handle Load Success",
+            "Next": "Check Alarm State",
             "Catch": [
                 {
                     "ErrorEquals": [
                         "States.ALL"
                     ],
-                    "Next": "Handle Load Failure"
+                    "Next": "Check Alarm State"
                 }
             ],
             "Branches": [
@@ -67,7 +67,15 @@
                             "Type": "Task",
                             "Resource": "${InvokeLoadScriptFunctionArn}",
                             "ResultPath": "$",
-                            "Next": "Get Load Command Status"
+                            "Next": "Get Load Command Status",
+                            "Retry": [
+                                {
+                                    "ErrorEquals": ["States.ALL"],
+                                    "IntervalSeconds": 2,
+                                    "MaxAttempts": 3,
+                                    "BackoffRate": 2.0
+                                }
+                            ]
                         },
                         "Get Load Command Status": {
                             "Type": "Task",
@@ -102,48 +110,15 @@
                                             "StringEquals": "TimedOut"
                                         }
                                     ],
-                                    "Next": "Load Failed"
+                                    "Next": "Return Message to Load Queue"
                                 },
                                 {
                                     "Variable": "$.ssm.Status",
                                     "StringEquals": "Success",
-                                    "Next": "Load Succeeded"
+                                    "Next": "Delete Message from Load Queue"
                                 }
                             ],
                             "Default": "Check Status"
-                        },
-                        "Check Status": {
-                            "Type": "Wait",
-                            "Seconds": 30,
-                            "Next": "Get Load Command Status"
-                        },
-                        "Load Failed": {
-                            "Type": "Fail"
-                        },
-                        "Load Succeeded": {
-                            "Type": "Pass",
-                            "End": true
-                        }
-                    }
-                }
-            ]
-        },
-        "Handle Load Failure": {
-            "Type": "Parallel",
-            "OutputPath": "$.[0]",
-            "Next": "Check Alarm State",
-            "Branches": [
-                {
-                    "StartAt": "Stop Execution",
-                    "States": {
-                        "Stop Execution": {
-                            "Type": "Task",
-                            "Resource": "arn:aws:states:::aws-sdk:sfn:stopExecution",
-                            "Parameters": {
-                                "ExecutionArn.$": "$.sqs.Body.execution_arn"
-                            },
-                            "ResultPath": null,
-                            "Next": "Return Message to Load Queue"
                         },
                         "Return Message to Load Queue": {
                             "Type": "Task",
@@ -161,9 +136,9 @@
                             "Type": "Pass",
                             "Result": "LOAD_FAILED",
                             "ResultPath": "$.sqs.Body.state.execution.status",
-                            "Next": "Sync State → LOAD_FAILED"
+                            "Next": "Sync Status → LOAD_FAILED"
                         },
-                        "Sync State → LOAD_FAILED": {
+                        "Sync Status → LOAD_FAILED": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "ResultPath": null,
@@ -187,26 +162,19 @@
                                         "S.$": "$$.State.EnteredTime"
                                     },
                                     ":error": {
-                                        "S": "$[1].Error"
+                                        "S": "$[0].Error"
                                     },
                                     ":cause": {
-                                        "S": "$[1].Cause"
+                                        "S": "$[0].Cause"
                                     }
                                 }
                             }
-                        }    
-                    }
-                }
-            ]
-        },
-        "Handle Load Success": {
-            "Type": "Parallel",
-            "OutputPath": "$.[0]",
-            "Next": "Check Alarm State",
-            "Branches": [
-                {
-                    "StartAt": "Delete Message from Load Queue",
-                    "States": {
+                        },
+                        "Check Status": {
+                            "Type": "Wait",
+                            "Seconds": 30,
+                            "Next": "Get Load Command Status"
+                        },
                         "Delete Message from Load Queue": {
                             "Type": "Task",
                             "InputPath": "$",
@@ -222,9 +190,9 @@
                             "Type": "Pass",
                             "Result": "LOAD_COMPLETE",
                             "ResultPath": "$.sqs.Body.state.execution.status",
-                            "Next": "Sync State → LOAD_COMPLETE"
+                            "Next": "Sync Status → LOAD_COMPLETE"
                         },
-                        "Sync State → LOAD_COMPLETE": {
+                        "Sync Status → LOAD_COMPLETE": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::dynamodb:updateItem",
                             "InputPath": "$",
