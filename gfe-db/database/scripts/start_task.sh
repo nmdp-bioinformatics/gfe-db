@@ -1,100 +1,52 @@
 #!/bin/bash -x
 
+# Exit immediately if a command exits with a non-zero status
 set -e
 
-# TODO remove the application logic to make this script agnostic
+ERR_MSG=null
 
-# Send task failure if script errors
-send_result () {
-    if [[ $status = "SUCCESS" ]]; then
-        echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Sending task success"
-        aws stepfunctions send-task-success \
-            --task-token "$TASK_TOKEN" \
-            --task-output "{\"status\":\"$status\"}" \
-            --region $AWS_REGION
-    else
-        echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Sending task failure"
-        aws stepfunctions send-task-failure \
-            --task-token "$TASK_TOKEN" \
-            --cause "$cause" \
-            --error "$error" \
-            --region $AWS_REGION
-    fi
-}
+source /home/ec2-user/env.sh
 
-trap 'cause="Script failed due to error on line $LINENO. Please see logs in System Manager Run Command history for more details" && error=$? && send_result && kill 0' ERR
+if [[ -z $APP_NAME ]]; then
+    ERR_MSG="APP_NAME environment variable not set"
+    echo $ERR_MSG >&2
+    exit 1
+fi
 
-export AWS_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')
+if [[ -z $STAGE ]]; then
+    ERR_MSG="STAGE environment variable not set"
+    echo $ERR_MSG >&2
+    exit 1
+fi
 
-export PARAMS=$1
-if [[ -z $PARAMS ]]; then
-    echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - No parameters found"
+# check that AWS_REGION is set from the environment
+if [[ -z $AWS_REGION ]]; then
+    export AWS_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')
+fi
+
+# Check for load event argument from command line
+if [[ -z $1 ]]; then
+    ERR_MSG="No load event provided"
+    echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - $ERR_MSG" >&2
+    exit 1
+fi
+
+load_event=$1
+# Log the load event
+echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Load event: $load_event"
+
+release=$(echo "$load_event" | jq -r '.sqs.Body.input.version')
+if [[ -z $release || "$release" == "null" || ! $release =~ ^[0-9]{1,4}$ ]]; then
+    ERR_MSG="Release version \"$release\" not found, is \"null\", or is not a 1-4 digit integer"
+    echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - $ERR_MSG" >&2
     exit 1
 else
-    echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Found parameters:"
-    echo "$PARAMS"
+    echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Starting load process for $release"
 fi
-
-export ACTIVITY_ARN=$(echo $PARAMS | jq -r '.params.activity_arn')
-
-# TODO can now source APP_NAME and STAGE from env.sh
-export APP_NAME=$(echo $PARAMS | jq -r '.params.app_name')
-
-echo "ACTIVITY_ARN=$ACTIVITY_ARN"
-echo "APP_NAME=$APP_NAME"
-
-# Poll StepFunctions API for new activities
-echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Polling for new activities..."
-export ACTIVITY=$(aws stepfunctions get-activity-task \
-    --activity-arn $ACTIVITY_ARN \
-    --worker-name $APP_NAME \
-    --region $AWS_REGION)
-
-echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Activity found"
-
-export TASK_TOKEN=$(echo $ACTIVITY | jq -r '.taskToken')
-export TASK_INPUT=$(echo $ACTIVITY | jq -r '.input')
-
-echo "TASK_TOKEN=$TASK_TOKEN"
-echo "TASK_INPUT=$TASK_INPUT"
-
-export RELEASE=$(echo $TASK_INPUT | jq -r '.RELEASES')
-export ALIGN=$(echo $TASK_INPUT | jq -r '.ALIGN')
-export KIR=$(echo $TASK_INPUT | jq -r '.KIR')
-
-echo "RELEASE=$RELEASE"
-echo "ALIGN=$ALIGN"
-echo "KIR=$KIR"
-
-# Check for release argument
-if [[ -z $RELEASE ]]; then
-    echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Release version not found"
-    kill -1 $$
-else
-    echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Starting load process for $RELEASE"
-fi
-
-# TODO: parameterize heartbeat and set interval / 2
-export HEARTBEAT_INTERVAL=30
-bash send_heartbeat.sh &
-send_heartbeat_pid=$!
 
 # Run task - invoke load script 
-bash load_db.sh $RELEASE
+bash load_db.sh $release
 TASK_EXIT_STATUS=$?
-echo "$(date -u +'%Y-%m-%d %H:%M:%S.%3N') - Task exit status: $TASK_EXIT_STATUS"
 
-# Send TaskSuccess token to StepFunctions
-if [[ $TASK_EXIT_STATUS != "0" ]]; then
-    status="FAILED"
-    error="$TASK_EXIT_STATUS"
-    cause="Task failed due to error on line $LINENO. Please see logs in System Manager Run Command history for more details."
-    send_result
-    kill 0
-else
-    status="SUCCESS"
-    send_result
-    kill $send_heartbeat_pid
-fi
-
-exit 0
+# Exit with the status of the load_db.sh script
+exit $TASK_EXIT_STATUS

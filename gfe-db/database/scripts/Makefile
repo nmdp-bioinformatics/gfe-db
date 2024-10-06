@@ -69,7 +69,6 @@ neo4j.config.backup:
 	@echo "Backing up Neo4j configuration to ${NEO4J_HOME}/conf/$$(date -u +'%Y-%m-%d-%H-%M')-neo4j.conf.bkp"
 	@cp "${NEO4J_HOME}/conf/neo4j.conf" "${NEO4J_HOME}/conf/$$(date -u +'%Y-%m-%d-%H-%M')-neo4j.conf.bkp"
 
-# TODO check if the APOC plugin is already installed for the version specified and skip if it is
 # https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/5.13.0/apoc-5.13.0-extended.jar
 neo4j.plugins.install-apoc-extended:
 	@rm -f ${NEO4J_HOME}/plugins/apoc-*.jar
@@ -77,7 +76,6 @@ neo4j.plugins.install-apoc-extended:
 	@curl -L https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/${APOC_VERSION}/apoc-${APOC_VERSION}-extended.jar -O
 	@mv apoc-${APOC_VERSION}-extended.jar ${NEO4J_HOME}/plugins/apoc-${APOC_VERSION}-extended.jar
 
-# TODO check if the GDS plugin is already installed for the version specified and skip if it is
 # https://graphdatascience.ninja/neo4j-graph-data-science-2.5.5.zip
 neo4j.plugins.install-gds:
 	@rm -f ${NEO4J_HOME}/plugins/neo4j-graph-data-science-*.jar
@@ -98,7 +96,7 @@ neo4j.update-permissions:
 neo4j.init.download-scripts:
 	@sudo -u neo4j mkdir -p ${NEO4J_HOME}/backups ${NEO4J_HOME}/cypher
 	@echo "Fetching Cypher scripts from S3..."
-	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/config/neo4j/cypher/ ${NEO4J_HOME}/cypher/
+	@aws s3 cp --recursive s3://${DATA_BUCKET_NAME}/${CONFIG_S3_PATH}/${SERVICE}/neo4j/cypher/ ${NEO4J_HOME}/cypher/
 
 neo4j.query.init: # public: neo4j+s://${SUBDOMAIN}.${HOST_DOMAIN}:7687; private: bolt://<private_ip>:7687
 	@echo "Executing initialization queries"

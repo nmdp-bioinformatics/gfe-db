@@ -1,0 +1,20 @@
+{
+    "Records": [
+        {
+            "messageId": "62eac214-84e3-4047-88a7-0a64a4cbed7b",
+            "receiptHandle": "AQEB44KYQWwCp5x0Q+OywMyKug9jAdoX5IRUa4fUKY+FMXgKtA9dMsjGzr06TndpXmrS/lra9WI40a+G/wc9zJ4dXij2BirX1xA7wiRYTg+QHGDkTY0QBOW13DecyEbifLqpBbeRLh6s2J+C2TdVjy1Gf8sGmlZUZg5TzrkQdQ/u2ezZNgDL/ALpsvPyejMzjqnASQSfJOhrjI68atyQdVZ5DZRwed/9CAcqHAvdS0Uv1j87OW9LEYt+ZINHYoYu4Sb18NBvIP2FQIcGql9q530HhjoYeUrP41glkRJqiL8HPrJhfvgdnVEzIzduvQkvjsX7V61C5VBSnQDa7vf/QS44LiqBhPkvkwuBDkI3yJ/qC20Vc02PQ5p1tpZctbNnliHKNl+jU01uinCH/SpC6SGHZipXB3hf+1vaFwG7YwgT/Pv1GVVu8uci8gCNbNiSRkV4",
+            "body": "{\"id\": \"3540_901b1b788a2ec2b4722c9672910ad880b29b368b_240107_194421\", \"version\": 3540, \"commit_sha\": \"901b1b788a2ec2b4722c9672910ad880b29b368b\", \"input_parameters\": {\"align\": false, \"kir\": false, \"mem_profile\": false, \"limit\": 1000, \"use_existing_build\": true, \"skip_load\": false}, \"s3_path\": \"s3://nmdpf-gfe-db-810526023897-us-east-1/data/3540\"}",
+            "attributes": {
+                "ApproximateReceiveCount": "1",
+                "SentTimestamp": "1704656711976",
+                "SenderId": "AROA3ZNY5UDMUNE5WAE5K:gregory",
+                "ApproximateFirstReceiveTimestamp": "1704656712000"
+            },
+            "messageAttributes": {},
+            "md5OfBody": "1d53a934a4f027498387994f344b78dd",
+            "eventSource": "aws:sqs",
+            "eventSourceARN": "arn:aws:sqs:us-east-1:810526023897:nmdpf-gfe-db-pipeline-GfeDbProcessingQueue-DQDFHzl2h1id",
+            "awsRegion": "us-east-1"
+        }
+    ]
+}

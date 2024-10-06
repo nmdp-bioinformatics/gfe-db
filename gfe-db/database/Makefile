@@ -10,23 +10,24 @@ deploy:
 	$(MAKE) service.deploy
 
 service.config.scripts.deploy:
-	@script_s3_path=s3://$$DATA_BUCKET_NAME/config/scripts/ && \
-	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying server scripts to $$script_s3_path" 2>&1 \
+	@config_s3_path=s3://${DATA_BUCKET_NAME}/${CONFIG_S3_PATH}/${SERVICE}/scripts/ && \
+	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying server scripts to $$config_s3_path" 2>&1 \
 		| tee -a $$CFN_LOG_PATH && \
-	aws s3 cp --recursive --quiet scripts/ $$script_s3_path
+	aws s3 cp --recursive --quiet scripts/ $$config_s3_path
 
 service.config.scripts.sync: service.config.scripts.deploy service.config.neo4j.deploy
 	@document_name="$$(aws ssm get-parameter \
-		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/DatabaseSyncScriptsDocumentName" | jq -r '.Parameter.Value')" && \
+		--name "/${APP_NAME}/${STAGE}/${AWS_REGION}/DatabaseSyncScriptsDocumentName" | jq -r '.Parameter.Value')" && \
 	res=$$(aws ssm send-command \
 		--document-name "$$document_name" \
 		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
-		--comment "${STAGE}-${APP_NAME} sync scripts to database server") && \
+		--comment "${STAGE}-${APP_NAME} sync scripts to database server" \
+		--cloud-watch-output-config '{"CloudWatchOutputEnabled":true}') && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
 	echo "\033[0;34mWaiting for command $$command_id to complete on server $${INSTANCE_ID}\033[0m" && \
 	aws ssm wait command-executed \
 		--command-id "$$command_id" \
-		--instance-id "$${INSTANCE_ID}" && \
+		--instance-id "${INSTANCE_ID}" && \
 	aws ssm get-command-invocation \
 		--command-id "$$command_id" \
 		--instance-id "$${INSTANCE_ID}" | jq -r '.StatusDetails' | tee -a $$CFN_LOG_PATH
@@ -34,14 +35,14 @@ service.config.scripts.sync: service.config.scripts.deploy service.config.neo4j.
 service.config.cloudwatch-agent.deploy:
 	@mkdir -p amazon-cloudwatch-agent/tmp/ 
 	@cat amazon-cloudwatch-agent/amazon-cloudwatch-agent.json | sed "s/STAGE/$${STAGE}/g" | sed "s/APP_NAME/$${APP_NAME}/g" > amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json
-	@config_s3_path=s3://$$DATA_BUCKET_NAME/config/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json && \
+	@config_s3_path=s3://${DATA_BUCKET_NAME}/${CONFIG_S3_PATH}/${SERVICE}/amazon-cloudwatch-agent/amazon-cloudwatch-agent.json && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deploying amazon-cloudwatch-agent config to $$config_s3_path" 2>&1 \
 		| tee -a $$CFN_LOG_PATH && \
 	aws s3 cp amazon-cloudwatch-agent/tmp/_amazon-cloudwatch-agent.json $$config_s3_path
 	@rm -rf amazon-cloudwatch-agent/tmp/
 
 service.config.neo4j.deploy:
-	@aws s3 cp --recursive --quiet neo4j/cypher/ s3://$$DATA_BUCKET_NAME/config/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
+	@aws s3 cp --recursive --quiet neo4j/cypher/ s3://${DATA_BUCKET_NAME}/${CONFIG_S3_PATH}/${SERVICE}/neo4j/cypher/ 2>&1 | tee -a $$CFN_LOG_PATH
 
 service.config.deploy: service.config.scripts.deploy service.config.cloudwatch-agent.deploy service.config.neo4j.deploy
 
@@ -50,7 +51,8 @@ service.ssl.renew-cert:
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/ec2-user && sudo make ssl.renew-cert]" \
 		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
-		--comment "${STAGE}-${APP_NAME} SSL certificate renewal utility") && \
+		--comment "${STAGE}-${APP_NAME} SSL certificate renewal utility" \
+		--cloud-watch-output-config '{"CloudWatchOutputEnabled":true}') && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
 	aws ssm wait command-executed \
 		--command-id "$$command_id" \
@@ -76,20 +78,23 @@ service.deploy:
 			Neo4jAmiId="$${NEO4J_AMI_ID}" \
 			Neo4jDatabaseName="$${NEO4J_DATABASE_NAME}" \
 			Neo4jPassword="$${NEO4J_PASSWORD}" \
+			ServiceName="${SERVICE}" \
+			ConfigS3Path="$${CONFIG_S3_PATH}" \
 			CreateNeo4jUsers="$${CREATE_NEO4J_USERS}" \
 			DatabaseVolumeSize="$${DATABASE_VOLUME_SIZE}" \
 			HostDomain="$${HOST_DOMAIN}" \
 			Subdomain="$${SUBDOMAIN}" \
 			AdminEmail="$${ADMIN_EMAIL}" \
 			APOCVersion="$${APOC_VERSION}" \
-			GDSVersion="$${GDS_VERSION}" 2>&1 | tee -a $$CFN_LOG_PATH || true
+			GDSVersion="$${GDS_VERSION}"
 
 service.backup:
 	@res=$$(aws ssm send-command \
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/ec2-user && sudo make neo4j.backup]" \
 		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
-		--comment "${STAGE}=${APP_NAME} backup service") && \
+		--comment "${STAGE}=${APP_NAME} backup service" \
+		--cloud-watch-output-config '{"CloudWatchOutputEnabled":true}') && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
 	aws ssm wait command-executed \
 		--command-id "$$command_id" \
@@ -116,7 +121,8 @@ service.restore: #from_path=s3://<backup path>
 		--document-name "AWS-RunShellScript" \
 		--parameters "commands=[cd /home/ec2-user && sudo make neo4j.restore from_path=$$from_path]" \
 		--targets "Key=instanceids,Values=$${INSTANCE_ID}" \
-		--comment "${STAGE}=${APP_NAME} restore service") && \
+		--comment "${STAGE}=${APP_NAME} restore service" \
+		--cloud-watch-output-config '{"CloudWatchOutputEnabled":true}') && \
 	command_id=$$(echo "$$res" | jq -r '.Command.CommandId') && \
 	aws ssm wait command-executed \
 		--command-id "$$command_id" \
@@ -139,6 +145,9 @@ service.connect:
 	echo "Connecting to Neo4j EC2 instance at $$instance_ip" && \
 	ssh -o "IdentitiesOnly yes" -tt -i ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem ec2-user@$$instance_ip
 
+service.start-session:
+	@res=$$(aws ssm get-parameters --names "/${APP_NAME}/${STAGE}/${AWS_REGION}/Neo4jDatabaseInstanceId" | jq -r '.Parameters[0].Value') && \
+	aws ssm start-session --target "$$res"
 
 delete: ##=> Delete resources
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} service" 2>&1 | tee -a $$CFN_LOG_PATH

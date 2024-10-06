@@ -1,36 +1,41 @@
 {
-    "input": [
-      {
-        "ALIGN": "False",
-        "KIR": "False",
-        "LIMIT": "1000",
-        "MEM_PROFILE": "False",
-        "RELEASES": "3450"
-      }
-    ],
+    "input": {
+      "version": 3500,
+      "commit_sha": "50b790037030d958b662085c3f4cf34ba72a32ec",
+      "input_parameters": {
+        "align": false,
+        "kir": false,
+        "mem_profile": false,
+        "limit": 1000,
+        "use_existing_build": true,
+        "skip_load": false
+      },
+      "s3_path": "s3://nmdpf-gfe-db-810526023897-us-east-1/data/3500",
+      "receipt_handle": "AQEBEtdJKEOIhBCO24mxSnC8Q7RP8bFbXbsUuwd9Ix3vgj2QwRnLOPtvIaBlKaZQFaUU9qj9VitZBZXv0wTHkleavmWo7WnhtfsKFyCmB8I/1wAise2Lzo0y6GisRyKSDMJd+tmtZUgX2tfPEQ8cx4N6hHvlWXW2XhoEH0h5fWtJj2pCKUcnqdJQcinSVoLrfGZpZpYnZ+fhiDqcnBsP3lv6XcUY+2MynHK1QkadxhM2JXipAj5qb7lVS0lCSiWfTaHcph1RExmO4k/QNZBJGr41JVmqPONqO9Dp8ryyXIpavPLvP/uK6OAkppXbQVM5VqNEEx7Njqd2e9C2NoYXKCrGToigN62rEOWzL72L/rFHHXMGXhiCJnd7J67g8Ni5ejDI6t6zkbMlvdLTnegLtVt91MwW4+Hfpwr2dtZJwpsu0zPa0qYF6CaliYanA8CJVzLI"
+    },
     "validations": {
       "queries": {
         "pre": {
           "node_counts": [
             {
               "node": "GFE",
-              "count": 1137
+              "count": 1045
             },
             {
               "node": "IPD_Accession",
-              "count": 1124
+              "count": 1042
             },
             {
               "node": "IPD_Allele",
-              "count": 1126
+              "count": 1042
             },
             {
               "node": "Sequence",
-              "count": 1137
+              "count": 1045
             },
             {
               "node": "Feature",
-              "count": 1220
+              "count": 1134
             },
             {
               "node": "Submitter",
@@ -39,23 +44,7 @@
           ],
           "has_ipd_allele_release_counts": [
             {
-              "release_version": "3450",
-              "count": 1000
-            },
-            {
-              "release_version": "3460",
-              "count": 1000
-            },
-            {
-              "release_version": "3470",
-              "count": 1000
-            },
-            {
-              "release_version": "3480",
-              "count": 1000
-            },
-            {
-              "release_version": "3490",
+              "release_version": "3500",
               "count": 1000
             },
             {
@@ -63,172 +52,227 @@
               "count": 1000
             },
             {
-              "release_version": "3520",
+              "release_version": "3530",
+              "count": 1000
+            },
+            {
+              "release_version": "3540",
               "count": 1000
             }
           ],
           "ipd_accession_release_counts": [
             {
-              "release_version": "3.51.0",
+              "release_version": "3.54.0",
               "count": 1000
             },
             {
-              "release_version": "3.52.0",
-              "count": 8
+              "release_version": "3.53.0",
+              "count": 19
             },
             {
-              "release_version": "3.49.0",
-              "count": 14
+              "release_version": "3.51.0",
+              "count": 20
             },
             {
-              "release_version": "3.48.0",
-              "count": 16
-            },
-            {
-              "release_version": "3.47.0",
-              "count": 12
-            },
-            {
-              "release_version": "3.46.0",
-              "count": 52
-            },
-            {
-              "release_version": "3.45.0",
-              "count": 35
+              "release_version": "3.50.0",
+              "count": 6
             }
           ]
         }
       },
-      "build": {
-        "validated": [
+      "check_existing_build": {
+        "Contents": [
           {
-            "ALIGN": "False",
-            "KIR": "False",
-            "LIMIT": "1000",
-            "MEM_PROFILE": "False",
-            "RELEASES": "3450"
+            "ETag": "\"c341cc4f442f15a110757be60fb3331d\"",
+            "Key": "data/3500/csv/all_cds.3500.csv",
+            "LastModified": "2024-01-02T22:49:02Z",
+            "Owner": {
+              "DisplayName": "gclindsey+awstesting",
+              "Id": "c7bf5cd354a38116b91f478b895cf40889f01091a7d26941d8a367727278b611"
+            },
+            "Size": 1372160,
+            "StorageClass": "STANDARD"
+          },
+          {
+            "ETag": "\"6ebdda54dc563f5ea743903c269e3a45\"",
+            "Key": "data/3500/csv/all_features.3500.csv",
+            "LastModified": "2024-01-02T22:49:02Z",
+            "Owner": {
+              "DisplayName": "gclindsey+awstesting",
+              "Id": "c7bf5cd354a38116b91f478b895cf40889f01091a7d26941d8a367727278b611"
+            },
+            "Size": 3646635,
+            "StorageClass": "STANDARD"
+          },
+          {
+            "ETag": "\"5e682da8b24df44dc4a72b062789da24\"",
+            "Key": "data/3500/csv/all_groups.3500.csv",
+            "LastModified": "2024-01-02T22:49:02Z",
+            "Owner": {
+              "DisplayName": "gclindsey+awstesting",
+              "Id": "c7bf5cd354a38116b91f478b895cf40889f01091a7d26941d8a367727278b611"
+            },
+            "Size": 292877,
+            "StorageClass": "STANDARD"
+          },
+          {
+            "ETag": "\"03ff807494ee1743c9c59141987a1e70\"",
+            "Key": "data/3500/csv/gfe_sequences.3500.csv",
+            "LastModified": "2024-01-02T22:49:02Z",
+            "Owner": {
+              "DisplayName": "gclindsey+awstesting",
+              "Id": "c7bf5cd354a38116b91f478b895cf40889f01091a7d26941d8a367727278b611"
+            },
+            "Size": 2480360,
+            "StorageClass": "STANDARD"
           }
         ],
-        "build_details": [
+        "IsTruncated": false,
+        "Marker": "",
+        "MaxKeys": 1000,
+        "Name": "nmdpf-gfe-db-810526023897-us-east-1",
+        "Prefix": "data/3500/csv/"
+      },
+      "build_outputs": {
+        "release_version": 3500,
+        "details": [
           {
-            "release": "3450",
-            "details": [
-              {
-                "schema": "all_cds",
-                "release": "3450",
-                "file_path": "s3://dev-gfe-db-810526023897-us-east-1/data/3450/csv/all_cds.3450.csv",
-                "cols": [
-                  "gfe_name",
-                  "bp_seq_id",
-                  "bp_sequence",
-                  "aa_seq_id",
-                  "aa_sequence"
-                ],
-                "num_rows": 1000,
-                "created_utc": "2023-07-31T20:33:03.000Z",
-                "details": {
-                  "is_valid_csv_timestamp": true,
-                  "is_valid_csv_filename": true,
-                  "is_valid_csv_headers": true,
-                  "is_valid_csv_rows": true
-                },
-                "num_errors": 0,
-                "is_valid_csv": true
-              },
-              {
-                "schema": "all_features",
-                "release": "3450",
-                "file_path": "s3://dev-gfe-db-810526023897-us-east-1/data/3450/csv/all_features.3450.csv",
-                "cols": [
-                  "accession",
-                  "hash_code",
-                  "locus",
-                  "rank",
-                  "sequence",
-                  "term",
-                  "gfe_name",
-                  "allele_id",
-                  "hla_name",
-                  "imgt_release"
-                ],
-                "num_rows": 11616,
-                "created_utc": "2023-07-31T20:33:03.000Z",
-                "details": {
-                  "is_valid_csv_timestamp": true,
-                  "is_valid_csv_filename": true,
-                  "is_valid_csv_headers": true,
-                  "is_valid_csv_rows": true
-                },
-                "num_errors": 0,
-                "is_valid_csv": true
-              },
-              {
-                "schema": "all_groups",
-                "release": "3450",
-                "file_path": "s3://dev-gfe-db-810526023897-us-east-1/data/3450/csv/all_groups.3450.csv",
-                "cols": [
-                  "gfe_name",
-                  "allele_id",
-                  "hla_name",
-                  "ard_id",
-                  "ard_name",
-                  "locus",
-                  "imgt_release"
-                ],
-                "num_rows": 3000,
-                "created_utc": "2023-07-31T20:33:03.000Z",
-                "details": {
-                  "is_valid_csv_timestamp": true,
-                  "is_valid_csv_filename": true,
-                  "is_valid_csv_headers": true,
-                  "is_valid_csv_rows": true
-                },
-                "num_errors": 0,
-                "is_valid_csv": true
-              },
-              {
-                "schema": "gfe_sequences",
-                "release": "3450",
-                "file_path": "s3://dev-gfe-db-810526023897-us-east-1/data/3450/csv/gfe_sequences.3450.csv",
-                "cols": [
-                  "gfe_name",
-                  "acc_name",
-                  "locus",
-                  "hla_name",
-                  "seq_id",
-                  "sequence",
-                  "length",
-                  "imgt_release"
-                ],
-                "num_rows": 1000,
-                "created_utc": "2023-07-31T20:33:03.000Z",
-                "details": {
-                  "is_valid_csv_timestamp": true,
-                  "is_valid_csv_filename": true,
-                  "is_valid_csv_headers": true,
-                  "is_valid_csv_rows": true
-                },
-                "num_errors": 0,
-                "is_valid_csv": true
-              }
+            "schema": "all_cds",
+            "release": 3500,
+            "file_path": "s3://nmdpf-gfe-db-810526023897-us-east-1/data/3500/csv/all_cds.3500.csv",
+            "cols": [
+              "gfe_name",
+              "bp_seq_id",
+              "bp_sequence",
+              "aa_seq_id",
+              "aa_sequence"
             ],
-            "errors": [],
-            "expected_artifacts": [
-              "all_cds.3450.csv",
-              "all_features.3450.csv",
-              "all_groups.3450.csv",
-              "gfe_sequences.3450.csv"
+            "num_rows": 1000,
+            "created_utc": "2024-01-02T22:49:02.000Z",
+            "details": {
+              "is_valid_csv_filename": true,
+              "is_valid_csv_header": true,
+              "is_valid_csv_rows": true
+            },
+            "num_errors": 0,
+            "is_valid_csv": true
+          },
+          {
+            "schema": "all_features",
+            "release": 3500,
+            "file_path": "s3://nmdpf-gfe-db-810526023897-us-east-1/data/3500/csv/all_features.3500.csv",
+            "cols": [
+              "accession",
+              "hash_code",
+              "locus",
+              "rank",
+              "sequence",
+              "term",
+              "gfe_name",
+              "allele_id",
+              "hla_name",
+              "imgt_release"
             ],
-            "is_valid_build": true
+            "num_rows": 12377,
+            "created_utc": "2024-01-02T22:49:02.000Z",
+            "details": {
+              "is_valid_csv_filename": true,
+              "is_valid_csv_header": true,
+              "is_valid_csv_rows": true
+            },
+            "num_errors": 0,
+            "is_valid_csv": true
+          },
+          {
+            "schema": "all_groups",
+            "release": 3500,
+            "file_path": "s3://nmdpf-gfe-db-810526023897-us-east-1/data/3500/csv/all_groups.3500.csv",
+            "cols": [
+              "gfe_name",
+              "allele_id",
+              "hla_name",
+              "ard_id",
+              "ard_name",
+              "locus",
+              "imgt_release"
+            ],
+            "num_rows": 3000,
+            "created_utc": "2024-01-02T22:49:02.000Z",
+            "details": {
+              "is_valid_csv_filename": true,
+              "is_valid_csv_header": true,
+              "is_valid_csv_rows": true
+            },
+            "num_errors": 0,
+            "is_valid_csv": true
+          },
+          {
+            "schema": "gfe_sequences",
+            "release": 3500,
+            "file_path": "s3://nmdpf-gfe-db-810526023897-us-east-1/data/3500/csv/gfe_sequences.3500.csv",
+            "cols": [
+              "gfe_name",
+              "acc_name",
+              "locus",
+              "hla_name",
+              "seq_id",
+              "sequence",
+              "length",
+              "imgt_release"
+            ],
+            "num_rows": 1000,
+            "created_utc": "2024-01-02T22:49:02.000Z",
+            "details": {
+              "is_valid_csv_filename": true,
+              "is_valid_csv_header": true,
+              "is_valid_csv_rows": true
+            },
+            "num_errors": 0,
+            "is_valid_csv": true
           }
         ],
-        "has_valid_payload": true
+        "errors": [],
+        "expected_artifacts": [
+          "all_cds.3500.csv",
+          "all_features.3500.csv",
+          "all_groups.3500.csv",
+          "gfe_sequences.3500.csv"
+        ],
+        "is_valid_build": true
       }
     },
     "backups": {
       "pre": {
-        "DocumentName": "dev-gfe-db-database-Neo4jBackupDocument-nAqIhQzAdtbD",
-        "CommandId": "8769a561-1ca2-4970-8df1-cd178b6032ba"
+        "document_name": "nmdpf-gfe-db-database-Neo4jBackupDocument-VBAMg82ny9pW",
+        "command_id": "dc450816-3414-49dd-9cd7-987ce7020993"
+      }
+    },
+    "state": {
+      "created_utc": "2024-01-02T18:19:05.170Z",
+      "updated_utc": "2024-01-02T23:02:14.684Z",
+      "repository": {
+        "owner": "ANHIG",
+        "name": "IMGTHLA",
+        "url": "https://github.com/ANHIG/IMGTHLA"
+      },
+      "commit": {
+        "sha": "50b790037030d958b662085c3f4cf34ba72a32ec",
+        "date_utc": "2022-12-14T10:02:54.000Z",
+        "message": "Merge pull request #323 from ANHIG/3500\n\nCorrected missing date and version field in Allelelist_history.txt",
+        "html_url": "https://github.com/ANHIG/IMGTHLA/commit/50b790037030d958b662085c3f4cf34ba72a32ec"
+      },
+      "execution": {
+        "version": 3500,
+        "status": "PENDING",
+        "date_utc": "2024-01-02T23:02:14.684Z",
+        "input_parameters": {
+          "align": false,
+          "kir": false,
+          "mem_profile": false,
+          "limit": 1000,
+          "use_existing_build": false,
+          "skip_load": false
+        }
       }
     }
   }

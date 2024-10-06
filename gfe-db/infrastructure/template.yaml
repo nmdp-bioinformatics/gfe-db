@@ -39,7 +39,7 @@ Parameters:
   GitHubPersonalAccessToken:
     Type: String
     NoEcho: true
-  
+
 Conditions:
   # Important: All stacks (infra, database, pipeline) should use the same conditions
   CreateVpc: !Equals [!Ref createVpc, 'true']
@@ -72,12 +72,11 @@ Mappings:
       AvailabilityZone: eu-west-3a
 
 Resources:
-
   StageParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Stage'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/Stage"
       Description: "Stage of production"
       Value: !Ref Stage
 
@@ -85,7 +84,7 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/AppName'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/AppName"
       Description: "Name of application"
       Value: !Ref AppName
 
@@ -106,17 +105,18 @@ Resources:
       EnableDnsSupport: true
       Tags:
         - Key: Name
-          Value: !Sub '${Stage}-${AppName}-${AWS::Region}-vpc'
-  
+          Value: !Sub "${Stage}-${AppName}-${AWS::Region}-vpc"
+
   CreateVpcConditionPublicSubnet:
     Type: AWS::EC2::Subnet
     Condition: CreateVpc
     Properties:
       CidrBlock: 10.0.0.0/24
       VpcId: !Ref CreateVpcConditionVpc
-      AvailabilityZone: !FindInMap [AvailabilityZoneMap, !Ref AWS::Region, AvailabilityZone]
+      AvailabilityZone:
+        !FindInMap [AvailabilityZoneMap, !Ref AWS::Region, AvailabilityZone]
       MapPublicIpOnLaunch: true
-  
+
   CreateVpcPrivateConditionPrivateSubnet:
     Type: AWS::EC2::Subnet
     Condition: CreateVpcPrivate
@@ -124,11 +124,11 @@ Resources:
       CidrBlock: 10.0.1.0/24
       VpcId: !Ref CreateVpcConditionVpc
       AvailabilityZone: !GetAtt CreateVpcConditionPublicSubnet.AvailabilityZone
-  
+
   CreateVpcConditionInternetGateway:
     Type: AWS::EC2::InternetGateway
     Condition: CreateVpc
-  
+
   CreateVpcConditionPublicRouteTable:
     Type: AWS::EC2::RouteTable
     Condition: CreateVpc
@@ -162,7 +162,7 @@ Resources:
     Properties:
       VpcId: !Ref CreateVpcConditionVpc
       InternetGatewayId: !Ref CreateVpcConditionInternetGateway
-  
+
   CreateVpcConditionPublicRoute:
     Type: AWS::EC2::Route
     Condition: CreateVpc
@@ -172,7 +172,7 @@ Resources:
       RouteTableId: !Ref CreateVpcConditionPublicRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref CreateVpcConditionInternetGateway
-  
+
   CreateVpcConditionPublicSubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Condition: CreateVpc
@@ -195,41 +195,41 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/VpcId'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/VpcId"
       Description: !Sub "Name of VPC network for ${AppName}"
-      Value: !If 
+      Value: !If
         - CreateVpc
         - !Ref CreateVpcConditionVpc
         - !Ref VpcId
-  
+
   PublicSubnetIdParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PublicSubnetId'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/PublicSubnetId"
       Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
       Value: !If
         - CreateVpc
         - !Ref CreateVpcConditionPublicSubnet
         - !Ref PublicSubnetId
-  
+
   UsePrivateSubnetConditionPrivateSubnetIdParameter:
     Type: AWS::SSM::Parameter
     Condition: UsePrivateSubnet
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/PrivateSubnetId"
       Description: !Sub "Private Subnet for the ${AppName} Neo4j server"
       Value: !If
         - CreateVpcPrivate
         - !Ref CreateVpcPrivateConditionPrivateSubnet
         - !Ref PrivateSubnetId
-  
+
   Neo4jSubnetIdParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jSubnetId'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/Neo4jSubnetId"
       Description: !Sub "Public Subnet for the ${AppName} Neo4j server"
       Value: !If
         - CreateVpc
@@ -241,7 +241,7 @@ Resources:
           - UsePrivateSubnet
           - !Ref PrivateSubnetId
           - !Ref PublicSubnetId
-  
+
   DataBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -251,23 +251,23 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataBucketName'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/DataBucketName"
       Description: "Name of gfe-db data bucket"
       Value: !Ref DataBucket
-  
+
   DataBucketArnParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataBucketArn'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/DataBucketArn"
       Description: "ARN of gfe-db data bucket"
       Value: !GetAtt DataBucket.Arn
-  
+
   DataBucketRegionalDomainNameParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataBucketRegionalDomainName'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/DataBucketRegionalDomainName"
       Description: "S3 Bucket Regional Domain name for application bucket"
       Value: !GetAtt DataBucket.RegionalDomainName
 
@@ -300,7 +300,7 @@ Resources:
   Neo4jDatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !Sub '${Stage}-${AppName}-neo4j-sg'
+      GroupName: !Sub "${Stage}-${AppName}-neo4j-sg"
       GroupDescription: Security group for the GFE database
       VpcId: !If
         - CreateVpc
@@ -339,13 +339,13 @@ Resources:
           Description: Update IP to use MyIP
       Tags:
         - Key: Name
-          Value: !Sub '${Stage}-${AppName}-neo4j-sg'
+          Value: !Sub "${Stage}-${AppName}-neo4j-sg"
 
   Neo4jDatabaseSecurityGroupIdParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseSecurityGroupId"
       Description: "Name of the Neo4jDatabaseSecurityGroup"
       Value: !Ref Neo4jDatabaseSecurityGroup
 
@@ -365,15 +365,15 @@ Resources:
       Domain: vpc
       Tags:
         - Key: Name
-          Value: !Sub '${Stage}-${AppName}-neo4j'
+          Value: !Sub "${Stage}-${AppName}-neo4j"
 
   UsePublicSubnetConditionNeo4jDatabaseEndpointParameter:
     Type: AWS::SSM::Parameter
     Condition: UsePublicSubnet
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint'
-      Description: !Sub 'Endpoint for ${AppName} Neo4j server'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint"
+      Description: !Sub "Endpoint for ${AppName} Neo4j server"
       Value: !Ref UsePublicSubnetConditionNeo4jDatabaseElasticIp
 
   UsePublicSubnetConditionNeo4jDatabaseEndpointAllocationIdParameter:
@@ -381,72 +381,26 @@ Resources:
     Condition: UsePublicSubnet
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId'
-      Description: !Sub 'AllocationId for ${AppName} Neo4j server static IP'
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId"
+      Description: !Sub "AllocationId for ${AppName} Neo4j server static IP"
       Value: !GetAtt UsePublicSubnetConditionNeo4jDatabaseElasticIp.AllocationId
 
-  DataPipelineErrorsTopicPolicy:
-    Type: AWS::SNS::TopicPolicy
-    Properties:
-      Topics:
-        - !Ref DataPipelineErrorsTopic
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: cloudwatch.amazonaws.com
-            Action: sns:Publish
-            Resource: !Ref DataPipelineErrorsTopic
-            Condition:
-              StringEquals:
-                aws:SourceAccount: !Ref AWS::AccountId
-
-  DataPipelineErrorsTopic:
-    Type: AWS::SNS::Topic
-    Properties:
-      DisplayName: !Sub "${AppName} Data Pipeline Errors"
-      Subscription:
-        - Endpoint: !Ref AdminEmail
-          Protocol: email
-
-  DataPipelineErrorsTopicArnParameter:
+  GfedbInfrastructureParamMappingsParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataPipelineErrorsTopicArn'
-      Description: !Sub 'ARN for ${AppName} Data Pipeline Errors SNS topic'
-      Value: !Ref DataPipelineErrorsTopic
-
-  DataPipelineExecutionTopicPolicy:
-    Type: AWS::SNS::TopicPolicy
-    Properties:
-      Topics:
-        - !Ref DataPipelineExecutionTopic
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: cloudwatch.amazonaws.com
-            Action: sns:Publish
-            Resource: !Ref DataPipelineExecutionTopic
-            Condition:
-              StringEquals:
-                aws:SourceAccount: !Ref AWS::AccountId
-
-  DataPipelineExecutionTopic:
-    Type: AWS::SNS::Topic
-    Properties:
-      DisplayName: !Sub "${AppName} Data Pipeline Errors"
-      Subscription:
-        - Endpoint: !Ref AdminEmail
-          Protocol: email
-
-  DataPipelineExecutionTopicArnParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub '/${AppName}/${Stage}/${AWS::Region}/DataPipelineExecutionTopicArn'
-      Description: !Sub 'ARN for ${AppName} Data Pipeline Errors SNS topic'
-      Value: !Ref DataPipelineExecutionTopic
+      Name: !Sub "/${AppName}/${Stage}/${AWS::Region}/GfedbInfrastructureParamMappings"
+      Description: !Sub "SSM Parameter and SecretsManager parameter paths for ${AppName} infrastructure layer"
+      Tier: Standard
+      Value: !Sub |
+        {
+          "ssm": [
+            "/${AppName}/${Stage}/${AWS::Region}/VpcID",
+            "/${AppName}/${Stage}/${AWS::Region}/PublicSubnetID",
+            "/${AppName}/${Stage}/${AWS::Region}/DataBucketName",
+            "/${AppName}/${Stage}/${AWS::Region}/DataBucketArn",
+            "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpoint",
+            "/${AppName}/${Stage}/${AWS::Region}/Neo4jDatabaseEndpointAllocationId"
+          ]
+        }
+        

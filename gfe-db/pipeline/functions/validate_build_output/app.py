@@ -30,8 +30,6 @@ def lambda_handler(event, context):
     """Validates the build output artifacts against the original execution input object."""
 
     logger.info(json.dumps(event))
-
-    execution_start_time = datetime.strptime(event['execution_start_time'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=tz.tzutc())
         
     # TODO get the expected input from execution context and validate against this
     # TODO Remove this and use the output of validation against the expected input
@@ -40,7 +38,7 @@ def lambda_handler(event, context):
 
     # expected input is the execution input
     # execution_input = event['execution_context']['Execution']['Input']['input']
-    release = event['input']['RELEASES']
+    release = event['input']['version']
 
     # errors for all release builds used only for logging, not used for validation logic
     errors = []
@@ -61,7 +59,7 @@ def lambda_handler(event, context):
     # Validate that the S3 prefix exists and has data
     try:
         csv_file_objs = list_s3_objects(data_bucket_name, csv_dir)
-    except KeyError as e:
+    except KeyError:
         error_msg = f"CSV directory does not exist: {csv_dir}"
         logger.error(error_msg)
         release_report["errors"].append(error_msg)
@@ -69,7 +67,6 @@ def lambda_handler(event, context):
         # reports.append(release_report)
         errors.append(error_msg)
         # continue
-        raise e
 
     # Validate that all expected files are present
     if set(csv_file_objs.keys()) != set(release_report["expected_artifacts"]):
@@ -88,6 +85,7 @@ def lambda_handler(event, context):
         obj["details"] = {}
 
         # # Note: the state machine can now use existing CSV files as input, so the timestamp validation is no longer needed
+        # TODO perform conditionally only if use_existing_csv is False
         # # Validate the file's timestamp is after the execution start time
         # obj["details"]["is_valid_csv_timestamp"] = obj['created_utc'] > execution_start_time
         # if not obj["details"]["is_valid_csv_timestamp"]:
@@ -152,9 +150,6 @@ def lambda_handler(event, context):
         logger.error(error_msg)
 
     payload = {
-        "execution_id": event['execution_id'],
-        "execution_start_time": event['execution_start_time'],
-        "input": event['input'],
         **release_report
     }
 

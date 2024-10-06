@@ -565,6 +565,7 @@ if __name__ == '__main__':
     #data_dir = f'{data_dir}/{dbversion}'
     # data_dir = os.path.dirname(__file__) + f"/../data/{dbversion}"
     data_dir = os.environ["DATA_DIR"] + f"/{dbversion}"
+    logger.info(f"Found data directory: {data_dir}")
 
     # Load alignments data
     if align:

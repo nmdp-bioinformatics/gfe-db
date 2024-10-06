@@ -89,9 +89,8 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
     │   │       └── template.yaml
     │   ├── change-batch.json
     │   └── template.yaml
-    # Docker Build layer
-    ├── local
-    │   ├── Dockerfile                              # Dockerfile for building the Neo4j Docker image
+    ├── local                                       # Docker Build layer
+    │   ├── Dockerfile                              # Dockerfile for building the gfe-db Docker image
     │   ├── Makefile
     │   └── build-local.sh                          # Builds the Neo4j Docker image from backup and installs plugins
     # Data Pipeline layer
@@ -359,7 +358,7 @@ STAGE=<stage> make database.deploy
 STAGE=<stage> make pipeline.deploy
 
 # Deploy or update only the pipeline serverless stack including the Lambda functions and state machine
-STAGE=<stage> make pipeline.service.deploy
+STAGE=<stage> make pipeline.service.update
 
 # Deploy or update only the Docker image for the build job
 STAGE=<stage> make pipeline.jobs.deploy
@@ -852,7 +851,7 @@ STAGE=<stage> make docs.build
 ## Authors
 **Primary Contact:** Martin Maiers ([@mmaiers-nmdp](https://github.com/mmaiers-nmdp))\
 **Contact:** Pradeep Bashyal ([@pbashyal-nmdp](https://github.com/pbashyal-nmdp))\
-**Contact:** Gregory Lindsey ([@chrisammon3000](https://github.com/chrisammon3000))
+**Contact:** Gregory Christopher Lindsey ([@chrisammon3000](https://github.com/chrisammon3000))
 
 <!-- TODO make sure these are up to date -->
 ## References & Links

@@ -1,13 +1,20 @@
 {
-    "execution_id": "arn:aws:states:us-east-1:810526023897:execution:UsePublicSubnetConditionUpdatePipelineStateMachine-vKSrXyQEhEW3:d4f6c52e-542b-410b-be8f-ac75f3c7b783",
+    "execution_id": "arn:aws:states:us-east-1:810526023897:execution:UpdatePipelineStateMachine-b50xUAEHaEFZ:3560_b5542c829f8666f309307fd60d0fc7c46a71b4c6_20240512_215646",
     "input": {
-        "ALIGN": "False",
-        "KIR": "False",
-        "LIMIT": "1000",
-        "MEM_PROFILE": "False",
-        "USE_EXISTING_BUILD": "False",
-        "SKIP_LOAD": "False",
-        "RELEASES": "3450"
+        "id": "3560_b5542c829f8666f309307fd60d0fc7c46a71b4c6_20240512_215646",
+        "version": 3560,
+        "invocation_id": "4ecf0f40-d308-4bf1-83fb-2d0e542bf345",
+        "commit_sha": "b5542c829f8666f309307fd60d0fc7c46a71b4c6",
+        "input_parameters": {
+            "align": false,
+            "kir": false,
+            "mem_profile": false,
+            "limit": 10,
+            "use_existing_build": false,
+            "skip_load": false
+        },
+        "s3_path": "s3://nmdpff-gfe-db-810526023897-us-east-1/data/3560",
+        "receipt_handle": "AQEBi23GZuMPvrFqjVy0N8AV279qtmiUg1murJ5RsNDRlTwHCoXiy0TzrMcYfay8pTjprdSy++qbr8vOh5LCHrVup2H1b6w76XmqeBWucz+Uyz0pYfwRbgxVTr5nqFpuldKz85KTeW+v44Xd++Pr+9xwP7SBRDCtPKCEqepzWBkJVt8X/D6WdZGptoAQpxDeZEaWdZllLI8Zb5Dvcnall+F0eznzTrm7lbIY9zWAmQliKNzhrdJT3tOTERu0vY2kvE5i5jlqEQSpx4ajvtaiLMvN765PtKu9bCvxo85eLw/35gk6TTqCrIsDOTyaBdc+PDkWT6/wDROuppXNC/QoKiZ1hg=="
     },
-    "execution_start_time": "2023-10-29T18:53:54.523Z"
+    "execution_start_time": "2024-05-12T21:57:00.815Z"
 }

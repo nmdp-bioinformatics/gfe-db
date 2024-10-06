@@ -1,0 +1,293 @@
+{
+    "StartAt": "Pre-Execution Backup",
+    "States": {
+        "Pre-Execution Backup": {
+            "Type": "Task",
+            "Resource": "${InvokeBackupScriptFunctionArn}",
+            "ResultPath": "$.backups.pre",
+            "Next": "Receive SQS Message",
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "IntervalSeconds": 5,
+                    "MaxAttempts": 2,
+                    "BackoffRate": 1.5
+                }
+            ],
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "Next": "Receive SQS Message"
+                }
+            ]            
+        },
+        "Receive SQS Message": {
+            "Type": "Task",
+            "Resource": "${LcmReceiveMessageFunctionArn}",
+            "ResultPath": "$.sqs",
+            "Next": "Message Received?"
+        },
+        "Message Received?": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.sqs.MessageId",
+                    "IsPresent": true,
+                    "Next": "Handle Load Query Execution"
+                }
+            ],
+            "Default": "Wait for Message"
+        },
+        "Wait for Message": {
+            "Type": "Wait",
+            "Seconds": 30,
+            "Next": "Check Alarm State"
+        },
+        "Handle Load Query Execution": {
+            "Type": "Parallel",
+            "OutputPath": "$.[0]",
+            "Next": "Check Alarm State",
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "Next": "Check Alarm State"
+                }
+            ],
+            "Branches": [
+                {
+                    "StartAt": "Execute Load Query",
+                    "States": {
+                        "Execute Load Query": {
+                            "Type": "Task",
+                            "Resource": "${InvokeLoadScriptFunctionArn}",
+                            "ResultPath": "$",
+                            "Next": "Sleep 10 Seconds",
+                            "Retry": [
+                                {
+                                    "ErrorEquals": ["States.ALL"],
+                                    "IntervalSeconds": 5,
+                                    "MaxAttempts": 5,
+                                    "BackoffRate": 2.0
+                                }
+                            ]
+                        },
+                        "Sleep 10 Seconds": {
+                            "Type": "Wait",
+                            "Seconds": 10,
+                            "Next": "Get Load Command Status"
+                        },
+                        "Get Load Command Status": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::aws-sdk:ssm:getCommandInvocation",
+                            "Parameters": {
+                                "CommandId.$": "$.ssm.CommandId",
+                                "InstanceId.$": "$.ssm.InstanceId",
+                                "PluginName": "runShellScript"
+                            },
+                            "Next": "Evaluate Load Command Status",
+                            "ResultSelector": {
+                                "CommandId.$": "$.CommandId",
+                                "InstanceId.$": "$.InstanceId",
+                                "Status.$": "$.Status",
+                                "StandardOutputContent.$": "$.StandardOutputContent",
+                                "StandardErrorContent.$": "$.StandardErrorContent"
+                            },
+                            "ResultPath": "$.ssm",
+                            "Retry": [
+                                {
+                                    "ErrorEquals": ["States.ALL"],
+                                    "IntervalSeconds": 5,
+                                    "MaxAttempts": 5,
+                                    "BackoffRate": 2.0
+                                }
+                            ]
+                        },
+                        "Evaluate Load Command Status": {
+                            "Type": "Choice",
+                            "Choices": [
+                                {
+                                    "Or": [
+                                        {
+                                            "Variable": "$.ssm.Status",
+                                            "StringEquals": "Failed"
+                                        },
+                                        {
+                                            "Variable": "$.ssm.Status",
+                                            "StringEquals": "Cancelled"
+                                        },
+                                        {
+                                            "Variable": "$.ssm.Status",
+                                            "StringEquals": "TimedOut"
+                                        }
+                                    ],
+                                    "Next": "Return Message to Load Queue"
+                                },
+                                {
+                                    "Variable": "$.ssm.Status",
+                                    "StringEquals": "Success",
+                                    "Next": "Delete Message from Load Queue"
+                                }
+                            ],
+                            "Default": "Check Status"
+                        },
+                        "Return Message to Load Queue": {
+                            "Type": "Task",
+                            "InputPath": "$",
+                            "Resource": "arn:aws:states:::aws-sdk:sqs:changeMessageVisibility",
+                            "Parameters": {
+                                "QueueUrl": "${GfeDbLoadQueueUrl}",
+                                "ReceiptHandle.$": "$.sqs.ReceiptHandle",
+                                "VisibilityTimeout": 0
+                            },
+                            "ResultPath": null,
+                            "Next": "Update Status → LOAD_FAILED"
+                        },
+                        "Update Status → LOAD_FAILED": {
+                            "Type": "Pass",
+                            "Result": "LOAD_FAILED",
+                            "ResultPath": "$.sqs.Body.state.execution.status",
+                            "Next": "Sync Status → LOAD_FAILED"
+                        },
+                        "Sync Status → LOAD_FAILED": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::dynamodb:updateItem",
+                            "ResultPath": null,
+                            "End": true,
+                            "Parameters": {
+                                "TableName": "${GfeDbExecutionStateTable}",
+                                "Key": {
+                                    "commit__sha": {
+                                        "S.$": "$.sqs.Body.input.commit_sha"
+                                    },
+                                    "execution__version": {
+                                        "N.$": "States.Format('{}', $.sqs.Body.input.version)"
+                                    }
+                                },
+                                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc, error__message = :error, error__cause = :cause",
+                                "ExpressionAttributeValues": {
+                                    ":status": {
+                                        "S.$": "$.sqs.Body.state.execution.status"
+                                    },
+                                    ":updated_utc": {
+                                        "S.$": "$$.State.EnteredTime"
+                                    },
+                                    ":error": {
+                                        "S.$": "$.ssm.Status"
+                                    },
+                                    ":cause": {
+                                        "S.$": "$.ssm.StandardErrorContent"
+                                    }
+                                }
+                            }
+                        },
+                        "Check Status": {
+                            "Type": "Wait",
+                            "Seconds": 30,
+                            "Next": "Get Load Command Status"
+                        },
+                        "Delete Message from Load Queue": {
+                            "Type": "Task",
+                            "InputPath": "$",
+                            "Resource": "arn:aws:states:::aws-sdk:sqs:deleteMessage",
+                            "Parameters": {
+                                "QueueUrl": "${GfeDbLoadQueueUrl}",
+                                "ReceiptHandle.$": "$.sqs.ReceiptHandle"
+                            },
+                            "ResultPath": null,
+                            "Next": "Update Status → LOAD_COMPLETE"
+                        },
+                        "Update Status → LOAD_COMPLETE": {
+                            "Type": "Pass",
+                            "Result": "LOAD_COMPLETE",
+                            "ResultPath": "$.sqs.Body.state.execution.status",
+                            "Next": "Sync Status → LOAD_COMPLETE"
+                        },
+                        "Sync Status → LOAD_COMPLETE": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::dynamodb:updateItem",
+                            "InputPath": "$",
+                            "ResultPath": null,
+                            "End": true,
+                            "Parameters": {
+                                "TableName": "${GfeDbExecutionStateTable}",
+                                "Key": {
+                                    "commit__sha": {
+                                        "S.$": "$.sqs.Body.input.commit_sha"
+                                    },
+                                    "execution__version": {
+                                        "N.$": "States.Format('{}', $.sqs.Body.input.version)"
+                                    }
+                                },
+                                "UpdateExpression": "SET execution__status = :status, updated_utc = :updated_utc",
+                                "ExpressionAttributeValues": {
+                                    ":status": {
+                                        "S.$": "$.sqs.Body.state.execution.status"
+                                    },
+                                    ":updated_utc": {
+                                        "S.$": "$$.State.EnteredTime"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "Check Alarm State": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::aws-sdk:cloudwatch:describeAlarms",
+            "Parameters": {
+                "AlarmNames": [
+                    "${UpdatePipelineStateMachineExecutionAlarmName}"
+                ]
+            },
+            "ResultSelector": {
+                "StateValue.$": "$.MetricAlarms[0].StateValue"
+            },
+            "Next": "Evaluate Alarm State"
+        },
+        "Evaluate Alarm State": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.StateValue",
+                    "StringMatches": "ALARM",
+                    "Next": "Sleep 10"
+                },
+                {
+                    "Variable": "$.StateValue",
+                    "StringMatches": "INSUFFICIENT_DATA",
+                    "Next": "Sleep 10"
+                }
+            ],
+            "Default": "Post-Execution Backup"
+        },
+        "Sleep 10": {
+            "Type": "Wait",
+            "Seconds": 10,
+            "Next": "Receive SQS Message"
+        },
+        "Post-Execution Backup": {
+            "Type": "Task",
+            "Resource": "${InvokeBackupScriptFunctionArn}",
+            "ResultPath": "$.backups.post",
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "IntervalSeconds": 5,
+                    "MaxAttempts": 2,
+                    "BackoffRate": 1.5
+                }
+            ],
+            "End": true
+        }
+    }
+}

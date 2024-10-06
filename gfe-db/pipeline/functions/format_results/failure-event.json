@@ -1,0 +1,34 @@
+{
+    "Error": "States.Timeout",
+    "Cause": "",
+    "state": {
+        "created_utc": "2024-01-25T17:24:09.819Z",
+        "updated_utc": "2024-01-26T03:45:29.853Z",
+        "repository": {
+            "owner": "ANHIG",
+            "name": "IMGTHLA",
+            "url": "https://github.com/ANHIG/IMGTHLA"
+        },
+        "commit": {
+            "sha": "522c1fdd2b79fa7caa628ec48f6654342cb77045",
+            "date_utc": "2024-01-11T14:54:13.000Z",
+            "message": "Merge pull request #355 from ANHIG/3540\n\nRelease of new hla.xml format as hla_new.xml and hla_new.xsd for 3.54.0",
+            "html_url": "https://github.com/ANHIG/IMGTHLA/commit/522c1fdd2b79fa7caa628ec48f6654342cb77045"
+        },
+        "execution": {
+            "id": "3540_522c1fdd2b79fa7caa628ec48f6654342cb77045_20240126_034427",
+            "invocation_id": "88561981-52bb-4cdd-a4a8-1a4863571dfa",
+            "version": 3540,
+            "status": "FAILED",
+            "date_utc": "2024-01-26T03:44:28.959Z",
+            "input_parameters": {
+                "align": false,
+                "kir": false,
+                "mem_profile": false,
+                "limit": 1000,
+                "use_existing_build": false,
+                "skip_load": false
+            }
+        }
+    }
+}

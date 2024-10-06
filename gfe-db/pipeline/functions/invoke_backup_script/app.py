@@ -67,6 +67,7 @@ def lambda_handler(event, context):
         logger.error(err)
         raise err
 
+    # TODO add field for the backup asset's S3 path
     return {
         "document_name": response['Command']['DocumentName'],
         "command_id": response['Command']['CommandId']

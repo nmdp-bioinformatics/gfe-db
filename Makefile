@@ -37,6 +37,7 @@ export DATABASE_VOLUME_SIZE ?= 64
 
 # Resource identifiers
 export DATA_BUCKET_NAME ?= ${STAGE}-${APP_NAME}-${AWS_ACCOUNT}-${AWS_REGION}
+export CONFIG_S3_PATH := config
 export ECR_BASE_URI := ${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com
 export BUILD_REPOSITORY_NAME ?= ${STAGE}-${APP_NAME}-build-service
 export EC2_KEY_PAIR_NAME := $${STAGE}-$${APP_NAME}-$${AWS_REGION}-neo4j-key
@@ -48,10 +49,8 @@ export GITHUB_REPOSITORY_OWNER ?= ANHIG
 export GITHUB_REPOSITORY_NAME ?= IMGTHLA
 export FEATURE_SERVICE_URL ?= https://feature.b12x.org
 
-# S3 paths
-export PIPELINE_STATE_PATH = config/IMGTHLA-repository-state.json
-export PIPELINE_PARAMS_PATH = config/pipeline-input.json
-export FUNCTIONS_PATH = ${PIPELINE_DIR}/functions
+# Neo4j
+export NEO4J_DATABASE_NAME ?= gfedb
 
 # Neo4j
 export NEO4J_DATABASE_NAME ?= gfedb
@@ -65,7 +64,7 @@ export CREATE_NEO4J_USERS ?= "gfedb:7b26OqomunEQvpPG"
 # Required environment variables
 REQUIRED_VARS := STAGE APP_NAME AWS_ACCOUNT AWS_REGION AWS_PROFILE SUBSCRIBE_EMAILS \
 	GITHUB_REPOSITORY_OWNER GITHUB_REPOSITORY_NAME GITHUB_PERSONAL_ACCESS_TOKEN \
-	ADMIN_EMAIL NEO4J_PASSWORD GDS_VERSION
+	ADMIN_EMAIL NEO4J_PASSWORD GDS_VERSION PYTHON
 
 BOOLEAN_VARS := CREATE_VPC USE_PRIVATE_SUBNET DEPLOY_NAT_GATEWAY DEPLOY_BASTION_SERVER DEPLOY_VPC_ENDPOINTS SKIP_CHECK_DEPENDENCIES
 
@@ -117,6 +116,7 @@ ifeq ($(SPLASH_FONT),slant)
 	@echo "\033[0;34m                                            \033[0m"
 endif
 
+
 env.print:
 	@echo "\033[0;33mReview the contents of the .env file:\033[0m"
 	@echo "+---------------------------------------------------------------------------------+"
@@ -140,8 +140,21 @@ deploy: splash-screen logs.purge env.validate ##=> Deploy all services
 	$(MAKE) infrastructure.deploy 
 	$(MAKE) database.deploy
 	$(MAKE) pipeline.deploy
+	$(MAKE) monitoring.create-topic-subscriptions topics="GfeDbExecutionResultTopicArn UpdatePipelineErrorsTopicArn"
+ifeq ($(HAS_STAGE),null)
+	@sh -c '$(MAKE) pipeline.state.build && $(MAKE) pipeline.state.load || echo "Pipeline state build failed"'
+endif
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished deploying ${APP_NAME}" 2>&1 | tee -a ${CFN_LOG_PATH}
 	$(MAKE) options-screen
+
+update: env.validate.stage env.validate
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Updating ${APP_NAME} to ${AWS_ACCOUNT}" 2>&1 | tee -a ${CFN_LOG_PATH}
+	$(MAKE) env.print
+	@echo "Update stack in the \`${STAGE}\` environment? [y/N] \c " && read ans && [ $${ans:-N} = y ]
+	$(MAKE) infrastructure.deploy
+	$(MAKE) database.deploy
+	$(MAKE) pipeline.deploy
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Finished updating ${APP_NAME}" 2>&1 | tee -a ${CFN_LOG_PATH}
 
 logs.purge: logs.dirs
 ifeq ($(PURGE_LOGS),true)
@@ -392,9 +405,7 @@ infrastructure.service.deploy:
 	$(MAKE) -C ${APP_NAME}/infrastructure/ service.deploy
 
 infrastructure.access-services.deploy:
-	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/nat-gateway/ deploy
-	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/bastion-server/ deploy
-	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/vpc-endpoints/ deploy
+	$(MAKE) -C ${APP_NAME}/infrastructure/ service.access-services.deploy
 
 infrastructure.access-services.nat-gateway.deploy:
 	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/nat-gateway/ deploy
@@ -408,11 +419,41 @@ infrastructure.access-services.bastion-server.connect:
 infrastructure.access-services.vpc-endpoints.deploy:
 	$(MAKE) -C ${APP_NAME}/infrastructure/access-services/vpc-endpoints/ deploy
 
+monitoring.create-topic-subscriptions: #=> topics=<string>
+	@for topic in $$topics; do \
+		$(MAKE) monitoring.subscribe-emails topic_ssm_param=$$topic; \
+	done
+
 monitoring.create-subscriptions:
 	$(MAKE) -C ${APP_NAME}/infrastructure service.monitoring.create-subscriptions
 
-monitoring.subscribe-email:
-	$(MAKE) -C ${APP_NAME}/infrastructure service.monitoring.subscribe-email
+monitoring.subscribe-emails: #=> topic_ssm_param=<string>
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Creating SNS topic subscriptions for $$topic_ssm_param" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@topic_arn=$$(aws ssm get-parameters \
+		--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/$$topic_ssm_param" \
+		--with-decryption \
+		--query "Parameters[0].Value" \
+		--output text) && \
+	for EMAIL in $$(echo $${SUBSCRIBE_EMAILS} | sed 's/,/ /g'); do \
+		res=$$(aws sns subscribe \
+			--topic-arn "$$topic_arn" \
+			--protocol email \
+			--notification-endpoint "$$EMAIL") && \
+		echo $$res | jq -r || \
+		echo "\033[0;31mFailed to subscribe $$EMAIL to SNS topic\033[0m"; \
+	done
+
+monitoring.subscribe-email: #=> topic_name=<string> email=<string>
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Creating SNS topic subscription" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@topic_arn=$$(aws ssm get-parameters \
+		--names "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/"$$topic_name"Arn" \
+		--with-decryption \
+		--query "Parameters[0].Value" \
+		--output text) && \
+	aws sns subscribe \
+		--topic-arn "$$topic_arn" \
+		--protocol email \
+		--notification-endpoint "$$email" 2>&1 | tee -a $${CFN_LOG_PATH} || true;
 
 database.deploy:
 	$(MAKE) -C ${APP_NAME}/database/ deploy
@@ -420,12 +461,18 @@ database.deploy:
 database.service.deploy:
 	$(MAKE) -C ${APP_NAME}/database/ service.deploy
 
+database.config.deploy:
+	$(MAKE) -C ${APP_NAME}/database/ service.config.deploy
+
 database.connect:
 ifeq ($(USE_PRIVATE_SUBNET),true)
 	$(MAKE) infrastructure.access-services.bastion-server.connect
 else
 	$(MAKE) -C ${APP_NAME}/database/ service.connect
 endif
+
+database.start-session:
+	$(MAKE) -C ${APP_NAME}/database/ service.start-session
 
 database.ui.connect:
 ifeq ($(USE_PRIVATE_SUBNET),true)
@@ -435,23 +482,72 @@ else ifeq ($(USE_PRIVATE_SUBNET),false)
 endif
 
 pipeline.deploy:
-	$(MAKE) -C ${APP_NAME}/pipeline/ deploy
-
-pipeline.service.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.deploy
+
+pipeline.service.update:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.functions.deploy
 
 pipeline.jobs.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.jobs.deploy
 
-config.deploy:
+pipeline.config.deploy:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.config.deploy
-	$(MAKE) -C ${APP_NAME}/database/ service.config.deploy
+
+pipeline.state.build:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.state.build
+
+pipeline.state.load: 
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.state.load
+
+pipeline.state.deploy:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.state.build
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.state.load
+
+pipeline.statemachine.update-pipeline.stop:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.statemachine.update-pipeline.stop
+
+pipeline.statemachine.load-concurrency-manager.stop:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.statemachine.load-concurrency-manager.stop
+
+pipeline.queue.gfe-db-load.purge:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.queue.gfe-db-load.purge
+
+pipeline.queue.gfe-db-processing.purge:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.queue.gfe-db-processing.purge
+
+pipeline.abort:
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Aborting pipeline execution" 2>&1 | tee -a $${CFN_LOG_PATH}
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.statemachine.update-pipeline.stop
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.statemachine.load-concurrency-manager.stop
+	@purge=$${purge:-false}; \
+	if [ "$$purge" = "true" ]; then \
+		echo "Purging queues..."; \
+		$(MAKE) -C ${APP_NAME}/pipeline/ service.queue.gfe-db-load.purge; \
+		$(MAKE) -C ${APP_NAME}/pipeline/ service.queue.gfe-db-processing.purge; \
+	else \
+		echo "\033[0;33mNote: SQS queues were not purged. To purge queues, run with 'purge=true'.\033[0m"; \
+	fi
+	@echo "\033[0;33m*** Pipeline execution aborted ***\033[0m"
+
+pipeline.alarm.update-pipeline-execution.status:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.alarm.update-pipeline-execution.status
+
+pipeline.alarm.update-pipeline-execution.wait:
+	$(MAKE) -C ${APP_NAME}/pipeline/ service.alarm.update-pipeline-execution.wait
+
+config.deploy:
+	$(MAKE) database.config.deploy
+	$(MAKE) pipeline.config.deploy
 
 database.load.run: # args: align, kir, limit, releases
+	@res=$$($(MAKE) database.status) && \
+	echo $$res | jq -r '.State' | grep -q 'stopped' && \
+	echo "\033[0;31mERROR: Database is stopped. Please start the database before loading data.\033[0m" && \
+	exit 1 || true
 	@echo "Confirm payload:" && \
 	[ "$$align" ] && align="$$align" || align=false && \
 	[ "$$kir" ] && kir="$$kir" || kir=false && \
-	[ "$$limit" ] && limit="$$limit" || limit="" && \
+	[ "$$limit" ] && limit="$$limit" || limit=-1 && \
 	[ "$$releases" ] && releases="$$releases" || releases="" && \
 	[ "$$use_existing_build" ] && use_existing_build="$$use_existing_build" || use_existing_build=false && \
 	[ "$$skip_load" ] && skip_load="$$skip_load" || skip_load=false && \
@@ -459,7 +555,7 @@ database.load.run: # args: align, kir, limit, releases
 	echo "$$payload" | jq -r && \
 	echo "$$payload" | jq > payload.json
 	@echo "Run pipeline with this payload? [y/N] \c " && read ans && [ $${ans:-N} = y ]
-	@function_name="${STAGE}"-"${APP_NAME}"-"$$(cat ${FUNCTIONS_PATH}/environment.json | jq -r '.Functions.InvokePipeline.FunctionConfiguration.FunctionName')" && \
+	@function_name="${STAGE}"-"${APP_NAME}"-"check-source-update" && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Invoking $$function_name..." 2>&1 | tee -a ${CFN_LOG_PATH} && \
 	echo "Payload:" >> ${CFN_LOG_PATH} && \
 	cat payload.json >> ${CFN_LOG_PATH} && \
@@ -476,7 +572,7 @@ database.load.run: # args: align, kir, limit, releases
 	rm payload.json response.json
 
 pipeline.invoke.validation-queries:
-	@function_name="${STAGE}"-"${APP_NAME}"-"$$(cat ${FUNCTIONS_PATH}/environment.json | jq -r '.Functions.ExecuteValidationQueries.FunctionConfiguration.FunctionName')" && \
+	@function_name="${STAGE}"-"${APP_NAME}"-"$$(cat ${PIPELINE_DIR}/functions/environment.json | jq -r '.Functions.ExecuteValidationQueries.FunctionConfiguration.FunctionName')" && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Invoking $$function_name..." 2>&1 | tee -a ${CFN_LOG_PATH} && \
 	aws lambda invoke \
 		--cli-binary-format raw-in-base64-out \
@@ -513,10 +609,6 @@ database.reboot:
 	@response=$$(aws ec2 reboot-instances --instance-ids ${INSTANCE_ID}) && echo "$$response"
 	$(MAKE) database.status
 
-database.config.deploy:
-	@echo "Deploying \`neo4j.conf\` to $${APP_NAME} server..."
-	$(MAKE) -C ${APP_NAME}/database/ service.config.neo4j.deploy
-
 database.sync-scripts:
 	$(MAKE) -C ${APP_NAME}/database/ service.config.scripts.sync
 
@@ -546,7 +638,7 @@ database.restore: #from_path=s3://<backup path>
 
 database.status:
 	@aws ec2 describe-instances | \
-		jq --arg iid "${INSTANCE_ID}" '.Reservations[].Instances[] | (.InstanceId == $$iid) | {InstanceId, InstanceType, "Status": .State.Name, StateTransitionReason, ImageId}'
+		jq --arg iid "${INSTANCE_ID}" '.Reservations[].Instances[] | select(.InstanceId == $$iid) | {InstanceId: .InstanceId, State: .State.Name}'
 
 database.get.endpoint:
 ifeq ($(USE_PRIVATE_SUBNET),true)
@@ -585,7 +677,7 @@ delete: # data=true/false ##=> Delete services
 	@[[ $$data != true ]] && echo "Data will not be deleted. To delete pass \`data=true\`" || true
 	@echo "Delete all stacks from the \`${STAGE}\` environment? [y/N] \c " && read ans && [ $${ans:-N} = y ] && \
 	if [ "${data}" = "true" ]; then \
-		aws s3 rm --recursive s3://${DATA_BUCKET_NAME}; \
+		aws s3 rm --recursive --quiet s3://${DATA_BUCKET_NAME}; \
 	fi
 	$(MAKE) pipeline.delete
 	$(MAKE) database.delete
@@ -615,9 +707,6 @@ database.delete:
 
 pipeline.delete:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.delete
-
-pipeline.service.delete:
-	$(MAKE) -C ${APP_NAME}/pipeline/ service.functions.delete
 
 pipeline.jobs.delete:
 	$(MAKE) -C ${APP_NAME}/pipeline/ service.jobs.delete
@@ -755,9 +844,6 @@ define HELP_MESSAGE
 	PIPELINE_STATE_PATH: "${PIPELINE_STATE_PATH}"
 		Description: S3 path to the pipeline state file
 
-	PIPELINE_PARAMS_PATH: "${PIPELINE_PARAMS_PATH}"
-		Description: S3 path to the pipeline parameters file
-
 	FUNCTIONS_PATH: "${FUNCTIONS_PATH}"
 		Description: Path to the Lambda functions directory
 
@@ -799,7 +885,7 @@ define HELP_MESSAGE
 	$ make infrastructure.access-services.bastion-server.delete
 
 	...::: Create CloudWatch subscriptions :::...
-	$ make monitoring.create-subscriptions
+	$ make monitoring.subscribe-emails
 
 	...::: Subscribe an email to CloudWatch notifications :::...
 	$ make monitoring.subscribe-email
@@ -874,10 +960,7 @@ define HELP_MESSAGE
 	$ make pipeline.delete
 
 	...::: Update only the pipeline CloudFormation including Lambda functions :::...
-	$ make pipeline.service.deploy
-
-	...::: Delete only the pipeline CloudFormation including Lambda functions :::...
-	$ make pipeline.service.delete
+	$ make pipeline.service.update
 
 	...::: Deploy the pipeline jobs as Docker images to ECR:::...
 	$ make pipeline.jobs.deploy

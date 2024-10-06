@@ -1,7 +1,5 @@
 """
-This function executes validation queries against the Neo4j database and returns the results.
-If USE_PRIVATE_SUBNET is true, this function will run inside a VPC and private subnet. 
-If USE_PRIVATE_SUBNET is false, this function will run outside a VPC and in a public subnet.
+This function executes pre-load and post-load validation queries against the Neo4j database and returns the results.
 """
 import os
 import logging
@@ -37,6 +35,9 @@ def lambda_handler(event, context):
 
     logger.info(json.dumps(event))
 
+    # # TODO TESTING STATE MACHINE ERROR HANDLING
+    # raise Exception(f"Test Error from {context.function_name}")
+
     with graphdb as driver:
 
         # node counts
@@ -50,6 +51,7 @@ def lambda_handler(event, context):
 
         # HAS_IPD_ALLELE relationship releases property release counts
         has_ipd_allele_release_counts = execute_query(driver, has_ipd_allele_release_counts_cql)
+        has_ipd_allele_release_counts = sorted(has_ipd_allele_release_counts, key=lambda k: k['release_version'])
 
         # IPD_Accession node release counts
         ipd_accession_release_counts = execute_query(driver, ipd_accession_release_counts_cql)
@@ -60,6 +62,19 @@ def lambda_handler(event, context):
         "ipd_accession_release_counts": ipd_accession_release_counts
     }
     return payload
+
+    # # TODO if event contains "$.validations.queries.pre", confirm that the pre and
+    # # post query results indicate the load was successful
+    # # `is_load_successful = True/False ==> return {"is_load_successful": is_load_successful}`
+    # # TODO calculate expected counts based on CSV files (validate build output) and compare
+    # if "validations" in event:
+    #     if "queries" in event["validations"]:
+    #         if "pre" in event["validations"]["queries"]:
+
+    #             # TODO temporary return value, still need to compare pre and post query results
+    #             payload["is_load_successful"] = True
+
+    # return payload
 
 nodes = [
     "GFE",
@@ -100,7 +115,8 @@ def execute_query(driver, query, database="gfedb"):
 if __name__ == "__main__":
     from pathlib import Path
 
-    event_path = Path(__file__).parent / "post-execution-event.json"
+    event_path = Path(__file__).parent / "pre-execution-event.json"
+    # event_path = Path(__file__).parent / "post-execution-event.json"
 
     with open(event_path, "r") as file:
         event = json.load(file)

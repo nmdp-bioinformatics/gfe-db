@@ -43,7 +43,6 @@ ifeq ($(USE_PRIVATE_SUBNET),true)
 else ifeq ($(USE_PRIVATE_SUBNET),false)
 	$(MAKE) service.deploy.update-dns
 endif
-	$(MAKE) service.monitoring.create-subscriptions
 
 service.deploy.update-dns:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Updating DNS records" 2>&1 | tee -a $${CFN_LOG_PATH}
@@ -71,14 +70,18 @@ service.key-pair.create: ##=> Checks if the key pair already exists and creates 
 	echo "Creating EC2 key pair \"${EC2_KEY_PAIR_NAME}\"" && \
 	aws ec2 create-key-pair --key-name ${EC2_KEY_PAIR_NAME} | jq -r '.KeyMaterial' > ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Storing key pair ${EC2_KEY_PAIR_NAME} in Secrets Manager" 2>&1 | tee -a $$CFN_LOG_PATH && \
-	aws secretsmanager create-secret --name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/EC2KeyPair" \
+	res=$$(aws secretsmanager create-secret --name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/EC2KeyPair" \
 		--description "EC2 key pair for $${STAGE}-$${APP_NAME} database" \
-		--secret-string "$$(cat ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem)" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
-	aws ssm put-parameter \
+		--secret-string "$$(cat ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem)") && \
+	echo $$res | jq -r && \
+	res=$$(aws ssm put-parameter \
 		--name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/EC2KeyPairName" \
 		--type "String" \
 		--value "${EC2_KEY_PAIR_NAME}" \
-		--overwrite 2>&1 | tee -a $$CFN_LOG_PATH || true
+		--overwrite) && \
+	echo $$res | jq -r && \
+	echo "\033[0;34mSuccessfully created EC2 key pair\033[0m" || \
+	echo "\033[0;31mFailed to create EC2 key pair\033[0m"
 
 service.deploy:
 	@aws cloudformation deploy \
@@ -192,20 +195,27 @@ service.access-services.vpc-endpoints.delete:
 	$(MAKE) -C access-services/vpc-endpoints delete
 
 service.delete:
-	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting CloudFormation" 2>&1 | tee -a $${CFN_LOG_PATH}
+	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting ${SERVICE} CloudFormation" 2>&1 | tee -a $${CFN_LOG_PATH}
 	@aws cloudformation delete-stack \
 		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $${CFN_LOG_PATH} || true && \
-	aws cloudformation wait stack-delete-complete \
-		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}" 2>&1 | tee -a $${CFN_LOG_PATH} || true
+	res=$$(aws cloudformation wait stack-delete-complete \
+		--stack-name "$${STAGE}-$${APP_NAME}-${SERVICE}") && \
+	echo $$res | jq -r && \
+	echo "\033[0;34mSuccessfully deleted ${SERVICE} CloudFormation\033[0m" || \
+	echo "\033[0;31mFailed to delete ${SERVICE} CloudFormation\033[0m"
 
 service.key-pair.delete:
-	@aws ec2 delete-key-pair --key-name "${EC2_KEY_PAIR_NAME}" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
+	@res=$$(aws ec2 delete-key-pair --key-name "${EC2_KEY_PAIR_NAME}") && \
+	echo $$res | jq -r && \
 	aws ssm delete-parameter --name "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/EC2KeyPairName" 2>&1 | tee -a $$CFN_LOG_PATH || true && \
 	mv ${ROOT_DIR}/${EC2_KEY_PAIR_NAME}.pem ${ROOT_DIR}/deprecated-key-$${INSTANCE_ID}-$$(gdate -u +'%Y-%m-%d-%H-%M').pem || true && \
 	echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting key pair ${EC2_KEY_PAIR_NAME} in Secrets Manager" 2>&1 | tee -a $$CFN_LOG_PATH && \
-	aws secretsmanager delete-secret \
+	res=$$(aws secretsmanager delete-secret \
 		--secret-id "/$${APP_NAME}/$${STAGE}/$${AWS_REGION}/EC2KeyPair" \
-		--force-delete-without-recovery 2>&1 | tee -a $$CFN_LOG_PATH || true
+		--force-delete-without-recovery) && \
+	echo $$res | jq -r && \
+	echo "\033[0;34mSuccessfully deleted key pair ${EC2_KEY_PAIR_NAME}\033[0m" || \
+	echo "\033[0;31mFailed to delete key pair ${EC2_KEY_PAIR_NAME}\033[0m"
 
 service.parameters.delete:
 	@echo "$$(gdate -u +'%Y-%m-%d %H:%M:%S.%3N') - Deleting SSM parameters" 2>&1 | tee -a ${CFN_LOG_PATH}
