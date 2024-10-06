@@ -67,7 +67,7 @@
                             "Type": "Task",
                             "Resource": "${InvokeLoadScriptFunctionArn}",
                             "ResultPath": "$",
-                            "Next": "Get Load Command Status",
+                            "Next": "Sleep 10 Seconds",
                             "Retry": [
                                 {
                                     "ErrorEquals": ["States.ALL"],
@@ -77,20 +77,36 @@
                                 }
                             ]
                         },
+                        "Sleep 10 Seconds": {
+                            "Type": "Wait",
+                            "Seconds": 10,
+                            "Next": "Get Load Command Status"
+                        },
                         "Get Load Command Status": {
                             "Type": "Task",
                             "Resource": "arn:aws:states:::aws-sdk:ssm:getCommandInvocation",
                             "Parameters": {
                                 "CommandId.$": "$.ssm.CommandId",
-                                "InstanceId.$": "$.ssm.InstanceId"
+                                "InstanceId.$": "$.ssm.InstanceId",
+                                "PluginName": "runShellScript"
                             },
                             "Next": "Evaluate Load Command Status",
                             "ResultSelector": {
                                 "CommandId.$": "$.CommandId",
                                 "InstanceId.$": "$.InstanceId",
-                                "Status.$": "$.Status"
+                                "Status.$": "$.Status",
+                                "StandardOutputContent.$": "$.StandardOutputContent",
+                                "StandardErrorContent.$": "$.StandardErrorContent"
                             },
-                            "ResultPath": "$.ssm"
+                            "ResultPath": "$.ssm",
+                            "Retry": [
+                                {
+                                    "ErrorEquals": ["States.ALL"],
+                                    "IntervalSeconds": 2,
+                                    "MaxAttempts": 5,
+                                    "BackoffRate": 2.0
+                                }
+                            ]
                         },
                         "Evaluate Load Command Status": {
                             "Type": "Choice",
@@ -162,10 +178,10 @@
                                         "S.$": "$$.State.EnteredTime"
                                     },
                                     ":error": {
-                                        "S": "$[0].Error"
+                                        "S.$": "$.ssm.Status"
                                     },
                                     ":cause": {
-                                        "S": "$[0].Cause"
+                                        "S.$": "$.ssm.StandardErrorContent"
                                     }
                                 }
                             }
