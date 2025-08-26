@@ -1,7 +1,5 @@
 """
 This function executes validation queries against the Neo4j database and returns the results.
-If USE_PRIVATE_SUBNET is true, this function will run inside a VPC and private subnet. 
-If USE_PRIVATE_SUBNET is false, this function will run outside a VPC and in a public subnet.
 """
 import os
 import logging
