@@ -17,8 +17,9 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
     + [Data Pipeline](#data-pipeline)
   * [Prerequisites](#prerequisites)
     + [Libraries](#libraries)
-    + [AWS Resources](#aws-resources)
   * [Quick Start](#quick-start)
+    + [*(Option 1)* Deployment with VPC](#--option-1---deployment-with-vpc)
+    + [*(Option 2)* Deployment using existing VPC, NAT Gateway and VPC Endpoints](#--option-2---deployment-using-existing-vpc--nat-gateway-and-vpc-endpoints)
   * [Application Environment](#application-environment)
     + [AWS Credentials](#aws-credentials)
     + [Deployment Configurations](#deployment-configurations)
@@ -48,6 +49,7 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
     + [Debugging Batch Jobs](#debugging-batch-jobs)
       - [Running the Build job using Python](#running-the-build-job-using-python)
       - [Running the Build job using Docker](#running-the-build-job-using-docker)
+  * [Documentation](#documentation)
     + [Editing and Building the Documentation](#editing-and-building-the-documentation)
   * [Troubleshooting](#troubleshooting)
   * [Authors](#authors)
@@ -73,8 +75,7 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
     │   ├── amazon-cloudwatch-agent
     │   │   └── amazon-cloudwatch-agent.json        # Sends EC2 logs to CloudWatch Logs for monitoring
     │   ├── neo4j
-    │   │   ├── cypher                              # Cypher scripts for initialization and loading
-    │   │   └── neo4j.template                      # Neo4j server configuration file
+    │   │   └── cypher                              # Cypher scripts for initialization and loading
     │   ├── scripts                                 # Shell scripts for automation, loading, backup & restore
     │   └── template.yaml
     # Base Infrastructure layer
@@ -84,10 +85,12 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
     │   │   ├── bastion-server                      # bastion server for private deployments
     │   │   │   ├── Makefile
     │   │   │   └── template.yaml
+    │   │   ├── vpc-endpoints                       # VPC endpoints for private deployments
+    │   │   │   ├── Makefile
+    │   │   │   └── template.yaml
     │   │   └── nat-gateway                         # NAT Gateway for private deployments
     │   │       ├── Makefile
     │   │       └── template.yaml
-    │   ├── change-batch.json
     │   └── template.yaml
     # Docker Build layer
     ├── local
@@ -111,7 +114,6 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
 ## Description
 `gfe-db` is an implementation of the paper [A Gene Feature Enumeration Approach For Describing HLA Allele Polymorphism](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4674356/) to represent IPD-IMGT/HLA sequence data as GFE nodes and relationships using a Neo4j graph database. This application deploys and configures AWS resources for the GFE database and an automated data pipeline for updates.
 
-<!-- TODO update schema image -->
 <br>
 <p align="center">
   <img src="docs/source/_static/img/schema-alpha-v240426.png" alt="gfe-db schema" height="75%" width="75%">
@@ -126,7 +128,7 @@ Graph database representing IPD-IMGT/HLA sequence data as GFE.
 `gfe-db` architecture is organized by 3 layers each with its own Makefile:
 1) Base Infrastructure 
 2) Database 
-3) Data pipeline
+3) Data Pipeline
  
 This allows the database and pipeline layers to be decoupled from each other and deployed or destroyed independently without affecting the other. Common configuration parameters are shared between resources using environment variables, JSON files, AWS SSM Parameter Store and Secrets Manager. All deployment and administration tasks are intended to be done using the root `Makefile`.
 
@@ -136,7 +138,7 @@ Additionally, `gfe-db` can be deployed with its own VPC or use an existing one, 
 The base infrastructure layer deploys networking resources, an S3 bucket and shared configuration values using Parameter Store and Secrets Manager for all services to use. For private deployments this layer manages VPC endpoints, NAT Gateway and a bastion server. For public deployments it manages Elastic IPs and DNS routing for Neo4j by updating the existing A record of the specified Route53 domain and hosted zone so that SSL can be used to connect to Neo4j browser.
 
 #### Access Services
-Optional resources for private deployments (`USE_PRIVATE_SUBNET=true`) include a NAT Gateway and bastion server. The NAT Gateway provides internet access to the private subnet for initializing Neo4j. The bastion server allows secure access to the Neo4j server and Neo4j Browser. These resources are deployed using CloudFormation and managed using Makefile targets. It is possible to remove them after deployment to save costs and re-deploy them later if needed.
+Optional resources include a NAT Gateway, VPC Endpoints and bastion server. The NAT Gateway provides internet access to the private subnet for initializing Neo4j, VPC endpoints provide connectivity to AWS services for resources inside private subnets and the bastion server allows secure access to the Neo4j server and Neo4j Browser. These resources are deployed using CloudFormation and managed using Makefile targets. It is possible to remove them after deployment to save costs and re-deploy them later if needed, although this will prevent the loading pipeline from running.
 
 ### Database
 The database layer deploys Neo4j to an EC2 instance running the Amazon Linux 2 base image in a public or private subnet. During database deployment the SSL certificate is created (public deployments), Neo4j is installed and Cypher queries are run to create users as well as constraints and indexes to help speed up loading and ensure data integrity. Neo4j is ready to be accessed through a browser once the instance has booted sucessfully. For private deployments, the bastion server must be used to connect to Neo4j Browser using SSH tunneling. Cypher Shell can be accessed by connecting to the instance using SSH.
@@ -160,29 +162,15 @@ Please refer to the respective documentation for specific installation instructi
 * jq
 * Python 3.10+
 
-**Note**: If using Rancher Desktop, set the `DOCKER_HOST` variable to use the correct file. [Ref](https://github.com/aws/aws-sam-cli/issues/3715#issuecomment-1962126068)
+**Note:** If using Rancher Desktop, set the `DOCKER_HOST` variable to use the correct file. [Ref](https://github.com/aws/aws-sam-cli/issues/3715#issuecomment-1962126068)
 ```
 export DOCKER_HOST="unix://$HOME/.rd/docker.sock"
 ```
 
-### AWS Resources
-The following resources are required to deploy the application depending on the chosen configuration.
-* Public deployments with VPC
-    * Route53 domain
-    * Hosted zone
-    * A record
-* Public deployments using existing VPC
-    * VPC
-    * Public Subnet 
-* Private deployments using existing VPC
-    * VPC
-    * Public Subnet
-    * Private Subnet
-
 ## Quick Start
 
-### *(Option 1)* Private Subnet Deployment with VPC
-Follow these steps to deploy gfe-db to a new VPC and private subnet.
+### *(Option 1)* Deployment with VPC
+Follow these steps to deploy gfe-db with a new VPC, NAT Gateway and VPC Endpoints.
 - Configure [AWS Credentials](#aws-credentials).
 - Define the environment variables in `.env.dev`.
 ```bash
@@ -196,8 +184,9 @@ DOCKER_PASSWORD=<password>
 ```
 - For the stage `dev`, run `STAGE=dev make deploy` to deploy the architecture.
 - After deployment is complete run `STAGE=dev make database.load.run releases="3560"` to load the database with the IMGT/HLA release version 3560.
+- Use `.env.example` as a template for the `.env.<stage>` file.
 
-### *(Option 2)* Private deployment using existing VPC, NAT Gateway and VPC Endpoints
+### *(Option 2)* Deployment using existing VPC, NAT Gateway and VPC Endpoints
 Follow these steps to deploy gfe-db to an existing private subnet and VPC.
 - Configure [AWS Credentials](#aws-credentials).
 - Create and configure the following resources before deploying the stacks:
@@ -267,9 +256,7 @@ For more information visit the documentation page:
 [Configuration and credential file settings](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)
 
 ### Deployment Configurations
-It is possible to deploy gfe-db within it's own VPC, or to connect it to an external VPC by specifying `CREATE_VPC=true/false`. Public or private deployments are specified using `USE_PRIVATE_SUBNET=true/false`. If deploying to an external VPC, you must specify the VPC ID and public subnet ID using `VPC_ID` and `PUBLIC_SUBNET_ID`. If deploying to a new VPC, you must specify the hosted zone ID, domain and subdomain using `HOSTED_ZONE_ID`, `HOST_DOMAIN` and `SUBDOMAIN`.
-
-Private deployments require a NAT Gateway which can be deployed along with the stack or specified using `EXTERNAL_NAT_GATEWAY_ID`. VPC endpoints are required for access to AWS services. These can also be deployed along with the stack or specified using `CREATE_SSM_VPC_ENDPOINT`, `SSM_VPC_ENDPOINT_ID`, `CREATE_SECRETSMANAGER_VPC_ENDPOINT`, `SECRETSMANAGER_VPC_ENDPOINT_ID`, `CREATE_S3_VPC_ENDPOINT` and `S3_VPC_ENDPOINT_ID`. If deploying a bastion server, you must specify the admin IP address using `ADMIN_IP`.
+It is possible to deploy gfe-db within it's own VPC, or to connect it to an external VPC by specifying `CREATE_VPC=true` or `CREATE_VPC=false`. If deploying to an external VPC, you must specify the VPC ID, public and private subnet IDs using `VPC_ID`, `PUBLIC_SUBNET_ID` and `PRIVATE_SUBNET_ID`. All deployments use a private subnet for Neo4j and require a NAT Gateway and VPC endpoints to be configured for the subnet which are deployed by default. If deploying a bastion server, you must specify the admin IP address using `ADMIN_IP`.
 
 #### Shell Variables
 These variables must be defined before running Make. The best way to set these variables is with a `.env.<stage>` file following this structure. For optional resources such as VPCs, subnets, VPC endpoints and NAT Gateways, an external resource ID is required if it is not deployed as part of the stack.
@@ -286,9 +273,8 @@ These variables must be defined before running Make. The best way to set these v
 | DEPLOY_NAT_GATEWAY           | bool      | trure/false             | Conditional | Optionally deploy a NAT Gateway and associated networking resources |
 | DEPLOY_VPC_ENDPOINTS         | bool      | trure/false             | Conditional | Optionally deploy VPC endpoints required for services               |
 | DEPLOY_BASTION_SERVER        | bool      | trure/false             | Conditional | Optionally deploy a bastion server                                  |
-| USE_PRIVATE_SUBNET           | bool      | true/false              | Yes         | Use private subnet if true                                          |
 | PUBLIC_SUBNET_ID             | string    | subnet-xxxxxxxx         | Conditional | Required if CREATE_VPC=false                                        |
-| PRIVATE_SUBNET_ID            | string    | subnet-xxxxxxxx         | Conditional | Required if CREATE_VPC=false and USE_PRIVATE_SUBNET=true            |
+| PRIVATE_SUBNET_ID            | string    | subnet-xxxxxxxx         | Conditional | Required if CREATE_VPC=false                                        |
 | ADMIN_EMAIL                  | string    | admin@example.com       | Yes         | Administrator's email                                               |
 | SUBSCRIBE_EMAILS             | string    | notify@example.com      | Yes         | Emails for subscription                                             |
 | GITHUB_REPOSITORY_OWNER      | string    | ANHIG                   | Yes         | Owner of the GitHub repository                                      |
@@ -299,15 +285,12 @@ These variables must be defined before running Make. The best way to set these v
 | GDS_VERSION                  | string    | 2.5.6                   | Yes         | Version of GDS                                                      |
 | GITHUB_PERSONAL_ACCESS_TOKEN | string    | ghp_xxxxxxxxxxxxxx      | Yes         | GitHub personal access token                                        |
 | FEATURE_SERVICE_URL          | string    | https://api.example.com | Yes         | URL of the Feature service                                          |
-| HOST_DOMAIN                  | string    | example.com             | Conditional | Required if USE_PRIVATE_SUBNET=false                                |
-| SUBDOMAIN                    | string    | sub.example.com         | Conditional | Required if USE_PRIVATE_SUBNET=false                                |
-| HOSTED_ZONE_ID               | string    | ZXXXXXXXXXXXXX          | Conditional | Required if USE_PRIVATE_SUBNET=false                                |
 | VPC_ID                       | string    | vpc-xxxxxxxx            | Conditional | Required if CREATE_VPC=false                                        |
 | ADMIN_IP                     | string    | 192.168.1.1/32          | Conditional | Required if DEPLOY_BASTION_SERVER=true                              |
 | DOCKER_USERNAME              | string    | username                | Yes         | Required to build the Docker image from gfe-db                      |
 | DOCKER_PASSWORD              | string    | password                | Yes         | Required to build the Docker image from gfe-db                      |
 
-*Note:* "Conditional" in the "Required" column indicates that the requirement of the variable depends on specific configurations or conditions.
+**Note:** "Conditional" in the "Required" column indicates that the requirement of the variable depends on specific configurations or conditions.
 
 ***Important**:* *Always use a `.env` file or AWS SSM Parameter Store or Secrets Manager for sensitive variables like credentials and API keys. Never hard-code them, including when developing. AWS will quarantine an account if any credentials get accidentally exposed and this will cause problems. Make sure to update `.gitignore` to avoid pushing sensitive data to public repositories.*
 
@@ -364,7 +347,7 @@ STAGE=<stage> make pipeline.service.deploy
 # Deploy or update only the Docker image for the build job
 STAGE=<stage> make pipeline.jobs.deploy
 ```
-*Note:* Because common parameters are passed from the root Makefile to nested Makefiles you can only call targets from the project's root. If a deployed stack has not been changed, the deployment script will continue until it reaches a stack with changes and deploy the changes.
+**Note:** Because common parameters are passed from the root Makefile to nested Makefiles you can only call targets from the project's root. If a deployed stack has not been changed, the deployment script will continue until it reaches a stack with changes and deploy the changes.
 
 ### Makefile Command Reference
 To see a list of possible commands using Make, run `make` on the command line. You can also refer to the `Makefile Usage` section in the [Sphinx documentation](#documentation).
@@ -424,10 +407,7 @@ Bash scripts are used for automating Neo4j configuration, loading and backup. Th
 gfe-db/database/scripts
 ├── Makefile                  # Orchestrates tasks on the database instance
 ├── init  
-│   ├── create_cert.sh        # Create an SSL certificate
-│   ├── create_users.sh       # Create users and passwords in Neo4j
-│   ├── eip_assoc_waiter.sh   # Waits for the instance to associate with an Elastic IP
-│   └── renew_cert.sh         # Renews the SSL certificate for public deployments
+│   └── create_users.sh       # Create users and passwords in Neo4j
 ├── load_db.sh                # Loads data into Neo4j
 ├── send_heartbeat.sh         # Sends task heartbeat to Step Functions API during loading
 └── start_task.sh             # Coordinates database loading with the Step Functions API
@@ -446,6 +426,7 @@ Cypher scripts manage node constraints & indexes and load the data. These are fo
 gfe-db/database/neo4j/
 └── cypher                      # Cypher scripts
     ├── create_constraints.cyp  # Creates constraints and indexes
+    ├── create_user.cyp         # Creates Neo4j users
     ├── drop_constraints.cyp    # Drops constraints and indexes
     ├── init.cyp                # Run intitialization queries
     └── load.cyp                # Load Neo4j from local files
@@ -468,7 +449,6 @@ Base input parameters (excluding the `releases` value) are passed to the Step Fu
   "use_existing_build": false, // Optional, defaults to false
   "skip_load": false // Optional, defaults to false
 }
-
 ```
 | Variable           | Example Value | Type   | Description                                                                    |
 | ------------------ | ------------- | ------ | ------------------------------------------------------------------------------ |
@@ -489,6 +469,8 @@ STAGE=<stage> make database.load.run \
     use_existing_build=<boolean> \
     skip_load=<boolean>
 ```
+
+**Note:** KIR data is not yet implemented.
 
 ### IMGT/HLA Release Versions State
 The application's state tracks which releases have been processed and added to the database. This file tracks the releases which have already been processed. If the `gfe-db-invoke-pipeline` function detects a valid release branch in the source data repository that is not in the `releases` array, it will start the pipeline for this release. Once the update is finished, the processed release is appended to the array.
@@ -785,39 +767,6 @@ docker build --tag gfe-db-build-service --platform "linux/amd64" .
 ```bash
 docker run --env-file .env -v $(pwd)/data:/data gfe-db-build-service
 ```
-
-<!-- #### Example VS Code configuration for debugging the Build job
-Use the following configuration as an example to debug the Python script using VS Code. Make sure to update the environment variables and paths as needed.
-```json
-{
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "build",
-            "type": "python",
-            "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "python": "${command:python.interpreterPath}",
-            "env": {
-                "FEATURE_SERVICE_URL": "https://feature.b12x.org",
-                "GFE_BUCKET": "",
-                "AWS_REGION": "us-east-1",
-            },
-            "args": [
-                "-o",
-                "gfe-db/pipeline/jobs/data/3350/csv",
-                "-r",
-                "3350",
-                "-v",
-                "-l",
-                "100"
-            ]
-        }
-    ]
-}
-``` -->
 
 ## Documentation
 It is not necessary to install Sphinx to view `gfe-db` documentation because it is already built and available in the `docs/` folder, but you will need it to edit them. To get the local `index.html` path run the command and navigate to the URL in a browser.
