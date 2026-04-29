@@ -2,5 +2,5 @@ py-ard==1.0.3
 py-gfe==1.1.6
 lxml==6.1.0
 Pympler==0.9
-awscli==1.18.159
+awscli==1.44.38
 boto3==1.15.3
